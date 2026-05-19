@@ -1,0 +1,85 @@
+---
+import type { KintanaPublicEvent } from "@kintana/sdk";
+import { eventCitySlug, eventTicketsPath, formatEventScheduleLine } from "../lib/events";
+
+const { evt, highlightCity, featured = false } = Astro.props as {
+  evt: KintanaPublicEvent;
+  highlightCity?: string;
+  featured?: boolean;
+};
+
+const ticketsHref = eventTicketsPath(evt) ?? evt.ticketUrl;
+
+const meta = evt.venue?.name
+  ? evt.venue.name
+  : [evt.city, evt.country].filter(Boolean).join(", ") || "Venue confirmed soon";
+
+const emphasized =
+  Boolean(highlightCity?.trim()) && eventCitySlug(evt) === highlightCity;
+---
+
+<section aria-label={`${evt.name} — ticketing`}>
+  <div
+    class:list={[
+      "overflow-hidden rounded-[1.85rem] border border-black/10 lg:grid lg:rounded-[2.75rem]",
+      featured ? "lg:grid-cols-[minmax(280px,34%)_1fr] lg:min-h-[22rem]" : "lg:grid-cols-[42%_1fr]",
+    ]}
+  >
+    <div
+      class:list={[
+        "bg-neutral-200 lg:aspect-auto",
+        featured ? "aspect-[16/10] lg:min-h-[22rem]" : "aspect-[4/5] lg:min-h-[20rem]",
+      ]}
+    >
+      {
+        evt.imageUrl ? (
+          <img class="size-full object-cover" src={evt.imageUrl} alt="" loading="lazy" decoding="async" />
+        ) : (
+          <div class="flex size-full items-center justify-center bg-neutral-950 text-neutral-500">Poster incoming</div>
+        )
+      }
+    </div>
+
+    <div
+      class:list={[
+        "flex flex-col justify-between px-8 py-10 lg:px-14 lg:py-16",
+        emphasized ? "bg-brand/15 text-neutral-950" : "bg-brand text-white",
+      ]}
+    >
+      <div class="space-y-6">
+        <p class="text-[0.68rem] font-semibold uppercase tracking-[0.45em] opacity-85">
+          {formatEventScheduleLine(evt)}
+        </p>
+
+        <h3
+          class="font-semibold tracking-tight"
+          style="font-family: var(--font-display); font-size: clamp(2.1rem, 3vw + 1.4rem, 3rem); line-height: 1.06;"
+        >
+          <a href={`/events/${evt.slug}/`} class="transition-opacity hover:opacity-90">{evt.name}</a>
+        </h3>
+
+        {
+          evt.headliner ? (
+            <p class="text-sm font-semibold uppercase tracking-[0.38em] opacity-85">
+              Spotlight · {evt.headliner.name}
+            </p>
+          ) : null
+        }
+
+        <p class="text-base leading-relaxed opacity-[0.93]">{meta}</p>
+      </div>
+
+      <div class="mt-12 flex flex-wrap gap-6">
+        <a
+          href={ticketsHref}
+          class:list={[
+            "inline-flex rounded-[2rem] border px-10 py-[0.9rem] text-[0.65rem] font-semibold uppercase text-white",
+            emphasized ? "border-neutral-950 bg-neutral-950 tracking-[0.39em]" : "border-transparent bg-neutral-950 tracking-[0.35em]",
+          ]}
+        >
+          Tickets
+        </a>
+      </div>
+    </div>
+  </div>
+</section>

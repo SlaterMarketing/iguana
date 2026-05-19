@@ -1,0 +1,32 @@
+---
+const { eyebrow = "Tickets", headline = "Ready to laugh?", ctaHref = "/events/", secondaryHref = "/contact/", secondaryLabel = "Talk with us", body } =
+  Astro.props as {
+    eyebrow?: string;
+    headline?: string;
+    ctaHref?: string;
+    secondaryHref?: string;
+    secondaryLabel?: string;
+    body?: string;
+  };
+---
+
+<section class="relative isolate overflow-hidden bg-brand px-4 py-20 text-neutral-950 sm:px-6 lg:px-12">
+  <div class="mx-auto grid max-w-6xl gap-10 lg:grid-cols-[1.05fr_auto] lg:items-end">
+    <div class="space-y-8">
+      <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-900/85">{eyebrow}</p>
+      <h2 class="font-display text-4xl text-neutral-950 sm:text-[clamp(3rem,4vw,4.65rem)]" style={`font-family: var(--font-display);`}>{headline}</h2>
+      {body ? <p class="max-w-2xl text-lg text-neutral-900/95">{body}</p> : null}
+    </div>
+    <div class="flex flex-col gap-4 lg:justify-end">
+      <a
+        href={ctaHref}
+        class="rounded-[2rem] bg-neutral-950 px-14 py-[1.05rem] text-center text-[0.7rem] font-semibold uppercase tracking-[0.35em] text-white"
+      >
+        Buy tickets
+      </a>
+      <a href={secondaryHref} class="text-center text-[0.7rem] font-semibold uppercase tracking-[0.35em] text-neutral-950/95 underline underline-offset-[0.5rem]">
+        {secondaryLabel}
+      </a>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,121 @@
+---
+import Base from "../../layouts/Base.astro";
+import { createKintanaClient } from "@kintana/sdk";
+import type { KintanaPublicEvent } from "@kintana/sdk";
+import { eventTicketsPath, formatEventScheduleLine } from "../../lib/events";
+import { legacyEventSlugs } from "../../lib/sitemap";
+import { mergeSlugs } from "../../lib/static-paths";
+
+export async function getStaticPaths() {
+  const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY;
+  const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL;
+
+  let apiSlugs: string[] = [];
+  if (apiKey?.trim() && baseUrl?.trim()) {
+    try {
+      const client = createKintanaClient({ apiKey, baseUrl });
+      const events = await client.listEvents({ limit: 200 });
+      apiSlugs = events.map((evt) => evt.slug?.trim() || evt.id?.trim()).filter((key): key is string => Boolean(key));
+    } catch {
+      /* legacy slugs still build */
+    }
+  }
+
+  return mergeSlugs(apiSlugs, legacyEventSlugs()).map((slug) => ({ params: { slug } }));
+}
+
+const slug = Astro.params.slug;
+
+const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY;
+const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL;
+
+let event: KintanaPublicEvent | null = null;
+if (apiKey && baseUrl && slug) {
+  try {
+    event = await createKintanaClient({ apiKey, baseUrl }).getEvent(slug);
+  } catch {
+    event = null;
+  }
+}
+
+const ticketsHref = event ? eventTicketsPath(event) : null;
+---
+
+<Base title={event ? `${event.name} · Events` : "Events · Iguana Comedy"} narrow={false} transparentHeader={false}>
+  <section class="mx-auto max-w-5xl px-6 pb-24 pt-20">
+    <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.5rem] hover:underline" href="/events/">← Calendar</a>
+
+    {
+      event ? (
+        <article class="mt-14 space-y-12">
+          <header class="space-y-8">
+            <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{formatEventScheduleLine(event)}</p>
+            <h1 class="font-display text-5xl text-neutral-950" style={`font-family: var(--font-display);`}>
+              {event.name}
+            </h1>
+            <div class="flex flex-wrap gap-6">
+              <a
+                href={ticketsHref ?? event.ticketUrl}
+                class="rounded-full bg-neutral-950 px-12 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-white hover:opacity-[0.95]"
+              >
+                Tickets
+              </a>
+            </div>
+          </header>
+
+          {event.imageUrl ? <img src={event.imageUrl} alt="" class="aspect-[21/13] rounded-[3rem] object-cover lg:aspect-video" loading="lazy" /> : null}
+
+          {event.description ? <p class="text-lg leading-relaxed text-neutral-700">{event.description}</p> : null}
+          {
+            event.longDescription ? (
+              <div class="space-y-4 text-neutral-700">
+                {
+                  event.longDescription
+                    .split(/\r?\n\s*\r?\n/)
+                    .filter((chunk) => chunk.trim().length > 0)
+                    .map((chunk) => <p>{chunk.trim()}</p>)
+                }
+              </div>
+            ) : null
+          }
+
+          {event.headliner ? <p class="text-sm uppercase tracking-[0.35em] text-neutral-600">Spotlight · {event.headliner.name}</p> : null}
+
+          {
+            event.lineup.length ? (
+              <section class="space-y-6">
+                <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-400">Featured voices</h2>
+                <ul class="grid gap-4 sm:grid-cols-2">
+                  {event.lineup.map((member) => (
+                    <li class="flex items-center gap-5 border-b border-black/15 pb-4">
+                      {member.imageUrl ? <img src={member.imageUrl} alt="" class="size-16 rounded-[1.75rem] object-cover" /> : null}
+                      <div class="flex-1 space-y-1">
+                        <a class="text-lg font-semibold text-neutral-950 hover:text-brand" href={`/comedians/${member.slug}/`}>{member.name}</a>
+                        {member.role ? <p class="text-sm text-neutral-500">{member.role}</p> : null}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null
+          }
+
+          {
+            ticketsHref ? (
+              <p class="text-center">
+                <a
+                  href={ticketsHref}
+                  class="inline-flex rounded-full bg-brand px-12 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-white hover:opacity-95"
+                >
+                  Get tickets
+                </a>
+              </p>
+            ) : null
+          }
+        </article>
+      ) : (
+        <p class="mt-24 text-neutral-600">This show is resting—head back to the calendar.</p>
+      )
+    }
+  </section>
+</Base>

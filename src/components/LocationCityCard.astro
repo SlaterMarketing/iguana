@@ -1,0 +1,26 @@
+---
+import type { LocationCityCard } from "../content/locations-page";
+
+const { city } = Astro.props as { city: LocationCityCard };
+---
+
+<a
+  href={`/locations/${city.slug}/`}
+  class="group block overflow-hidden rounded-sm bg-neutral-200 shadow-[0_12px_40px_rgba(0,0,0,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_48px_rgba(0,0,0,0.14)]"
+>
+  <div class="aspect-[4/3] overflow-hidden">
+    <img
+      src={city.imageUrl}
+      alt=""
+      class="size-full object-cover transition duration-500 group-hover:scale-[1.03]"
+      loading="lazy"
+      decoding="async"
+    />
+  </div>
+  <p
+    class="bg-brand-hover px-5 py-4 text-center font-display text-xl uppercase tracking-wide text-white sm:text-2xl"
+    style="font-family: var(--font-display); background-color: var(--color-brand-hover);"
+  >
+    {city.name}
+  </p>
+</a>

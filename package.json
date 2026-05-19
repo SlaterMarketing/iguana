@@ -1,24 +1,30 @@
 {
-  "name": "kintana-astro-starter",
+  "name": "iguana-comedy",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview"
+    "preview": "astro preview",
+    "docker:build": "docker build -t iguana-comedy .",
+    "docker:run": "docker run --rm -p 8080:80 iguana-comedy"
+  },
+  "engines": {
+    "node": ">=20"
   },
   "dependencies": {
+    "@astrojs/mdx": "^4.3.14",
     "@astrojs/react": "^4.4.2",
-    "@kintana/sdk": "^0.2.0",
+    "@kintana/sdk": "^0.4.1",
     "astro": "^5.13.14",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.17",
-    "tailwindcss": "^4.1.17",
     "@types/react": "^19",
+    "tailwindcss": "^4.1.17",
     "typescript": "^5.9.3"
   }
 }

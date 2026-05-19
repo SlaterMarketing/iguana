@@ -1,64 +1,36 @@
 ---
 import Base from "../layouts/Base.astro";
-import { createKintanaClient } from "@kintana/sdk";
-import type { KintanaPublicEvent } from "@kintana/sdk";
+import HomeHero from "../components/home/HomeHero.astro";
+import HomePageSections from "../components/home/HomePageSections.astro";
+import { heroCityChoices, site } from "../content/site";
+import { loadHomePageData } from "../lib/home-page-data";
 
-const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY;
-const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL;
-
-let upcoming: KintanaPublicEvent[] = [];
-
-if (apiKey && baseUrl) {
-  try {
-    const client = createKintanaClient({ apiKey, baseUrl });
-    upcoming = await client.listEvents({ limit: 50 });
-  } catch {
-    upcoming = [];
-  }
+const redirectCity = Astro.url.searchParams.get("city")?.trim();
+if (redirectCity) {
+  return Astro.redirect(`/locations/${redirectCity}/`);
 }
+
+const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY as string | undefined;
+const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL as string | undefined;
+const pageData = await loadHomePageData();
+
+const cityPickerChoices = [
+  { slug: "", label: "Whole coastline" },
+  ...heroCityChoices.filter((entry) => entry.slug !== ""),
+];
 ---
 
-<Base>
-  <h1 class="text-3xl font-semibold tracking-tight">Upcoming shows</h1>
-  <p class="mt-2 text-sm text-neutral-600 dark:text-neutral-400">
-    Rows stream from Kintana using the server renderer — no hydration required for listings.
-  </p>
-
-  {
-    !(apiKey && baseUrl) ? (
-      <p class="mt-8 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-950 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
-        Populate <span class="font-mono text-xs">PUBLIC_KINTANA_API_KEY</span> and{" "}
-        <span class="font-mono text-xs">PUBLIC_KINTANA_BASE_URL</span> inside your `.env` file before running
-        the dev server.
-      </p>
-    ) : (
-      <div class="mt-10 overflow-x-auto">
-        <table class="w-full border-collapse">
-          <thead>
-            <tr class="border-b border-neutral-200 text-left dark:border-neutral-700">
-              <th class="py-2 text-sm font-semibold">Show</th>
-              <th class="py-2 text-sm font-semibold">Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {upcoming.map((evt) => (
-              <tr class="border-b border-neutral-100 dark:border-neutral-800">
-                <td class="py-3 align-top">
-                  <a class="font-semibold text-[#e35336] hover:underline" href={`/shows/${evt.slug}/`}>
-                    {evt.name}
-                  </a>
-                  {[evt.city, evt.country].filter(Boolean).length ? (
-                    <div class="text-xs text-neutral-600 dark:text-neutral-400">
-                      {[evt.city, evt.country].filter(Boolean).join(", ")}
-                    </div>
-                  ) : null}
-                </td>
-                <td class="py-3 align-top">{evt.date}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    )
-  }
+<Base
+  transparentHeader
+  flushMain
+  narrow={false}
+  title="Iguana Comedy · English comedy across the Riviera Maya"
+  description={site.shortTagline}
+>
+  <HomeHero
+    showsHref="/events/"
+    pickerChoices={cityPickerChoices}
+    activeCitySlug=""
+  />
+  <HomePageSections {...pageData} apiConfigured={Boolean(apiKey && baseUrl)} />
 </Base>

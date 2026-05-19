@@ -1,0 +1,164 @@
+---
+import { site } from "../content/site";
+
+const pathnameRaw = Astro.props.pathname ?? Astro.url.pathname;
+
+function matches(href: string) {
+  const p = pathnameRaw.replace(/\/$/, "") || "/";
+  const h = href.replace(/\/$/, "") || "/";
+  return p === h;
+}
+
+const transparent = Astro.props.transparent ?? false;
+
+const links: { href: string; label: string; external?: boolean }[] = [
+  { href: "/events/", label: "Events" },
+  { href: "/locations/", label: "Cities" },
+  { href: "/comedians/", label: "Comedians" },
+  { href: site.merchantShopUrl, label: "Merch", external: true },
+  { href: "/contact/", label: "Contact" },
+];
+---
+
+<header
+  data-site-header=""
+  data-transparent-bg={transparent ? "1" : "0"}
+  class:list={[
+    "site-header top-0 z-40 w-full transition-[padding] duration-300 ease-out",
+    transparent ? "fixed pointer-events-none" : "sticky",
+  ]}
+>
+  <div
+    data-header-track=""
+    class:list={[
+      "header-track mx-auto flex w-full max-w-[110rem] flex-wrap items-center justify-between gap-3 px-4 py-4 transition-all duration-300 ease-out sm:px-8 sm:py-5",
+      transparent ? "pointer-events-auto" : "border-b border-black/10 bg-white/95 backdrop-blur-md",
+    ]}
+  >
+    <div
+      data-header-nav-cluster=""
+      class="header-nav-cluster flex max-w-full flex-wrap items-center gap-x-5 gap-y-3 rounded-full bg-white px-5 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out sm:gap-x-8 sm:px-8 sm:py-3"
+    >
+      <a href="/" class="shrink-0">
+        <img
+          src={site.heroLogoUrl}
+          alt="Iguana Comedy"
+          class="h-5 w-auto sm:h-6"
+          width="160"
+          height="28"
+          decoding="async"
+        />
+      </a>
+
+      <nav class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.62rem] font-semibold uppercase tracking-[0.2em] text-neutral-500 sm:text-[0.65rem] sm:tracking-[0.24em]">
+        {
+          links.map((link, index) => {
+            const active = !link.external && matches(link.href);
+            return (
+              <>
+                {index > 0 ? <span class="text-neutral-400/90" aria-hidden="true">/</span> : null}
+                <a
+                  href={link.href}
+                  class:list={[
+                    active ? "text-neutral-950" : "hover:text-neutral-800",
+                    link.external ? "inline-flex items-center gap-1" : "",
+                  ]}
+                  {...(link.external ? { target: "_blank", rel: "noreferrer noopener" } : {})}
+                >
+                  {link.label}
+                </a>
+              </>
+            );
+          })
+        }
+      </nav>
+    </div>
+
+    <a
+      href="/events/"
+      data-header-cta=""
+      class="header-cta btn-pill inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-6 py-2.5 text-[0.62rem] font-bold uppercase tracking-[0.22em] text-neutral-950 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out sm:px-8 sm:py-3 sm:text-[0.65rem] sm:tracking-[0.26em]"
+      aria-label="See the next event"
+    >
+      The next event
+      <svg class="btn-pill-arrow h-[0.65rem] w-[1.1rem] shrink-0 text-brand transition-colors" viewBox="0 0 22 14" aria-hidden="true">
+        <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m2 7h18m-6-6 6 6-6 6" />
+      </svg>
+    </a>
+  </div>
+</header>
+
+<script>
+  function initSiteHeaderScroll() {
+    const header = document.querySelector("[data-site-header]");
+    if (!(header instanceof HTMLElement) || header.dataset.headerScrollReady === "1") return;
+    header.dataset.headerScrollReady = "1";
+
+    const threshold = 56;
+
+    function update() {
+      header.toggleAttribute("data-scrolled", window.scrollY > threshold);
+    }
+
+    update();
+    window.addEventListener("scroll", update, { passive: true });
+    document.addEventListener("astro:page-load", update);
+  }
+
+  initSiteHeaderScroll();
+  document.addEventListener("astro:page-load", initSiteHeaderScroll);
+</script>
+
+<style>
+  .site-header[data-scrolled] {
+    padding-top: 0.65rem;
+    pointer-events: auto;
+  }
+
+  .site-header[data-scrolled] .header-track {
+    width: 80vw;
+    max-width: 72rem;
+    flex-wrap: nowrap;
+    gap: 1rem;
+    border: 1px solid #000;
+    border-radius: 9999px;
+    background-color: #fff;
+    padding: 0.45rem 0.55rem 0.45rem 1.25rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+  }
+
+  .site-header[data-transparent-bg="1"][data-scrolled] .header-track {
+    border-bottom: 1px solid #000;
+    backdrop-filter: none;
+  }
+
+  .site-header[data-scrolled] .header-nav-cluster {
+    background: transparent;
+    box-shadow: none;
+    padding: 0.35rem 0;
+  }
+
+  .site-header[data-scrolled] .header-cta {
+    background-color: #121715;
+    color: #fff;
+    box-shadow: none;
+  }
+
+  .site-header[data-scrolled] .header-cta .btn-pill-arrow {
+    color: #fff;
+  }
+
+  .site-header[data-scrolled] .header-cta.btn-pill:hover {
+    background-color: var(--color-brand-hover);
+    color: #fff;
+  }
+
+  @media (max-width: 640px) {
+    .site-header[data-scrolled] .header-track {
+      width: calc(100% - 1.25rem);
+      flex-wrap: wrap;
+      border-radius: 1.35rem;
+      padding: 0.65rem 0.75rem;
+    }
+  }
+</style>

@@ -1,0 +1,262 @@
+---
+import ComedianTile from "../ComedianTile.astro";
+import Cta from "../Cta.astro";
+import EventRow from "../EventRow.astro";
+import Stat from "../Stat.astro";
+import type { HomePageData } from "../../lib/home-page-data";
+import { experienceStats, site } from "../../content/site";
+import { testimonials } from "../../content/testimonials";
+
+interface Props extends HomePageData {
+  activeCitySlug?: string;
+  cityLabel?: string;
+  experienceHeading?: string;
+  experienceCopy?: string;
+  eventsHeading?: string;
+  emptyEventsMessage?: string;
+  apiConfigured: boolean;
+}
+
+const {
+  activeCitySlug = "",
+  cityLabel,
+  experienceHeading = 'The iguana <span class="text-brand">experience</span>',
+  experienceCopy = "Punchy British bits, understated Canadian dryness, sweaty American callbacks—woven together with Riviera hospitality. Ticketing behaves, rooms stay cool(er), microphones rarely bail mid-bit.",
+  eventsHeading,
+  emptyEventsMessage,
+  apiConfigured,
+  trimmedEvents,
+  wallArtists,
+  eventsCatalogFailed,
+  performersCatalogFailed,
+} = Astro.props;
+
+const eventsTitle = eventsHeading ?? (cityLabel ? `Upcoming in ${cityLabel}` : "Upcoming");
+const singleFeaturedEvent = trimmedEvents.length === 1;
+const eventsEmpty =
+  emptyEventsMessage ??
+  (cityLabel
+    ? `No upcoming shows listed for ${cityLabel} yet—check the full calendar or another coast town.`
+    : "Nothing matched this coastline filter yet—all upcoming rows may be cancelled—or your calendar is still unpublished for this ticketing account.");
+---
+
+<section class="mx-auto max-w-[118rem] px-6 py-28">
+  <div class="flex flex-col gap-16 lg:flex-row lg:justify-between">
+    <p class="font-display text-4xl text-neutral-950 sm:text-5xl" style="font-family: var(--font-display);">
+      {eventsTitle}
+    </p>
+    <p
+      class="lg:text-end font-display text-4xl uppercase tracking-[0.45em] text-neutral-600 sm:text-5xl"
+      style="font-family: var(--font-display); letter-spacing: 0.4em;"
+    >
+      events
+    </p>
+  </div>
+
+  {
+    !apiConfigured ? (
+      <p class="mx-auto mt-14 max-w-2xl rounded-3xl border border-amber-300 bg-amber-50 px-6 py-4 text-neutral-950">
+        Connect ticketing credentials so listings can hydrate.
+      </p>
+    ) : eventsCatalogFailed ? (
+      <p class="mx-auto mt-14 max-w-2xl rounded-3xl border border-red-200 bg-red-50 px-6 py-4 text-neutral-950">
+        We couldn&apos;t reach your ticketing catalogue for shows—your terminal printed an error code. Double-check your publish credentials.
+      </p>
+    ) : trimmedEvents.length === 0 ? (
+      <p class="mx-auto mt-14 max-w-2xl rounded-3xl border border-neutral-200 px-10 py-6 text-neutral-700">{eventsEmpty}</p>
+    ) : (
+      <div
+        class:list={[
+          "mt-20 grid gap-16",
+          singleFeaturedEvent ? "grid-cols-1" : "lg:grid-cols-2",
+        ]}
+      >
+        {trimmedEvents.map((evt) => (
+          <EventRow evt={evt} highlightCity={activeCitySlug} featured={singleFeaturedEvent} />
+        ))}
+      </div>
+    )
+  }
+</section>
+
+<section class="mx-auto max-w-[118rem] px-6 py-20 lg:py-28">
+  <div class="grid items-center gap-12 lg:grid-cols-2 lg:gap-16 xl:gap-24">
+    <figure class="relative isolate mx-auto aspect-square w-full max-w-md overflow-hidden rounded-[2.5rem] bg-neutral-900 lg:mx-0 lg:max-w-none">
+      <img src={site.brandMomentImage} alt="" class="size-full object-cover" loading="lazy" />
+    </figure>
+
+    <div class="flex flex-col gap-10 lg:gap-12">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-500">Hands-on rhythm</p>
+        <h2
+          class="mt-6 font-display text-4xl text-neutral-950 sm:text-[clamp(2.5rem,3vw+1.5rem,3.75rem)]"
+          style="font-family: var(--font-display);"
+          set:html={experienceHeading}
+        />
+        <p class="mt-8 text-lg leading-relaxed text-neutral-700">{experienceCopy}</p>
+        {
+          activeCitySlug ? (
+            <a
+              class="mt-6 inline-block text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.6rem] hover:underline"
+              href={`/locations/${activeCitySlug}/#venues`}
+            >
+              Venues &amp; rooms in {cityLabel} →
+            </a>
+          ) : null
+        }
+      </div>
+
+      <div
+        class="experience-stats grid grid-cols-3 gap-2 divide-x divide-neutral-200 rounded-[2rem] border border-neutral-200 px-4 py-6 sm:gap-4 sm:px-8 sm:py-8"
+        data-experience-stats
+      >
+        {experienceStats.map((stat) => (
+          <Stat value={stat.value} suffix={stat.suffix} label={stat.label} />
+        ))}
+      </div>
+    </div>
+  </div>
+
+  <div class="mt-28 border-t border-black/15 pt-20">
+    <div class="flex justify-center gap-4 text-brand sm:justify-start" aria-hidden="true">
+      {Array.from({ length: 5 }).map(() => (
+        <span class="text-2xl leading-none text-brand">&starf;</span>
+      ))}
+    </div>
+    <div class="scrollbar-none mt-12 flex gap-12 overflow-x-auto pb-6">
+      {
+        testimonials.map((t) => (
+            <figure class="min-w-[20rem] max-w-[21rem] border-l border-neutral-200 pl-6">
+              <div class="mb-6 flex gap-2">
+                {Array.from({ length: t.rating }).map(() => (
+                  <span class="leading-none text-brand">&starf;</span>
+                ))}
+              </div>
+              <blockquote class="font-display text-2xl tracking-tight text-neutral-950" style="font-family: var(--font-display);">
+                {t.quote}
+              </blockquote>
+              <figcaption class="mt-6 text-sm uppercase tracking-[0.35em] text-neutral-500">
+                {t.author}
+                {t.city ? ` · ${t.city}` : ""}
+              </figcaption>
+            </figure>
+          ))
+      }
+    </div>
+  </div>
+</section>
+
+<script>
+  const STAT_DURATION_MS = 1100;
+
+  function easeOutQuart(t) {
+    return 1 - (1 - t) ** 4;
+  }
+
+  function formatCount(n) {
+    return n >= 1000 ? n.toLocaleString("en-US") : String(n);
+  }
+
+  function setCounterValue(el, current, suffix) {
+    const valueEl = el.querySelector(".stat-counter__value");
+    if (valueEl) valueEl.textContent = `${formatCount(current)}${suffix}`;
+  }
+
+  function runCounter(el) {
+    const end = Number(el.dataset.statValue ?? 0);
+    const suffix = el.dataset.statSuffix ?? "";
+    if (el.dataset.statAnimated === "true") return;
+    el.dataset.statAnimated = "true";
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setCounterValue(el, end, suffix);
+      return;
+    }
+
+    const start = performance.now();
+    const tick = (now) => {
+      const t = Math.min((now - start) / STAT_DURATION_MS, 1);
+      const current = Math.round(easeOutQuart(t) * end);
+      setCounterValue(el, current, suffix);
+      if (t < 1) requestAnimationFrame(tick);
+      else setCounterValue(el, end, suffix);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  function initExperienceStats(root) {
+    const counters = root.querySelectorAll(".stat-counter");
+    if (!counters.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          counters.forEach((counter) => runCounter(counter));
+          observer.disconnect();
+          break;
+        }
+      },
+      { threshold: 0.35, rootMargin: "0px 0px -5% 0px" },
+    );
+
+    observer.observe(root);
+  }
+
+  document.querySelectorAll("[data-experience-stats]").forEach(initExperienceStats);
+</script>
+
+<section class="mx-auto max-w-[118rem] px-6 pb-36">
+  <div class="grid gap-24 lg:grid-cols-[0.93fr_minmax(0,1fr)] lg:gap-52">
+    <div class="overflow-hidden rounded-[2.85rem]">
+      <img src={site.clubPhotoImage} alt="" loading="lazy" class="aspect-[14/17] object-cover lg:aspect-auto lg:min-h-[28rem]" />
+    </div>
+    <div class="flex flex-col justify-center gap-10">
+      <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">Believe softly</p>
+      <h2 class="font-display text-4xl tracking-tight text-neutral-950 sm:text-[3.05rem]" style="font-family: var(--font-display);">
+        {cityLabel ? `English comedy in ${cityLabel}` : "English comedy in the Mexican Caribbean"}
+      </h2>
+      <p class="text-lg leading-relaxed text-neutral-700">
+        {
+          cityLabel
+            ? `From hotel lounges to indie rooms, ${cityLabel} gets the same producing discipline we run across Quintana Roo—tight doors, clear run-of-show, comics who actually want to be here.`
+            : "This coastline craved articulate punch—we opened venues, nurtured audiences, and convinced touring comedians Cancún beats another flyover Midwest weekend."
+        }
+      </p>
+      <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.6rem] hover:underline" href="/about/">Read story →</a>
+    </div>
+  </div>
+</section>
+
+<section class="border-t border-black/20 bg-neutral-950 py-32 text-neutral-100">
+  <div class="mx-auto max-w-6xl px-6">
+    <p class="text-center font-display text-4xl text-white sm:text-5xl" style="font-family: var(--font-display);">
+      The Wall <span class="font-serif italic text-neutral-400">of</span> Comedians
+    </p>
+    <p class="mx-auto mt-6 max-w-2xl text-center text-neutral-400">
+      A rotating collage—passports, punchlines, and poolside anecdotes from comics who rerouted itineraries for Mayan humidity.
+    </p>
+    {
+      wallArtists.length === 0 ? (
+        performersCatalogFailed ? (
+          <p class="mx-auto mt-16 max-w-2xl rounded-3xl border border-red-200 bg-red-50 px-12 py-8 text-center text-neutral-900">
+            Comedian bios didn&apos;t load—check terminal output alongside your publish credentials.
+          </p>
+        ) : (
+          <p class="mx-auto mt-16 max-w-2xl rounded-3xl border border-white/10 px-12 py-8 text-center text-neutral-500">
+            No performer profiles matched this ticketing account yet.
+          </p>
+        )
+      ) : (
+        <div class="mt-20 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          {wallArtists.map((artist) => (
+            <ComedianTile artist={artist} />
+          ))}
+        </div>
+      )
+    }
+  </div>
+</section>
+
+<Cta />
+

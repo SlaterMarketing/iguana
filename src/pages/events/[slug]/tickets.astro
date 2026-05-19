@@ -1,0 +1,88 @@
+---
+import Base from "../../../layouts/Base.astro";
+import { createKintanaClient } from "@kintana/sdk";
+import type { KintanaPublicEvent } from "@kintana/sdk";
+import { formatEventScheduleLine } from "../../../lib/events";
+import { legacyEventSlugs } from "../../../lib/sitemap";
+import { mergeSlugs } from "../../../lib/static-paths";
+
+export async function getStaticPaths() {
+  const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY;
+  const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL;
+
+  let apiSlugs: string[] = [];
+  if (apiKey?.trim() && baseUrl?.trim()) {
+    try {
+      const client = createKintanaClient({ apiKey, baseUrl });
+      const events = await client.listEvents({ limit: 200 });
+      apiSlugs = events.map((evt) => evt.slug?.trim() || evt.id?.trim()).filter((key): key is string => Boolean(key));
+    } catch {
+      /* legacy slugs still build */
+    }
+  }
+
+  return mergeSlugs(apiSlugs, legacyEventSlugs()).map((slug) => ({ params: { slug } }));
+}
+
+const slug = Astro.params.slug;
+
+const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY;
+const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL;
+
+let event: KintanaPublicEvent | null = null;
+if (apiKey && baseUrl && slug) {
+  try {
+    event = await createKintanaClient({ apiKey, baseUrl }).getEvent(slug);
+  } catch {
+    event = null;
+  }
+}
+
+const venueLine = event?.venue?.name
+  ? event.venue.name
+  : [event?.city, event?.country].filter(Boolean).join(", ");
+---
+
+<Base
+  title={event ? `Tickets · ${event.name}` : "Tickets · Iguana Comedy"}
+  narrow={false}
+  transparentHeader={false}
+>
+  <section class="mx-auto max-w-4xl px-6 pb-24 pt-20">
+    <a
+      class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.5rem] hover:underline"
+      href={event?.slug ? `/events/${event.slug}/` : "/events/"}
+    >
+      ← {event ? "Show details" : "Calendar"}
+    </a>
+
+    {
+      event ? (
+        <article class="mt-12 space-y-10">
+          <header class="space-y-4">
+            <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">
+              {formatEventScheduleLine(event)}
+            </p>
+            <h1
+              class="font-semibold tracking-tight text-neutral-950"
+              style="font-family: var(--font-display); font-size: clamp(2.25rem, 4vw + 1rem, 3.25rem); line-height: 1.05;"
+            >
+              {event.name}
+            </h1>
+            {venueLine ? <p class="text-lg text-neutral-600">{venueLine}</p> : null}
+          </header>
+
+          <div
+            class="min-h-[28rem] overflow-hidden rounded-[2.5rem] border border-black/10 bg-neutral-50"
+            data-kintana-widget={`event:${event.id}`}
+            aria-label="Ticket checkout"
+          >
+            <p class="px-8 py-10 text-center text-sm text-neutral-500">Loading checkout…</p>
+          </div>
+        </article>
+      ) : (
+        <p class="mt-24 text-neutral-600">This show is not available for tickets right now.</p>
+      )
+    }
+  </section>
+</Base>

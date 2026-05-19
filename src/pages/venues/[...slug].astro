@@ -1,0 +1,25 @@
+---
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+
+function legacyVenueSlugs(): string[] {
+  try {
+    const xml = readFileSync(resolve(process.cwd(), "sitemap.xml"), "utf8");
+    return [
+      ...new Set(
+        [...xml.matchAll(/<loc>[^<]+\/venues\/([^<]+)<\/loc>/g)]
+          .map((m) => m[1]?.replace(/\/$/, ""))
+          .filter(Boolean)
+      ),
+    ];
+  } catch {
+    return [];
+  }
+}
+
+export async function getStaticPaths() {
+  return legacyVenueSlugs().map((slug) => ({ params: { slug } }));
+}
+
+return Astro.redirect("/locations/", 301);
+---

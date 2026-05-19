@@ -1,0 +1,165 @@
+---
+interface Choice {
+  slug: string;
+  label: string;
+}
+
+interface Props {
+  choices: Choice[];
+  value: string;
+}
+
+const { choices, value } = Astro.props;
+
+const selected = choices.find((entry) => entry.slug === value) ?? choices[0];
+const listId = "city-picker-list";
+---
+
+<div class="city-picker relative mt-3 max-w-xs" data-city-picker>
+  <button
+    type="button"
+    class="flex w-full items-center justify-between gap-3 rounded-full border border-white/30 bg-neutral-950/45 px-5 py-[0.85rem] text-left text-sm text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md transition hover:border-white/50"
+    aria-haspopup="listbox"
+    aria-expanded="false"
+    aria-controls={listId}
+    data-city-picker-trigger
+  >
+    <span class="truncate font-medium tracking-wide" data-city-picker-label>{selected?.label ?? "Whole coastline"}</span>
+    <svg
+      class="city-picker-chevron size-4 shrink-0 text-white/80 transition-transform"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        fill-rule="evenodd"
+        d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.24 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
+        clip-rule="evenodd"></path>
+    </svg>
+  </button>
+
+  <ul
+    id={listId}
+    role="listbox"
+    hidden
+    class="absolute bottom-[calc(100%+0.5rem)] left-0 right-0 z-50 max-h-[min(16rem,50vh)] overflow-auto rounded-2xl border border-white/15 bg-neutral-950/95 py-2 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+    data-city-picker-list
+  >
+    {
+      choices.map((entry) => {
+        const isSelected = entry.slug === value;
+        return (
+          <li role="presentation">
+            <button
+              type="button"
+              role="option"
+              aria-selected={isSelected ? "true" : "false"}
+              class:list={[
+                "flex w-full px-4 py-2.5 text-left text-sm transition",
+                isSelected
+                  ? "bg-brand/25 font-semibold text-white"
+                  : "text-neutral-200 hover:bg-white/10 hover:text-white",
+              ]}
+              data-city-option
+              data-value={entry.slug}
+              data-label={entry.label}
+            >
+              {entry.label}
+            </button>
+          </li>
+        );
+      })
+    }
+  </ul>
+</div>
+
+<script>
+  function initCityPickers() {
+    document.querySelectorAll("[data-city-picker]").forEach((root) => {
+      if (!(root instanceof HTMLElement) || root.dataset.cityPickerReady === "1") return;
+      root.dataset.cityPickerReady = "1";
+
+      const trigger = root.querySelector("[data-city-picker-trigger]");
+      const list = root.querySelector("[data-city-picker-list]");
+      const label = root.querySelector("[data-city-picker-label]");
+      if (!(trigger instanceof HTMLButtonElement) || !(list instanceof HTMLUListElement) || !(label instanceof HTMLElement)) {
+        return;
+      }
+
+      const options = [...root.querySelectorAll("[data-city-option]")].filter(
+        (node): node is HTMLButtonElement => node instanceof HTMLButtonElement
+      );
+
+      function close() {
+        root.dataset.open = "";
+        trigger.setAttribute("aria-expanded", "false");
+        list.hidden = true;
+      }
+
+      function open() {
+        root.dataset.open = "true";
+        trigger.setAttribute("aria-expanded", "true");
+        list.hidden = false;
+      }
+
+      function toggle() {
+        if (list.hidden) open();
+        else close();
+      }
+
+      function navigate(slug: string) {
+        const path = !slug.length ? "/" : `/locations/${slug}/`;
+        try {
+          if (slug.length) window.localStorage.setItem("iguana-preferred-city", slug);
+          else window.localStorage.removeItem("iguana-preferred-city");
+        } catch {
+          /* ignore */
+        }
+        window.location.assign(path);
+      }
+
+      trigger.addEventListener("click", (event) => {
+        event.stopPropagation();
+        toggle();
+      });
+
+      options.forEach((option) => {
+        option.addEventListener("click", (event) => {
+          event.stopPropagation();
+          const slug = option.dataset.value ?? "";
+          const nextLabel = option.dataset.label ?? option.textContent?.trim() ?? "";
+          label.textContent = nextLabel;
+          options.forEach((opt) => opt.setAttribute("aria-selected", opt === option ? "true" : "false"));
+          close();
+          navigate(slug);
+        });
+      });
+
+      document.addEventListener("click", (event) => {
+        if (!root.contains(event.target as Node)) close();
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") close();
+      });
+    });
+  }
+
+  initCityPickers();
+  document.addEventListener("astro:page-load", initCityPickers);
+</script>
+
+<style>
+  [data-city-picker][data-open] .city-picker-chevron {
+    transform: rotate(180deg);
+  }
+
+  [data-city-picker-list] {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  [data-city-picker-list]::-webkit-scrollbar {
+    display: none;
+  }
+</style>

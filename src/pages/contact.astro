@@ -1,0 +1,60 @@
+---
+import Base from "../layouts/Base.astro";
+import { ContactFormIsland } from "../components/ContactFormIsland";
+
+const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY as string | undefined;
+const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL as string | undefined;
+const formId = import.meta.env.PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID?.trim();
+
+const subjectPrefill =
+  Astro.url.searchParams.get("subject") ??
+  Astro.url.searchParams.get("topic") ??
+  "";
+
+const prefills: Record<string, string> = {};
+if (subjectPrefill.trim()) {
+  prefills.subject = subjectPrefill.trim();
+}
+
+const subjectSummary: Record<string, string> = {
+  general: "General hello",
+  "private-events": "Private show planning",
+  hotels: "Hotels / resorts programming",
+  perform: "I want to step onstage",
+  investors: "Investor deck / partnership decks",
+};
+---
+
+<Base narrow transparentHeader={false} title="Contact · Iguana Comedy" description="Speak with our producing team about Riviera comedy programming.">
+  <section class="space-y-12">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">Talk shop</p>
+      <h1 class="mt-10 font-display text-5xl text-neutral-950" style={`font-family: var(--font-display);`}>
+        Conversations routed to the producers
+      </h1>
+      <p class="mt-8 max-w-2xl text-lg text-neutral-600">
+        Whether you&apos;re scouting a destination wedding weekend, corralling coworkers, booking hotel talent, pitching investment angles, or just sharing love notes—this form routes straight into our calendar.
+      </p>
+      <details class="mt-8 rounded-3xl border border-neutral-300 bg-neutral-50 px-6 py-4 text-neutral-900">
+        <summary class="cursor-pointer text-xs font-semibold uppercase tracking-[0.4em]">Prefill enquiry type</summary>
+        <nav class="mt-5 flex flex-wrap gap-x-10 gap-y-5 text-[0.7rem] uppercase tracking-[0.4em]" aria-label="Common enquiry intents">
+          {
+            Object.entries(subjectSummary).map(([slug, summary]) => (
+              <a class="underline-offset-[0.5rem] hover:underline hover:text-brand" href={`/contact/?subject=${encodeURIComponent(slug)}`}>
+                {summary}
+              </a>
+            ))
+          }
+        </nav>
+      </details>
+    </div>
+
+    {!apiKey || !baseUrl || !formId ? (
+      <p class="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-8 text-neutral-950">
+        The enquiry form wires up automatically once ticketing credentials arrive.
+      </p>
+    ) : (
+      <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} formId={formId} prefills={prefills} />
+    )}
+  </section>
+</Base>

@@ -4,14 +4,22 @@ Public env vars MUST use Astro’s `PUBLIC_` prefix (not `NEXT_PUBLIC_`). Anythi
 
 ## Layout
 
-`src/layouts/Base.astro` owns global chrome + optional tracker `<script>`.
+[`src/layouts/Base.astro`](src/layouts/Base.astro) owns global chrome (`Header`, `Footer`) + tracker `<script>`. Narrow pages pass `narrow` for contained widths; full-bleed marketing pages omit it.
 
-## Pages
+| Route                     | Technique                                                                                       |
+| ------------------------- | ----------------------------------------------------------------------------------------------- |
+| `/`                       | Homepage hero/stats leveraging `client.listEvents` + `client.listArtists`                      |
+| `/events`                 | `listEvents` grouped via [`src/lib/events.ts`](src/lib/events.ts)                              |
+| `/events/[slug]`          | `getEvent(slug)` + `getStaticPaths()` seeded from downstream events                             |
+| `/comedians`              | `listArtists()`                                                                                 |
+| `/comedians/[slug]`       | `getArtist(slug)` + `getStaticPaths()` sourced from downstream artists                          |
+| `/locations`              | `listVenues()` + `groupVenuesByCity` from `@kintana/sdk/locations`                               |
+| `/locations/[city]`       | City blurbs [`src/content/city-blurbs.ts`](src/content/city-blurbs.ts) layered on grouped data |
+| `/about`, `/work-with-us` | MDX routed through [`src/layouts/WideMarkdown.astro`](src/layouts/WideMarkdown.astro)           |
+| `/contact`                | `<ContactFormIsland client:load />`; `?subject=` mirrors an optional plaintext `subject` field  |
 
-| Route | Technique |
-| --- | --- |
-| `/` | Server component lists via `await client.listEvents()` |
-| `/shows/[slug]` | Calls `await client.getEvent(Astro.params.slug)` |
-| `/request-a-show` | Mounts `<RequestShowIsland client:load />` so React-powered `<EmbedForm />` can authenticate |
+## SDK reminders
 
-Whenever you scaffold new routes, reuse `createKintanaClient({ apiKey: import.meta.env.PUBLIC_KINTANA_API_KEY!, baseUrl: import.meta.env.PUBLIC_KINTANA_BASE_URL! })` from the `.astro` server context first; only hydrate React when hooks are unavoidable.
+- `listEvents` accepts `{ limit, tourId, artistSlug, from, to, status }`; `listArtists({ limit })` powers directories.
+- `getFormSchema` accepts `{ cache }`; `ContactFormIsland` caches through `force-cache`.
+- Hydrate React only where hooks are unavoidable (today: contact form island).

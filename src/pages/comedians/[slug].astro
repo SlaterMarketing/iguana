@@ -1,0 +1,157 @@
+---
+import Base from "../../layouts/Base.astro";
+import { createKintanaClient } from "@kintana/sdk";
+import type { KintanaPublicArtistDetail } from "@kintana/sdk";
+import { formatEventDate } from "../../lib/events";
+import { legacyComedianSlugs } from "../../lib/sitemap";
+import { mergeSlugs } from "../../lib/static-paths";
+
+export async function getStaticPaths() {
+  const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY;
+  const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL;
+
+  let apiSlugs: string[] = [];
+  if (apiKey?.trim() && baseUrl?.trim()) {
+    try {
+      const client = createKintanaClient({ apiKey, baseUrl });
+      const rows = await client.listArtists({ limit: 200 });
+      apiSlugs = rows.map((artist) => artist.slug?.trim()).filter((slug): slug is string => Boolean(slug));
+    } catch {
+      /* legacy slugs still build */
+    }
+  }
+
+  return mergeSlugs(apiSlugs, legacyComedianSlugs()).map((slug) => ({ params: { slug } }));
+}
+
+const slug = Astro.params.slug;
+
+const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY;
+const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL;
+
+let artist: KintanaPublicArtistDetail | null = null;
+
+if (apiKey && baseUrl && slug) {
+  try {
+    artist = await createKintanaClient({ apiKey, baseUrl }).getArtist(slug);
+  } catch {
+    artist = null;
+  }
+}
+---
+
+<Base narrow={false} transparentHeader={false} title={artist ? `${artist.stageName ?? artist.name} · Comedians` : "Comedians · Iguana Comedy"}>
+  <section class="mx-auto max-w-5xl px-6 pb-32 pt-20">
+    <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.5rem] hover:underline" href="/comedians/">
+      ← Comedy wall
+    </a>
+
+    {
+      artist ? (
+        <article class="mt-12 space-y-12">
+          <div class="grid gap-14 lg:grid-cols-[0.92fr_minmax(0,1fr)]">
+            <div class="aspect-[11/17] overflow-hidden rounded-[3rem] bg-neutral-200">
+              {
+                artist.imageUrl ? (
+                  <img src={artist.imageUrl} alt="" loading="lazy" class="size-full object-cover" />
+                ) : (
+                  <div class="flex size-full items-center justify-center bg-neutral-950 text-neutral-500 text-sm uppercase tracking-[0.45em]">Portrait soon</div>
+                )
+              }
+            </div>
+            <div class="space-y-10">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{artist.stageName ?? artist.name}</p>
+                <h1 class="mt-8 font-display text-5xl text-neutral-950" style={`font-family: var(--font-display);`}>
+                  {artist.name}
+                </h1>
+                {artist.homeCity ? (
+                  <p class="mt-4 text-neutral-600">
+                    Rooted in{" "}
+                    <span class="font-semibold text-neutral-900">{artist.homeCity}</span>
+                  </p>
+                ) : null}
+                {artist.website ? (
+                  <a class="mt-10 inline-flex text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.6rem] hover:underline" href={artist.website}>
+                    Personal site →
+                  </a>
+                ) : null}
+              </div>
+
+              <div class="grid gap-3 text-neutral-900">
+                {Object.keys(artist.socials ?? {}).length ? (
+                  <div class="flex flex-wrap gap-6">
+                    {
+                      Object.entries(artist.socials).map(([channel, raw]) => {
+                        if (typeof raw !== "string") return null;
+                        const trimmed = raw.trim();
+                        if (!/^https?:\/\//i.test(trimmed)) return null;
+                        const readable = channel
+                          .replace(/[_-]/g, " ")
+                          .replace(/\b\w/g, (letters) => letters.toUpperCase());
+                        return (
+                          <a href={trimmed} class="text-xs font-semibold uppercase tracking-[0.4em]" target="_blank" rel="noopener noreferrer">
+                            Follow on {readable} →
+                          </a>
+                        );
+                      })
+                    }
+                  </div>
+                ) : null}
+
+                <div class="space-y-3">
+                  {artist.bio?.split(/\n+/).filter(Boolean).map((chunk) => <p>{chunk.trim()}</p>)}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {
+            artist.reels.filter((reel) => reel.url.trim().length > 0).length ? (
+              <section class="space-y-6">
+                <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-400">Clips</h2>
+                <div class="grid gap-6 sm:grid-cols-2">
+                  {
+                    artist.reels
+                      .filter((reel) => reel.url.trim().length > 0)
+                      .map((reel) => (
+                        <a href={reel.url} target="_blank" rel="noopener noreferrer" class="block space-y-4">
+                          <div class="aspect-video overflow-hidden rounded-[2rem] bg-neutral-200">
+                            {reel.posterUrl ? <img src={reel.posterUrl} alt="" class="size-full object-cover" /> : null}
+                          </div>
+                          <p class="text-sm uppercase tracking-[0.35em] text-neutral-500">{reel.title}</p>
+                        </a>
+                      ))
+                  }
+                </div>
+              </section>
+            ) : null
+          }
+
+          {
+            artist.upcomingEvents?.length ? (
+              <section class="space-y-6">
+                <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-400">Upcoming with us</h2>
+                <ul class="space-y-4">
+                  {artist.upcomingEvents.map((evt) => (
+                    <li class="flex flex-wrap gap-8 border-t border-neutral-200 py-6 text-neutral-950">
+                      <div class="min-w-[140px] text-neutral-600">{formatEventDate(evt.date)}</div>
+                      <div class="flex-1 space-y-2">
+                        <a class="text-xl font-semibold hover:text-brand" href={`/events/${evt.slug}/`}>
+                          {evt.name}
+                        </a>
+                        <p class="text-sm text-neutral-600">{evt.venue?.city ?? evt.city}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ) : null
+          }
+        </article>
+      ) : (
+        <p class="mt-20 text-neutral-600">Mic stand is empty—that comic is backstage elsewhere.</p>
+      )
+    }
+  </section>
+</Base>

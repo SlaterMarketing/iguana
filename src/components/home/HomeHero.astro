@@ -1,0 +1,97 @@
+---
+import CityPicker from "../CityPicker.astro";
+import HeroCityRotator from "../HeroCityRotator.astro";
+import { heroCityChoices, site } from "../../content/site";
+
+interface PickerChoice {
+  slug: string;
+  label: string;
+}
+
+interface Props {
+  activeCitySlug?: string;
+  cityLabel?: string;
+  eyebrow?: string;
+  heroVideoUrl?: string;
+  heroPosterUrl?: string;
+  showsHref: string;
+  pickerChoices: PickerChoice[];
+  rotatorCities?: readonly string[];
+}
+
+const {
+  activeCitySlug = "",
+  cityLabel,
+  eyebrow = "Live English comedy nights",
+  heroVideoUrl = site.heroVideoUrl,
+  heroPosterUrl = site.heroImage,
+  showsHref,
+  pickerChoices,
+  rotatorCities = heroCityChoices.filter((entry) => entry.slug !== "").map((entry) => entry.label),
+} = Astro.props;
+
+const staticHeadlineCity = cityLabel ?? (activeCitySlug
+  ? heroCityChoices.find((entry) => entry.slug === activeCitySlug)?.label
+  : undefined);
+---
+
+<section
+  id="home-hero"
+  class="home-hero relative isolate flex h-[100svh] flex-col overflow-hidden"
+>
+  <div class="absolute inset-0" aria-hidden="true">
+    <video
+      class="size-full scale-105 object-cover"
+      src={heroVideoUrl}
+      autoplay
+      muted
+      loop
+      playsinline
+      preload="auto"
+      poster={heroPosterUrl}
+    />
+  </div>
+  <div class="absolute inset-0 bg-black/50" />
+  <div class="relative z-10 mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col px-6 pb-10 pt-28 text-white sm:pb-12 lg:pt-32">
+    <div class="flex flex-1 flex-col justify-center">
+      <div class="text-center -translate-y-[50px]">
+        <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white/75">{eyebrow}</p>
+        <h1
+          class="mt-10 font-display font-semibold leading-[0.92] tracking-wide text-[clamp(3.1rem,7.5vw,6.5rem)]"
+          style="font-family: var(--font-display);"
+        >
+          <span class="block">International stand-up</span>
+          <span class="block">
+            comedy in{" "}
+            {
+              staticHeadlineCity ? (
+                <span class="text-brand-hover">{staticHeadlineCity}</span>
+              ) : (
+                <HeroCityRotator cities={rotatorCities} fallback="the Riviera Maya" />
+              )
+            }
+          </span>
+        </h1>
+      </div>
+    </div>
+
+    <div class="flex w-full shrink-0 flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
+      <div class="max-w-xs">
+        <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white/90">Spotlight city</p>
+        <CityPicker choices={pickerChoices} value={activeCitySlug} />
+      </div>
+
+      <div class="flex flex-wrap items-center justify-end gap-4 sm:gap-5">
+        <a
+          href={showsHref}
+          class="btn-pill inline-flex items-center rounded-full bg-white px-10 py-[0.85rem] text-[0.68rem] font-semibold uppercase tracking-[0.38em] text-neutral-950 sm:px-12"
+        >
+          Buy ticket
+          <svg class="ml-2 h-[0.6rem]" viewBox="0 0 22 14" aria-hidden="true">
+            <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m2 7h18m-6-6 6 6-6 6" />
+          </svg>
+        </a>
+      </div>
+    </div>
+  </div>
+</section>

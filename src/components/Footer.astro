@@ -1,0 +1,72 @@
+---
+import { site } from "../content/site";
+---
+
+<footer class="border-t border-black/10 bg-ink pb-24 pt-28 text-neutral-300">
+  <div class="mx-auto grid max-w-6xl gap-14 px-4 sm:gap-24 md:grid-cols-[1.05fr_repeat(4,minmax(0,1fr))] sm:px-6 lg:gap-28">
+    <div class="space-y-12">
+      <p class="text-4xl text-white lg:text-[2.75rem]" style="font-family: var(--font-display);">{site.name}</p>
+      <div class="space-y-8 text-neutral-400">
+        <p class="text-lg text-white">{site.email}</p>
+        <div class="text-lg tracking-wide text-neutral-400">
+          <p class="text-white">{site.whatsappDisplay}</p>
+          <p class="text-sm uppercase tracking-[0.45em] text-neutral-400">whatsapp</p>
+          <p class="text-sm lowercase text-neutral-500">available for shows and enquiries</p>
+        </div>
+      </div>
+    </div>
+    <div>
+      <p class="pb-10 text-[0.65rem] font-semibold uppercase tracking-[0.45em] text-neutral-600">Navigate</p>
+      <nav class="space-y-4 text-neutral-400">
+        <a class="block hover:text-brand" href="/events/">Shows</a>
+        <a class="block hover:text-brand" href="/locations/">Locations</a>
+        <a class="block hover:text-brand" href="/comedians/">Wall of comedians</a>
+        <a class="block hover:text-brand" href="/work-with-us/">Work with us</a>
+      </nav>
+    </div>
+    <div>
+      <p class="pb-10 text-[0.65rem] font-semibold uppercase tracking-[0.45em] text-neutral-600">Info</p>
+      <nav class="space-y-4 text-neutral-400">
+        <a class="block hover:text-brand" href="/about/">Story</a>
+        <a class="block hover:text-brand" href="/contact/">Contact</a>
+        <a
+          class="block hover:text-brand"
+          href={`https://wa.me/${site.whatsappE164.replace(/\D+/g, "")}`}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          WhatsApp
+        </a>
+      </nav>
+    </div>
+    <div>
+      <p class="pb-10 text-[0.65rem] font-semibold uppercase tracking-[0.45em] text-neutral-600">Legal</p>
+      <nav class="space-y-4 text-neutral-400">
+        <a class="block hover:text-brand" href="/legal/privacy-policy/">Privacy</a>
+        <a class="block hover:text-brand" href="/legal/terms-and-conditions/">Terms</a>
+      </nav>
+    </div>
+    <div>
+      <p class="pb-10 text-[0.65rem] font-semibold uppercase tracking-[0.45em] text-neutral-600">Socials</p>
+      <nav class="space-y-4 text-neutral-400">
+        <a class="block hover:text-brand" href={site.instagramUrl} target="_blank" rel="noreferrer noopener">
+          Instagram
+        </a>
+        <a class="block hover:text-brand" href={site.facebookUrl} target="_blank" rel="noreferrer noopener">
+          Facebook
+        </a>
+        <a class="block hover:text-brand" href={site.linkedInUrl} target="_blank" rel="noreferrer noopener">
+          LinkedIn
+        </a>
+      </nav>
+    </div>
+  </div>
+  <div class="mx-auto mt-24 flex max-w-6xl flex-col gap-6 border-t border-white/15 px-4 pt-10 text-neutral-500 text-sm md:flex-row md:items-center md:justify-between sm:px-6">
+    <p>© {new Date().getFullYear()} Iguana Comedy. All laughs reserved.</p>
+    <div class="flex gap-4 text-neutral-500">
+      <a href={site.merchantShopUrl} target="_blank" rel="noreferrer noopener" class="hover:text-brand">
+        Merch
+      </a>
+    </div>
+  </div>
+</footer>

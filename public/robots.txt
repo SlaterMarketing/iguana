@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://iguanacomedy.com/sitemap.xml

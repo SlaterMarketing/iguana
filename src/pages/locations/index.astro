@@ -1,0 +1,222 @@
+---
+import Base from "../../layouts/Base.astro";
+import LocationCityCard from "../../components/LocationCityCard.astro";
+import { createKintanaClient } from "@kintana/sdk";
+import type { KintanaGroupedCity, KintanaPublicArtistEmbed, KintanaPublicEvent } from "@kintana/sdk";
+import { groupVenuesByCity } from "@kintana/sdk/locations";
+
+import {
+  locationCityCards,
+  locationServices,
+  locationStatsCities,
+  locationsPage,
+} from "../../content/locations-page";
+import { logKintanaError, logKintanaSuccess } from "../../lib/kintana-error";
+import { slugify } from "../../lib/slug";
+
+const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY as string | undefined;
+const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL as string | undefined;
+
+let grouped: KintanaGroupedCity[] = [];
+let artistCount = 0;
+let eventCount = 0;
+let venuesRequestFailed = false;
+
+if (apiKey?.trim() && baseUrl?.trim()) {
+  const client = createKintanaClient({ apiKey, baseUrl });
+
+  try {
+    const venues = await client.listVenues();
+    grouped = groupVenuesByCity(venues);
+    logKintanaSuccess(`listVenues /locations (${grouped.length} cities)`, venues.length);
+  } catch (err) {
+    logKintanaError("listVenues /locations", err);
+    venuesRequestFailed = true;
+    grouped = [];
+  }
+
+  try {
+    const artists: KintanaPublicArtistEmbed[] = await client.listArtists({ limit: 200 });
+    artistCount = artists.length;
+  } catch {
+    artistCount = 0;
+  }
+
+  try {
+    const events: KintanaPublicEvent[] = await client.listEvents({ limit: 200 });
+    eventCount = events.filter((evt) => evt.status !== "cancelled").length;
+  } catch {
+    eventCount = 0;
+  }
+}
+
+const venueCountBySlug = new Map<string, number>();
+for (const group of grouped) {
+  const slug = slugify(group.city);
+  if (slug !== "unknown") venueCountBySlug.set(slug, group.venues.length);
+}
+
+function venueCountFor(slug: string) {
+  return venueCountBySlug.get(slug) ?? 0;
+}
+
+const globalStats = [
+  { label: "Comedians", value: artistCount },
+  { label: "Events", value: eventCount },
+  { label: "Attendees", value: "—" },
+  { label: "Private events", value: "—" },
+] as const;
+---
+
+<Base
+  narrow={false}
+  transparentHeader={false}
+  title="Comedy locations in Quintana Roo · Iguana Comedy"
+  description={locationsPage.intro}
+>
+  <section class="locations-hero relative isolate overflow-hidden text-white">
+    <div class="absolute inset-0 bg-brand-hover" aria-hidden="true" />
+    <img
+      src={locationsPage.heroTexture}
+      alt=""
+      class="absolute inset-0 size-full object-cover opacity-[0.22] mix-blend-overlay"
+      aria-hidden="true"
+    />
+    <div class="relative z-10 mx-auto flex min-h-[min(52vh,28rem)] max-w-6xl items-center justify-center px-6 py-28 text-center sm:py-32">
+      <h1
+        class="max-w-4xl font-display text-[clamp(2.4rem,5vw,4.5rem)] uppercase leading-[1.05] tracking-wide"
+        style="font-family: var(--font-display);"
+      >
+        {locationsPage.heroTitle}
+      </h1>
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-3xl px-6 py-16 text-center sm:py-20">
+    <p class="text-lg leading-relaxed text-neutral-800 sm:text-xl">{locationsPage.intro}</p>
+  </section>
+
+  <section class="mx-auto max-w-6xl px-6 pb-20">
+    {
+      venuesRequestFailed && apiKey && baseUrl ? (
+        <p class="mb-10 rounded-2xl border border-amber-200 bg-amber-50 px-6 py-4 text-neutral-900">
+          Venue data is offline—city cards still link through to each coast page.
+        </p>
+      ) : null
+    }
+    <div class="grid gap-8 sm:grid-cols-2">
+      {locationCityCards.map((city) => (
+        <LocationCityCard city={city} />
+      ))}
+    </div>
+  </section>
+
+  <section class="mx-auto grid max-w-6xl gap-4 px-6 pb-24 sm:grid-cols-3">
+    {locationsPage.galleryImages.map((src) => (
+      <div class="overflow-hidden rounded-2xl">
+        <img src={src} alt="" class="aspect-[4/3] size-full object-cover" loading="lazy" decoding="async" />
+      </div>
+    ))}
+  </section>
+
+  <section class="border-t border-black/10 bg-white">
+    <div class="mx-auto grid max-w-6xl gap-12 px-6 py-20 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-20 lg:py-28">
+      <h2
+        class="font-display text-4xl uppercase leading-[1.08] text-neutral-950 sm:text-5xl"
+        style="font-family: var(--font-display);"
+      >
+        {locationsPage.statsHeading}
+      </h2>
+      <p class="text-lg leading-relaxed text-neutral-700">{locationsPage.statsBody}</p>
+    </div>
+
+    <div class="mx-auto grid max-w-6xl gap-10 border-t border-black/10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4 lg:py-16">
+      {globalStats.map((stat) => (
+        <div class="text-center sm:text-left">
+          <p class="text-xs font-semibold uppercase tracking-[0.35em] text-neutral-500">{stat.label}</p>
+          <p class="mt-3 font-display text-5xl text-neutral-950" style="font-family: var(--font-display);">
+            {typeof stat.value === "number" ? `${stat.value}+` : stat.value}
+          </p>
+        </div>
+      ))}
+    </div>
+
+    <div class="mx-auto grid max-w-6xl gap-8 border-t border-black/10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4 lg:py-16">
+      {locationStatsCities.map((city) => {
+        const count = venueCountFor(city.slug);
+        return (
+          <div class="flex items-center gap-4 border-l-2 border-brand pl-5">
+            <span class="text-brand" aria-hidden="true">
+              <svg class="size-5" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
+              </svg>
+            </span>
+            <div>
+              <p class="text-sm font-semibold uppercase tracking-[0.28em] text-neutral-600">{city.name}</p>
+              <p class="font-display text-4xl text-neutral-950" style="font-family: var(--font-display);">
+                {count}+
+              </p>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  </section>
+
+  <section class="relative isolate min-h-[32rem] overflow-hidden">
+    <img
+      src={locationsPage.servicesBackground}
+      alt=""
+      class="absolute inset-0 size-full object-cover"
+      loading="lazy"
+    />
+    <div class="absolute inset-0 bg-neutral-950/45" aria-hidden="true" />
+    <div class="relative z-10 mx-auto flex min-h-[32rem] max-w-6xl items-center px-6 py-20">
+      <div class="w-full rounded-3xl bg-white/90 px-8 py-12 shadow-[0_24px_80px_rgba(0,0,0,0.2)] backdrop-blur-sm sm:px-12 sm:py-14">
+        <ol class="divide-y divide-neutral-200">
+          {
+            locationServices.map((service) => (
+              <li class="grid gap-4 py-8 first:pt-0 last:pb-0 lg:grid-cols-[auto_1fr] lg:items-start lg:gap-10">
+                <span class="font-display text-3xl text-neutral-400" style="font-family: var(--font-display);">
+                  {service.number}
+                </span>
+                <div class="space-y-3">
+                  <h3 class="font-display text-2xl uppercase tracking-wide sm:text-3xl" style="font-family: var(--font-display);">
+                    <a href={service.href} class="text-neutral-950 hover:text-brand">
+                      {service.title}
+                    </a>
+                  </h3>
+                  {"body" in service && service.body ? (
+                    <p class="max-w-xl text-base leading-relaxed text-neutral-700">{service.body}</p>
+                  ) : null}
+                </div>
+              </li>
+            ))
+          }
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <section class="relative isolate overflow-hidden bg-neutral-950 px-6 py-28 text-center text-white sm:py-36">
+    <h2
+      class="font-display text-[clamp(3rem,8vw,6.5rem)] uppercase leading-none tracking-wide text-white/95"
+      style="font-family: var(--font-display); -webkit-text-stroke: 1px rgba(255,255,255,0.35); color: transparent;"
+    >
+      Ready to laugh?
+    </h2>
+    <a
+      href="/events/"
+      class="btn-pill relative z-10 -mt-6 inline-flex rounded-full bg-brand-hover px-12 py-5 text-xs font-semibold uppercase tracking-[0.38em] text-white shadow-lg"
+      style="background-color: var(--color-brand-hover);"
+    >
+      Book your place
+    </a>
+  </section>
+</Base>
+
+<style>
+  .locations-hero {
+    background-color: var(--color-brand-hover);
+  }
+</style>

@@ -1,0 +1,133 @@
+---
+interface Props {
+  /** Rotating city names (no empty slug). */
+  cities: readonly string[];
+  /** Shown when JS is off and before the rotator boots. */
+  fallback: string;
+  /** When set (?city=), rotation stops on this label. */
+  staticLabel?: string;
+}
+
+const { cities, fallback, staticLabel } = Astro.props;
+const rotatorId = "hero-city-rotator";
+---
+
+<span
+  id={rotatorId}
+  class="hero-city-rotator inline-block min-w-[6ch] text-brand-hover"
+  data-hero-city-rotator={staticLabel ? undefined : ""}
+  data-cities={staticLabel ? undefined : JSON.stringify([...cities])}
+  data-fallback={fallback}
+>
+  {
+    staticLabel ? (
+      <span class="hero-city-rotator-word px-1">{staticLabel}</span>
+    ) : (
+      <>
+        <span class="hero-city-rotator-word px-1" data-hero-city-visible>
+          {fallback}
+        </span>
+        <span class="sr-only" data-hero-city-sr>{fallback}</span>
+      </>
+    )
+  }
+</span>
+
+{!staticLabel ? (
+  <script>
+    function initHeroCityRotators() {
+      document.querySelectorAll("[data-hero-city-rotator]").forEach((root) => {
+        if (!(root instanceof HTMLElement) || root.dataset.heroCityRotatorReady === "1") return;
+        root.dataset.heroCityRotatorReady = "1";
+
+        let cities: string[] = [];
+        try {
+          cities = JSON.parse(root.dataset.cities ?? "[]");
+        } catch {
+          cities = [];
+        }
+        if (!cities.length) return;
+
+        const fallback = root.dataset.fallback ?? cities[0];
+        const visible = root.querySelector("[data-hero-city-visible]");
+        const sr = root.querySelector("[data-hero-city-sr]");
+        if (!(visible instanceof HTMLElement)) return;
+
+        let index = 0;
+        let busy = false;
+
+        const prefersReduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+        if (prefersReduced) {
+          visible.textContent = fallback;
+          if (sr instanceof HTMLElement) sr.textContent = fallback;
+          return;
+        }
+
+        function setLabel(label: string) {
+          visible.textContent = label;
+          if (sr instanceof HTMLElement) sr.textContent = label;
+        }
+
+        function cycle() {
+          if (busy) return;
+          busy = true;
+          const next = cities[index % cities.length];
+          index = (index + 1) % cities.length;
+
+          visible.classList.add("hero-city-rotator-word--out");
+          window.setTimeout(() => {
+            setLabel(next);
+            visible.classList.remove("hero-city-rotator-word--out");
+            visible.classList.add("hero-city-rotator-word--in");
+            window.setTimeout(() => {
+              visible.classList.remove("hero-city-rotator-word--in");
+              busy = false;
+            }, 320);
+          }, 320);
+        }
+
+        setLabel(cities[0]);
+        index = 1;
+        window.setInterval(cycle, 2800);
+      });
+    }
+
+    initHeroCityRotators();
+    document.addEventListener("astro:page-load", initHeroCityRotators);
+  </script>
+) : null}
+
+<style>
+  .hero-city-rotator-word {
+    display: inline-block;
+    transition:
+      transform 0.32s ease,
+      opacity 0.32s ease;
+  }
+
+  .hero-city-rotator-word--out {
+    transform: translateY(-0.55em);
+    opacity: 0;
+  }
+
+  .hero-city-rotator-word--in {
+    animation: hero-city-in 0.32s ease forwards;
+  }
+
+  @keyframes hero-city-in {
+    from {
+      transform: translateY(0.55em);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-city-rotator-word {
+      transition: none;
+    }
+  }
+</style>

@@ -1,10 +1,12 @@
 // @ts-check
 import react from "@astrojs/react";
+import mdx from "@astrojs/mdx";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
 
 export default defineConfig({
-  integrations: [react()],
+  site: process.env.PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://iguanacomedy.com",
+  integrations: [react(), mdx()],
   vite: {
     plugins: [tailwindcss()],
   },

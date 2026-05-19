@@ -1,0 +1,38 @@
+---
+import Base from "./Base.astro";
+
+const props = Astro.props as { frontmatter?: { title?: string; description?: string } };
+
+const fm = props.frontmatter ?? {};
+const title = typeof fm.title === "string" ? fm.title : "Iguana Comedy";
+const description = typeof fm.description === "string" ? fm.description : undefined;
+---
+
+<Base title={title} description={description} narrow>
+  <article class="prose-ish space-y-8 text-neutral-700">
+    <slot />
+  </article>
+</Base>
+
+<style>
+  .prose-ish :global(h2) {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: clamp(1.95rem, 3vw + 1rem, 2.85rem);
+    color: #0f1613;
+    letter-spacing: -0.01em;
+  }
+  .prose-ish :global(h3) {
+    margin-top: 2.65rem;
+    font-size: 0.74rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.35em;
+    color: rgb(133 143 146);
+  }
+  .prose-ish :global(p) {
+    margin-top: 1.15rem;
+    line-height: 1.74rem;
+    font-size: 1.05rem;
+  }
+</style>
