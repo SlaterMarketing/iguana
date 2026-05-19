@@ -5,14 +5,14 @@ import type { KintanaPublicArtistEmbed } from "@kintana/sdk";
 
 import ComedianTile from "../../components/ComedianTile.astro";
 import { logKintanaError, logKintanaSuccess } from "../../lib/kintana-error";
+import { getKintanaEnv } from "../../lib/kintana-env";
 
-const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY;
-const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL;
+const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
 
 let artists: KintanaPublicArtistEmbed[] = [];
 let rosterFailed = false;
 
-if (apiKey && baseUrl) {
+if (hasCredentials) {
   try {
     artists = await createKintanaClient({ apiKey, baseUrl }).listArtists({
       limit: 100,

@@ -3,35 +3,15 @@ import Base from "../../layouts/Base.astro";
 import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicArtistDetail } from "@kintana/sdk";
 import { formatEventDate } from "../../lib/events";
-import { legacyComedianSlugs } from "../../lib/sitemap";
-import { mergeSlugs } from "../../lib/static-paths";
-
-export async function getStaticPaths() {
-  const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY;
-  const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL;
-
-  let apiSlugs: string[] = [];
-  if (apiKey?.trim() && baseUrl?.trim()) {
-    try {
-      const client = createKintanaClient({ apiKey, baseUrl });
-      const rows = await client.listArtists({ limit: 200 });
-      apiSlugs = rows.map((artist) => artist.slug?.trim()).filter((slug): slug is string => Boolean(slug));
-    } catch {
-      /* legacy slugs still build */
-    }
-  }
-
-  return mergeSlugs(apiSlugs, legacyComedianSlugs()).map((slug) => ({ params: { slug } }));
-}
+import { getKintanaEnv } from "../../lib/kintana-env";
 
 const slug = Astro.params.slug;
 
-const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY;
-const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL;
+const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
 
 let artist: KintanaPublicArtistDetail | null = null;
 
-if (apiKey && baseUrl && slug) {
+if (hasCredentials && slug) {
   try {
     artist = await createKintanaClient({ apiKey, baseUrl }).getArtist(slug);
   } catch {

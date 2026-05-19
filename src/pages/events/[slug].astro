@@ -3,34 +3,14 @@ import Base from "../../layouts/Base.astro";
 import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import { eventTicketsPath, formatEventScheduleLine } from "../../lib/events";
-import { legacyEventSlugs } from "../../lib/sitemap";
-import { mergeSlugs } from "../../lib/static-paths";
-
-export async function getStaticPaths() {
-  const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY;
-  const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL;
-
-  let apiSlugs: string[] = [];
-  if (apiKey?.trim() && baseUrl?.trim()) {
-    try {
-      const client = createKintanaClient({ apiKey, baseUrl });
-      const events = await client.listEvents({ limit: 200 });
-      apiSlugs = events.map((evt) => evt.slug?.trim() || evt.id?.trim()).filter((key): key is string => Boolean(key));
-    } catch {
-      /* legacy slugs still build */
-    }
-  }
-
-  return mergeSlugs(apiSlugs, legacyEventSlugs()).map((slug) => ({ params: { slug } }));
-}
+import { getKintanaEnv } from "../../lib/kintana-env";
 
 const slug = Astro.params.slug;
 
-const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY;
-const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL;
+const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
 
 let event: KintanaPublicEvent | null = null;
-if (apiKey && baseUrl && slug) {
+if (hasCredentials && slug) {
   try {
     event = await createKintanaClient({ apiKey, baseUrl }).getEvent(slug);
   } catch {

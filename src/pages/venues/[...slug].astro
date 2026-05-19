@@ -1,8 +1,11 @@
 ---
 import { legacyVenueSlugs } from "../../lib/sitemap";
 
-export function getStaticPaths() {
-  return legacyVenueSlugs().map((slug) => ({ params: { slug } }));
+const slug = Astro.params.slug;
+const known = slug ? legacyVenueSlugs().includes(slug) : false;
+
+if (!known && slug) {
+  return Astro.redirect("/locations/", 301);
 }
 
 return Astro.redirect("/locations/", 301);

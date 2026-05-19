@@ -1,10 +1,9 @@
 ---
 import Base from "../layouts/Base.astro";
 import { ContactFormIsland } from "../components/ContactFormIsland";
+import { getKintanaEnv } from "../lib/kintana-env";
 
-const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY as string | undefined;
-const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL as string | undefined;
-const formId = import.meta.env.PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID?.trim();
+const { apiKey, baseUrl, formId, hasCredentials } = getKintanaEnv();
 
 const subjectPrefill =
   Astro.url.searchParams.get("subject") ??
@@ -49,7 +48,7 @@ const subjectSummary: Record<string, string> = {
       </details>
     </div>
 
-    {!apiKey || !baseUrl || !formId ? (
+    {!hasCredentials || !formId ? (
       <p class="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-8 text-neutral-950">
         The enquiry form wires up automatically once ticketing credentials arrive.
       </p>

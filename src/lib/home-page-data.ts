@@ -2,6 +2,7 @@ import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicArtistEmbed, KintanaPublicEvent } from "@kintana/sdk";
 
 import { eventCitySlug, sortEventsAscending } from "./events";
+import { getKintanaEnv } from "./kintana-env";
 import { logKintanaError, logKintanaSuccess } from "./kintana-error";
 
 export type HomePageData = {
@@ -15,9 +16,7 @@ export type HomePageData = {
 };
 
 export async function loadHomePageData(citySlug?: string): Promise<HomePageData> {
-  const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY as string | undefined;
-  const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL as string | undefined;
-  const hasCredentials = Boolean(apiKey?.trim() && baseUrl?.trim());
+  const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
 
   let eventsPool: KintanaPublicEvent[] = [];
   let artistsPool: KintanaPublicArtistEmbed[] = [];

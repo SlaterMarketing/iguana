@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 
-const root = resolve("/app");
+const root = existsSync("/app/package.json") ? resolve("/app") : process.cwd();
 
 /** @param {string} filePath */
 function loadDotEnv(filePath) {

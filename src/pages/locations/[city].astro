@@ -6,51 +6,13 @@ import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaGroupedCity, KintanaPublicVenueListed, KintanaPublicEvent } from "@kintana/sdk";
 import { groupVenuesByCity } from "@kintana/sdk/locations";
 
-import { getCityLanding, listCityLandingSlugs } from "../../content/city-landings";
+import { getCityLanding } from "../../content/city-landings";
 import { heroCityChoices, site } from "../../content/site";
 import { getCityBlurb } from "../../content/city-blurbs";
 import { eventCitySlug, formatEventDate, sortEventsAscending } from "../../lib/events";
 import { loadHomePageData } from "../../lib/home-page-data";
+import { getKintanaEnv } from "../../lib/kintana-env";
 import { slugify } from "../../lib/slug";
-import { legacyCitySlugs } from "../../lib/sitemap";
-import { mergeSlugs } from "../../lib/static-paths";
-
-export async function getStaticPaths() {
-  const slugs = mergeSlugs(listCityLandingSlugs(), legacyCitySlugs());
-  const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY;
-  const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL;
-
-  const paths = new Map<string, { headline: string }>();
-
-  for (const slug of slugs) {
-    const landing = getCityLanding(slug);
-    paths.set(slug, { headline: landing?.label ?? slug.replace(/-/g, " ") });
-  }
-
-  if (apiKey?.trim() && baseUrl?.trim()) {
-    try {
-      const client = createKintanaClient({ apiKey, baseUrl });
-      const venues = await client.listVenues();
-      for (const { grp, slug } of groupVenuesByCity(venues)
-        .map((grp) => {
-          const citySlug = slugify(grp.city);
-          return citySlug !== "unknown" ? { grp, slug: citySlug } : null;
-        })
-        .filter((entry): entry is { grp: KintanaGroupedCity; slug: string } => Boolean(entry))) {
-        if (!paths.has(slug)) {
-          paths.set(slug, { headline: grp.city ?? grp.country ?? slug });
-        }
-      }
-    } catch {
-      /* editorial slugs still build */
-    }
-  }
-
-  return [...paths.entries()].map(([city, props]) => ({
-    params: { city },
-    props,
-  }));
-}
 
 const citySlug = Astro.params.city ?? "";
 const landing = getCityLanding(citySlug);
@@ -59,13 +21,12 @@ if (!landing) {
   return Astro.redirect("/locations/");
 }
 
-const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY as string | undefined;
-const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL as string | undefined;
+const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
 
 const pageData = await loadHomePageData(citySlug);
 
 let venuesInCity: readonly KintanaPublicVenueListed[] = [];
-if (apiKey?.trim() && baseUrl?.trim()) {
+if (hasCredentials) {
   try {
     const client = createKintanaClient({ apiKey, baseUrl });
     const grouped = groupVenuesByCity(await client.listVenues());
@@ -76,7 +37,7 @@ if (apiKey?.trim() && baseUrl?.trim()) {
 }
 
 let happenings: KintanaPublicEvent[] = [];
-if (apiKey?.trim() && baseUrl?.trim()) {
+if (hasCredentials) {
   try {
     const client = createKintanaClient({ apiKey, baseUrl });
     const pool = sortEventsAscending(await client.listEvents({ limit: 140 })).filter(

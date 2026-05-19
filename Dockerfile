@@ -1,32 +1,34 @@
 # syntax=docker/dockerfile:1
 
-# Dependencies only — Astro build runs at container start so Dokploy runtime env vars apply.
-FROM node:20-alpine AS deps
+FROM node:20-alpine AS build
 WORKDIR /app
+
 COPY package.json package-lock.json ./
 RUN npm ci
+
+COPY . .
+RUN npm run build
 
 FROM node:20-alpine AS runtime
 WORKDIR /app
 
-RUN apk add --no-cache nginx wget
+RUN apk add --no-cache wget
 
-COPY --from=deps /app/node_modules ./node_modules
-COPY package.json package-lock.json astro.config.mjs tsconfig.json ./
-COPY public ./public
-COPY src ./src
-COPY scripts ./scripts
-COPY sitemap.xml ./sitemap.xml
-COPY deploy ./deploy
-
-ENV PORT=3000
 ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=3000
+
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./package.json
+COPY scripts ./scripts
+COPY deploy/docker-entrypoint.sh ./deploy/docker-entrypoint.sh
 
 RUN chmod +x /app/deploy/docker-entrypoint.sh
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=180s --retries=5 \
-  CMD sh -c 'wget -qO- "http://127.0.0.1:${PORT:-3000}/" >/dev/null 2>&1 || exit 1'
+HEALTHCHECK --interval=30s --timeout=5s --start-period=45s --retries=5 \
+  CMD wget -qO- "http://127.0.0.1:${PORT:-3000}/" >/dev/null 2>&1 || exit 1
 
 ENTRYPOINT ["/app/deploy/docker-entrypoint.sh"]

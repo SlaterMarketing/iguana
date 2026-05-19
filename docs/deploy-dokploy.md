@@ -1,6 +1,6 @@
 # Deploy on Dokploy
 
-This site is a **static Astro build** served by **nginx** in Docker. On first start (and each restart), the container runs `astro build` using your **runtime** Environment variables from Dokploy—no separate “build time” toggle required.
+This site runs as an **Astro Node server** in Docker. Kintana data is loaded on each request from Dokploy **Environment** variables (no build-time toggle required). Container port **3000**.
 
 ## 1. Push the repo
 
@@ -15,7 +15,7 @@ Connect your Git provider in Dokploy and select this repository (branch you depl
 | **Build context** | `.` |
 | **Container port** | `3000` (must match `PORT` in the app env; default is `3000`) |
 
-Add every variable below under **Environment**, one per line, exactly like your local `.env`:
+Add every variable below under **Environment** (runtime), one per line, exactly like your local `.env`:
 
 ```env
 PUBLIC_SITE_URL=https://iguanacomedy.com
@@ -24,9 +24,9 @@ PUBLIC_KINTANA_BASE_URL=https://kintana.app
 PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID=…
 ```
 
-No `export` prefix, no quotes unless the value contains spaces. After saving, **restart** the app (first boot builds the site inside the container, ~1–2 minutes).
+No `export` prefix, no quotes unless the value contains spaces. After saving, **restart** the app.
 
-In **Deployments → View logs** (runtime, not only the Docker build step) you should see lines like `[iguana] PUBLIC_KINTANA_API_KEY: set (32 chars)`. If you see `MISSING`, Dokploy is not mounting `/app/.env` — copy the same block into **Build-time Variables** and redeploy, or fix the env editor format.
+In **runtime logs** you should see `[iguana] PUBLIC_KINTANA_API_KEY: set (… chars)` then `[iguana] Starting Astro server`. First request after deploy may take a few seconds while the server warms up.
 
 ## 3. Environment variables
 

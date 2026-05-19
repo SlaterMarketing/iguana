@@ -5,6 +5,7 @@ import { createKintanaClient } from "@kintana/sdk";
 import { groupVenuesByCity } from "@kintana/sdk/locations";
 
 import { getCityBlurb } from "../content/city-blurbs";
+import { getKintanaEnv } from "./kintana-env";
 import { mapLegacyPath } from "./legacy-paths";
 import { slugify } from "./slug";
 
@@ -97,9 +98,8 @@ function addCorePages(map: Map<string, SitemapEntry>) {
 }
 
 async function addKintanaPages(map: Map<string, SitemapEntry>) {
-  const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY?.trim();
-  const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL?.trim();
-  if (!apiKey || !baseUrl) return;
+  const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
+  if (!hasCredentials) return;
 
   const now = new Date().toISOString();
   const client = createKintanaClient({ apiKey, baseUrl });

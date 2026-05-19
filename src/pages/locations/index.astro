@@ -12,17 +12,17 @@ import {
   locationsPage,
 } from "../../content/locations-page";
 import { logKintanaError, logKintanaSuccess } from "../../lib/kintana-error";
+import { getKintanaEnv } from "../../lib/kintana-env";
 import { slugify } from "../../lib/slug";
 
-const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY as string | undefined;
-const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL as string | undefined;
+const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
 
 let grouped: KintanaGroupedCity[] = [];
 let artistCount = 0;
 let eventCount = 0;
 let venuesRequestFailed = false;
 
-if (apiKey?.trim() && baseUrl?.trim()) {
+if (hasCredentials) {
   const client = createKintanaClient({ apiKey, baseUrl });
 
   try {

@@ -4,7 +4,7 @@ Copy `.env.example` to `.env`, add your **publish key** (`PUBLIC_KINTANA_API_KEY
 
 Static builds call the catalogue at build time, so CI/deploy needs the same variables when generating `/shows/[slug]` routes.
 
-**Dokploy:** see [docs/deploy-dokploy.md](docs/deploy-dokploy.md) — Docker + nginx on port **3000**; set `PUBLIC_*` in Environment (runtime). First start builds the site inside the container (~1–2 min).
+**Dokploy:** see [docs/deploy-dokploy.md](docs/deploy-dokploy.md) — Docker Node server on port **3000**; set `PUBLIC_*` in Environment (runtime).
 
 **Routes shipped:** `/`, `/shows`, `/shows/[slug]`, `/comedians`, `/comedians/[slug]`, `/locations`, `/locations/[city]`, `/about`, `/work-with-us`, `/contact`.
 

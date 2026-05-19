@@ -2,6 +2,7 @@
 import "../styles/global.css";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
+import { getKintanaEnv } from "../lib/kintana-env";
 
 interface Props {
   title?: string;
@@ -26,12 +27,10 @@ function escapeAttr(v: string) {
   return v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-const TRACK_BASE = import.meta.env.PUBLIC_KINTANA_BASE_URL?.replace(/\/$/, "") ?? "";
+const { apiKey, baseUrl, trackerToken } = getKintanaEnv();
+const TRACK_BASE = baseUrl.replace(/\/$/, "");
 /** Prefer the snippet token from Website → external site (JWT); falls back to publish key so ingest still works. */
-const TRACK_TOKEN =
-  import.meta.env.PUBLIC_KINTANA_TRACKER_TOKEN?.trim() ||
-  import.meta.env.PUBLIC_KINTANA_API_KEY?.trim() ||
-  "";
+const TRACK_TOKEN = trackerToken || apiKey;
 const trackerMarkup =
   TRACK_BASE && TRACK_TOKEN
     ? `<script async src="${escapeAttr(TRACK_BASE)}/_t/k.js" data-token="${escapeAttr(

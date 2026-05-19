@@ -13,12 +13,9 @@ import EventRow from "../../components/EventRow.astro";
 import { eventCitySlug, groupEventsByMonth } from "../../lib/events";
 
 import { logKintanaError, logKintanaSuccess, kintanaHttpStatus } from "../../lib/kintana-error";
+import { getKintanaEnv } from "../../lib/kintana-env";
 
-
-
-const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY as string | undefined;
-
-const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL as string | undefined;
+const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
 
 
 
@@ -34,7 +31,7 @@ let listingsHttpStatus: number | undefined;
 
 
 
-if (apiKey?.trim() && baseUrl?.trim()) {
+if (hasCredentials) {
 
   try {
 
@@ -90,7 +87,7 @@ const grouped = groupEventsByMonth(events);
 
 
 
-    {!(apiKey && baseUrl) ? (
+    {!hasCredentials ? (
 
       <div class="mt-16 rounded-3xl border border-amber-200 bg-amber-50 px-6 py-6 text-neutral-950">
 
