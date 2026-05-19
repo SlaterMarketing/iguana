@@ -1,7 +1,11 @@
 /** Editorial content for /locations/ — aligned with the legacy Framer page. */
 
+import { heroCityChoices } from "./site";
+
 export const locationsPage = {
   heroTitle: "Comedy locations in Quintana Roo",
+  heroImage:
+    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/8c3d112d09f2afd980eb02d754988b1f71eedfbb1638623ec5ee276784c55f41.webp",
   intro:
     "Over the years, as we've grown, we've begun to offer comedy shows in more and more locations across Quintana Roo.",
   statsHeading: "Leading the comedy scene in the Mexican Caribbean",
@@ -24,50 +28,31 @@ export type LocationCityCard = {
   imageUrl: string;
 };
 
-export const locationCityCards: readonly LocationCityCard[] = [
-  {
-    slug: "cancun",
-    name: "Cancun",
-    imageUrl:
-      "https://images.unsplash.com/photo-1510097466554-933fbc264fbc?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    slug: "cozumel",
-    name: "Cozumel",
-    imageUrl:
-      "https://images.unsplash.com/photo-1551632436-7926d5c9809a?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    slug: "merida",
-    name: "Merida",
-    imageUrl:
-      "https://images.unsplash.com/photo-1594771705619-57356a5c2b48?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    slug: "playa-del-carmen",
-    name: "Playa del Carmen",
-    imageUrl:
-      "https://images.unsplash.com/photo-1519046904884-53103b34f206?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    slug: "puerto-aventuras",
-    name: "Puerto Aventuras",
-    imageUrl:
-      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    slug: "puerto-morelos",
-    name: "Puerto Morelos",
-    imageUrl:
-      "https://images.unsplash.com/photo-1544551763-46a013bb70d5?q=80&w=1200&auto=format&fit=crop",
-  },
-  {
-    slug: "tulum",
-    name: "Tulum",
-    imageUrl:
-      "https://images.unsplash.com/photo-1552733407-5d5c46c3bb3b?q=80&w=1200&auto=format&fit=crop",
-  },
-] as const;
+const cityImages: Record<string, string> = {
+  cancun:
+    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/a7f73321788a60c5e26fbc169098d29ca831a9fd8f81a1a4b04cb8f31b23905f.jpg",
+  cozumel:
+    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/e3861e77e1377e8c41284752355ab7b3b815031fcb684553d4ecb115c3e792ed.jpg",
+  merida:
+    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/e6864340e4c847c6212334eb852febdbbb5bbe872e2260a1801bb39b56491084.jpeg",
+  "playa-del-carmen":
+    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/fc28c62ff25bfe59ab4a1b77d48f063eeba57ba8c4f7605211cfd701fa7c6d27.jpg",
+  "puerto-aventuras":
+    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/3fbec67adea60b37a8f4d8334ef5c90cac31b8717922357a6d21e11ce078aa52.webp",
+  "puerto-morelos":
+    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/b40c63c032e048fe72ac7292d97c87d62f92a2d1d17fa175bda8071c2d9f518e.jpg",
+  tulum:
+    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/4b654104e25fb08b6a3271259adebe774fd8e016daf0801620df9d1b65ca22e9.jpg",
+};
+
+/** City cards in nav order — labels match the homepage city picker. */
+export const locationCityCards: readonly LocationCityCard[] = heroCityChoices
+  .filter((entry) => entry.slug)
+  .map((entry) => ({
+    slug: entry.slug,
+    name: entry.label,
+    imageUrl: cityImages[entry.slug] ?? cityImages.cancun,
+  }));
 
 export const locationServices = [
   {
@@ -79,6 +64,7 @@ export const locationServices = [
   {
     number: "02",
     title: "Open mics",
+    body: "Weekly and rotating open mics give local comics stage time and travellers a chance to catch fresh material before it hits the festival circuit.",
     href: "/events/",
   },
   {
@@ -95,8 +81,8 @@ export const locationServices = [
 
 /** Cities highlighted in the legacy stats strip (venue counts filled from API when available). */
 export const locationStatsCities = [
-  { slug: "cancun", name: "Cancun" },
+  { slug: "cancun", name: "Cancún" },
   { slug: "tulum", name: "Tulum" },
-  { slug: "merida", name: "Merida" },
+  { slug: "merida", name: "Mérida" },
   { slug: "playa-del-carmen", name: "Playa del Carmen" },
 ] as const;

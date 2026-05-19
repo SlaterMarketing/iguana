@@ -1,195 +1,198 @@
 ---
 import Base from "../../layouts/Base.astro";
+import Cta from "../../components/Cta.astro";
+import ExperienceStatsStrip from "../../components/ExperienceStatsStrip.astro";
+import HomeHero from "../../components/home/HomeHero.astro";
 import LocationCityCard from "../../components/LocationCityCard.astro";
-import { createKintanaClient } from "@kintana/sdk";
-import type { KintanaGroupedCity, KintanaPublicArtistEmbed, KintanaPublicEvent } from "@kintana/sdk";
-import { groupVenuesByCity } from "@kintana/sdk/locations";
-
+import LocationRow from "../../components/LocationRow.astro";
 import {
   locationCityCards,
   locationServices,
   locationStatsCities,
   locationsPage,
 } from "../../content/locations-page";
-import { logKintanaError, logKintanaSuccess } from "../../lib/kintana-error";
+import { heroCityChoices, site } from "../../content/site";
+import { loadLocationsCatalog } from "../../lib/locations-data";
 import { getKintanaEnv } from "../../lib/kintana-env";
 import { slugify } from "../../lib/slug";
 
-const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
-
-let grouped: KintanaGroupedCity[] = [];
-let artistCount = 0;
-let eventCount = 0;
-let venuesRequestFailed = false;
-
-if (hasCredentials) {
-  const client = createKintanaClient({ apiKey, baseUrl });
-
-  try {
-    const venues = await client.listVenues();
-    grouped = groupVenuesByCity(venues);
-    logKintanaSuccess(`listVenues /locations (${grouped.length} cities)`, venues.length);
-  } catch (err) {
-    logKintanaError("listVenues /locations", err);
-    venuesRequestFailed = true;
-    grouped = [];
-  }
-
-  try {
-    const artists: KintanaPublicArtistEmbed[] = await client.listArtists({ limit: 200 });
-    artistCount = artists.length;
-  } catch {
-    artistCount = 0;
-  }
-
-  try {
-    const events: KintanaPublicEvent[] = await client.listEvents({ limit: 200 });
-    eventCount = events.filter((evt) => evt.status !== "cancelled").length;
-  } catch {
-    eventCount = 0;
-  }
-}
-
-const venueCountBySlug = new Map<string, number>();
-for (const group of grouped) {
-  const slug = slugify(group.city);
-  if (slug !== "unknown") venueCountBySlug.set(slug, group.venues.length);
-}
+const catalog = await loadLocationsCatalog();
+const { apiKey, baseUrl } = getKintanaEnv();
 
 function venueCountFor(slug: string) {
-  return venueCountBySlug.get(slug) ?? 0;
+  return catalog.venueCountBySlug.get(slug) ?? 0;
 }
 
-const globalStats = [
-  { label: "Comedians", value: artistCount },
-  { label: "Events", value: eventCount },
-  { label: "Attendees", value: "—" },
-  { label: "Private events", value: "—" },
-] as const;
+function upcomingCountFor(slug: string) {
+  return catalog.upcomingCountBySlug.get(slug) ?? 0;
+}
+
+function cardMeta(slug: string) {
+  const upcoming = upcomingCountFor(slug);
+  const venues = venueCountFor(slug);
+  if (upcoming > 0 && venues > 0) return `${upcoming} shows · ${venues} venues`;
+  if (upcoming > 0) return `${upcoming} upcoming ${upcoming === 1 ? "show" : "shows"}`;
+  if (venues > 0) return `${venues} ${venues === 1 ? "venue" : "venues"}`;
+  return undefined;
+}
+
+const apiOnlyGroups = catalog.grouped.filter((group) => {
+  const slug = slugify(group.city);
+  return slug !== "unknown" && !locationCityCards.some((city) => city.slug === slug);
+});
+
+const cityPickerChoices = [
+  { slug: "", label: "All locations" },
+  ...heroCityChoices.filter((entry) => entry.slug !== ""),
+];
 ---
 
 <Base
+  transparentHeader
+  flushMain
   narrow={false}
-  transparentHeader={false}
   title="Comedy locations in Quintana Roo · Iguana Comedy"
   description={locationsPage.intro}
 >
-  <section class="locations-hero relative isolate overflow-hidden text-white">
-    <div class="absolute inset-0 bg-brand-hover" aria-hidden="true" />
-    <img
-      src={locationsPage.heroTexture}
-      alt=""
-      class="absolute inset-0 size-full object-cover opacity-[0.22] mix-blend-overlay"
-      aria-hidden="true"
-    />
-    <div class="relative z-10 mx-auto flex min-h-[min(52vh,28rem)] max-w-6xl items-center justify-center px-6 py-28 text-center sm:py-32">
-      <h1
-        class="max-w-4xl font-display text-[clamp(2.4rem,5vw,4.5rem)] uppercase leading-[1.05] tracking-wide"
-        style="font-family: var(--font-display);"
+  <HomeHero
+    eyebrow="Where we perform"
+    headlineLine1="Comedy locations"
+    headlineLine2Prefix="in "
+    headlineLine2Static="Quintana Roo"
+    heroImageUrl={locationsPage.heroImage}
+    showsHref="/events/"
+    pickerChoices={cityPickerChoices}
+    activeCitySlug=""
+    pickerNavigateTo="locations"
+    ctaLabel="Buy ticket"
+  />
+
+  <section class="mx-auto max-w-[118rem] px-6 py-28">
+    <div class="flex flex-col gap-16 lg:flex-row lg:justify-between">
+      <p class="font-display text-4xl text-neutral-950 sm:text-5xl" style="font-family: var(--font-display);">
+        Our cities
+      </p>
+      <p
+        class="font-display text-4xl uppercase tracking-[0.45em] text-neutral-600 sm:text-5xl lg:text-end"
+        style="font-family: var(--font-display); letter-spacing: 0.4em;"
       >
-        {locationsPage.heroTitle}
-      </h1>
+        locations
+      </p>
     </div>
-  </section>
+    <p class="mx-auto mt-10 max-w-3xl text-center text-lg leading-relaxed text-neutral-700 lg:mt-14">{locationsPage.intro}</p>
 
-  <section class="mx-auto max-w-3xl px-6 py-16 text-center sm:py-20">
-    <p class="text-lg leading-relaxed text-neutral-800 sm:text-xl">{locationsPage.intro}</p>
-  </section>
-
-  <section class="mx-auto max-w-6xl px-6 pb-20">
     {
-      venuesRequestFailed && apiKey && baseUrl ? (
-        <p class="mb-10 rounded-2xl border border-amber-200 bg-amber-50 px-6 py-4 text-neutral-900">
+      catalog.venuesRequestFailed && apiKey && baseUrl ? (
+        <p class="mx-auto mt-14 max-w-2xl rounded-3xl border border-amber-200 bg-amber-50 px-6 py-4 text-center text-neutral-900">
           Venue data is offline—city cards still link through to each coast page.
         </p>
       ) : null
     }
-    <div class="grid gap-8 sm:grid-cols-2">
+
+    <div class="mt-20 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
       {locationCityCards.map((city) => (
-        <LocationCityCard city={city} />
+        <LocationCityCard city={city} meta={cardMeta(city.slug)} />
       ))}
     </div>
   </section>
 
-  <section class="mx-auto grid max-w-6xl gap-4 px-6 pb-24 sm:grid-cols-3">
-    {locationsPage.galleryImages.map((src) => (
-      <div class="overflow-hidden rounded-2xl">
-        <img src={src} alt="" class="aspect-[4/3] size-full object-cover" loading="lazy" decoding="async" />
-      </div>
-    ))}
-  </section>
+  {
+    apiOnlyGroups.length > 0 ? (
+      <section class="mx-auto max-w-[118rem] border-t border-black/15 px-6 py-20">
+        <p class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-500">From the calendar</p>
+        <h2 class="mt-4 font-display text-3xl text-neutral-950 sm:text-4xl" style="font-family: var(--font-display);">
+          Also on the coast
+        </h2>
+        <div class="mt-8">
+          {apiOnlyGroups.map((group) => (
+            <LocationRow group={group} />
+          ))}
+        </div>
+      </section>
+    ) : null
+  }
 
-  <section class="border-t border-black/10 bg-white">
-    <div class="mx-auto grid max-w-6xl gap-12 px-6 py-20 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-20 lg:py-28">
-      <h2
-        class="font-display text-4xl uppercase leading-[1.08] text-neutral-950 sm:text-5xl"
-        style="font-family: var(--font-display);"
-      >
-        {locationsPage.statsHeading}
-      </h2>
-      <p class="text-lg leading-relaxed text-neutral-700">{locationsPage.statsBody}</p>
-    </div>
-
-    <div class="mx-auto grid max-w-6xl gap-10 border-t border-black/10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4 lg:py-16">
-      {globalStats.map((stat) => (
-        <div class="text-center sm:text-left">
-          <p class="text-xs font-semibold uppercase tracking-[0.35em] text-neutral-500">{stat.label}</p>
-          <p class="mt-3 font-display text-5xl text-neutral-950" style="font-family: var(--font-display);">
-            {typeof stat.value === "number" ? `${stat.value}+` : stat.value}
-          </p>
+  <section class="mx-auto max-w-[118rem] px-6 pb-28">
+    <div class="grid gap-4 sm:grid-cols-3">
+      {locationsPage.galleryImages.map((src) => (
+        <div class="overflow-hidden rounded-[2.85rem]">
+          <img src={src} alt="" class="aspect-[4/3] size-full object-cover" loading="lazy" decoding="async" />
         </div>
       ))}
     </div>
+  </section>
 
-    <div class="mx-auto grid max-w-6xl gap-8 border-t border-black/10 px-6 py-14 sm:grid-cols-2 lg:grid-cols-4 lg:py-16">
-      {locationStatsCities.map((city) => {
-        const count = venueCountFor(city.slug);
-        return (
-          <div class="flex items-center gap-4 border-l-2 border-brand pl-5">
-            <span class="text-brand" aria-hidden="true">
-              <svg class="size-5" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5z" />
-              </svg>
-            </span>
-            <div>
-              <p class="text-sm font-semibold uppercase tracking-[0.28em] text-neutral-600">{city.name}</p>
-              <p class="font-display text-4xl text-neutral-950" style="font-family: var(--font-display);">
-                {count}+
-              </p>
-            </div>
-          </div>
-        );
-      })}
+  <section class="mx-auto max-w-[118rem] px-6 pb-28 lg:pb-36">
+    <div class="grid items-center gap-12 lg:grid-cols-2 lg:gap-16 xl:gap-24">
+      <figure class="relative isolate mx-auto aspect-square w-full max-w-md overflow-hidden rounded-[2.5rem] bg-neutral-900 lg:mx-0 lg:max-w-none">
+        <img src={site.brandMomentImage} alt="" class="size-full object-cover" loading="lazy" />
+      </figure>
+
+      <div class="flex flex-col gap-10 lg:gap-12">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-500">Mexican Caribbean</p>
+          <h2
+            class="mt-6 font-display text-4xl text-neutral-950 sm:text-[clamp(2.5rem,3vw+1.5rem,3.75rem)]"
+            style="font-family: var(--font-display);"
+          >
+            {locationsPage.statsHeading}
+          </h2>
+          <p class="mt-8 text-lg leading-relaxed text-neutral-700">{locationsPage.statsBody}</p>
+        </div>
+
+        <ExperienceStatsStrip />
+
+        <div class="grid gap-6 border-t border-black/10 pt-8 sm:grid-cols-2">
+          {locationStatsCities.map((city) => {
+            const count = venueCountFor(city.slug);
+            return (
+              <a
+                href={`/locations/${city.slug}/`}
+                class="group flex items-center gap-4 border-l-2 border-brand pl-5 transition hover:border-brand-hover"
+              >
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-[0.32em] text-neutral-500">{city.name}</p>
+                  <p class="mt-2 font-display text-3xl text-brand-hover sm:text-4xl" style="font-family: var(--font-display);">
+                    {count > 0 ? `${count}+` : "—"}
+                  </p>
+                  <p class="mt-1 text-sm text-neutral-600 group-hover:text-neutral-950">venues on file →</p>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </div>
     </div>
   </section>
 
-  <section class="relative isolate min-h-[32rem] overflow-hidden">
-    <img
-      src={locationsPage.servicesBackground}
-      alt=""
-      class="absolute inset-0 size-full object-cover"
-      loading="lazy"
-    />
-    <div class="absolute inset-0 bg-neutral-950/45" aria-hidden="true" />
-    <div class="relative z-10 mx-auto flex min-h-[32rem] max-w-6xl items-center px-6 py-20">
-      <div class="w-full rounded-3xl bg-white/90 px-8 py-12 shadow-[0_24px_80px_rgba(0,0,0,0.2)] backdrop-blur-sm sm:px-12 sm:py-14">
-        <ol class="divide-y divide-neutral-200">
+  <section class="mx-auto max-w-[118rem] border-t border-black/15 px-6 py-28">
+    <div class="grid gap-16 lg:grid-cols-[0.93fr_minmax(0,1fr)] lg:gap-24">
+      <div class="overflow-hidden rounded-[2.85rem]">
+        <img
+          src={locationsPage.servicesBackground}
+          alt=""
+          loading="lazy"
+          class="aspect-[14/17] object-cover lg:aspect-auto lg:min-h-[28rem]"
+        />
+      </div>
+      <div class="flex flex-col justify-center gap-10">
+        <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">What we run</p>
+        <h2 class="font-display text-4xl tracking-tight text-neutral-950 sm:text-[3.05rem]" style="font-family: var(--font-display);">
+          Shows for every room
+        </h2>
+        <ol class="divide-y divide-black/10">
           {
             locationServices.map((service) => (
-              <li class="grid gap-4 py-8 first:pt-0 last:pb-0 lg:grid-cols-[auto_1fr] lg:items-start lg:gap-10">
-                <span class="font-display text-3xl text-neutral-400" style="font-family: var(--font-display);">
-                  {service.number}
-                </span>
-                <div class="space-y-3">
-                  <h3 class="font-display text-2xl uppercase tracking-wide sm:text-3xl" style="font-family: var(--font-display);">
-                    <a href={service.href} class="text-neutral-950 hover:text-brand">
-                      {service.title}
-                    </a>
-                  </h3>
-                  {"body" in service && service.body ? (
-                    <p class="max-w-xl text-base leading-relaxed text-neutral-700">{service.body}</p>
-                  ) : null}
-                </div>
+              <li class="space-y-3 py-8 first:pt-0 last:pb-0">
+                <p class="text-xs font-semibold uppercase tracking-[0.35em] text-neutral-400">{service.number}</p>
+                <h3 class="font-display text-2xl text-neutral-950 sm:text-3xl" style="font-family: var(--font-display);">
+                  <a href={service.href} class="hover:text-brand">
+                    {service.title}
+                  </a>
+                </h3>
+                {"body" in service && service.body ? (
+                  <p class="max-w-xl text-lg leading-relaxed text-neutral-700">{service.body}</p>
+                ) : null}
               </li>
             ))
           }
@@ -198,25 +201,5 @@ const globalStats = [
     </div>
   </section>
 
-  <section class="relative isolate overflow-hidden bg-neutral-950 px-6 py-28 text-center text-white sm:py-36">
-    <h2
-      class="font-display text-[clamp(3rem,8vw,6.5rem)] uppercase leading-none tracking-wide text-white/95"
-      style="font-family: var(--font-display); -webkit-text-stroke: 1px rgba(255,255,255,0.35); color: transparent;"
-    >
-      Ready to laugh?
-    </h2>
-    <a
-      href="/events/"
-      class="btn-pill relative z-10 -mt-6 inline-flex rounded-full bg-brand-hover px-12 py-5 text-xs font-semibold uppercase tracking-[0.38em] text-white shadow-lg"
-      style="background-color: var(--color-brand-hover);"
-    >
-      Book your place
-    </a>
-  </section>
+  <Cta body="Pick a city, grab a ticket, and we'll see you at the room." />
 </Base>
-
-<style>
-  .locations-hero {
-    background-color: var(--color-brand-hover);
-  }
-</style>

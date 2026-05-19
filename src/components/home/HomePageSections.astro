@@ -2,9 +2,9 @@
 import ComedianTile from "../ComedianTile.astro";
 import Cta from "../Cta.astro";
 import EventRow from "../EventRow.astro";
-import Stat from "../Stat.astro";
+import ExperienceStatsStrip from "../ExperienceStatsStrip.astro";
 import type { HomePageData } from "../../lib/home-page-data";
-import { experienceStats, site } from "../../content/site";
+import { site } from "../../content/site";
 import { testimonials } from "../../content/testimonials";
 
 interface Props extends HomePageData {
@@ -106,14 +106,7 @@ const eventsEmpty =
         }
       </div>
 
-      <div
-        class="experience-stats grid grid-cols-3 gap-2 divide-x divide-neutral-200 rounded-[2rem] border border-neutral-200 px-4 py-6 sm:gap-4 sm:px-8 sm:py-8"
-        data-experience-stats
-      >
-        {experienceStats.map((stat) => (
-          <Stat value={stat.value} suffix={stat.suffix} label={stat.label} />
-        ))}
-      </div>
+      <ExperienceStatsStrip />
     </div>
   </div>
 
@@ -145,66 +138,6 @@ const eventsEmpty =
     </div>
   </div>
 </section>
-
-<script>
-  const STAT_DURATION_MS = 1100;
-
-  function easeOutQuart(t) {
-    return 1 - (1 - t) ** 4;
-  }
-
-  function formatCount(n) {
-    return n >= 1000 ? n.toLocaleString("en-US") : String(n);
-  }
-
-  function setCounterValue(el, current, suffix) {
-    const valueEl = el.querySelector(".stat-counter__value");
-    if (valueEl) valueEl.textContent = `${formatCount(current)}${suffix}`;
-  }
-
-  function runCounter(el) {
-    const end = Number(el.dataset.statValue ?? 0);
-    const suffix = el.dataset.statSuffix ?? "";
-    if (el.dataset.statAnimated === "true") return;
-    el.dataset.statAnimated = "true";
-
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
-      setCounterValue(el, end, suffix);
-      return;
-    }
-
-    const start = performance.now();
-    const tick = (now) => {
-      const t = Math.min((now - start) / STAT_DURATION_MS, 1);
-      const current = Math.round(easeOutQuart(t) * end);
-      setCounterValue(el, current, suffix);
-      if (t < 1) requestAnimationFrame(tick);
-      else setCounterValue(el, end, suffix);
-    };
-    requestAnimationFrame(tick);
-  }
-
-  function initExperienceStats(root) {
-    const counters = root.querySelectorAll(".stat-counter");
-    if (!counters.length) return;
-
-    const observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (!entry.isIntersecting) continue;
-          counters.forEach((counter) => runCounter(counter));
-          observer.disconnect();
-          break;
-        }
-      },
-      { threshold: 0.35, rootMargin: "0px 0px -5% 0px" },
-    );
-
-    observer.observe(root);
-  }
-
-  document.querySelectorAll("[data-experience-stats]").forEach(initExperienceStats);
-</script>
 
 <section class="mx-auto max-w-[118rem] px-6 pb-36">
   <div class="grid gap-24 lg:grid-cols-[0.93fr_minmax(0,1fr)] lg:gap-52">

@@ -1,26 +1,38 @@
 ---
 import type { LocationCityCard } from "../content/locations-page";
 
-const { city } = Astro.props as { city: LocationCityCard };
+const { city, compact = false, meta } = Astro.props as {
+  city: LocationCityCard;
+  compact?: boolean;
+  meta?: string;
+};
 ---
 
 <a
   href={`/locations/${city.slug}/`}
-  class="group block overflow-hidden rounded-sm bg-neutral-200 shadow-[0_12px_40px_rgba(0,0,0,0.08)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_48px_rgba(0,0,0,0.14)]"
+  class:list={[
+    "group relative isolate block overflow-hidden rounded-[2.5rem] bg-neutral-900",
+    compact ? "aspect-[16/10]" : "aspect-[4/5] sm:aspect-[3/4]",
+  ]}
 >
-  <div class="aspect-[4/3] overflow-hidden">
-    <img
-      src={city.imageUrl}
-      alt=""
-      class="size-full object-cover transition duration-500 group-hover:scale-[1.03]"
-      loading="lazy"
-      decoding="async"
-    />
+  <img
+    src={city.imageUrl}
+    alt=""
+    class="absolute inset-0 size-full object-cover transition duration-500 group-hover:scale-[1.03]"
+    loading="lazy"
+    decoding="async"
+  />
+  <div class="absolute inset-0 bg-gradient-to-t from-neutral-950/90 via-neutral-950/35 to-neutral-950/10" aria-hidden="true" />
+  <div class="absolute inset-x-0 bottom-0 space-y-2 p-6 sm:p-8">
+    {meta ? <p class="text-[0.65rem] font-semibold uppercase tracking-[0.38em] text-white/70">{meta}</p> : null}
+    <p
+      class:list={[
+        "font-display leading-tight text-white",
+        compact ? "text-xl sm:text-2xl" : "text-2xl sm:text-[1.75rem]",
+      ]}
+      style="font-family: var(--font-display);"
+    >
+      {city.name}
+    </p>
   </div>
-  <p
-    class="bg-brand-hover px-5 py-4 text-center font-display text-xl uppercase tracking-wide text-white sm:text-2xl"
-    style="font-family: var(--font-display); background-color: var(--color-brand-hover);"
-  >
-    {city.name}
-  </p>
 </a>

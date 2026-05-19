@@ -1,18 +1,14 @@
 ---
 import Base from "../../layouts/Base.astro";
+import Cta from "../../components/Cta.astro";
+import EventRow from "../../components/EventRow.astro";
 import HomeHero from "../../components/home/HomeHero.astro";
-import HomePageSections from "../../components/home/HomePageSections.astro";
-import { createKintanaClient } from "@kintana/sdk";
-import type { KintanaGroupedCity, KintanaPublicVenueListed, KintanaPublicEvent } from "@kintana/sdk";
-import { groupVenuesByCity } from "@kintana/sdk/locations";
+import LocationOtherCities from "../../components/locations/LocationOtherCities.astro";
 
 import { getCityLanding } from "../../content/city-landings";
-import { heroCityChoices, site } from "../../content/site";
 import { getCityBlurb } from "../../content/city-blurbs";
-import { eventCitySlug, formatEventDate, sortEventsAscending } from "../../lib/events";
-import { loadHomePageData } from "../../lib/home-page-data";
-import { getKintanaEnv } from "../../lib/kintana-env";
-import { slugify } from "../../lib/slug";
+import { heroCityChoices } from "../../content/site";
+import { loadCityLocationsData } from "../../lib/locations-data";
 
 const citySlug = Astro.params.city ?? "";
 const landing = getCityLanding(citySlug);
@@ -21,41 +17,14 @@ if (!landing) {
   return Astro.redirect("/locations/");
 }
 
-const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
-
-const pageData = await loadHomePageData(citySlug);
-
-let venuesInCity: readonly KintanaPublicVenueListed[] = [];
-if (hasCredentials) {
-  try {
-    const client = createKintanaClient({ apiKey, baseUrl });
-    const grouped = groupVenuesByCity(await client.listVenues());
-    venuesInCity = grouped.find((group) => slugify(group.city) === citySlug)?.venues ?? [];
-  } catch {
-    venuesInCity = [];
-  }
-}
-
-let happenings: KintanaPublicEvent[] = [];
-if (hasCredentials) {
-  try {
-    const client = createKintanaClient({ apiKey, baseUrl });
-    const pool = sortEventsAscending(await client.listEvents({ limit: 140 })).filter(
-      (evt) => evt.status !== "cancelled",
-    );
-    happenings = pool.filter((evt) => eventCitySlug(evt) === citySlug).slice(0, 12);
-  } catch {
-    happenings = [];
-  }
-}
-
+const { venuesInCity, happenings } = await loadCityLocationsData(citySlug);
 const blurb = getCityBlurb(citySlug);
+const secondaryParagraph = blurb?.paragraphs[1];
+
 const cityPickerChoices = [
-  { slug: "", label: "Whole coastline" },
+  { slug: "", label: "All locations" },
   ...heroCityChoices.filter((entry) => entry.slug !== ""),
 ];
-
-const experienceHeading = `The iguana <span class="text-brand">experience</span> in ${landing.label}`;
 ---
 
 <Base
@@ -69,50 +38,87 @@ const experienceHeading = `The iguana <span class="text-brand">experience</span>
     activeCitySlug={citySlug}
     cityLabel={landing.label}
     eyebrow={landing.eyebrow}
-    heroPosterUrl={landing.heroImage}
+    heroImageUrl={landing.heroImage}
     showsHref={`/events/?city=${encodeURIComponent(citySlug)}`}
     pickerChoices={cityPickerChoices}
+    pickerNavigateTo="locations"
+    ctaLabel="Buy ticket"
   />
 
-  <HomePageSections
-    {...pageData}
-    apiConfigured={pageData.hasCredentials}
-    activeCitySlug={citySlug}
-    cityLabel={landing.label}
-    experienceHeading={experienceHeading}
-    experienceCopy={landing.experienceCopy}
-    eventsHeading={`Upcoming in ${landing.label}`}
-  />
+  {
+    secondaryParagraph ? (
+      <section class="mx-auto max-w-[118rem] px-6 py-20 lg:py-28">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-500">On the ground</p>
+          <p class="mt-8 text-lg leading-relaxed text-neutral-700 sm:text-xl">{secondaryParagraph}</p>
+        </div>
+      </section>
+    ) : null
+  }
 
-  <section id="venues" class="mx-auto max-w-5xl scroll-mt-28 px-6 pb-32 pt-8">
-    <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.55rem] hover:underline" href="/locations/">
-      ← All cities
+  <section id="shows" class="mx-auto max-w-[118rem] scroll-mt-28 px-6 py-28">
+    <div class="flex flex-col gap-16 lg:flex-row lg:justify-between">
+      <p class="font-display text-4xl text-neutral-950 sm:text-5xl" style="font-family: var(--font-display);">
+        Upcoming in {landing.label}
+      </p>
+      <a
+        href={`/events/?city=${encodeURIComponent(citySlug)}`}
+        class="self-start text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.6rem] hover:underline lg:self-end"
+      >
+        Full calendar →
+      </a>
+    </div>
+
+    {
+      happenings.length === 0 ? (
+        <p class="mx-auto mt-14 max-w-2xl rounded-3xl border border-neutral-200 px-10 py-6 text-center text-neutral-700">
+          No upcoming shows listed for {landing.label} yet—browse the full calendar or pick another coast town.
+        </p>
+      ) : (
+        <div class="mt-20 grid gap-16 lg:grid-cols-2">
+          {happenings.map((evt, index) => (
+            <EventRow evt={evt} highlightCity={citySlug} featured={happenings.length === 1 && index === 0} />
+          ))}
+        </div>
+      )
+    }
+  </section>
+
+  <section id="venues" class="mx-auto max-w-[118rem] scroll-mt-28 border-t border-black/15 px-6 py-28">
+    <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.6rem] hover:underline" href="/locations/">
+      ← All locations
     </a>
 
-    <header class="mt-10 space-y-4">
-      <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">Rooms on file</p>
+    <div class="mt-12 flex flex-col gap-16 lg:flex-row lg:justify-between">
       <h2 class="font-display text-4xl text-neutral-950 sm:text-5xl" style="font-family: var(--font-display);">
         Venues in {landing.label}
       </h2>
-      {blurb?.paragraphs[1] ? <p class="max-w-2xl text-lg text-neutral-700">{blurb.paragraphs[1]}</p> : null}
-    </header>
+      <p
+        class="font-display text-4xl uppercase tracking-[0.45em] text-neutral-600 sm:text-5xl lg:text-end"
+        style="font-family: var(--font-display); letter-spacing: 0.4em;"
+      >
+        rooms
+      </p>
+    </div>
 
-    <ul class="mt-12 divide-y divide-black/10">
+    <ul class="mt-16 divide-y divide-black/10">
       {
         venuesInCity.length === 0 ? (
-          <li class="py-8 text-neutral-600">Venue sync pending—reach out if you need door details before show night.</li>
+          <li class="py-10 text-lg text-neutral-600">Venue sync pending—reach out if you need door details before show night.</li>
         ) : (
           venuesInCity.map((venue) => (
-            <li class="grid gap-4 py-8 sm:grid-cols-[1fr_auto]">
+            <li class="grid gap-4 py-10 sm:grid-cols-[1fr_auto]">
               <div class="space-y-2">
-                <p class="text-2xl font-semibold text-neutral-950">{venue.name}</p>
+                <p class="font-display text-2xl text-neutral-950 sm:text-3xl" style="font-family: var(--font-display);">
+                  {venue.name}
+                </p>
                 <p class="text-neutral-600">
                   {[venue.address ?? "", venue.city, venue.country].filter(Boolean).join(" · ") || landing.label}
                 </p>
               </div>
               {
                 typeof venue.capacity === "number" ? (
-                  <p class="self-center rounded-full bg-neutral-100 px-6 py-2 text-xs uppercase tracking-[0.35em] text-neutral-900">
+                  <p class="self-center rounded-full border border-neutral-200 px-6 py-2 text-xs uppercase tracking-[0.35em] text-neutral-900">
                     {venue.capacity}+ seats
                   </p>
                 ) : null
@@ -122,28 +128,12 @@ const experienceHeading = `The iguana <span class="text-brand">experience</span>
         )
       }
     </ul>
-
-    {
-      happenings.length > 0 ? (
-        <div class="mt-16 border-t border-black/10 pt-12">
-          <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">Full calendar slice</p>
-          <ul class="mt-8 space-y-4">
-            {
-              happenings.map((evt) => (
-                <li class="flex flex-wrap gap-8 border border-black/[0.08] px-6 py-6">
-                  <div class="min-w-[120px] text-neutral-600">{formatEventDate(evt.date)}</div>
-                  <div class="flex-1 space-y-1">
-                    <a class="text-lg font-semibold hover:text-brand" href={`/events/${evt.slug}/`}>
-                      {evt.name}
-                    </a>
-                    <p class="text-sm text-neutral-500">{evt.venue?.name ?? ""}</p>
-                  </div>
-                </li>
-              ))
-            }
-          </ul>
-        </div>
-      ) : null
-    }
   </section>
+
+  <LocationOtherCities activeSlug={citySlug} />
+
+  <Cta
+    ctaHref={`/events/?city=${encodeURIComponent(citySlug)}`}
+    body={`Grab tickets for the next show in ${landing.label}.`}
+  />
 </Base>

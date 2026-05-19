@@ -1,0 +1,79 @@
+---
+import Stat from "./Stat.astro";
+import { experienceStats } from "../content/site";
+---
+
+<div
+  class="experience-stats grid grid-cols-3 gap-2 divide-x divide-neutral-200 rounded-[2rem] border border-neutral-200 px-4 py-6 sm:gap-4 sm:px-8 sm:py-8"
+  data-experience-stats
+>
+  {experienceStats.map((stat) => (
+    <Stat value={stat.value} suffix={stat.suffix} label={stat.label} />
+  ))}
+</div>
+
+<script>
+  const STAT_DURATION_MS = 1100;
+
+  function easeOutQuart(t: number) {
+    return 1 - (1 - t) ** 4;
+  }
+
+  function formatCount(n: number) {
+    return n >= 1000 ? n.toLocaleString("en-US") : String(n);
+  }
+
+  function setCounterValue(el: Element, current: number, suffix: string) {
+    const valueEl = el.querySelector(".stat-counter__value");
+    if (valueEl) valueEl.textContent = `${formatCount(current)}${suffix}`;
+  }
+
+  function runCounter(el: Element) {
+    const end = Number((el as HTMLElement).dataset.statValue ?? 0);
+    const suffix = (el as HTMLElement).dataset.statSuffix ?? "";
+    const htmlEl = el as HTMLElement;
+    if (htmlEl.dataset.statAnimated === "true") return;
+    htmlEl.dataset.statAnimated = "true";
+
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      setCounterValue(el, end, suffix);
+      return;
+    }
+
+    const start = performance.now();
+    const tick = (now: number) => {
+      const t = Math.min((now - start) / STAT_DURATION_MS, 1);
+      const current = Math.round(easeOutQuart(t) * end);
+      setCounterValue(el, current, suffix);
+      if (t < 1) requestAnimationFrame(tick);
+      else setCounterValue(el, end, suffix);
+    };
+    requestAnimationFrame(tick);
+  }
+
+  function initExperienceStats(root: Element) {
+    const counters = root.querySelectorAll(".stat-counter");
+    if (!counters.length) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries) {
+          if (!entry.isIntersecting) continue;
+          counters.forEach((counter) => runCounter(counter));
+          observer.disconnect();
+          break;
+        }
+      },
+      { threshold: 0.35, rootMargin: "0px 0px -5% 0px" },
+    );
+
+    observer.observe(root);
+  }
+
+  function initAll() {
+    document.querySelectorAll("[data-experience-stats]").forEach(initExperienceStats);
+  }
+
+  initAll();
+  document.addEventListener("astro:page-load", initAll);
+</script>

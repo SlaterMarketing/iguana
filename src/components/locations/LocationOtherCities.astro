@@ -1,0 +1,37 @@
+---
+import LocationCityCard from "../LocationCityCard.astro";
+import { locationCityCards } from "../../content/locations-page";
+
+const { activeSlug } = Astro.props as { activeSlug: string };
+const others = locationCityCards.filter((city) => city.slug !== activeSlug);
+---
+
+{
+  others.length > 0 ? (
+    <section class="border-t border-black/15 bg-white">
+      <div class="mx-auto max-w-[118rem] px-6 py-28">
+        <div class="flex flex-col gap-16 lg:flex-row lg:justify-between">
+          <p class="font-display text-4xl text-neutral-950 sm:text-5xl" style="font-family: var(--font-display);">
+            More cities
+          </p>
+          <p
+            class="font-display text-4xl uppercase tracking-[0.45em] text-neutral-600 sm:text-5xl lg:text-end"
+            style="font-family: var(--font-display); letter-spacing: 0.4em;"
+          >
+            coast
+          </p>
+        </div>
+        <div class="mt-20 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          {others.slice(0, 6).map((city) => (
+            <LocationCityCard city={city} compact />
+          ))}
+        </div>
+        <p class="mt-14 text-center">
+          <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.6rem] hover:underline" href="/locations/">
+            All locations →
+          </a>
+        </p>
+      </div>
+    </section>
+  ) : null
+}

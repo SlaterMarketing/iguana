@@ -12,27 +12,43 @@ interface Props {
   activeCitySlug?: string;
   cityLabel?: string;
   eyebrow?: string;
+  headlineLine1?: string;
+  headlineLine2Prefix?: string;
+  headlineLine2Static?: string;
   heroVideoUrl?: string;
   heroPosterUrl?: string;
+  /** When set, shows a still image instead of the looping video. */
+  heroImageUrl?: string;
   showsHref: string;
   pickerChoices: PickerChoice[];
   rotatorCities?: readonly string[];
+  pickerNavigateTo?: "home" | "locations";
+  ctaLabel?: string;
 }
 
 const {
   activeCitySlug = "",
   cityLabel,
   eyebrow = "Live English comedy nights",
+  headlineLine1 = "International stand-up",
+  headlineLine2Prefix = "comedy in ",
+  headlineLine2Static,
   heroVideoUrl = site.heroVideoUrl,
   heroPosterUrl = site.heroImage,
+  heroImageUrl,
   showsHref,
   pickerChoices,
   rotatorCities = heroCityChoices.filter((entry) => entry.slug !== "").map((entry) => entry.label),
+  pickerNavigateTo = "home",
+  ctaLabel = "Buy ticket",
 } = Astro.props;
 
-const staticHeadlineCity = cityLabel ?? (activeCitySlug
-  ? heroCityChoices.find((entry) => entry.slug === activeCitySlug)?.label
-  : undefined);
+const staticHeadlineCity =
+  headlineLine2Static ??
+  cityLabel ??
+  (activeCitySlug ? heroCityChoices.find((entry) => entry.slug === activeCitySlug)?.label : undefined);
+const useRotator = !headlineLine2Static && !staticHeadlineCity;
+const useImageHero = Boolean(heroImageUrl?.trim());
 ---
 
 <section
@@ -40,18 +56,30 @@ const staticHeadlineCity = cityLabel ?? (activeCitySlug
   class="home-hero relative isolate flex h-[100svh] flex-col overflow-hidden"
 >
   <div class="absolute inset-0" aria-hidden="true">
-    <video
-      class="size-full scale-105 object-cover"
-      src={heroVideoUrl}
-      autoplay
-      muted
-      loop
-      playsinline
-      preload="auto"
-      poster={heroPosterUrl}
-    />
+    {
+      useImageHero ? (
+        <img
+          src={heroImageUrl}
+          alt=""
+          class="size-full scale-105 object-cover object-center"
+          fetchpriority="high"
+          decoding="async"
+        />
+      ) : (
+        <video
+          class="size-full scale-105 object-cover"
+          src={heroVideoUrl}
+          autoplay
+          muted
+          loop
+          playsinline
+          preload="auto"
+          poster={heroPosterUrl}
+        />
+      )
+    }
   </div>
-  <div class="absolute inset-0 bg-black/50" />
+  <div class:list={["absolute inset-0", useImageHero ? "bg-black/55" : "bg-black/50"]} />
   <div class="relative z-10 mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col px-6 pb-10 pt-28 text-white sm:pb-12 lg:pt-32">
     <div class="flex flex-1 flex-col justify-center">
       <div class="text-center -translate-y-[50px]">
@@ -60,14 +88,14 @@ const staticHeadlineCity = cityLabel ?? (activeCitySlug
           class="mt-10 font-display font-semibold leading-[0.92] tracking-wide text-[clamp(3.1rem,7.5vw,6.5rem)]"
           style="font-family: var(--font-display);"
         >
-          <span class="block">International stand-up</span>
+          <span class="block">{headlineLine1}</span>
           <span class="block">
-            comedy in{" "}
+            {headlineLine2Prefix}
             {
-              staticHeadlineCity ? (
-                <span class="text-brand-hover">{staticHeadlineCity}</span>
-              ) : (
+              useRotator ? (
                 <HeroCityRotator cities={rotatorCities} fallback="the Riviera Maya" />
+              ) : (
+                <span class="text-brand-hover">{staticHeadlineCity}</span>
               )
             }
           </span>
@@ -78,7 +106,7 @@ const staticHeadlineCity = cityLabel ?? (activeCitySlug
     <div class="flex w-full shrink-0 flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
       <div class="max-w-xs">
         <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white/90">Spotlight city</p>
-        <CityPicker choices={pickerChoices} value={activeCitySlug} />
+        <CityPicker choices={pickerChoices} value={activeCitySlug} navigateTo={pickerNavigateTo} />
       </div>
 
       <div class="flex flex-wrap items-center justify-end gap-4 sm:gap-5">
@@ -86,7 +114,7 @@ const staticHeadlineCity = cityLabel ?? (activeCitySlug
           href={showsHref}
           class="btn-pill inline-flex items-center rounded-full bg-white px-10 py-[0.85rem] text-[0.68rem] font-semibold uppercase tracking-[0.38em] text-neutral-950 sm:px-12"
         >
-          Buy ticket
+          {ctaLabel}
           <svg class="ml-2 h-[0.6rem]" viewBox="0 0 22 14" aria-hidden="true">
             <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m2 7h18m-6-6 6 6-6 6" />
           </svg>
