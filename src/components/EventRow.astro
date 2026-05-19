@@ -2,13 +2,15 @@
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import { eventCitySlug, eventTicketsPath, formatEventScheduleLine } from "../lib/events";
 
-const { evt, highlightCity, featured = false } = Astro.props as {
+const { evt, highlightCity, featured = false, past = false } = Astro.props as {
   evt: KintanaPublicEvent;
   highlightCity?: string;
   featured?: boolean;
+  past?: boolean;
 };
 
-const ticketsHref = eventTicketsPath(evt) ?? evt.ticketUrl;
+const ticketsHref = past ? null : eventTicketsPath(evt) ?? evt.ticketUrl;
+const detailHref = `/events/${evt.slug}/`;
 
 const meta = evt.venue?.name
   ? evt.venue.name
@@ -43,7 +45,11 @@ const emphasized =
     <div
       class:list={[
         "flex flex-col justify-between px-8 py-10 lg:px-14 lg:py-16",
-        emphasized ? "bg-brand/15 text-neutral-950" : "bg-brand text-white",
+        past
+          ? "bg-neutral-100 text-neutral-950"
+          : emphasized
+            ? "bg-brand/15 text-neutral-950"
+            : "bg-brand text-white",
       ]}
     >
       <div class="space-y-6">
@@ -70,15 +76,26 @@ const emphasized =
       </div>
 
       <div class="mt-12 flex flex-wrap gap-6">
-        <a
-          href={ticketsHref}
-          class:list={[
-            "inline-flex rounded-[2rem] border px-10 py-[0.9rem] text-[0.65rem] font-semibold uppercase text-white",
-            emphasized ? "border-neutral-950 bg-neutral-950 tracking-[0.39em]" : "border-transparent bg-neutral-950 tracking-[0.35em]",
-          ]}
-        >
-          Tickets
-        </a>
+        {
+          past ? (
+            <a
+              href={detailHref}
+              class="inline-flex rounded-[2rem] border border-neutral-300 bg-white px-10 py-[0.9rem] text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-neutral-950"
+            >
+              View show
+            </a>
+          ) : (
+            <a
+              href={ticketsHref ?? detailHref}
+              class:list={[
+                "inline-flex rounded-[2rem] border px-10 py-[0.9rem] text-[0.65rem] font-semibold uppercase text-white",
+                emphasized ? "border-neutral-950 bg-neutral-950 tracking-[0.39em]" : "border-transparent bg-neutral-950 tracking-[0.35em]",
+              ]}
+            >
+              Tickets
+            </a>
+          )
+        }
       </div>
     </div>
   </div>

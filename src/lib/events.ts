@@ -16,6 +16,41 @@ export function sortEventsAscending(events: KintanaPublicEvent[]): KintanaPublic
   return [...events].sort((a, b) => parseEventTs(a.date) - parseEventTs(b.date));
 }
 
+export function sortEventsDescending(events: KintanaPublicEvent[]): KintanaPublicEvent[] {
+  return [...events].sort((a, b) => parseEventTs(b.date) - parseEventTs(a.date));
+}
+
+/** Local midnight today — events before this count as past. */
+export function startOfTodayMs(now = new Date()): number {
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+}
+
+export function isPastEvent(event: KintanaPublicEvent, nowMs = startOfTodayMs()): boolean {
+  if (event.status === "cancelled") return false;
+  if (event.status === "past") return true;
+  const ts = parseEventTs(event.date);
+  return Number.isFinite(ts) && ts < nowMs;
+}
+
+export function isUpcomingEvent(event: KintanaPublicEvent, nowMs = startOfTodayMs()): boolean {
+  if (event.status === "cancelled") return false;
+  if (event.status === "past") return false;
+  const ts = parseEventTs(event.date);
+  if (!Number.isFinite(ts)) return true;
+  return ts >= nowMs;
+}
+
+export function partitionEventsBySchedule(events: readonly KintanaPublicEvent[]) {
+  const nowMs = startOfTodayMs();
+  const upcoming: KintanaPublicEvent[] = [];
+  const past: KintanaPublicEvent[] = [];
+  for (const event of events) {
+    if (isPastEvent(event, nowMs)) past.push(event);
+    else if (isUpcomingEvent(event, nowMs)) upcoming.push(event);
+  }
+  return { upcoming, past };
+}
+
 export function parseEventTs(isoLike: string): number {
   const t = Date.parse(isoLike);
   return Number.isFinite(t) ? t : Number.POSITIVE_INFINITY;
@@ -106,9 +141,13 @@ export function monthLabel(dateInput: string): string {
   return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date(d));
 }
 
-export function groupEventsByMonth(events: KintanaPublicEvent[]): Map<string, KintanaPublicEvent[]> {
+export function groupEventsByMonth(
+  events: KintanaPublicEvent[],
+  order: "asc" | "desc" = "asc",
+): Map<string, KintanaPublicEvent[]> {
+  const sorted = order === "desc" ? sortEventsDescending(events) : sortEventsAscending(events);
   const map = new Map<string, KintanaPublicEvent[]>();
-  for (const event of sortEventsAscending(events)) {
+  for (const event of sorted) {
     const bucket = monthLabel(event.date);
     const row = map.get(bucket) ?? [];
     row.push(event);

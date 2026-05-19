@@ -31,13 +31,13 @@ const links: { href: string; label: string; external?: boolean }[] = [
   <div
     data-header-track=""
     class:list={[
-      "header-track mx-auto flex w-full max-w-[110rem] flex-wrap items-center justify-between gap-3 px-4 py-4 transition-all duration-300 ease-out sm:px-8 sm:py-5",
+      "header-track mx-auto flex w-full max-w-[110rem] items-center justify-between gap-3 px-4 py-4 transition-all duration-300 ease-out sm:px-8 sm:py-5",
       transparent ? "pointer-events-auto" : "border-b border-black/10 bg-white/95 backdrop-blur-md",
     ]}
   >
     <div
       data-header-nav-cluster=""
-      class="header-nav-cluster flex max-w-full flex-wrap items-center gap-x-5 gap-y-3 rounded-full bg-white px-5 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out sm:gap-x-8 sm:px-8 sm:py-3"
+      class="header-nav-cluster flex min-w-0 flex-1 items-center justify-between gap-3 rounded-full bg-white px-4 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out sm:gap-x-8 sm:px-8 sm:py-3 md:flex-initial md:justify-start"
     >
       <a href="/" class="shrink-0">
         <img
@@ -50,7 +50,10 @@ const links: { href: string; label: string; external?: boolean }[] = [
         />
       </a>
 
-      <nav class="flex flex-wrap items-center gap-x-2 gap-y-1 text-[0.62rem] font-semibold uppercase tracking-[0.2em] text-neutral-500 sm:text-[0.65rem] sm:tracking-[0.24em]">
+      <nav
+        class="hidden flex-wrap items-center gap-x-2 gap-y-1 text-[0.62rem] font-semibold uppercase tracking-[0.2em] text-neutral-500 md:flex sm:text-[0.65rem] sm:tracking-[0.24em]"
+        aria-label="Primary"
+      >
         {
           links.map((link, index) => {
             const active = !link.external && matches(link.href);
@@ -72,12 +75,28 @@ const links: { href: string; label: string; external?: boolean }[] = [
           })
         }
       </nav>
+
+      <button
+        type="button"
+        class="mobile-menu-toggle inline-flex size-10 shrink-0 items-center justify-center rounded-full text-neutral-950 transition-colors hover:bg-neutral-100 md:hidden"
+        aria-expanded="false"
+        aria-controls="site-mobile-menu"
+        data-mobile-menu-toggle=""
+      >
+        <span class="sr-only">Open menu</span>
+        <svg class="mobile-menu-icon-open size-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M4 7h16M4 12h16M4 17h16" />
+        </svg>
+        <svg class="mobile-menu-icon-close absolute size-5 opacity-0" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M6 6l12 12M18 6 6 18" />
+        </svg>
+      </button>
     </div>
 
     <a
       href="/events/"
       data-header-cta=""
-      class="header-cta btn-pill inline-flex shrink-0 items-center gap-2 rounded-full bg-white px-6 py-2.5 text-[0.62rem] font-bold uppercase tracking-[0.22em] text-neutral-950 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out sm:px-8 sm:py-3 sm:text-[0.65rem] sm:tracking-[0.26em]"
+      class="header-cta btn-pill hidden shrink-0 items-center gap-2 rounded-full bg-white px-6 py-2.5 text-[0.62rem] font-bold uppercase tracking-[0.22em] text-neutral-950 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out sm:inline-flex sm:px-8 sm:py-3 sm:text-[0.65rem] sm:tracking-[0.26em]"
       aria-label="See the next event"
     >
       The next event
@@ -85,6 +104,75 @@ const links: { href: string; label: string; external?: boolean }[] = [
         <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m2 7h18m-6-6 6 6-6 6" />
       </svg>
     </a>
+  </div>
+
+  <div
+    id="site-mobile-menu"
+    data-mobile-menu=""
+    class="mobile-menu-panel pointer-events-none fixed inset-0 z-50 md:hidden"
+    aria-hidden="true"
+    inert
+  >
+    <button
+      type="button"
+      class="mobile-menu-backdrop absolute inset-0 bg-black/50 opacity-0 transition-opacity duration-300"
+      tabindex="-1"
+      aria-label="Close menu"
+      data-mobile-menu-close=""
+    />
+
+    <div
+      class="mobile-menu-sheet absolute right-0 top-0 flex h-full w-[min(100%,20rem)] translate-x-full flex-col bg-white px-6 pb-10 pt-6 shadow-[-12px_0_40px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-out"
+    >
+      <div class="flex items-center justify-between gap-4 border-b border-black/10 pb-5">
+        <a href="/" class="shrink-0" data-mobile-menu-close="">
+          <img src={site.heroLogoUrl} alt="Iguana Comedy" class="h-5 w-auto" width="160" height="28" decoding="async" />
+        </a>
+        <button
+          type="button"
+          class="inline-flex size-10 items-center justify-center rounded-full text-neutral-950 transition-colors hover:bg-neutral-100"
+          aria-label="Close menu"
+          data-mobile-menu-close=""
+        >
+          <svg class="size-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M6 6l12 12M18 6 6 18" />
+          </svg>
+        </button>
+      </div>
+
+      <nav class="mt-8 flex flex-1 flex-col gap-1" aria-label="Mobile primary">
+        {
+          links.map((link) => {
+            const active = !link.external && matches(link.href);
+            return (
+              <a
+                href={link.href}
+                class:list={[
+                  "rounded-2xl px-4 py-3.5 text-lg font-semibold tracking-tight transition-colors",
+                  active ? "bg-brand/10 text-neutral-950" : "text-neutral-700 hover:bg-neutral-50 hover:text-neutral-950",
+                ]}
+                style={active ? "font-family: var(--font-display); letter-spacing: 0.04em;" : ""}
+                {...(link.external ? { target: "_blank", rel: "noreferrer noopener" } : {})}
+                data-mobile-menu-close=""
+              >
+                {link.label}
+              </a>
+            );
+          })
+        }
+      </nav>
+
+      <a
+        href="/events/"
+        class="btn-pill mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-neutral-950 px-6 py-3.5 text-[0.65rem] font-bold uppercase tracking-[0.26em] text-white"
+        data-mobile-menu-close=""
+      >
+        The next event
+        <svg class="h-[0.65rem] w-[1.1rem] shrink-0" viewBox="0 0 22 14" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m2 7h18m-6-6 6 6-6 6" />
+        </svg>
+      </a>
+    </div>
   </div>
 </header>
 
@@ -105,8 +193,78 @@ const links: { href: string; label: string; external?: boolean }[] = [
     document.addEventListener("astro:page-load", update);
   }
 
+  function initMobileMenu() {
+    const header = document.querySelector("[data-site-header]");
+    const panel = document.querySelector("[data-mobile-menu]");
+    const toggle = document.querySelector("[data-mobile-menu-toggle]");
+    if (!(header instanceof HTMLElement) || !(panel instanceof HTMLElement) || !(toggle instanceof HTMLButtonElement)) {
+      return;
+    }
+    if (panel.dataset.mobileMenuReady === "1") return;
+    panel.dataset.mobileMenuReady = "1";
+
+    const sheet = panel.querySelector(".mobile-menu-sheet");
+    const backdrop = panel.querySelector(".mobile-menu-backdrop");
+    const closeTargets = panel.querySelectorAll("[data-mobile-menu-close]");
+
+    function setOpen(open: boolean) {
+      header.toggleAttribute("data-mobile-menu-open", open);
+      panel.toggleAttribute("data-open", open);
+      panel.classList.toggle("pointer-events-none", !open);
+      panel.classList.toggle("pointer-events-auto", open);
+      panel.setAttribute("aria-hidden", open ? "false" : "true");
+      toggle.setAttribute("aria-expanded", open ? "true" : "false");
+      toggle.querySelector(".sr-only")!.textContent = open ? "Close menu" : "Open menu";
+
+      if (open) {
+        panel.removeAttribute("inert");
+        document.body.classList.add("overflow-hidden");
+      } else {
+        panel.setAttribute("inert", "");
+        document.body.classList.remove("overflow-hidden");
+      }
+
+      if (sheet instanceof HTMLElement) {
+        sheet.classList.toggle("translate-x-0", open);
+        sheet.classList.toggle("translate-x-full", !open);
+      }
+      if (backdrop instanceof HTMLElement) {
+        backdrop.classList.toggle("opacity-100", open);
+        backdrop.classList.toggle("opacity-0", !open);
+      }
+    }
+
+    function closeMenu() {
+      setOpen(false);
+    }
+
+    toggle.addEventListener("click", () => {
+      setOpen(!header.hasAttribute("data-mobile-menu-open"));
+    });
+
+    closeTargets.forEach((el) => {
+      el.addEventListener("click", closeMenu);
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && header.hasAttribute("data-mobile-menu-open")) {
+        closeMenu();
+      }
+    });
+
+    window.matchMedia("(min-width: 768px)").addEventListener("change", (event) => {
+      if (event.matches) closeMenu();
+    });
+
+    document.addEventListener("astro:page-load", closeMenu);
+  }
+
   initSiteHeaderScroll();
-  document.addEventListener("astro:page-load", initSiteHeaderScroll);
+  initMobileMenu();
+  document.addEventListener("astro:page-load", () => {
+    initSiteHeaderScroll();
+    initMobileMenu();
+  });
 </script>
 
 <style>
@@ -153,10 +311,22 @@ const links: { href: string; label: string; external?: boolean }[] = [
     color: #fff;
   }
 
+  .site-header[data-mobile-menu-open] .mobile-menu-toggle {
+    position: relative;
+  }
+
+  .site-header[data-mobile-menu-open] .mobile-menu-icon-open {
+    opacity: 0;
+  }
+
+  .site-header[data-mobile-menu-open] .mobile-menu-icon-close {
+    opacity: 1;
+  }
+
   @media (max-width: 640px) {
     .site-header[data-scrolled] .header-track {
       width: calc(100% - 1.25rem);
-      flex-wrap: wrap;
+      flex-wrap: nowrap;
       border-radius: 1.35rem;
       padding: 0.65rem 0.75rem;
     }

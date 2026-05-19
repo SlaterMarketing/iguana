@@ -8,168 +8,118 @@ import type { KintanaPublicEvent } from "@kintana/sdk";
 
 import EventRow from "../../components/EventRow.astro";
 
-
-
-import { eventCitySlug, groupEventsByMonth } from "../../lib/events";
+import { eventCitySlug, groupEventsByMonth, partitionEventsBySchedule } from "../../lib/events";
 
 import { logKintanaError, logKintanaSuccess, kintanaHttpStatus } from "../../lib/kintana-error";
 import { getKintanaEnv } from "../../lib/kintana-env";
 
 const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
 
-
-
 const citySlugFilter = Astro.url.searchParams.get("city") ?? "";
 
-
-
 let events: KintanaPublicEvent[] = [];
-
 let listingsRequestFailed = false;
-
 let listingsHttpStatus: number | undefined;
 
-
-
 if (hasCredentials) {
-
   try {
-
     const client = createKintanaClient({ apiKey, baseUrl });
-
     events = (await client.listEvents({ limit: 120 })).filter((evt) => evt.status !== "cancelled");
-
     logKintanaSuccess("listEvents /events", events.length);
-
   } catch (err) {
-
     logKintanaError("listEvents /events", err);
-
     listingsHttpStatus = kintanaHttpStatus(err);
-
     listingsRequestFailed = true;
-
     events = [];
-
   }
-
 }
-
-
 
 if (citySlugFilter) {
-
   events = events.filter((evt) => eventCitySlug(evt) === citySlugFilter);
-
 }
 
-
-
-const grouped = groupEventsByMonth(events);
-
+const { upcoming, past } = partitionEventsBySchedule(events);
+const upcomingGrouped = groupEventsByMonth(upcoming, "asc");
+const pastGrouped = groupEventsByMonth(past, "desc");
+const hasAnyShows = upcomingGrouped.size > 0 || pastGrouped.size > 0;
 ---
 
-
-
-<Base narrow={false} title="Upcoming comedy shows · Iguana Comedy" transparentHeader={false}>
-
+<Base narrow={false} title="Comedy shows · Iguana Comedy" transparentHeader={false}>
   <section class="mx-auto max-w-6xl px-6 pb-24 pt-20">
-
     <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">Calendar</p>
-
-    <h1 class="mt-10 font-display text-5xl text-neutral-950" style={`font-family: var(--font-display);`}>Upcoming lineup</h1>
-
+    <h1 class="mt-10 font-display text-5xl text-neutral-950" style={`font-family: var(--font-display);`}>Shows</h1>
     <p class="mt-8 max-w-2xl text-lg text-neutral-600">
-
       Fresh tickets across the Mayan coast—everything below syncs nightly with the ticketing desk.
-
     </p>
 
-
-
     {!hasCredentials ? (
-
       <div class="mt-16 rounded-3xl border border-amber-200 bg-amber-50 px-6 py-6 text-neutral-950">
-
         Add your public ticketing connection so this page can hydrate.
-
       </div>
-
     ) : listingsRequestFailed ? (
-
       <div class="mt-16 space-y-3 rounded-3xl border border-red-300 bg-red-50 px-6 py-12 text-neutral-900">
-
         <p class="font-semibold">
-
           {
-
             listingsHttpStatus === 401
-
               ? "Ticketing refused the publish key (HTTP 401)."
-
               : listingsHttpStatus != null
-
                 ? `Ticketing declined this request (HTTP ${listingsHttpStatus}).`
-
                 : "Ticketing declined this request."
-
           }
-
         </p>
-
         {listingsHttpStatus === 401 ? (
-
           <p class="text-sm leading-relaxed">
-
             Generate a fresh public key in your ticketing dashboard for this workspace’s custom website, paste it into your publishing settings wherever you configure this project, redeploy, and rotate keys if anything was pasted into an old build by mistake.
-
           </p>
-
         ) : (
-
           <p class="text-sm leading-relaxed">Check hosting logs for full stack trace and confirm base URL equals your live ticketing hostname.</p>
-
         )}
-
       </div>
-
-    ) : grouped.size === 0 ? (
-
+    ) : !hasAnyShows ? (
       <div class="mt-16 rounded-3xl border border-neutral-200 px-6 py-12 text-neutral-700">
-
         No shows came back—or every listing is flagged cancelled—or nothing has been exposed to the catalogue for this ticketing account yet.
-
       </div>
-
     ) : (
-
-      <div class="mt-20 space-y-24">
-
-        {Array.from(grouped.entries()).map(([month, rows]) => (
-
-          <div>
-
-            <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{month}</p>
-
-            <div class="mt-10 grid gap-12 lg:gap-14">
-
-              {rows.map((evt) => (
-
-                <EventRow evt={evt} highlightCity={citySlugFilter} />
-
+      <div class="mt-20 space-y-28">
+        <div>
+          <h2 class="font-display text-3xl text-neutral-950" style="font-family: var(--font-display);">Upcoming shows</h2>
+          {upcomingGrouped.size === 0 ? (
+            <p class="mt-8 text-neutral-600">No upcoming shows on the calendar right now—check back soon or browse past nights below.</p>
+          ) : (
+            <div class="mt-14 space-y-24">
+              {Array.from(upcomingGrouped.entries()).map(([month, rows]) => (
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{month}</p>
+                  <div class="mt-10 grid gap-12 lg:gap-14">
+                    {rows.map((evt) => (
+                      <EventRow evt={evt} highlightCity={citySlugFilter} />
+                    ))}
+                  </div>
+                </div>
               ))}
-
             </div>
+          )}
+        </div>
 
+        {pastGrouped.size > 0 ? (
+          <div class="border-t border-neutral-200 pt-28">
+            <h2 class="font-display text-3xl text-neutral-950" style="font-family: var(--font-display);">Past shows</h2>
+            <p class="mt-6 max-w-2xl text-neutral-600">Nights we have already played—posters and lineups stay here for the record.</p>
+            <div class="mt-14 space-y-24">
+              {Array.from(pastGrouped.entries()).map(([month, rows]) => (
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{month}</p>
+                  <div class="mt-10 grid gap-12 lg:gap-14">
+                    {rows.map((evt) => (
+                      <EventRow evt={evt} highlightCity={citySlugFilter} past />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
-
-        ))}
-
+        ) : null}
       </div>
-
     )}
-
   </section>
-
 </Base>
-
