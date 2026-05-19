@@ -1,0 +1,17 @@
+# Optional: Dokploy “Compose” deploy — wires host env into Docker build args.
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-https://iguanacomedy.com}
+        PUBLIC_KINTANA_API_KEY: ${PUBLIC_KINTANA_API_KEY}
+        PUBLIC_KINTANA_BASE_URL: ${PUBLIC_KINTANA_BASE_URL:-https://kintana.app}
+        PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID: ${PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID}
+        PUBLIC_KINTANA_TRACKER_TOKEN: ${PUBLIC_KINTANA_TRACKER_TOKEN:-}
+    environment:
+      PORT: "3000"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped

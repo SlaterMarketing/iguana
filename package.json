@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "build:docker": "node scripts/check-kintana-env.mjs && astro build",
     "preview": "astro preview",
     "docker:build": "docker build -t iguana-comedy .",
     "docker:run": "docker run --rm -p 8080:3000 iguana-comedy"

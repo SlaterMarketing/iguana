@@ -15,7 +15,9 @@ Connect your Git provider in Dokploy and select this repository (branch you depl
 | **Build context** | `.` |
 | **Container port** | `3000` (must match `PORT` in the app env; default is `3000`) |
 
-Enable **Build-time environment variables** (or “Available at Buildtime”) for every variable below. Dokploy should pass the same values into the Docker build `ARG`s.
+Enable **Build-time environment variables** for every variable below. In Dokploy this is usually a per-variable toggle such as **“Available at Buildtime”** / **Build Stage** — if it is off, the deploy will succeed but the site will show *“Connect ticketing credentials…”* because Astro bakes data in when the image builds.
+
+Copy the same values you use locally in `.env` (not committed to git).
 
 ## 3. Environment variables
 
@@ -52,6 +54,8 @@ Open http://localhost:8080
 
 ## Troubleshooting
 
+- **“Connect ticketing credentials so listings can hydrate”** — `PUBLIC_KINTANA_API_KEY` / `PUBLIC_KINTANA_BASE_URL` were missing when the image built. In Dokploy, enable **Available at Buildtime** for every `PUBLIC_*` variable, paste the same values as your local `.env`, then **redeploy** (full rebuild).
+- **502 Bad Gateway** — container port must match nginx (`3000` by default, or set `PORT` and the same container port).
 - **Empty shows / comedians after deploy** — build ran without Kintana env vars, or API key rejected from the server IP. Check Dokploy build logs for `[Kintana:…]` errors.
 - **Contact form broken** — confirm `PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID` was set at build time and the form allows your site origin.
 - **Wrong canonical URLs** — set `PUBLIC_SITE_URL` to the final public URL before building.
