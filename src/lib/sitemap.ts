@@ -178,6 +178,18 @@ export function legacyCitySlugs(): string[] {
   ];
 }
 
+export function legacyVenueSlugs(): string[] {
+  return [
+    ...new Set(
+      parseLegacySitemapFile()
+        .map((e) => e.path)
+        .filter((p) => p.startsWith("/venues/"))
+        .map((p) => p.replace(/^\/venues\/|\/$/g, ""))
+        .filter(Boolean)
+    ),
+  ];
+}
+
 export async function buildSitemapEntries(): Promise<SitemapEntry[]> {
   const map = new Map<string, SitemapEntry>();
 
