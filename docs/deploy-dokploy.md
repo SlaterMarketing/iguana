@@ -13,7 +13,7 @@ Connect your Git provider in Dokploy and select this repository (branch you depl
 | **Type** | Application → **Docker** |
 | **Dockerfile** | `Dockerfile` (repo root) |
 | **Build context** | `.` |
-| **Port** | `80` |
+| **Container port** | `3000` (must match `PORT` in the app env; default is `3000`) |
 
 Enable **Build-time environment variables** (or “Available at Buildtime”) for every variable below. Dokploy should pass the same values into the Docker build `ARG`s.
 
@@ -45,7 +45,7 @@ docker build -t iguana-comedy \
   --build-arg PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID=your_form_id \
   .
 
-docker run --rm -p 8080:80 iguana-comedy
+docker run --rm -p 8080:3000 iguana-comedy
 ```
 
 Open http://localhost:8080

@@ -24,9 +24,19 @@ ENV PUBLIC_SITE_URL=$PUBLIC_SITE_URL \
 RUN npm run build
 
 FROM nginx:1.27-alpine AS runtime
-COPY deploy/nginx.conf /etc/nginx/conf.d/default.conf
+
+# Dokploy / Traefik often forward to 3000; set PORT in the app env to match "Container port".
+ENV PORT=3000
+
+COPY deploy/nginx.conf.template /etc/nginx/nginx.conf.template
+COPY deploy/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 COPY --from=build /app/dist /usr/share/nginx/html
 
-EXPOSE 80
+EXPOSE 3000
+
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD wget -qO- http://127.0.0.1/ >/dev/null 2>&1 || exit 1
+  CMD sh -c 'wget -qO- "http://127.0.0.1:${PORT:-3000}/" >/dev/null 2>&1 || exit 1'
+
+ENTRYPOINT ["/docker-entrypoint.sh"]
