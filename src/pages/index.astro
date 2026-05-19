@@ -10,8 +10,6 @@ if (redirectCity) {
   return Astro.redirect(`/locations/${redirectCity}/`);
 }
 
-const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY as string | undefined;
-const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL as string | undefined;
 const pageData = await loadHomePageData();
 
 const cityPickerChoices = [
@@ -32,5 +30,5 @@ const cityPickerChoices = [
     pickerChoices={cityPickerChoices}
     activeCitySlug=""
   />
-  <HomePageSections {...pageData} apiConfigured={Boolean(apiKey && baseUrl)} />
+  <HomePageSections {...pageData} apiConfigured={pageData.hasCredentials} />
 </Base>

@@ -115,7 +115,7 @@ const experienceHeading = `The iguana <span class="text-brand">experience</span>
 
   <HomePageSections
     {...pageData}
-    apiConfigured={Boolean(apiKey && baseUrl)}
+    apiConfigured={pageData.hasCredentials}
     activeCitySlug={citySlug}
     cityLabel={landing.label}
     experienceHeading={experienceHeading}

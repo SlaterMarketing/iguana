@@ -15,7 +15,18 @@ Connect your Git provider in Dokploy and select this repository (branch you depl
 | **Build context** | `.` |
 | **Container port** | `3000` (must match `PORT` in the app env; default is `3000`) |
 
-Add every variable below under **Environment** (the values you use in local `.env`). Redeploy or restart after saving. The first boot can take **1–2 minutes** while the site builds inside the container.
+Add every variable below under **Environment**, one per line, exactly like your local `.env`:
+
+```env
+PUBLIC_SITE_URL=https://iguanacomedy.com
+PUBLIC_KINTANA_API_KEY=kpa_live_…
+PUBLIC_KINTANA_BASE_URL=https://kintana.app
+PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID=…
+```
+
+No `export` prefix, no quotes unless the value contains spaces. After saving, **restart** the app (first boot builds the site inside the container, ~1–2 minutes).
+
+In **Deployments → View logs** (runtime, not only the Docker build step) you should see lines like `[iguana] PUBLIC_KINTANA_API_KEY: set (32 chars)`. If you see `MISSING`, Dokploy is not mounting `/app/.env` — copy the same block into **Build-time Variables** and redeploy, or fix the env editor format.
 
 ## 3. Environment variables
 

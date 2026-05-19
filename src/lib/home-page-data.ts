@@ -5,6 +5,7 @@ import { eventCitySlug, sortEventsAscending } from "./events";
 import { logKintanaError, logKintanaSuccess } from "./kintana-error";
 
 export type HomePageData = {
+  hasCredentials: boolean;
   eventsPool: KintanaPublicEvent[];
   artistsPool: KintanaPublicArtistEmbed[];
   eventsCatalogFailed: boolean;
@@ -16,13 +17,14 @@ export type HomePageData = {
 export async function loadHomePageData(citySlug?: string): Promise<HomePageData> {
   const apiKey = import.meta.env.PUBLIC_KINTANA_API_KEY as string | undefined;
   const baseUrl = import.meta.env.PUBLIC_KINTANA_BASE_URL as string | undefined;
+  const hasCredentials = Boolean(apiKey?.trim() && baseUrl?.trim());
 
   let eventsPool: KintanaPublicEvent[] = [];
   let artistsPool: KintanaPublicArtistEmbed[] = [];
   let eventsCatalogFailed = false;
   let performersCatalogFailed = false;
 
-  if (apiKey?.trim() && baseUrl?.trim()) {
+  if (hasCredentials) {
     const client = createKintanaClient({ apiKey, baseUrl });
 
     try {
@@ -56,6 +58,7 @@ export async function loadHomePageData(citySlug?: string): Promise<HomePageData>
   ];
 
   return {
+    hasCredentials,
     eventsPool,
     artistsPool,
     eventsCatalogFailed,

@@ -4,14 +4,16 @@ set -eu
 PORT="${PORT:-3000}"
 export PORT
 
-echo "[iguana] Building static site with container environment..."
-if node /app/scripts/check-kintana-env.mjs; then
-  :
-else
-  echo "[iguana] Warning: missing Kintana env — continuing; listings may be empty."
-fi
+echo "[iguana] Preparing environment for Astro build..."
+node /app/scripts/materialize-env.mjs
 
-npm run build
+echo "[iguana] Building static site..."
+if node /app/scripts/check-kintana-env.mjs; then
+  npm run build
+else
+  echo "[iguana] Warning: Kintana credentials missing — check Dokploy Environment (KEY=value per line)."
+  npm run build
+fi
 
 rm -rf /usr/share/nginx/html/*
 mkdir -p /usr/share/nginx/html
