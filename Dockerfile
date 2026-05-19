@@ -1,42 +1,32 @@
 # syntax=docker/dockerfile:1
 
-FROM node:20-alpine AS build
+# Dependencies only — Astro build runs at container start so Dokploy runtime env vars apply.
+FROM node:20-alpine AS deps
 WORKDIR /app
-
 COPY package.json package-lock.json ./
 RUN npm ci
 
-COPY . .
+FROM node:20-alpine AS runtime
+WORKDIR /app
 
-# PUBLIC_* vars are inlined at build time — set them in Dokploy (build + runtime).
-ARG PUBLIC_SITE_URL=https://iguanacomedy.com
-ARG PUBLIC_KINTANA_API_KEY=
-ARG PUBLIC_KINTANA_BASE_URL=https://kintana.app
-ARG PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID=
-ARG PUBLIC_KINTANA_TRACKER_TOKEN=
+RUN apk add --no-cache nginx wget
 
-ENV PUBLIC_SITE_URL=$PUBLIC_SITE_URL \
-    PUBLIC_KINTANA_API_KEY=$PUBLIC_KINTANA_API_KEY \
-    PUBLIC_KINTANA_BASE_URL=$PUBLIC_KINTANA_BASE_URL \
-    PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID=$PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID \
-    PUBLIC_KINTANA_TRACKER_TOKEN=$PUBLIC_KINTANA_TRACKER_TOKEN
+COPY --from=deps /app/node_modules ./node_modules
+COPY package.json package-lock.json astro.config.mjs tsconfig.json ./
+COPY public ./public
+COPY src ./src
+COPY scripts ./scripts
+COPY sitemap.xml ./sitemap.xml
+COPY deploy ./deploy
 
-RUN npm run build:docker
-
-FROM nginx:1.27-alpine AS runtime
-
-# Dokploy / Traefik often forward to 3000; set PORT in the app env to match "Container port".
 ENV PORT=3000
+ENV NODE_ENV=production
 
-COPY deploy/nginx.conf.template /etc/nginx/nginx.conf.template
-COPY deploy/docker-entrypoint.sh /docker-entrypoint.sh
-RUN chmod +x /docker-entrypoint.sh
-
-COPY --from=build /app/dist /usr/share/nginx/html
+RUN chmod +x /app/deploy/docker-entrypoint.sh
 
 EXPOSE 3000
 
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=5s --start-period=180s --retries=5 \
   CMD sh -c 'wget -qO- "http://127.0.0.1:${PORT:-3000}/" >/dev/null 2>&1 || exit 1'
 
-ENTRYPOINT ["/docker-entrypoint.sh"]
+ENTRYPOINT ["/app/deploy/docker-entrypoint.sh"]

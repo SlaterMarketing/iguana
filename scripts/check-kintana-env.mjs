@@ -6,8 +6,7 @@ if (!key || !baseUrl) {
   if (!key) console.error("  - PUBLIC_KINTANA_API_KEY is empty");
   if (!baseUrl) console.error("  - PUBLIC_KINTANA_BASE_URL is empty");
   console.error(
-    "\nDokploy: open your app → Environment → add both values → enable “Available at Buildtime” (or Build Args) → redeploy.\n" +
-      "Runtime-only env vars do not update a static Astro site; the image must rebuild with these set.\n",
+    "\nAdd PUBLIC_KINTANA_API_KEY and PUBLIC_KINTANA_BASE_URL in Dokploy → Environment, then restart the app.\n",
   );
   process.exit(1);
 }

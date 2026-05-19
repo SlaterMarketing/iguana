@@ -1,6 +1,6 @@
 # Deploy on Dokploy
 
-This site is a **static Astro build** served by **nginx** in Docker. Kintana data is fetched at **build time**, so the `PUBLIC_*` variables must be present when the image builds—not only at runtime.
+This site is a **static Astro build** served by **nginx** in Docker. On first start (and each restart), the container runs `astro build` using your **runtime** Environment variables from Dokploy—no separate “build time” toggle required.
 
 ## 1. Push the repo
 
@@ -15,9 +15,7 @@ Connect your Git provider in Dokploy and select this repository (branch you depl
 | **Build context** | `.` |
 | **Container port** | `3000` (must match `PORT` in the app env; default is `3000`) |
 
-Enable **Build-time environment variables** for every variable below. In Dokploy this is usually a per-variable toggle such as **“Available at Buildtime”** / **Build Stage** — if it is off, the deploy will succeed but the site will show *“Connect ticketing credentials…”* because Astro bakes data in when the image builds.
-
-Copy the same values you use locally in `.env` (not committed to git).
+Add every variable below under **Environment** (the values you use in local `.env`). Redeploy or restart after saving. The first boot can take **1–2 minutes** while the site builds inside the container.
 
 ## 3. Environment variables
 
@@ -31,7 +29,7 @@ Copy from `.env.example` and set in Dokploy:
 | `PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID` | Yes | Contact form ID |
 | `PUBLIC_KINTANA_TRACKER_TOKEN` | No | Tracker `data-token` from Kintana → Websites |
 
-After changing any `PUBLIC_*` value, **redeploy** so the site rebuilds (values are baked into HTML/JS).
+After changing any `PUBLIC_*` value, **restart** the application so the container rebuilds the static files.
 
 ## 4. Domain & HTTPS
 
@@ -54,8 +52,9 @@ Open http://localhost:8080
 
 ## Troubleshooting
 
-- **“Connect ticketing credentials so listings can hydrate”** — `PUBLIC_KINTANA_API_KEY` / `PUBLIC_KINTANA_BASE_URL` were missing when the image built. In Dokploy, enable **Available at Buildtime** for every `PUBLIC_*` variable, paste the same values as your local `.env`, then **redeploy** (full rebuild).
+- **“Connect ticketing credentials so listings can hydrate”** — add `PUBLIC_KINTANA_API_KEY` and `PUBLIC_KINTANA_BASE_URL` in Environment, then **restart** the app. Check **runtime** logs (not only Docker build logs) for `[iguana] Building static site`.
+- **502 right after deploy** — wait 1–2 minutes on first boot while Astro builds; healthcheck allows up to ~3 minutes.
 - **502 Bad Gateway** — container port must match nginx (`3000` by default, or set `PORT` and the same container port).
-- **Empty shows / comedians after deploy** — build ran without Kintana env vars, or API key rejected from the server IP. Check Dokploy build logs for `[Kintana:…]` errors.
-- **Contact form broken** — confirm `PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID` was set at build time and the form allows your site origin.
-- **Wrong canonical URLs** — set `PUBLIC_SITE_URL` to the final public URL before building.
+- **Empty shows / comedians** — API key rejected from the server, or vars not loaded. Check runtime logs for `[Kintana:…]` errors.
+- **Contact form broken** — confirm `PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID` is set and the form allows your site origin.
+- **Wrong canonical URLs** — set `PUBLIC_SITE_URL` to the final public URL, then restart.
