@@ -1,0 +1,26 @@
+---
+import type { KintanaPublicStoreProduct } from "@kintana/sdk";
+import { storePriceLabel } from "../../lib/store";
+
+const { product } = Astro.props as { product: KintanaPublicStoreProduct };
+const image = product.images[0];
+const price = storePriceLabel(product.priceFromCents, product.compareAtCents, product.currency);
+---
+
+<a href={`/store/${product.slug}/`} class="group relative block overflow-hidden rounded-[2rem]">
+  <div class="aspect-[3/4] bg-neutral-200">
+    {
+      image?.url ? (
+        <img src={image.url} alt={image.alt ?? product.name} class="size-full object-cover duration-700 group-hover:scale-[1.03]" loading="lazy" decoding="async" />
+      ) : (
+        <div class="flex size-full items-center justify-center bg-neutral-950 text-neutral-500">Photo soon</div>
+      )
+    }
+  </div>
+  <div class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/55 to-transparent p-6 pt-28">
+    <p class="font-display text-2xl text-white" style="font-family: var(--font-display);">{product.name}</p>
+    <p class="mt-2 text-xs font-semibold uppercase tracking-[0.35em] text-white/85">
+      {product.inStock ? price : "Sold out"}
+    </p>
+  </div>
+</a>

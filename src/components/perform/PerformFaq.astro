@@ -1,0 +1,31 @@
+---
+import { performFaq } from "../../content/perform-with-us";
+---
+
+<div class="grid gap-16 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-24">
+  <h2
+    class="font-display text-4xl uppercase leading-[1.05] text-neutral-950 sm:text-5xl lg:text-6xl"
+    style="font-family: var(--font-display);"
+  >
+    Frequently asked questions
+  </h2>
+  <div class="divide-y divide-black/10 border-t border-black/10">
+    {
+      performFaq.map((item) => (
+        <details class="group py-8" open={item.open ? true : undefined}>
+          <summary class="flex cursor-pointer list-none items-center justify-between gap-6 text-left font-display text-xl text-neutral-950 sm:text-2xl" style="font-family: var(--font-display);">
+            <span>{item.question}</span>
+            <span class="shrink-0 text-2xl text-brand transition group-open:rotate-45" aria-hidden="true">+</span>
+          </summary>
+          <p class="mt-5 max-w-2xl text-lg leading-relaxed text-neutral-700">{item.answer}</p>
+        </details>
+      ))
+    }
+  </div>
+</div>
+
+<style>
+  details > summary::-webkit-details-marker {
+    display: none;
+  }
+</style>

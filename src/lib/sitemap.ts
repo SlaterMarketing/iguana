@@ -84,9 +84,11 @@ function addCorePages(map: Map<string, SitemapEntry>) {
     { path: "/events/", priority: 0.8 },
     { path: "/locations/", priority: 0.8 },
     { path: "/comedians/", priority: 0.8 },
+    { path: "/store/", priority: 0.8 },
     { path: "/contact/", priority: 0.8 },
     { path: "/about/", priority: 0.8 },
     { path: "/work-with-us/", priority: 0.8 },
+    { path: "/perform-with-us/", priority: 0.85 },
     { path: "/legal/privacy-policy/", priority: 0.8 },
     { path: "/legal/terms-and-conditions/", priority: 0.8 },
   ];

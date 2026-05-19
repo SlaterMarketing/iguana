@@ -9,7 +9,6 @@ export function mapLegacyPath(pathname: string): string | null {
 
   if (path === "/private-events/") return "/work-with-us/";
   if (path === "/hotels-and-resorts/") return "/work-with-us/";
-  if (path === "/perform-with-us/") return "/work-with-us/";
   if (path === "/investors/") return "/work-with-us/";
   if (path === "/comedy-for-everyone/") return "/about/";
 

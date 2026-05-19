@@ -14,6 +14,8 @@ export const site = {
   facebookUrl: "https://www.facebook.com/IguanaComedy",
   linkedInUrl: "https://www.linkedin.com/company/iguanacomedy",
   merchantShopUrl: "https://shop.iguanacomedy.com/",
+  faviconUrl:
+    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/77795f0850fd355d573c25746b12f1441081892680f0abceb7dcd9cb23e3a822.webp",
   heroImage:
     "https://images.unsplash.com/photo-1585699324551-f6c309eedeca?q=80&w=2070&auto=format&fit=crop",
   heroVideoUrl:

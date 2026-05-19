@@ -8,9 +8,11 @@ import type { KintanaPublicFormSchema } from "@kintana/sdk";
 function StyledFormInner({
   formId,
   prefills,
+  hideHeading = false,
 }: {
   formId: string;
   prefills: Record<string, string>;
+  hideHeading?: boolean;
 }) {
   const client = useKintana();
   const [schema, setSchema] = useState<KintanaPublicFormSchema | null>(null);
@@ -84,11 +86,13 @@ function StyledFormInner({
 
   return (
     <div className="max-w-xl">
-      <h2 className="font-display text-2xl tracking-tight text-neutral-950" style={{ fontFamily: "var(--font-display)" }}>
-        {schema.title}
-      </h2>
+      {hideHeading ? null : (
+        <h2 className="font-display text-2xl tracking-tight text-neutral-950" style={{ fontFamily: "var(--font-display)" }}>
+          {schema.title}
+        </h2>
+      )}
 
-      <form className="mt-8 grid gap-5" onSubmit={(e) => void submit(e)}>
+      <form className={hideHeading ? "grid gap-5" : "mt-8 grid gap-5"} onSubmit={(e) => void submit(e)}>
         {schema.fields.map((field) => (
           <label key={field.id} className="grid gap-2 text-sm font-medium text-neutral-900">
             <span>
@@ -132,17 +136,19 @@ export function ContactFormIsland({
   baseUrl,
   formId,
   prefills,
+  hideHeading = false,
 }: {
   apiKey: string;
   baseUrl: string;
   formId: string;
   prefills?: Record<string, string>;
+  hideHeading?: boolean;
 }) {
   const merged = React.useMemo(() => prefills ?? {}, [prefills]);
 
   return (
     <KintanaProvider apiKey={apiKey} baseUrl={baseUrl}>
-      <StyledFormInner formId={formId} prefills={merged} />
+      <StyledFormInner formId={formId} prefills={merged} hideHeading={hideHeading} />
     </KintanaProvider>
   );
 }

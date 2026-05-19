@@ -1,0 +1,110 @@
+---
+import Base from "../../layouts/Base.astro";
+import StoreProductTile from "../../components/store/StoreProductTile.astro";
+import { createKintanaClient } from "@kintana/sdk";
+import type { KintanaPublicStoreCollection, KintanaPublicStoreProduct } from "@kintana/sdk";
+import { logKintanaError, logKintanaSuccess } from "../../lib/kintana-error";
+import { getKintanaEnv } from "../../lib/kintana-env";
+import { site } from "../../content/site";
+
+const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
+const collectionFilter = Astro.url.searchParams.get("collection")?.trim() ?? "";
+
+let products: KintanaPublicStoreProduct[] = [];
+let collections: KintanaPublicStoreCollection[] = [];
+let catalogFailed = false;
+
+if (hasCredentials) {
+  try {
+    const client = createKintanaClient({ apiKey, baseUrl });
+    const [listedProducts, listedCollections] = await Promise.all([
+      client.listStoreProducts({ limit: 120, collection: collectionFilter || undefined }),
+      client.listStoreCollections({ limit: 40 }),
+    ]);
+    products = listedProducts;
+    collections = listedCollections;
+    logKintanaSuccess(`listStoreProducts /store (${products.length})`, products.length);
+  } catch (err) {
+    logKintanaError("listStoreProducts /store", err);
+    catalogFailed = true;
+  }
+}
+---
+
+<Base narrow={false} title="Merch · Iguana Comedy" description="Official Iguana Comedy merch—tees, prints, and coast souvenirs.">
+  <section class="mx-auto max-w-[118rem] px-6 pb-24 pt-20">
+    <div class="flex flex-col gap-16 lg:flex-row lg:items-end lg:justify-between">
+      <div>
+        <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">Merch desk</p>
+        <h1 class="mt-10 font-display text-5xl text-neutral-950 sm:text-6xl" style="font-family: var(--font-display);">
+          Iguana merch
+        </h1>
+        <p class="mt-8 max-w-2xl text-lg text-neutral-700">
+          Browse here on iguanacomedy.com—when you are ready to buy, checkout opens on our secure payments page.
+        </p>
+      </div>
+      <p
+        class="font-display text-4xl uppercase tracking-[0.45em] text-neutral-600 lg:text-end"
+        style="font-family: var(--font-display); letter-spacing: 0.4em;"
+      >
+        store
+      </p>
+    </div>
+
+    {
+      collections.length > 0 ? (
+        <nav class="mt-14 flex flex-wrap gap-3" aria-label="Collections">
+          <a
+            href="/store/"
+            class:list={[
+              "rounded-full border px-5 py-2 text-xs font-semibold uppercase tracking-[0.32em] transition",
+              !collectionFilter ? "border-neutral-950 bg-neutral-950 text-white" : "border-neutral-300 text-neutral-700 hover:border-neutral-950",
+            ]}
+          >
+            All
+          </a>
+          {
+            collections.map((collection) => (
+              <a
+                href={`/store/?collection=${encodeURIComponent(collection.slug)}`}
+                class:list={[
+                  "rounded-full border px-5 py-2 text-xs font-semibold uppercase tracking-[0.32em] transition",
+                  collectionFilter === collection.slug
+                    ? "border-neutral-950 bg-neutral-950 text-white"
+                    : "border-neutral-300 text-neutral-700 hover:border-neutral-950",
+                ]}
+              >
+                {collection.name}
+              </a>
+            ))
+          }
+        </nav>
+      ) : null
+    }
+
+    {
+      !hasCredentials ? (
+        <p class="mt-16 rounded-3xl border border-amber-200 bg-amber-50 px-8 py-6 text-neutral-900">
+          Store catalogue connects once ticketing credentials are live.
+        </p>
+      ) : catalogFailed ? (
+        <p class="mt-16 rounded-3xl border border-red-200 bg-red-50 px-8 py-6 text-neutral-900">
+          We could not load the merch catalogue right now—check back shortly or use the link below.
+        </p>
+      ) : products.length === 0 ? (
+        <div class="mt-16 max-w-2xl space-y-6 rounded-3xl border border-neutral-200 px-8 py-8">
+          <p class="text-lg text-neutral-700">Nothing is published in the store yet—check back soon.</p>
+          <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-4 hover:underline" href={site.merchantShopUrl}>
+            Visit legacy shop →
+          </a>
+        </div>
+      ) : (
+        <div class="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          {products.map((product) => (
+            <StoreProductTile product={product} />
+          ))}
+        </div>
+      )
+    }
+  </section>
+</Base>
