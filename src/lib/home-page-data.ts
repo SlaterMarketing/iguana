@@ -63,6 +63,6 @@ export async function loadHomePageData(citySlug?: string): Promise<HomePageData>
     eventsCatalogFailed,
     performersCatalogFailed,
     trimmedEvents: prioritized.slice(0, 6),
-    wallArtists: artistsPool.slice(0, 6),
+    wallArtists: artistsPool.slice(0, 3),
   };
 }
