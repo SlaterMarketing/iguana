@@ -1,5 +1,8 @@
 ---
-const { eyebrow = "Tickets", headline = "Ready to laugh?", ctaHref = "/events/", secondaryHref = "/contact/", secondaryLabel = "Talk with us", body } =
+import { t } from "../i18n/ui";
+import type { Locale } from "../i18n/locale";
+
+const { eyebrow = "Tickets", headline = "Ready to laugh?", ctaHref = "/events/", secondaryHref = "/contact/", secondaryLabel = "Talk with us", body, locale = "en" } =
   Astro.props as {
     eyebrow?: string;
     headline?: string;
@@ -7,6 +10,7 @@ const { eyebrow = "Tickets", headline = "Ready to laugh?", ctaHref = "/events/",
     secondaryHref?: string;
     secondaryLabel?: string;
     body?: string;
+    locale?: Locale;
   };
 ---
 
@@ -22,7 +26,7 @@ const { eyebrow = "Tickets", headline = "Ready to laugh?", ctaHref = "/events/",
         href={ctaHref}
         class="rounded-[2rem] bg-neutral-950 px-14 py-[1.05rem] text-center text-[0.7rem] font-semibold uppercase tracking-[0.35em] text-white"
       >
-        Buy tickets
+        {t(locale, "ui.buyTickets")}
       </a>
       <a href={secondaryHref} class="text-center text-[0.7rem] font-semibold uppercase tracking-[0.35em] text-neutral-950/95 underline underline-offset-[0.5rem]">
         {secondaryLabel}

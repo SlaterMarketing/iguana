@@ -1,15 +1,18 @@
 ---
 import type { LocationCityCard } from "../content/locations-page";
+import { localizePath } from "../i18n/routes";
+import type { Locale } from "../i18n/locale";
 
-const { city, compact = false, meta } = Astro.props as {
+const { city, compact = false, meta, locale = "en" } = Astro.props as {
   city: LocationCityCard;
   compact?: boolean;
   meta?: string;
+  locale?: Locale;
 };
 ---
 
 <a
-  href={`/locations/${city.slug}/`}
+  href={localizePath(locale, "cityDetail", { city: city.slug })}
   class:list={[
     "group relative isolate block overflow-hidden rounded-[2.5rem] bg-neutral-900",
     compact ? "aspect-[16/10]" : "aspect-[4/5] sm:aspect-[3/4]",

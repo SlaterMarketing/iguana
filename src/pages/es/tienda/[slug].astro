@@ -1,0 +1,97 @@
+---
+import Base from "../../../layouts/Base.astro";
+import { createKintanaClient } from "@kintana/sdk";
+import type { KintanaPublicStoreProductDetail } from "@kintana/sdk";
+import { formatStorePrice, storePriceLabel } from "../../../lib/store";
+import { getKintanaEnv } from "../../../lib/kintana-env";
+import { t } from "../../../i18n/ui";
+import { localizePath } from "../../../i18n/routes";
+
+const locale = "es";
+const slug = Astro.params.slug ?? "";
+const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
+
+let product: KintanaPublicStoreProductDetail | null = null;
+if (hasCredentials && slug) {
+  try {
+    product = await createKintanaClient({ apiKey, baseUrl }).getStoreProduct(slug);
+  } catch {
+    product = null;
+  }
+}
+
+const heroImage = product?.images[0];
+const price = product ? storePriceLabel(product.priceFromCents, product.compareAtCents, product.currency) : null;
+---
+
+<Base
+  narrow={false}
+  title={product ? `${product.name} · ${t(locale, "ui.merch")}` : `${t(locale, "ui.merch")} · Iguana Comedy`}
+  description={product?.description ?? t(locale, "store.description")}
+>
+  <section class="mx-auto max-w-5xl px-6 pb-24 pt-20">
+    <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.5rem] hover:underline" href={localizePath(locale, "store")}>
+      {t(locale, "store.backToMerch")}
+    </a>
+
+    {
+      !product ? (
+        <p class="mt-14 text-lg text-neutral-700">{t(locale, "store.notFound")}</p>
+      ) : (
+        <article class="mt-14 grid gap-14 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.95fr)] lg:items-start">
+          <div class="overflow-hidden rounded-[2.5rem] bg-neutral-100">
+            {
+              heroImage?.url ? (
+                <img src={heroImage.url} alt={heroImage.alt ?? product.name} class="aspect-[4/5] size-full object-cover lg:aspect-square" loading="lazy" />
+              ) : (
+                <div class="flex aspect-[4/5] items-center justify-center text-neutral-500 lg:aspect-square">{t(locale, "store.photoSoon")}</div>
+              )
+            }
+          </div>
+
+          <div class="space-y-8 lg:pt-4">
+            <header class="space-y-4">
+              <h1 class="font-display text-5xl text-neutral-950" style="font-family: var(--font-display);">
+                {product.name}
+              </h1>
+              <p class="text-lg text-neutral-700">{price}</p>
+            </header>
+
+            {product.description ? <p class="text-lg leading-relaxed text-neutral-700">{product.description}</p> : null}
+
+            {
+              product.variants.length > 1 ? (
+                <ul class="space-y-3 border-t border-black/10 pt-8">
+                  {
+                    product.variants.map((variant) => (
+                      <li class="flex flex-wrap items-center justify-between gap-4 text-sm">
+                        <span class="font-medium text-neutral-950">{variant.name}</span>
+                        <span class="text-neutral-600">
+                          {formatStorePrice(variant.priceCents, product.currency)}
+                          {variant.inStock ? "" : ` · ${t(locale, "store.soldOut")}`}
+                        </span>
+                      </li>
+                    ))
+                  }
+                </ul>
+              ) : null
+            }
+
+            {
+              product.inStock ? (
+                <a
+                  href={product.productUrl}
+                  class="inline-flex rounded-full bg-neutral-950 px-12 py-4 text-xs font-semibold uppercase tracking-[0.35em] text-white hover:opacity-[0.95]"
+                >
+                  {t(locale, "store.buyNow")}
+                </a>
+              ) : (
+                <p class="text-sm uppercase tracking-[0.35em] text-neutral-500">{t(locale, "store.currentlySoldOut")}</p>
+              )
+            }
+          </div>
+        </article>
+      )
+    }
+  </section>
+</Base>

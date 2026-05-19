@@ -8,11 +8,20 @@ import { getCityBlurb } from "../content/city-blurbs";
 import { getKintanaEnv } from "./kintana-env";
 import { mapLegacyPath } from "./legacy-paths";
 import { slugify } from "./slug";
+import { localizePath, resolveRouteKey, type RouteKey } from "../i18n/routes";
+import type { Locale } from "../i18n/locale";
 
 export type SitemapEntry = {
   path: string;
   priority: number;
   lastmod?: string;
+};
+
+export type LocalizedSitemapEntry = {
+  path: string;
+  priority: number;
+  lastmod?: string;
+  alternates: Array<{ locale: string; path: string }>;
 };
 
 const DEFAULT_SITE = "https://iguanacomedy.com";
@@ -40,6 +49,22 @@ function upsert(map: Map<string, SitemapEntry>, entry: SitemapEntry) {
   }
 }
 
+function upsertLocalized(
+  map: Map<string, LocalizedSitemapEntry>,
+  entry: LocalizedSitemapEntry
+) {
+  const path = normalizePath(entry.path);
+  const existing = map.get(path);
+  if (!existing || entry.priority > existing.priority) {
+    map.set(path, { ...entry, path });
+  }
+}
+
+function prefixLocale(locale: Locale, path: string): string {
+  if (path === "/") return `/${locale}/`;
+  return `/${locale}${path}`;
+}
+
 function parseLegacySitemapFile(): SitemapEntry[] {
   const filePath = resolve(process.cwd(), "sitemap.xml");
   let xml: string;
@@ -65,7 +90,9 @@ function parseLegacySitemapFile(): SitemapEntry[] {
     const mapped = mapLegacyPath(pathname);
     if (!mapped) continue;
 
-    const priority = Number.parseFloat(chunk.match(/<priority>([^<]+)<\/priority>/)?.[1] ?? "0.5");
+    const priority = Number.parseFloat(
+      chunk.match(/<priority>([^<]+)<\/priority>/)?.[1] ?? "0.5"
+    );
     const lastmod = chunk.match(/<lastmod>([^<]+)<\/lastmod>/)?.[1]?.trim();
 
     entries.push({
@@ -78,28 +105,53 @@ function parseLegacySitemapFile(): SitemapEntry[] {
   return entries;
 }
 
-function addCorePages(map: Map<string, SitemapEntry>) {
-  const core: Array<{ path: string; priority: number }> = [
-    { path: "/", priority: 1 },
-    { path: "/events/", priority: 0.8 },
-    { path: "/locations/", priority: 0.8 },
-    { path: "/comedians/", priority: 0.8 },
-    { path: "/store/", priority: 0.8 },
-    { path: "/contact/", priority: 0.8 },
-    { path: "/about/", priority: 0.8 },
-    { path: "/work-with-us/", priority: 0.8 },
-    { path: "/perform-with-us/", priority: 0.85 },
-    { path: "/legal/privacy-policy/", priority: 0.8 },
-    { path: "/legal/terms-and-conditions/", priority: 0.8 },
+function addCoreLocalizedPages(map: Map<string, LocalizedSitemapEntry>) {
+  const core: Array<{
+    key: RouteKey;
+    priority: number;
+    params?: Record<string, string>;
+  }> = [
+    { key: "home", priority: 1 },
+    { key: "events", priority: 0.8 },
+    { key: "locations", priority: 0.8 },
+    { key: "comedians", priority: 0.8 },
+    { key: "store", priority: 0.8 },
+    { key: "contact", priority: 0.8 },
+    { key: "about", priority: 0.8 },
+    { key: "workWithUs", priority: 0.8 },
+    { key: "performWithUs", priority: 0.85 },
+    { key: "hotelsAndResorts", priority: 0.85 },
+    { key: "privacyPolicy", priority: 0.8 },
+    { key: "termsAndConditions", priority: 0.8 },
   ];
 
   const now = new Date().toISOString();
   for (const page of core) {
-    upsert(map, { path: page.path, priority: page.priority, lastmod: now });
+    const enPath = prefixLocale("en", localizePath("en", page.key, page.params));
+    const esPath = prefixLocale("es", localizePath("es", page.key, page.params));
+    const alternates = [
+      { locale: "en", path: enPath },
+      { locale: "es", path: esPath },
+    ];
+
+    upsertLocalized(map, {
+      path: enPath,
+      priority: page.priority,
+      lastmod: now,
+      alternates,
+    });
+    upsertLocalized(map, {
+      path: esPath,
+      priority: page.priority,
+      lastmod: now,
+      alternates,
+    });
   }
 }
 
-async function addKintanaPages(map: Map<string, SitemapEntry>) {
+async function addKintanaLocalizedPages(
+  map: Map<string, LocalizedSitemapEntry>
+) {
   const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
   if (!hasCredentials) return;
 
@@ -111,7 +163,30 @@ async function addKintanaPages(map: Map<string, SitemapEntry>) {
     for (const evt of events) {
       const key = evt.slug?.trim() || evt.id?.trim();
       if (!key) continue;
-      upsert(map, { path: `/events/${key}/`, priority: 0.64, lastmod: now });
+      const enPath = prefixLocale(
+        "en",
+        localizePath("en", "eventDetail", { slug: key })
+      );
+      const esPath = prefixLocale(
+        "es",
+        localizePath("es", "eventDetail", { slug: key })
+      );
+      const alternates = [
+        { locale: "en", path: enPath },
+        { locale: "es", path: esPath },
+      ];
+      upsertLocalized(map, {
+        path: enPath,
+        priority: 0.64,
+        lastmod: now,
+        alternates,
+      });
+      upsertLocalized(map, {
+        path: esPath,
+        priority: 0.64,
+        lastmod: now,
+        alternates,
+      });
     }
   } catch {
     /* build continues with legacy + static URLs */
@@ -122,22 +197,101 @@ async function addKintanaPages(map: Map<string, SitemapEntry>) {
     for (const artist of artists) {
       const key = artist.slug?.trim();
       if (!key) continue;
-      upsert(map, { path: `/comedians/${key}/`, priority: 0.64, lastmod: now });
+      const enPath = prefixLocale(
+        "en",
+        localizePath("en", "comedianDetail", { slug: key })
+      );
+      const esPath = prefixLocale(
+        "es",
+        localizePath("es", "comedianDetail", { slug: key })
+      );
+      const alternates = [
+        { locale: "en", path: enPath },
+        { locale: "es", path: esPath },
+      ];
+      upsertLocalized(map, {
+        path: enPath,
+        priority: 0.64,
+        lastmod: now,
+        alternates,
+      });
+      upsertLocalized(map, {
+        path: esPath,
+        priority: 0.64,
+        lastmod: now,
+        alternates,
+      });
     }
   } catch {
     /* noop */
   }
 
   try {
-    const venues = await client.listVenues({ limit: 200 });
+    const venues = await client.listVenues();
     const cities = groupVenuesByCity(venues);
     for (const city of cities) {
-      const slug = slugify(city.name);
-      if (!slug || !getCityBlurb(slug)) continue;
-      upsert(map, { path: `/locations/${slug}/`, priority: 0.64, lastmod: now });
+      const slug = slugify(city.city ?? "");
+      if (!slug || !getCityBlurb("en", slug)) continue;
+      const enPath = prefixLocale(
+        "en",
+        localizePath("en", "cityDetail", { city: slug })
+      );
+      const esPath = prefixLocale(
+        "es",
+        localizePath("es", "cityDetail", { city: slug })
+      );
+      const alternates = [
+        { locale: "en", path: enPath },
+        { locale: "es", path: esPath },
+      ];
+      upsertLocalized(map, {
+        path: enPath,
+        priority: 0.64,
+        lastmod: now,
+        alternates,
+      });
+      upsertLocalized(map, {
+        path: esPath,
+        priority: 0.64,
+        lastmod: now,
+        alternates,
+      });
     }
   } catch {
     /* noop */
+  }
+}
+
+function addLegacyLocalizedPages(map: Map<string, LocalizedSitemapEntry>) {
+  for (const entry of parseLegacySitemapFile()) {
+    const enPath = prefixLocale("en", entry.path);
+    const key = resolveRouteKey("en", entry.path);
+    if (key) {
+      const esPath = prefixLocale("es", localizePath("es", key));
+      const alternates = [
+        { locale: "en", path: enPath },
+        { locale: "es", path: esPath },
+      ];
+      upsertLocalized(map, {
+        path: enPath,
+        priority: entry.priority,
+        lastmod: entry.lastmod,
+        alternates,
+      });
+      upsertLocalized(map, {
+        path: esPath,
+        priority: entry.priority,
+        lastmod: entry.lastmod,
+        alternates,
+      });
+    } else {
+      upsertLocalized(map, {
+        path: enPath,
+        priority: entry.priority,
+        lastmod: entry.lastmod,
+        alternates: [{ locale: "en", path: enPath }],
+      });
+    }
   }
 }
 
@@ -205,11 +359,92 @@ export async function buildSitemapEntries(): Promise<SitemapEntry[]> {
   return [...map.values()].sort((a, b) => a.path.localeCompare(b.path));
 }
 
-export function renderSitemapXml(entries: SitemapEntry[], origin = siteOrigin()): string {
+function addCorePages(map: Map<string, SitemapEntry>) {
+  const core: Array<{ path: string; priority: number }> = [
+    { path: "/", priority: 1 },
+    { path: "/events/", priority: 0.8 },
+    { path: "/locations/", priority: 0.8 },
+    { path: "/comedians/", priority: 0.8 },
+    { path: "/store/", priority: 0.8 },
+    { path: "/contact/", priority: 0.8 },
+    { path: "/about/", priority: 0.8 },
+    { path: "/work-with-us/", priority: 0.8 },
+    { path: "/perform-with-us/", priority: 0.85 },
+    { path: "/hotels-and-resorts/", priority: 0.85 },
+    { path: "/legal/privacy-policy/", priority: 0.8 },
+    { path: "/legal/terms-and-conditions/", priority: 0.8 },
+  ];
+
+  const now = new Date().toISOString();
+  for (const page of core) {
+    upsert(map, { path: page.path, priority: page.priority, lastmod: now });
+  }
+}
+
+async function addKintanaPages(map: Map<string, SitemapEntry>) {
+  const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
+  if (!hasCredentials) return;
+
+  const now = new Date().toISOString();
+  const client = createKintanaClient({ apiKey, baseUrl });
+
+  try {
+    const events = await client.listEvents({ limit: 200 });
+    for (const evt of events) {
+      const key = evt.slug?.trim() || evt.id?.trim();
+      if (!key) continue;
+      upsert(map, { path: `/events/${key}/`, priority: 0.64, lastmod: now });
+    }
+  } catch {
+    /* build continues with legacy + static URLs */
+  }
+
+  try {
+    const artists = await client.listArtists({ limit: 200 });
+    for (const artist of artists) {
+      const key = artist.slug?.trim();
+      if (!key) continue;
+      upsert(map, { path: `/comedians/${key}/`, priority: 0.64, lastmod: now });
+    }
+  } catch {
+    /* noop */
+  }
+
+  try {
+    const venues = await client.listVenues();
+    const cities = groupVenuesByCity(venues);
+    for (const city of cities) {
+      const slug = slugify(city.city ?? "");
+      if (!slug || !getCityBlurb("en", slug)) continue;
+      upsert(map, { path: `/locations/${slug}/`, priority: 0.64, lastmod: now });
+    }
+  } catch {
+    /* noop */
+  }
+}
+
+export async function buildLocalizedSitemapEntries(): Promise<
+  LocalizedSitemapEntry[]
+> {
+  const map = new Map<string, LocalizedSitemapEntry>();
+
+  addLegacyLocalizedPages(map);
+  addCoreLocalizedPages(map);
+  await addKintanaLocalizedPages(map);
+
+  return [...map.values()].sort((a, b) => a.path.localeCompare(b.path));
+}
+
+export function renderSitemapXml(
+  entries: SitemapEntry[],
+  origin = siteOrigin()
+): string {
   const urls = entries
     .map((entry) => {
       const loc = `${origin}${entry.path === "/" ? "/" : entry.path}`;
-      const lastmod = entry.lastmod ? `\n    <lastmod>${entry.lastmod}</lastmod>` : "";
+      const lastmod = entry.lastmod
+        ? `\n    <lastmod>${escapeXml(entry.lastmod)}</lastmod>`
+        : "";
       return `  <url>\n    <loc>${escapeXml(loc)}</loc>${lastmod}\n    <priority>${entry.priority.toFixed(2)}</priority>\n  </url>`;
     })
     .join("\n");
@@ -221,6 +456,37 @@ ${urls}
 `;
 }
 
+export function renderSitemapXmlWithAlternates(
+  entries: LocalizedSitemapEntry[],
+  origin = siteOrigin()
+): string {
+  const urls = entries
+    .map((entry) => {
+      const loc = `${origin}${entry.path === "/" ? "/" : entry.path}`;
+      const lastmod = entry.lastmod
+        ? `\n    <lastmod>${escapeXml(entry.lastmod)}</lastmod>`
+        : "";
+      const alternates = entry.alternates
+        .map(
+          (alt) =>
+            `    <xhtml:link rel="alternate" hreflang="${alt.locale}" href="${escapeXml(`${origin}${alt.path === "/" ? "/" : alt.path}`)}" />`
+        )
+        .join("\n");
+      return `  <url>\n    <loc>${escapeXml(loc)}</loc>${lastmod}\n${alternates}\n    <priority>${entry.priority.toFixed(2)}</priority>\n  </url>`;
+    })
+    .join("\n");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+${urls}
+</urlset>
+`;
+}
+
 function escapeXml(value: string): string {
-  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
 }

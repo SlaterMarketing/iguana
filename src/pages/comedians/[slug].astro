@@ -4,7 +4,11 @@ import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicArtistDetail } from "@kintana/sdk";
 import { formatEventDate } from "../../lib/events";
 import { getKintanaEnv } from "../../lib/kintana-env";
+import { getLocale } from "../../i18n/locale";
+import { t } from "../../i18n/ui";
+import { localizePath } from "../../i18n/routes";
 
+const locale = getLocale(Astro);
 const slug = Astro.params.slug;
 
 const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
@@ -20,10 +24,10 @@ if (hasCredentials && slug) {
 }
 ---
 
-<Base narrow={false} transparentHeader={false} title={artist ? `${artist.stageName ?? artist.name} · Comedians` : "Comedians · Iguana Comedy"}>
+<Base narrow={false} transparentHeader={false} title={artist ? `${artist.stageName ?? artist.name} · ${t(locale, "nav.comedians")}` : `${t(locale, "nav.comedians")} · Iguana Comedy`}>
   <section class="mx-auto max-w-5xl px-6 pb-32 pt-20">
-    <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.5rem] hover:underline" href="/comedians/">
-      ← Comedy wall
+    <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.5rem] hover:underline" href={localizePath(locale, "comedians")}>
+      {t(locale, "comedians.backToWall")}
     </a>
 
     {
@@ -35,7 +39,7 @@ if (hasCredentials && slug) {
                 artist.imageUrl ? (
                   <img src={artist.imageUrl} alt="" loading="lazy" class="size-full object-cover" />
                 ) : (
-                  <div class="flex size-full items-center justify-center bg-neutral-950 text-neutral-500 text-sm uppercase tracking-[0.45em]">Portrait soon</div>
+                  <div class="flex size-full items-center justify-center bg-neutral-950 text-neutral-500 text-sm uppercase tracking-[0.45em]">{t(locale, "comedians.portraitSoon")}</div>
                 )
               }
             </div>
@@ -47,13 +51,13 @@ if (hasCredentials && slug) {
                 </h1>
                 {artist.homeCity ? (
                   <p class="mt-4 text-neutral-600">
-                    Rooted in{" "}
+                    {t(locale, "comedians.rootedIn").replace("{city}", "")}
                     <span class="font-semibold text-neutral-900">{artist.homeCity}</span>
                   </p>
                 ) : null}
                 {artist.website ? (
                   <a class="mt-10 inline-flex text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.6rem] hover:underline" href={artist.website}>
-                    Personal site →
+                    {t(locale, "comedians.personalSite")}
                   </a>
                 ) : null}
               </div>
@@ -71,7 +75,7 @@ if (hasCredentials && slug) {
                           .replace(/\b\w/g, (letters) => letters.toUpperCase());
                         return (
                           <a href={trimmed} class="text-xs font-semibold uppercase tracking-[0.4em]" target="_blank" rel="noopener noreferrer">
-                            Follow on {readable} →
+                            {t(locale, "comedians.followOn").replace("{channel}", readable)}
                           </a>
                         );
                       })
@@ -89,7 +93,7 @@ if (hasCredentials && slug) {
           {
             artist.reels.filter((reel) => reel.url.trim().length > 0).length ? (
               <section class="space-y-6">
-                <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-400">Clips</h2>
+                <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-400">{t(locale, "comedians.clips")}</h2>
                 <div class="grid gap-6 sm:grid-cols-2">
                   {
                     artist.reels
@@ -111,13 +115,13 @@ if (hasCredentials && slug) {
           {
             artist.upcomingEvents?.length ? (
               <section class="space-y-6">
-                <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-400">Upcoming with us</h2>
+                <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-400">{t(locale, "comedians.upcomingWithUs")}</h2>
                 <ul class="space-y-4">
                   {artist.upcomingEvents.map((evt) => (
                     <li class="flex flex-wrap gap-8 border-t border-neutral-200 py-6 text-neutral-950">
-                      <div class="min-w-[140px] text-neutral-600">{formatEventDate(evt.date)}</div>
+                      <div class="min-w-[140px] text-neutral-600">{formatEventDate(evt.date, locale)}</div>
                       <div class="flex-1 space-y-2">
-                        <a class="text-xl font-semibold hover:text-brand" href={`/events/${evt.slug}/`}>
+                        <a class="text-xl font-semibold hover:text-brand" href={localizePath(locale, "eventDetail", { slug: evt.slug })}>
                           {evt.name}
                         </a>
                         <p class="text-sm text-neutral-600">{evt.venue?.city ?? evt.city}</p>
@@ -130,7 +134,7 @@ if (hasCredentials && slug) {
           }
         </article>
       ) : (
-        <p class="mt-20 text-neutral-600">Mic stand is empty—that comic is backstage elsewhere.</p>
+        <p class="mt-20 text-neutral-600">{t(locale, "comedians.notFound")}</p>
       )
     }
   </section>

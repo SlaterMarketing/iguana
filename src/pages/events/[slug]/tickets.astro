@@ -4,7 +4,11 @@ import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import { formatEventScheduleLine } from "../../../lib/events";
 import { getKintanaEnv } from "../../../lib/kintana-env";
+import { getLocale } from "../../../i18n/locale";
+import { t } from "../../../i18n/ui";
+import { localizePath } from "../../../i18n/routes";
 
+const locale = getLocale(Astro);
 const slug = Astro.params.slug;
 
 const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
@@ -21,19 +25,22 @@ if (hasCredentials && slug) {
 const venueLine = event?.venue?.name
   ? event.venue.name
   : [event?.city, event?.country].filter(Boolean).join(", ");
+
+const ticketingBlocked =
+  Boolean(event?.status === "sold-out" || event?.status === "postponed");
 ---
 
 <Base
-  title={event ? `Tickets · ${event.name}` : "Tickets · Iguana Comedy"}
+  title={event ? `${t(locale, "ui.getTickets")} · ${event.name}` : `${t(locale, "ui.getTickets")} · Iguana Comedy`}
   narrow={false}
   transparentHeader={false}
 >
   <section class="mx-auto max-w-4xl px-6 pb-24 pt-20">
     <a
       class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.5rem] hover:underline"
-      href={event?.slug ? `/events/${event.slug}/` : "/events/"}
+      href={event?.slug ? localizePath(locale, "eventDetail", { slug: event.slug }) : localizePath(locale, "events")}
     >
-      ← {event ? "Show details" : "Calendar"}
+      ← {event ? t(locale, "tickets.back.showDetails") : t(locale, "tickets.back.calendar")}
     </a>
 
     {
@@ -41,7 +48,7 @@ const venueLine = event?.venue?.name
         <article class="mt-12 space-y-10">
           <header class="space-y-4">
             <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">
-              {formatEventScheduleLine(event)}
+              {formatEventScheduleLine(event, locale)}
             </p>
             <h1
               class="font-semibold tracking-tight text-neutral-950"
@@ -52,16 +59,22 @@ const venueLine = event?.venue?.name
             {venueLine ? <p class="text-lg text-neutral-600">{venueLine}</p> : null}
           </header>
 
-          <div
-            class="min-h-[28rem] overflow-hidden rounded-[2.5rem] border border-black/10 bg-neutral-50"
-            data-kintana-widget={`event:${event.id}`}
-            aria-label="Ticket checkout"
-          >
-            <p class="px-8 py-10 text-center text-sm text-neutral-500">Loading checkout…</p>
-          </div>
+          {
+            ticketingBlocked ? (
+              <p class="text-neutral-700">{t(locale, "events.ticketsUnavailable")}</p>
+            ) : (
+              <div
+                class="min-h-[28rem] overflow-hidden rounded-[2.5rem] border border-black/10 bg-neutral-50"
+                data-kintana-widget={`event:${event.id}`}
+                aria-label={t(locale, "aria.ticketCheckout")}
+              >
+                <p class="px-8 py-10 text-center text-sm text-neutral-500">{t(locale, "tickets.loading")}</p>
+              </div>
+            )
+          }
         </article>
       ) : (
-        <p class="mt-24 text-neutral-600">This show is not available for tickets right now.</p>
+        <p class="mt-24 text-neutral-600">{t(locale, "tickets.unavailable")}</p>
       )
     }
   </section>

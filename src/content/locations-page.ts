@@ -1,26 +1,36 @@
 /** Editorial content for /locations/ — aligned with the legacy Framer page. */
 
 import { heroCityChoices } from "./site";
+import type { Locale } from "../i18n/locale";
 
-export const locationsPage = {
-  heroTitle: "Comedy locations in Quintana Roo",
-  heroImage:
-    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/8c3d112d09f2afd980eb02d754988b1f71eedfbb1638623ec5ee276784c55f41.webp",
-  intro:
-    "Over the years, as we've grown, we've begun to offer comedy shows in more and more locations across Quintana Roo.",
-  statsHeading: "Leading the comedy scene in the Mexican Caribbean",
-  statsBody:
-    "Iguana started with just one Mexican comedian looking for opportunity, realising it didn't exist, and starting to build it. After living in Chicago and getting back, he wanted to perform, and realised if he wanted that, he'd have to run the shows to do it.",
-  galleryImages: [
-    "https://images.unsplash.com/photo-1540039155733-5bb546b929d3?q=80&w=1200&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop",
-    "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=1200&auto=format&fit=crop",
-  ],
-  servicesBackground:
-    "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=2000&auto=format&fit=crop",
-  heroTexture:
-    "https://images.unsplash.com/photo-1507676184212-d03709172ecf?q=80&w=2000&auto=format&fit=crop",
-} as const;
+export function getLocationsPage(locale: Locale) {
+  const isES = locale === "es";
+  return {
+    heroTitle: isES
+      ? "Sedes de comedia en Quintana Roo"
+      : "Comedy locations in Quintana Roo",
+    heroImage:
+      "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/8c3d112d09f2afd980eb02d754988b1f71eedfbb1638623ec5ee276784c55f41.webp",
+    intro: isES
+      ? "A lo largo de los años, a medida que hemos crecido, hemos comenzado a ofrecer shows de comedia en más y más ubicaciones en Quintana Roo."
+      : "Over the years, as we've grown, we've begun to offer comedy shows in more and more locations across Quintana Roo.",
+    statsHeading: isES
+      ? "Liderando la escena de comedia en el Caribe Mexicano"
+      : "Leading the comedy scene in the Mexican Caribbean",
+    statsBody: isES
+      ? "Iguana comenzó con un solo comediante mexicano buscando oportunidad, dándose cuenta de que no existía, y empezando a construirla. Después de vivir en Chicago y regresar, quería presentarse, y se dio cuenta de que si quería eso, tendría que organizar los shows para lograrlo."
+      : "Iguana started with just one Mexican comedian looking for opportunity, realising it didn't exist, and starting to build it. After living in Chicago and getting back, he wanted to perform, and realised if he wanted that, he'd have to run the shows to do it.",
+    galleryImages: [
+      "https://images.unsplash.com/photo-1540039155733-5bb546b929d3?q=80&w=1200&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop",
+      "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=1200&auto=format&fit=crop",
+    ],
+    servicesBackground:
+      "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?q=80&w=2000&auto=format&fit=crop",
+    heroTexture:
+      "https://images.unsplash.com/photo-1507676184212-d03709172ecf?q=80&w=2000&auto=format&fit=crop",
+  } as const;
+}
 
 export type LocationCityCard = {
   slug: string;
@@ -54,30 +64,37 @@ export const locationCityCards: readonly LocationCityCard[] = heroCityChoices
     imageUrl: cityImages[entry.slug] ?? cityImages.cancun,
   }));
 
-export const locationServices = [
-  {
-    number: "01",
-    title: "Stand up shows",
-    body: "Iguana works to regularly bring the best comedy to Quintana Roo from all across the world, hosting shows that comedians are proud to perform at and audiences want to be a part of.",
-    href: "/events/",
-  },
-  {
-    number: "02",
-    title: "Open mics",
-    body: "Weekly and rotating open mics give local comics stage time and travellers a chance to catch fresh material before it hits the festival circuit.",
-    href: "/events/",
-  },
-  {
-    number: "03",
-    title: "Private corporate events",
-    href: "/work-with-us/#private-events",
-  },
-  {
-    number: "04",
-    title: "Hotel and resort shows",
-    href: "/work-with-us/#hotels",
-  },
-] as const;
+export function getLocationServices(locale: Locale) {
+  const isES = locale === "es";
+  return [
+    {
+      number: "01",
+      title: isES ? "Shows de stand up" : "Stand up shows",
+      body: isES
+        ? "Iguana trabaja para traer regularmente la mejor comedia a Quintana Roo de todo el mundo, organizando shows de los que los comediantes están orgullosos de participar y el público quiere ser parte."
+        : "Iguana works to regularly bring the best comedy to Quintana Roo from all across the world, hosting shows that comedians are proud to perform at and audiences want to be a part of.",
+      href: "/events/",
+    },
+    {
+      number: "02",
+      title: isES ? "Open mics" : "Open mics",
+      body: isES
+        ? "Open mics semanales y rotativos dan tiempo de escenario a cómicos locales y a viajeros la oportunidad de ver material fresco antes de que llegue al circuito de festivales."
+        : "Weekly and rotating open mics give local comics stage time and travellers a chance to catch fresh material before it hits the festival circuit.",
+      href: "/events/",
+    },
+    {
+      number: "03",
+      title: isES ? "Eventos privados corporativos" : "Private corporate events",
+      href: "/work-with-us/#private-events",
+    },
+    {
+      number: "04",
+      title: isES ? "Shows para hoteles y resorts" : "Hotel and resort shows",
+      href: "/hotels-and-resorts/",
+    },
+  ] as const;
+}
 
 /** Cities highlighted in the legacy stats strip (venue counts filled from API when available). */
 export const locationStatsCities = [

@@ -1,8 +1,9 @@
 ---
 import LocationCityCard from "../LocationCityCard.astro";
 import { locationCityCards } from "../../content/locations-page";
+import type { Locale } from "../../i18n/locale";
 
-const { activeSlug } = Astro.props as { activeSlug: string };
+const { activeSlug, locale = "en" } = Astro.props as { activeSlug: string; locale?: Locale };
 const others = locationCityCards.filter((city) => city.slug !== activeSlug);
 ---
 
@@ -23,7 +24,7 @@ const others = locationCityCards.filter((city) => city.slug !== activeSlug);
         </div>
         <div class="mt-20 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {others.slice(0, 6).map((city) => (
-            <LocationCityCard city={city} compact />
+            <LocationCityCard city={city} compact locale={locale} />
           ))}
         </div>
         <p class="mt-14 text-center">

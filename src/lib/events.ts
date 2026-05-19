@@ -1,5 +1,7 @@
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import { slugify } from "./slug";
+import { localizePath } from "../i18n/routes";
+import type { Locale } from "../i18n/locale";
 
 /** Best-effort city slug derived from ticketing rows. */
 export function eventCitySlug(event: KintanaPublicEvent): string {
@@ -7,9 +9,9 @@ export function eventCitySlug(event: KintanaPublicEvent): string {
 }
 
 /** On-site checkout route (hydrated by `data-kintana-widget` + `/_t/k.js`). */
-export function eventTicketsPath(event: Pick<KintanaPublicEvent, "slug" | "id">): string | null {
+export function eventTicketsPath(event: Pick<KintanaPublicEvent, "slug" | "id">, locale: Locale = "en"): string | null {
   const key = event.slug?.trim() || event.id?.trim();
-  return key ? `/events/${key}/tickets/` : null;
+  return key ? localizePath(locale, "eventTickets", { slug: key }) : null;
 }
 
 export function sortEventsAscending(events: KintanaPublicEvent[]): KintanaPublicEvent[] {
@@ -72,38 +74,42 @@ function ordinalDay(day: number): string {
 }
 
 /** e.g. `2026-05-18` → `18th May, 2026` */
-export function formatEventDate(dateInput: string): string {
+export function formatEventDate(dateInput: string, locale: Locale = "en"): string {
   const raw = dateInput.trim();
+  const fmtLocale = locale === "es" ? "es-MX" : "en-GB";
   const isoDay = /^(\d{4})-(\d{2})-(\d{2})$/.exec(raw);
   if (isoDay) {
     const year = Number(isoDay[1]);
     const monthIndex = Number(isoDay[2]) - 1;
     const day = Number(isoDay[3]);
-    const month = new Intl.DateTimeFormat("en-GB", { month: "short" }).format(new Date(year, monthIndex, day));
-    return `${ordinalDay(day)} ${month}, ${year}`;
+    const month = new Intl.DateTimeFormat(fmtLocale, { month: "short" }).format(new Date(year, monthIndex, day));
+    return locale === "es" ? `${day} ${month}, ${year}` : `${ordinalDay(day)} ${month}, ${year}`;
   }
 
   const t = Date.parse(raw);
   if (!Number.isFinite(t)) return dateInput;
   const d = new Date(t);
-  const month = new Intl.DateTimeFormat("en-GB", { month: "short" }).format(d);
-  return `${ordinalDay(d.getDate())} ${month}, ${d.getFullYear()}`;
+  const month = new Intl.DateTimeFormat(fmtLocale, { month: "short" }).format(d);
+  return locale === "es" ? `${d.getDate()} ${month}, ${d.getFullYear()}` : `${ordinalDay(d.getDate())} ${month}, ${d.getFullYear()}`;
 }
 
-const time12 = new Intl.DateTimeFormat("en-US", {
-  hour: "numeric",
-  minute: "2-digit",
-  hour12: true,
-});
+function getTimeFormatter(locale: Locale) {
+  return new Intl.DateTimeFormat(locale === "es" ? "es-MX" : "en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
 
 /** e.g. `15:00` → `3:00 PM` */
-export function formatEventTime(timeInput: string | null | undefined): string | null {
+export function formatEventTime(timeInput: string | null | undefined, locale: Locale = "en"): string | null {
   if (!timeInput?.trim()) return null;
   const raw = timeInput.trim();
+  const timeFormatter = getTimeFormatter(locale);
 
   if (/\b(am|pm)\b/i.test(raw)) {
     const d = new Date(`1970-01-01 ${raw}`);
-    if (!Number.isNaN(d.getTime())) return time12.format(d);
+    if (!Number.isNaN(d.getTime())) return timeFormatter.format(d);
     return raw;
   }
 
@@ -118,37 +124,58 @@ export function formatEventTime(timeInput: string | null | undefined): string | 
   }
 
   const parsed = Date.parse(raw);
-  if (Number.isFinite(parsed)) return time12.format(new Date(parsed));
+  if (Number.isFinite(parsed)) return timeFormatter.format(new Date(parsed));
 
   return raw;
 }
 
 export function formatEventScheduleLine(
-  event: Pick<KintanaPublicEvent, "date" | "doorsOpen" | "showTime">
+  event: Pick<KintanaPublicEvent, "date" | "doorsOpen" | "showTime">,
+  locale: Locale = "en"
 ): string {
-  const parts = [formatEventDate(event.date)];
-  const doors = formatEventTime(event.doorsOpen);
-  const show = formatEventTime(event.showTime);
-  if (doors) parts.push(`doors ${doors}`);
-  if (show) parts.push(`show ${show}`);
+  const parts = [formatEventDate(event.date, locale)];
+  const doors = formatEventTime(event.doorsOpen, locale);
+  const show = formatEventTime(event.showTime, locale);
+  if (doors) parts.push(locale === "es" ? `puertas ${doors}` : `doors ${doors}`);
+  if (show) parts.push(locale === "es" ? `show ${show}` : `show ${show}`);
   return parts.join(" · ");
 }
 
-/** Returns "Month YYYY" in en-US locale. */
-export function monthLabel(dateInput: string): string {
+/** Formatted money from ticketing minor units (`priceFrom`) when present on the event payload. */
+export function formatMinorUnitsPrice(
+  event: Pick<KintanaPublicEvent, "priceFrom" | "priceCurrency">,
+  locale: Locale = "en"
+): string | null {
+  if (event.priceFrom == null) return null;
+  const currency = event.priceCurrency?.trim() || "USD";
+  const major = event.priceFrom / 100;
+  try {
+    return new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", {
+      style: "currency",
+      currency,
+      maximumFractionDigits: major % 1 === 0 ? 0 : 2,
+    }).format(major);
+  } catch {
+    return `${major % 1 === 0 ? major.toFixed(0) : major.toFixed(2)} ${currency}`;
+  }
+}
+
+/** Returns "Month YYYY" in locale. */
+export function monthLabel(dateInput: string, locale: Locale = "en"): string {
   const d = Date.parse(dateInput);
-  if (!Number.isFinite(d)) return "Soon";
-  return new Intl.DateTimeFormat("en-US", { month: "long", year: "numeric" }).format(new Date(d));
+  if (!Number.isFinite(d)) return locale === "es" ? "Pronto" : "Soon";
+  return new Intl.DateTimeFormat(locale === "es" ? "es-MX" : "en-US", { month: "long", year: "numeric" }).format(new Date(d));
 }
 
 export function groupEventsByMonth(
   events: KintanaPublicEvent[],
   order: "asc" | "desc" = "asc",
+  locale: Locale = "en"
 ): Map<string, KintanaPublicEvent[]> {
   const sorted = order === "desc" ? sortEventsDescending(events) : sortEventsAscending(events);
   const map = new Map<string, KintanaPublicEvent[]>();
   for (const event of sorted) {
-    const bucket = monthLabel(event.date);
+    const bucket = monthLabel(event.date, locale);
     const row = map.get(bucket) ?? [];
     row.push(event);
     map.set(bucket, row);

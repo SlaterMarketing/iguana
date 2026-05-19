@@ -6,6 +6,10 @@ import type { KintanaPublicStoreCollection, KintanaPublicStoreProduct } from "@k
 import { logKintanaError, logKintanaSuccess } from "../../lib/kintana-error";
 import { getKintanaEnv } from "../../lib/kintana-env";
 import { site } from "../../content/site";
+import { getLocale } from "../../i18n/locale";
+import { t } from "../../i18n/ui";
+
+const locale = getLocale(Astro);
 
 const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
 const collectionFilter = Astro.url.searchParams.get("collection")?.trim() ?? "";
@@ -31,29 +35,29 @@ if (hasCredentials) {
 }
 ---
 
-<Base narrow={false} title="Merch · Iguana Comedy" description="Official Iguana Comedy merch—tees, prints, and coast souvenirs.">
+<Base narrow={false} title={`${t(locale, "ui.merch")} · Iguana Comedy`} description={t(locale, "store.description")}>
   <section class="mx-auto max-w-[118rem] px-6 pb-24 pt-20">
     <div class="flex flex-col gap-16 lg:flex-row lg:items-end lg:justify-between">
       <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">Merch desk</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{t(locale, "store.eyebrow")}</p>
         <h1 class="mt-10 font-display text-5xl text-neutral-950 sm:text-6xl" style="font-family: var(--font-display);">
-          Iguana merch
+          {t(locale, "store.title")}
         </h1>
         <p class="mt-8 max-w-2xl text-lg text-neutral-700">
-          Browse here on iguanacomedy.com—when you are ready to buy, checkout opens on our secure payments page.
+          {t(locale, "store.description")}
         </p>
       </div>
       <p
         class="font-display text-4xl uppercase tracking-[0.45em] text-neutral-600 lg:text-end"
         style="font-family: var(--font-display); letter-spacing: 0.4em;"
       >
-        store
+        {t(locale, "store.label")}
       </p>
     </div>
 
     {
       collections.length > 0 ? (
-        <nav class="mt-14 flex flex-wrap gap-3" aria-label="Collections">
+        <nav class="mt-14 flex flex-wrap gap-3" aria-label={t(locale, "aria.collections")}>
           <a
             href="/store/"
             class:list={[
@@ -61,7 +65,7 @@ if (hasCredentials) {
               !collectionFilter ? "border-neutral-950 bg-neutral-950 text-white" : "border-neutral-300 text-neutral-700 hover:border-neutral-950",
             ]}
           >
-            All
+            {t(locale, "ui.all")}
           </a>
           {
             collections.map((collection) => (
@@ -85,23 +89,23 @@ if (hasCredentials) {
     {
       !hasCredentials ? (
         <p class="mt-16 rounded-3xl border border-amber-200 bg-amber-50 px-8 py-6 text-neutral-900">
-          Store catalogue connects once ticketing credentials are live.
+          {t(locale, "store.noCredentials")}
         </p>
       ) : catalogFailed ? (
         <p class="mt-16 rounded-3xl border border-red-200 bg-red-50 px-8 py-6 text-neutral-900">
-          We could not load the merch catalogue right now—check back shortly or use the link below.
+          {t(locale, "store.error")}
         </p>
       ) : products.length === 0 ? (
         <div class="mt-16 max-w-2xl space-y-6 rounded-3xl border border-neutral-200 px-8 py-8">
-          <p class="text-lg text-neutral-700">Nothing is published in the store yet—check back soon.</p>
+          <p class="text-lg text-neutral-700">{t(locale, "store.empty")}</p>
           <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-4 hover:underline" href={site.merchantShopUrl}>
-            Visit legacy shop →
+            {t(locale, "store.visitLegacy")}
           </a>
         </div>
       ) : (
         <div class="mt-16 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {products.map((product) => (
-            <StoreProductTile product={product} />
+            <StoreProductTile product={product} locale={locale} />
           ))}
         </div>
       )

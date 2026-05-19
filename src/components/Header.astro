@@ -1,7 +1,21 @@
 ---
-import { site } from "../content/site";
+import { mergeBrand } from "../lib/merge-brand";
+import type { MergedSite } from "../lib/merge-brand";
+import { t } from "../i18n/ui";
+import { localizePath, getAlternatePath } from "../i18n/routes";
+import type { Locale } from "../i18n/locale";
 
-const pathnameRaw = Astro.props.pathname ?? Astro.url.pathname;
+interface Props {
+  pathname?: string;
+  transparent?: boolean;
+  locale: Locale;
+  /** Merged fallback + Kintana listFiles URLs — pass from layout */
+  brand?: MergedSite;
+}
+
+const { pathname: pathnameProp, transparent = false, locale, brand: brandProp } = Astro.props;
+const brand = brandProp ?? mergeBrand(Astro.locals.brandOverrides ?? {});
+const pathnameRaw = pathnameProp ?? Astro.url.pathname;
 
 function matches(href: string) {
   const p = pathnameRaw.replace(/\/$/, "") || "/";
@@ -9,15 +23,15 @@ function matches(href: string) {
   return p === h;
 }
 
-const transparent = Astro.props.transparent ?? false;
-
-const links: { href: string; label: string; external?: boolean }[] = [
-  { href: "/events/", label: "Events" },
-  { href: "/locations/", label: "Cities" },
-  { href: "/comedians/", label: "Comedians" },
-  { href: "/store/", label: "Merch" },
-  { href: "/contact/", label: "Contact" },
+const links: { key: "events" | "locations" | "comedians" | "store" | "contact"; external?: boolean }[] = [
+  { key: "events" },
+  { key: "locations" },
+  { key: "comedians" },
+  { key: "store" },
+  { key: "contact" },
 ];
+
+const alternatePath = getAlternatePath(locale, pathnameRaw);
 ---
 
 <header
@@ -39,10 +53,10 @@ const links: { href: string; label: string; external?: boolean }[] = [
       data-header-nav-cluster=""
       class="header-nav-cluster flex min-w-0 flex-1 items-center justify-between gap-3 rounded-full bg-white px-4 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out sm:gap-x-8 sm:px-8 sm:py-3 md:flex-initial md:justify-start"
     >
-      <a href="/" class="shrink-0">
+      <a href={localizePath(locale, "home")} class="shrink-0">
         <img
-          src={site.heroLogoUrl}
-          alt="Iguana Comedy"
+          src={brand.heroLogoUrl}
+          alt={t(locale, "seo.siteName")}
           class="h-5 w-auto sm:h-6"
           width="160"
           height="28"
@@ -52,28 +66,43 @@ const links: { href: string; label: string; external?: boolean }[] = [
 
       <nav
         class="hidden flex-wrap items-center gap-x-2 gap-y-1 text-[0.62rem] font-semibold uppercase tracking-[0.2em] text-neutral-500 md:flex sm:text-[0.65rem] sm:tracking-[0.24em]"
-        aria-label="Primary"
+        aria-label={t(locale, "nav.aria.primary")}
       >
         {
           links.map((link, index) => {
-            const active = !link.external && matches(link.href);
+            const href = localizePath(locale, link.key);
+            const active = !link.external && matches(href);
             return (
               <>
                 {index > 0 ? <span class="text-neutral-400/90" aria-hidden="true">/</span> : null}
                 <a
-                  href={link.href}
+                  href={href}
                   class:list={[
                     active ? "text-neutral-950" : "hover:text-neutral-800",
                     link.external ? "inline-flex items-center gap-1" : "",
                   ]}
                   {...(link.external ? { target: "_blank", rel: "noreferrer noopener" } : {})}
                 >
-                  {link.label}
+                  {t(locale, `nav.${link.key === "locations" ? "cities" : link.key === "store" ? "merch" : link.key}`)}
                 </a>
               </>
             );
           })
         }
+
+        <!-- Language switcher (desktop) -->
+        {alternatePath && (
+          <>
+            <span class="text-neutral-400/90" aria-hidden="true">/</span>
+            <a
+              href={alternatePath}
+              class="hover:text-neutral-800"
+              aria-label={`${t(locale, "lang.switchTo")} ${locale === "en" ? t(locale, "lang.es") : t(locale, "lang.en")}`}
+            >
+              {locale === "en" ? "ES" : "EN"}
+            </a>
+          </>
+        )}
       </nav>
 
       <button
@@ -83,7 +112,7 @@ const links: { href: string; label: string; external?: boolean }[] = [
         aria-controls="site-mobile-menu"
         data-mobile-menu-toggle=""
       >
-        <span class="sr-only">Open menu</span>
+        <span class="sr-only">{t(locale, "nav.openMenu")}</span>
         <svg class="mobile-menu-icon-open size-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
           <path stroke="currentColor" stroke-linecap="round" stroke-width="2" d="M4 7h16M4 12h16M4 17h16" />
         </svg>
@@ -94,12 +123,12 @@ const links: { href: string; label: string; external?: boolean }[] = [
     </div>
 
     <a
-      href="/events/"
+      href={localizePath(locale, "events")}
       data-header-cta=""
       class="header-cta btn-pill hidden shrink-0 items-center gap-2 rounded-full bg-white px-6 py-2.5 text-[0.62rem] font-bold uppercase tracking-[0.22em] text-neutral-950 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out sm:inline-flex sm:px-8 sm:py-3 sm:text-[0.65rem] sm:tracking-[0.26em]"
-      aria-label="See the next event"
+      aria-label={t(locale, "nav.cta")}
     >
-      The next event
+      {t(locale, "nav.cta")}
       <svg class="btn-pill-arrow h-[0.65rem] w-[1.1rem] shrink-0 text-brand transition-colors" viewBox="0 0 22 14" aria-hidden="true">
         <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m2 7h18m-6-6 6 6-6 6" />
       </svg>
@@ -117,7 +146,7 @@ const links: { href: string; label: string; external?: boolean }[] = [
       type="button"
       class="mobile-menu-backdrop absolute inset-0 bg-black/50 opacity-0 transition-opacity duration-300"
       tabindex="-1"
-      aria-label="Close menu"
+      aria-label={t(locale, "nav.closeMenu")}
       data-mobile-menu-close=""
     />
 
@@ -125,13 +154,13 @@ const links: { href: string; label: string; external?: boolean }[] = [
       class="mobile-menu-sheet absolute right-0 top-0 flex h-full w-[min(100%,20rem)] translate-x-full flex-col bg-white px-6 pb-10 pt-6 shadow-[-12px_0_40px_rgba(0,0,0,0.12)] transition-transform duration-300 ease-out"
     >
       <div class="flex items-center justify-between gap-4 border-b border-black/10 pb-5">
-        <a href="/" class="shrink-0" data-mobile-menu-close="">
-          <img src={site.heroLogoUrl} alt="Iguana Comedy" class="h-5 w-auto" width="160" height="28" decoding="async" />
+        <a href={localizePath(locale, "home")} class="shrink-0" data-mobile-menu-close="">
+          <img src={brand.heroLogoUrl} alt={t(locale, "seo.siteName")} class="h-5 w-auto" width="160" height="28" decoding="async" />
         </a>
         <button
           type="button"
           class="inline-flex size-10 items-center justify-center rounded-full text-neutral-950 transition-colors hover:bg-neutral-100"
-          aria-label="Close menu"
+          aria-label={t(locale, "nav.closeMenu")}
           data-mobile-menu-close=""
         >
           <svg class="size-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -140,13 +169,14 @@ const links: { href: string; label: string; external?: boolean }[] = [
         </button>
       </div>
 
-      <nav class="mt-8 flex flex-1 flex-col gap-1" aria-label="Mobile primary">
+      <nav class="mt-8 flex flex-1 flex-col gap-1" aria-label={t(locale, "nav.aria.mobile")}>
         {
           links.map((link) => {
-            const active = !link.external && matches(link.href);
+            const href = localizePath(locale, link.key);
+            const active = !link.external && matches(href);
             return (
               <a
-                href={link.href}
+                href={href}
                 class:list={[
                   "rounded-2xl px-4 py-3.5 text-lg font-semibold tracking-tight transition-colors",
                   active ? "bg-brand/10 text-neutral-950" : "text-neutral-700 hover:bg-neutral-50 hover:text-neutral-950",
@@ -155,19 +185,32 @@ const links: { href: string; label: string; external?: boolean }[] = [
                 {...(link.external ? { target: "_blank", rel: "noreferrer noopener" } : {})}
                 data-mobile-menu-close=""
               >
-                {link.label}
+                {t(locale, `nav.${link.key === "locations" ? "cities" : link.key === "store" ? "merch" : link.key}`)}
               </a>
             );
           })
         }
       </nav>
 
+      <!-- Language switcher (mobile) -->
+      {alternatePath && (
+        <div class="mt-4 flex gap-2 border-t border-black/10 pt-4">
+          <a
+            href={alternatePath}
+            class="flex-1 rounded-2xl bg-neutral-100 py-3 text-center text-sm font-semibold text-neutral-950"
+            data-mobile-menu-close=""
+          >
+            {locale === "en" ? t(locale, "lang.es") : t(locale, "lang.en")}
+          </a>
+        </div>
+      )}
+
       <a
-        href="/events/"
+        href={localizePath(locale, "events")}
         class="btn-pill mt-6 inline-flex items-center justify-center gap-2 rounded-full bg-neutral-950 px-6 py-3.5 text-[0.65rem] font-bold uppercase tracking-[0.26em] text-white"
         data-mobile-menu-close=""
       >
-        The next event
+        {t(locale, "nav.cta")}
         <svg class="h-[0.65rem] w-[1.1rem] shrink-0" viewBox="0 0 22 14" aria-hidden="true">
           <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m2 7h18m-6-6 6 6-6 6" />
         </svg>
@@ -183,12 +226,15 @@ const links: { href: string; label: string; external?: boolean }[] = [
     header.dataset.headerScrollReady = "1";
 
     const threshold = 56;
+    const desktopNav = window.matchMedia("(min-width: 768px)");
 
     function update() {
-      header.toggleAttribute("data-scrolled", window.scrollY > threshold);
+      const scrolled = window.scrollY > threshold;
+      header.toggleAttribute("data-scrolled", desktopNav.matches && scrolled);
     }
 
     update();
+    desktopNav.addEventListener("change", update);
     window.addEventListener("scroll", update, { passive: true });
     document.addEventListener("astro:page-load", update);
   }
@@ -268,47 +314,49 @@ const links: { href: string; label: string; external?: boolean }[] = [
 </script>
 
 <style>
-  .site-header[data-scrolled] {
-    padding-top: 0.65rem;
-    pointer-events: auto;
-  }
+  @media (min-width: 768px) {
+    .site-header[data-scrolled] {
+      padding-top: 0.65rem;
+      pointer-events: auto;
+    }
 
-  .site-header[data-scrolled] .header-track {
-    width: 80vw;
-    max-width: 72rem;
-    flex-wrap: nowrap;
-    gap: 1rem;
-    border: 1px solid #000;
-    border-radius: 9999px;
-    background-color: #fff;
-    padding: 0.45rem 0.55rem 0.45rem 1.25rem;
-    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-  }
+    .site-header[data-scrolled] .header-track {
+      width: 80vw;
+      max-width: 72rem;
+      flex-wrap: nowrap;
+      gap: 1rem;
+      border: 1px solid #000;
+      border-radius: 9999px;
+      background-color: #fff;
+      padding: 0.45rem 0.55rem 0.45rem 1.25rem;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+    }
 
-  .site-header[data-transparent-bg="1"][data-scrolled] .header-track {
-    border-bottom: 1px solid #000;
-    backdrop-filter: none;
-  }
+    .site-header[data-transparent-bg="1"][data-scrolled] .header-track {
+      border-bottom: 1px solid #000;
+      backdrop-filter: none;
+    }
 
-  .site-header[data-scrolled] .header-nav-cluster {
-    background: transparent;
-    box-shadow: none;
-    padding: 0.35rem 0;
-  }
+    .site-header[data-scrolled] .header-nav-cluster {
+      background: transparent;
+      box-shadow: none;
+      padding: 0.35rem 0;
+    }
 
-  .site-header[data-scrolled] .header-cta {
-    background-color: #121715;
-    color: #fff;
-    box-shadow: none;
-  }
+    .site-header[data-scrolled] .header-cta {
+      background-color: #121715;
+      color: #fff;
+      box-shadow: none;
+    }
 
-  .site-header[data-scrolled] .header-cta .btn-pill-arrow {
-    color: #fff;
-  }
+    .site-header[data-scrolled] .header-cta .btn-pill-arrow {
+      color: #fff;
+    }
 
-  .site-header[data-scrolled] .header-cta.btn-pill:hover {
-    background-color: var(--color-brand-hover);
-    color: #fff;
+    .site-header[data-scrolled] .header-cta.btn-pill:hover {
+      background-color: var(--color-brand-hover);
+      color: #fff;
+    }
   }
 
   .site-header[data-mobile-menu-open] .mobile-menu-toggle {
@@ -321,14 +369,5 @@ const links: { href: string; label: string; external?: boolean }[] = [
 
   .site-header[data-mobile-menu-open] .mobile-menu-icon-close {
     opacity: 1;
-  }
-
-  @media (max-width: 640px) {
-    .site-header[data-scrolled] .header-track {
-      width: calc(100% - 1.25rem);
-      flex-wrap: nowrap;
-      border-radius: 1.35rem;
-      padding: 0.65rem 0.75rem;
-    }
   }
 </style>

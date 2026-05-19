@@ -4,8 +4,9 @@ import Cta from "../Cta.astro";
 import EventRow from "../EventRow.astro";
 import ExperienceStatsStrip from "../ExperienceStatsStrip.astro";
 import type { HomePageData } from "../../lib/home-page-data";
-import { site } from "../../content/site";
+import { mergeBrand } from "../../lib/merge-brand";
 import { testimonials } from "../../content/testimonials";
+import type { Locale } from "../../i18n/locale";
 
 interface Props extends HomePageData {
   activeCitySlug?: string;
@@ -15,6 +16,7 @@ interface Props extends HomePageData {
   eventsHeading?: string;
   emptyEventsMessage?: string;
   apiConfigured: boolean;
+  locale?: Locale;
 }
 
 const {
@@ -29,7 +31,10 @@ const {
   wallArtists,
   eventsCatalogFailed,
   performersCatalogFailed,
+  locale = "en",
 } = Astro.props;
+
+const brandMerged = mergeBrand(Astro.locals.brandOverrides ?? {});
 
 const eventsTitle = eventsHeading ?? (cityLabel ? `Upcoming in ${cityLabel}` : "Upcoming");
 const singleFeaturedEvent = trimmedEvents.length === 1;
@@ -72,7 +77,7 @@ const eventsEmpty =
         ]}
       >
         {trimmedEvents.map((evt) => (
-          <EventRow evt={evt} highlightCity={activeCitySlug} featured={singleFeaturedEvent} />
+          <EventRow evt={evt} highlightCity={activeCitySlug} featured={singleFeaturedEvent} locale={locale} />
         ))}
       </div>
     )
@@ -82,7 +87,7 @@ const eventsEmpty =
 <section class="mx-auto max-w-[118rem] px-6 py-20 lg:py-28">
   <div class="grid items-center gap-12 lg:grid-cols-2 lg:gap-16 xl:gap-24">
     <figure class="relative isolate mx-auto aspect-square w-full max-w-md overflow-hidden rounded-[2.5rem] bg-neutral-900 lg:mx-0 lg:max-w-none">
-      <img src={site.brandMomentImage} alt="" class="size-full object-cover" loading="lazy" />
+      <img src={brandMerged.brandMomentImage} alt="" class="size-full object-cover" loading="lazy" />
     </figure>
 
     <div class="flex flex-col gap-10 lg:gap-12">
@@ -106,7 +111,7 @@ const eventsEmpty =
         }
       </div>
 
-      <ExperienceStatsStrip />
+      <ExperienceStatsStrip locale={locale} />
     </div>
   </div>
 
@@ -156,7 +161,7 @@ const eventsEmpty =
       <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.6rem] hover:underline" href="/about/">Read story →</a>
     </div>
     <div class="overflow-hidden rounded-[2.85rem]">
-      <img src={site.clubPhotoImage} alt="" loading="lazy" class="aspect-[14/17] object-cover lg:aspect-auto lg:min-h-[28rem]" />
+      <img src={brandMerged.clubPhotoImage} alt="" loading="lazy" class="aspect-[14/17] object-cover lg:aspect-auto lg:min-h-[28rem]" />
     </div>
   </div>
 </section>
@@ -183,7 +188,7 @@ const eventsEmpty =
       ) : (
         <div class="mt-20 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           {wallArtists.map((artist) => (
-            <ComedianTile artist={artist} />
+            <ComedianTile artist={artist} locale={locale} />
           ))}
         </div>
       )
@@ -191,5 +196,4 @@ const eventsEmpty =
   </div>
 </section>
 
-<Cta />
-
+<Cta locale={locale} />

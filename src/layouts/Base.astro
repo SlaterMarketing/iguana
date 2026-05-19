@@ -4,6 +4,10 @@ import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
 import { site } from "../content/site";
 import { getKintanaEnv } from "../lib/kintana-env";
+import { mergeBrand } from "../lib/merge-brand";
+import { getLocale, getCanonicalUrl, getAlternateUrls } from "../i18n/locale";
+import type { Locale } from "../i18n/locale";
+import { t } from "../i18n/ui";
 
 interface Props {
   title?: string;
@@ -14,23 +18,36 @@ interface Props {
   narrow?: boolean;
   /** Homepage hero: full-bleed main, no extra chrome spacing */
   flushMain?: boolean;
+  ogImage?: string;
+  noindex?: boolean;
 }
 
+const locale = getLocale(Astro);
+
 const {
-  title = "Iguana Comedy",
-  description = "International English stand‑up comedy across Cancún, Playa del Carmen, Tulum, Cozumel & the Riviera Maya.",
+  title = t(locale, "seo.defaultTitle"),
+  description = t(locale, "seo.defaultDescription"),
   transparentHeader = false,
   narrow = false,
   flushMain = false,
+  ogImage,
+  noindex = false,
 } = Astro.props;
 
 function escapeAttr(v: string) {
   return v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
+const brand = mergeBrand(Astro.locals.brandOverrides ?? {});
+
+const canonicalUrl = getCanonicalUrl(Astro);
+const alternateUrls = getAlternateUrls(Astro);
+const ogLocale = t(locale, "seo.ogLocale");
+const siteOrigin = Astro.site?.origin ?? "https://iguanacomedy.com";
+const defaultOgImage = site.heroImage;
+
 const { apiKey, baseUrl, trackerToken } = getKintanaEnv();
 const TRACK_BASE = baseUrl.replace(/\/$/, "");
-/** Prefer the snippet token from Website → external site (JWT); falls back to publish key so ingest still works. */
 const TRACK_TOKEN = trackerToken || apiKey;
 const trackerMarkup =
   TRACK_BASE && TRACK_TOKEN
@@ -40,14 +57,49 @@ const trackerMarkup =
     : "";
 ---
 
-<html lang="en">
+<html lang={locale}>
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="icon" type="image/webp" href={site.faviconUrl} />
-    <link rel="apple-touch-icon" href={site.faviconUrl} />
+    {noindex && <meta name="robots" content="noindex" />}
+
+    <!-- Canonical & Hreflang -->
+    <link rel="canonical" href={canonicalUrl} />
+    {
+      alternateUrls.map((alt) => (
+        <link rel="alternate" hreflang={alt.locale} href={alt.url} />
+      ))
+    }
+    <link rel="alternate" hreflang="x-default" href={alternateUrls[0]?.url ?? canonicalUrl} />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:type" content="website" />
+    <meta property="og:locale" content={ogLocale} />
+    <meta property="og:site_name" content={t(locale, "seo.siteName")} />
+    <meta property="og:image" content={ogImage ?? defaultOgImage} />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage ?? defaultOgImage} />
+
+    <!-- JSON-LD -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: t(locale, "seo.siteName"),
+      url: siteOrigin,
+      inLanguage: locale,
+    })} />
+
+    <link rel="icon" type="image/webp" href={brand.faviconUrl} />
+    <link rel="apple-touch-icon" href={brand.faviconUrl} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -56,7 +108,7 @@ const trackerMarkup =
     />
   </head>
   <body class="bg-white text-neutral-900 antialiased">
-    <Header transparent={transparentHeader} pathname={Astro.url.pathname} />
+    <Header transparent={transparentHeader} pathname={Astro.url.pathname} locale={locale} brand={brand} />
     <main
       class:list={[
         flushMain ? "relative w-full" : narrow ? "mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6 lg:pt-14" : "relative w-full",
@@ -67,7 +119,7 @@ const trackerMarkup =
 
     {!transparentHeader ? <div class="h-px w-full bg-black/10" aria-hidden="true" /> : null}
 
-    <Footer />
+    <Footer locale={locale} />
 
     {trackerMarkup ? <span aria-hidden="true" class="hidden" set:html={trackerMarkup} /> : null}
   </body>

@@ -1,10 +1,26 @@
 # Kintana API wishlist — from the Iguana Comedy migration
 
-We're rebuilding iguanacomedy.com on `@kintana/sdk` **0.4.1** + the Astro starter.
-The numbered sections below are the **original migration ask** — many overlap with
-behaviour that now ships; see **[Update — 0.4.1]** before prioritising work.
+We're rebuilding iguanacomedy.com on `@kintana/sdk` **0.5.x** + Astro SSR.
 
-## Update — `@kintana/sdk` 0.4.1
+The numbered sections below are the **original migration ask** — many overlap with behaviour that now ships; see **Update — `@kintana/sdk` 0.5.x** below and the historical **Update — `@kintana/sdk` 0.4.1** section.
+
+## Update — `@kintana/sdk` 0.5.x (adopted in this codebase)
+
+**Product surface:**
+
+- **`listEvents` filters**: `/events/` uses `{ from }` combined with `{ status: "past" }`, merges + dedupes by id, then `partitionEventsBySchedule()` for stale edge cases (`src/lib/events-catalog.ts`).
+- **`listFiles` / link-share assets**: Middleware loads link-visible files (`src/middleware.ts` → `fetchCachedBrandOverrides` in [`src/lib/kintana-files.ts`](src/lib/kintana-files.ts)), matched by curated stems in [`src/content/site-assets.ts`](src/content/site-assets.ts), merged over static URLs via [`mergeBrand()`](../src/lib/merge-brand.ts) (favicon, header logo, brand moment/club imagery, hero video).
+- **`uploadEmbedFormFile` + richer schema**: [`ContactFormIsland`](../src/components/ContactFormIsland.tsx) renders `phone`, `url`, `date`, `number`, `boolean`, `select`, `multiselect`, `file`; file fields upload before `submitForm`.
+- **Listing UI**: Sold-out/postponed labels, responsive `imageUrlMobile` on cards and detail routes, formatted `priceFrom` / currency when API supplies them (`EventRow`, `events/[slug]`, `/tickets`).
+- **`createKintanaClient({ secretApiKey })` workspace form CRUD**: not used on the public marketing site — server automation only.
+
+**Still deferred** (per upstream `llms.txt`): generic marketing CMS `pages`, `/stats` KPIs, RRULE recurrence, branching form logic.
+
+Historical note follows for the original §1–§11 migration backlog.
+
+---
+
+## Update — `@kintana/sdk` 0.4.1 _(historical)_
 
 **Delivered on the SDK / public API:**
 
@@ -27,8 +43,7 @@ behaviour that now ships; see **[Update — 0.4.1]** before prioritising work.
   (addresses most of §10 except crawlability).
 
 Upstream **explicitly defers until launched** (per package `llms.txt`): generic
-marketing `pages` CMS, `/stats`-style KPI aggregates, RRULE / recurrence
-resources, and richer embedded form controls (file uploads, selects, branching).
+marketing `pages` CMS, `/stats`-style KPI aggregates, RRULE / recurrence resources, and **branching logic** in embed forms. The hosted schema does expose many primitive field kinds (`phone`, `select`, `multiselect`, `file`, `date`, …); branching is still absent server-side.
 
 ### Still worth tracking for Iguana
 
@@ -37,8 +52,7 @@ resources, and richer embedded form controls (file uploads, selects, branching).
 - **§4**: First-class `/locations`-style editorial (hero copy per city slug) vs
   only grouped venues.
 - **§§5–8** as originally written unless product scope changes.
-- **§9**: File / phone / select / conditional fields (schema types still only
-  `text` \| `email` \| `textarea` in 0.4.0).
+- **§9**: Conditional fields / branching (schema primitives like file & select are surfaced on iguanacomedy.com via `ContactFormIsland`).
 - **§10**: `noscript` or SSR-friendly analytics parity for bots.
 
 ---

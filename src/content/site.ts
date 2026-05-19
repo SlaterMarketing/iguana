@@ -4,7 +4,6 @@
 
 export const site = {
   name: "Iguana Comedy",
-  shortTagline: "English stand-up comedy across Cancún, Playa, Tulum, Cozumel, and more.",
   email: "hello@iguanacomedy.com",
   /** Full international display (WhatsApp widget text) */
   whatsappDisplay: "+52 998 937 0209",
@@ -28,6 +27,17 @@ export const site = {
     "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/ca28774d9da638010afa93daa353c2e6f40844bb6b6eafe8c75de4f246671d01.webp",
 } as const;
 
+export const siteMessages = {
+  en: {
+    shortTagline:
+      "English stand-up comedy across Cancún, Playa, Tulum, Cozumel, and more.",
+  },
+  es: {
+    shortTagline:
+      "Comedia en inglés en Cancún, Playa, Tulum, Cozumel y más.",
+  },
+} as const;
+
 /** Hero city labels keyed by slug from ?city= query (optionally aligns with slugify venue city). */
 export const heroCityChoices: readonly { slug: string; label: string }[] = [
   { slug: "", label: "the Riviera Maya" },
@@ -44,16 +54,16 @@ export const experienceStats = [
   {
     value: 100,
     suffix: "+",
-    label: "Comedians",
+    label: { en: "Comedians", es: "Comediantes" },
   },
   {
     value: 50,
     suffix: "+",
-    label: "Events",
+    label: { en: "Events", es: "Eventos" },
   },
   {
     value: 5000,
     suffix: "+",
-    label: "Attendees",
+    label: { en: "Attendees", es: "Asistentes" },
   },
 ] as const;

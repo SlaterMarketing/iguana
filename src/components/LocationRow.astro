@@ -1,16 +1,22 @@
 ---
 import type { KintanaGroupedCity } from "@kintana/sdk";
 import { slugify } from "../lib/slug";
+import { localizePath } from "../i18n/routes";
+import type { Locale } from "../i18n/locale";
 
-const { group } = Astro.props as { group: KintanaGroupedCity };
+const { group, locale = "en" } = Astro.props as { group: KintanaGroupedCity; locale?: Locale };
 const citySlug = slugify(group.city);
 const headline = group.city ?? "Regional rooms";
+const venueCount = group.venues.length;
+const venueLabel = locale === "es"
+  ? `${venueCount} sede${venueCount === 1 ? "" : "s"} en línea`
+  : `${venueCount} venue${venueCount === 1 ? "" : "s"} online`;
 ---
 
-<a href={`/locations/${citySlug}/`} class="group flex justify-between gap-8 border-t border-black/10 py-8 text-neutral-950">
+<a href={localizePath(locale, "cityDetail", { city: citySlug })} class="group flex justify-between gap-8 border-t border-black/10 py-8 text-neutral-950">
   <div>
     <p class="font-display text-3xl text-neutral-950 sm:text-4xl" style={`font-family: var(--font-display);`}>{headline}</p>
-    <p class="mt-2 text-neutral-600">{`${group.venues.length} venue${group.venues.length === 1 ? "" : "s"} online`}</p>
+    <p class="mt-2 text-neutral-600">{venueLabel}</p>
   </div>
   <div class="self-center transition group-hover:translate-x-1">
     <svg class="h-5 w-5 text-neutral-400" fill="none" viewBox="0 0 16 24" aria-hidden="true">

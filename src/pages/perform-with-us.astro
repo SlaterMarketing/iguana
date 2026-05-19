@@ -4,9 +4,21 @@ import Cta from "../components/Cta.astro";
 import ExperienceStatsStrip from "../components/ExperienceStatsStrip.astro";
 import PerformFaq from "../components/perform/PerformFaq.astro";
 import { ContactFormIsland } from "../components/ContactFormIsland";
-import { performOffers, performPage } from "../content/perform-with-us";
+import {
+  getPerformPage,
+  getPerformOffers,
+  getPerformFaq,
+} from "../content/perform-with-us";
 import { site } from "../content/site";
 import { getKintanaEnv } from "../lib/kintana-env";
+import { getLocale } from "../i18n/locale";
+import { t } from "../i18n/ui";
+import { localizePath } from "../i18n/routes";
+
+const locale = getLocale(Astro);
+const performPage = getPerformPage(locale);
+const performOffers = getPerformOffers(locale);
+const performFaq = getPerformFaq(locale);
 
 const { apiKey, baseUrl, formId, hasCredentials } = getKintanaEnv();
 const prefills = { subject: "perform" };
@@ -57,7 +69,7 @@ const prefills = { subject: "perform" };
       </h2>
       <p class="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-neutral-700">{performPage.pilgrimageBody}</p>
       <div class="mx-auto mt-14 max-w-3xl">
-        <ExperienceStatsStrip />
+        <ExperienceStatsStrip locale={locale} />
       </div>
     </div>
   </section>
@@ -75,7 +87,7 @@ const prefills = { subject: "perform" };
           <li
             class:list={[
               "flex min-h-[8.5rem] items-center justify-center rounded-[1.75rem] px-6 py-8 text-center font-display text-xl uppercase leading-snug tracking-wide sm:text-2xl",
-              offer.highlight
+              "highlight" in offer && offer.highlight
                 ? "bg-brand-hover text-white"
                 : "border border-black/10 bg-white text-neutral-950",
             ]}
@@ -89,7 +101,7 @@ const prefills = { subject: "perform" };
   </section>
 
   <section class="mx-auto max-w-[118rem] border-t border-black/10 px-6 py-20 sm:py-28">
-    <PerformFaq />
+    <PerformFaq faq={performFaq} />
   </section>
 
   <section id="apply" class="relative isolate scroll-mt-24 overflow-hidden">
@@ -114,8 +126,7 @@ const prefills = { subject: "perform" };
           {
             !hasCredentials || !formId ? (
               <p class="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-8 text-center text-neutral-950">
-                The application form appears once ticketing credentials are connected—email us at{" "}
-                <a class="text-brand underline" href={`mailto:${site.email}`}>{site.email}</a> in the meantime.
+                {t(locale, "perform.formUnavailable").replace("{email}", site.email)}
               </p>
             ) : (
               <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} formId={formId} prefills={prefills} hideHeading />
@@ -124,7 +135,7 @@ const prefills = { subject: "perform" };
         </div>
 
         <p class="mt-12 text-center text-xs font-semibold uppercase tracking-[0.4em] text-neutral-500">
-          Or message us on our socials
+          {t(locale, "perform.orMessageSocials")}
         </p>
         <nav class="mt-6 flex flex-wrap justify-center gap-x-10 gap-y-4 text-sm text-neutral-800">
           <a class="hover:text-brand" href={site.instagramUrl} target="_blank" rel="noreferrer noopener">
@@ -146,5 +157,13 @@ const prefills = { subject: "perform" };
     </div>
   </section>
 
-  <Cta eyebrow="Audiences" headline="Ready to laugh?" body="Catch a show while you are in town—or send this link to friends who need a night out." />
+  <Cta
+    eyebrow={t(locale, "cta.eyebrow.audiences")}
+    headline={t(locale, "cta.headline.readyToLaugh")}
+    body={t(locale, "cta.body.perform")}
+    ctaHref={localizePath(locale, "events")}
+    secondaryHref={localizePath(locale, "contact")}
+    secondaryLabel={t(locale, "cta.secondaryLabel.talkWithUs")}
+    locale={locale}
+  />
 </Base>

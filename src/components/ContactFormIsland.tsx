@@ -3,7 +3,55 @@
 import React, { useEffect, useState } from "react";
 import { KintanaProvider, useKintana } from "@kintana/sdk/react";
 
-import type { KintanaPublicFormSchema } from "@kintana/sdk";
+import type { KintanaClient, KintanaPublicFormSchema } from "@kintana/sdk";
+
+async function buildSubmitValues(
+  client: KintanaClient,
+  form: HTMLFormElement,
+  schema: KintanaPublicFormSchema,
+): Promise<Record<string, string>> {
+  const fd = new FormData(form);
+  const values: Record<string, string> = {};
+
+  for (const field of schema.fields) {
+    if (field.type === "file") {
+      const input = form.elements.namedItem(field.id);
+      if (!(input instanceof HTMLInputElement) || input.type !== "file") {
+        values[field.id] = "";
+        continue;
+      }
+      const picked = input.files?.[0];
+      if (!picked) {
+        if (field.required) throw new Error(`${field.label} is required`);
+        values[field.id] = "";
+        continue;
+      }
+      const err = validateFileField(field, picked);
+      if (err) throw new Error(err);
+      const uploaded = await client.uploadEmbedFormFile(schema.id, field.id, picked);
+      if (!uploaded.ok || !uploaded.url) throw new Error(uploaded.error ?? "Upload failed");
+      values[field.id] = uploaded.url;
+      continue;
+    }
+
+    if (field.type === "boolean") {
+      const el = form.elements.namedItem(field.id);
+      values[field.id] = el instanceof HTMLInputElement && el.type === "checkbox" && el.checked ? "true" : "false";
+      continue;
+    }
+
+    if (field.type === "multiselect") {
+      const all = fd.getAll(field.id);
+      values[field.id] = all.map(String).join(",");
+      continue;
+    }
+
+    const raw = fd.get(field.id);
+    values[field.id] = typeof raw === "string" ? raw : "";
+  }
+
+  return values;
+}
 
 function StyledFormInner({
   formId,
@@ -42,13 +90,9 @@ function StyledFormInner({
     if (!schema) return;
     setSubmitting(true);
     setMessage(null);
-    const fd = new FormData(e.currentTarget);
-    const values: Record<string, string> = {};
-    for (const field of schema.fields) {
-      const raw = fd.get(field.id);
-      values[field.id] = typeof raw === "string" ? raw : "";
-    }
+
     try {
+      const values = await buildSubmitValues(client, e.currentTarget, schema);
       const result = await client.submitForm(schema.id, values);
       if (result.redirectUrl) {
         window.location.assign(result.redirectUrl);
@@ -68,10 +112,14 @@ function StyledFormInner({
           if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
             el.value = val;
           }
+          if (el instanceof HTMLInputElement && el.type === "checkbox") {
+            el.checked = val === "true" || val === "1";
+          }
+          if (el instanceof HTMLSelectElement && !el.multiple) el.value = val;
         }
       }
-    } catch {
-      setMessage("Submission failed.");
+    } catch (submitErr) {
+      setMessage(submitErr instanceof Error ? submitErr.message : "Submission failed.");
     } finally {
       setSubmitting(false);
     }
@@ -94,29 +142,20 @@ function StyledFormInner({
 
       <form className={hideHeading ? "grid gap-5" : "mt-8 grid gap-5"} onSubmit={(e) => void submit(e)}>
         {schema.fields.map((field) => (
-          <label key={field.id} className="grid gap-2 text-sm font-medium text-neutral-900">
-            <span>
-              {field.label}
-              {field.required ? " *" : null}
-            </span>
-            {field.type === "textarea" ? (
-              <textarea
-                name={field.id}
-                required={field.required}
-                rows={6}
-                className="rounded-3xl border border-neutral-400/55 bg-neutral-50 px-4 py-3 text-base text-neutral-900 shadow-inner outline-none transition focus:border-brand"
-                defaultValue={defaults[field.id] ?? undefined}
-              />
+          <div key={field.id} className="grid gap-2 text-sm font-medium text-neutral-900">
+            {field.type === "boolean" ? (
+              <span>
+                {field.label}
+                {field.required ? " *" : null}
+              </span>
             ) : (
-              <input
-                type={field.type === "email" ? "email" : "text"}
-                name={field.id}
-                required={field.required}
-                className="rounded-full border border-neutral-400/55 bg-neutral-50 px-4 py-3 text-base text-neutral-900 shadow-inner outline-none transition focus:border-brand"
-                defaultValue={defaults[field.id] ?? undefined}
-              />
+              <label htmlFor={field.id}>
+                {field.label}
+                {field.required ? " *" : null}
+              </label>
             )}
-          </label>
+            <EmbedFormField field={field} defaults={defaults} disabled={submitting} />
+          </div>
         ))}
         <button
           disabled={submitting}

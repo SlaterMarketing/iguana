@@ -1,0 +1,63 @@
+---
+import Base from "../../layouts/Base.astro";
+import { ContactFormIsland } from "../../components/ContactFormIsland";
+import { getKintanaEnv } from "../../lib/kintana-env";
+import { t } from "../../i18n/ui";
+import { localizePath } from "../../i18n/routes";
+
+const locale = "es";
+
+const { apiKey, baseUrl, formId, hasCredentials } = getKintanaEnv();
+
+const subjectPrefill =
+  Astro.url.searchParams.get("subject") ??
+  Astro.url.searchParams.get("topic") ??
+  "";
+
+const prefills: Record<string, string> = {};
+if (subjectPrefill.trim()) {
+  prefills.subject = subjectPrefill.trim();
+}
+
+const subjectSummary: Record<string, string> = {
+  general: "Hola general",
+  "private-events": "Planificación de show privado",
+  hotels: "Programación para hoteles / resorts",
+  perform: "Quiero subir al escenario",
+  investors: "Deck de inversión / alianzas",
+};
+---
+
+<Base narrow transparentHeader={false} title={`${t(locale, "nav.contact")} · Iguana Comedy`} description="Habla con nuestro equipo de producción sobre programación de comedia en la Riviera.">
+  <section class="space-y-12">
+    <div>
+      <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">Hablemos</p>
+      <h1 class="mt-10 font-display text-5xl text-neutral-950" style={`font-family: var(--font-display);`}>
+        Conversaciones dirigidas a los productores
+      </h1>
+      <p class="mt-8 max-w-2xl text-lg text-neutral-600">
+        Ya sea que estés buscando un fin de semana de bodas en destino, reuniendo compañeros de trabajo, reservando talento para hotel, proponiendo ángulos de inversión, o simplemente compartiendo notas de cariño, este formulario llega directo a nuestro calendario.
+      </p>
+      <details class="mt-8 rounded-3xl border border-neutral-300 bg-neutral-50 px-6 py-4 text-neutral-900">
+        <summary class="cursor-pointer text-xs font-semibold uppercase tracking-[0.4em]">Prellenar tipo de consulta</summary>
+        <nav class="mt-5 flex flex-wrap gap-x-10 gap-y-5 text-[0.7rem] uppercase tracking-[0.4em]" aria-label="Common enquiry intents">
+          {
+            Object.entries(subjectSummary).map(([slug, summary]) => (
+              <a class="underline-offset-[0.5rem] hover:underline hover:text-brand" href={`${localizePath(locale, "contact")}?subject=${encodeURIComponent(slug)}`}>
+                {summary}
+              </a>
+            ))
+          }
+        </nav>
+      </details>
+    </div>
+
+    {!hasCredentials || !formId ? (
+      <p class="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-8 text-neutral-950">
+        El formulario de consulta se conecta automáticamente una vez que lleguen las credenciales de ticketing.
+      </p>
+    ) : (
+      <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} formId={formId} prefills={prefills} />
+    )}
+  </section>
+</Base>

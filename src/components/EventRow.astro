@@ -1,20 +1,42 @@
 ---
 import type { KintanaPublicEvent } from "@kintana/sdk";
-import { eventCitySlug, eventTicketsPath, formatEventScheduleLine } from "../lib/events";
+import { eventCitySlug, eventTicketsPath, formatEventScheduleLine, formatMinorUnitsPrice } from "../lib/events";
+import { t } from "../i18n/ui";
+import { localizePath } from "../i18n/routes";
+import type { Locale } from "../i18n/locale";
 
-const { evt, highlightCity, featured = false, past = false } = Astro.props as {
+const { evt, highlightCity, featured = false, past = false, locale = "en" } = Astro.props as {
   evt: KintanaPublicEvent;
   highlightCity?: string;
   featured?: boolean;
   past?: boolean;
+  locale?: Locale;
 };
 
-const ticketsHref = past ? null : eventTicketsPath(evt) ?? evt.ticketUrl;
-const detailHref = `/events/${evt.slug}/`;
+const ticketsHref =
+  past || evt.status === "sold-out" || evt.status === "postponed"
+    ? null
+    : eventTicketsPath(evt, locale) ?? evt.ticketUrl;
+const detailHref = localizePath(locale, "eventDetail", { slug: evt.slug });
+
+const posterMobileSrc = evt.imageUrlMobile?.trim() || evt.imageUrl;
+const posterDesktopSrc = evt.imageUrl?.trim() || evt.imageUrlMobile?.trim();
+
+const priceFormatted = formatMinorUnitsPrice(evt, locale);
+const priceLabel = priceFormatted ? t(locale, "events.priceStarting").replace("{price}", priceFormatted) : null;
+
+const statusBadge =
+  past
+    ? null
+    : evt.status === "sold-out"
+      ? t(locale, "ui.soldOut")
+      : evt.status === "postponed"
+        ? t(locale, "ui.postponed")
+        : null;
 
 const meta = evt.venue?.name
   ? evt.venue.name
-  : [evt.city, evt.country].filter(Boolean).join(", ") || "Venue confirmed soon";
+  : [evt.city, evt.country].filter(Boolean).join(", ") || (locale === "es" ? "Lugar confirmado pronto" : "Venue confirmed soon");
 
 const emphasized =
   Boolean(highlightCity?.trim()) && eventCitySlug(evt) === highlightCity;
@@ -34,10 +56,25 @@ const emphasized =
       ]}
     >
       {
-        evt.imageUrl ? (
-          <img class="size-full object-cover" src={evt.imageUrl} alt="" loading="lazy" decoding="async" />
+        posterMobileSrc ? (
+          <>
+            <img
+              class="size-full object-cover md:hidden"
+              src={posterMobileSrc}
+              alt=""
+              loading="lazy"
+              decoding="async"
+            />
+            <img
+              class="hidden size-full object-cover md:block"
+              src={posterDesktopSrc ?? posterMobileSrc}
+              alt=""
+              loading="lazy"
+              decoding="async"
+            />
+          </>
         ) : (
-          <div class="flex size-full items-center justify-center bg-neutral-950 text-neutral-500">Poster incoming</div>
+          <div class="flex size-full items-center justify-center bg-neutral-950 text-neutral-500">{t(locale, "ui.loading")}</div>
         )
       }
     </div>
@@ -54,25 +91,39 @@ const emphasized =
     >
       <div class="space-y-6">
         <p class="text-[0.68rem] font-semibold uppercase tracking-[0.45em] opacity-85">
-          {formatEventScheduleLine(evt)}
+          {formatEventScheduleLine(evt, locale)}
         </p>
+
+        {
+          statusBadge ? (
+            <p
+              class:list={[
+                "text-[0.65rem] font-semibold uppercase tracking-[0.38em]",
+                emphasized ? "text-neutral-800 opacity-95" : "text-white opacity-95",
+              ]}
+            >
+              {statusBadge}
+            </p>
+          ) : null
+        }
 
         <h3
           class="font-semibold tracking-tight"
           style="font-family: var(--font-display); font-size: clamp(2.1rem, 3vw + 1.4rem, 3rem); line-height: 1.06;"
         >
-          <a href={`/events/${evt.slug}/`} class="transition-opacity hover:opacity-90">{evt.name}</a>
+          <a href={detailHref} class="transition-opacity hover:opacity-90">{evt.name}</a>
         </h3>
 
         {
           evt.headliner ? (
             <p class="text-sm font-semibold uppercase tracking-[0.38em] opacity-85">
-              Spotlight · {evt.headliner.name}
+              {t(locale, "ui.spotlight")} · {evt.headliner.name}
             </p>
           ) : null
         }
 
         <p class="text-base leading-relaxed opacity-[0.93]">{meta}</p>
+        {priceLabel ? <p class="text-sm font-medium opacity-[0.9]">{priceLabel}</p> : null}
       </div>
 
       <div class="mt-12 flex flex-wrap gap-6">
@@ -82,17 +133,29 @@ const emphasized =
               href={detailHref}
               class="inline-flex rounded-[2rem] border border-neutral-300 bg-white px-10 py-[0.9rem] text-[0.65rem] font-semibold uppercase tracking-[0.35em] text-neutral-950"
             >
-              View show
+              {t(locale, "ui.viewShow")}
             </a>
-          ) : (
+          ) : ticketsHref ? (
             <a
-              href={ticketsHref ?? detailHref}
+              href={ticketsHref}
               class:list={[
                 "inline-flex rounded-[2rem] border px-10 py-[0.9rem] text-[0.65rem] font-semibold uppercase text-white",
                 emphasized ? "border-neutral-950 bg-neutral-950 tracking-[0.39em]" : "border-transparent bg-neutral-950 tracking-[0.35em]",
               ]}
             >
-              Tickets
+              {t(locale, "ui.buyTickets")}
+            </a>
+          ) : (
+            <a
+              href={detailHref}
+              class:list={[
+                "inline-flex rounded-[2rem] border px-10 py-[0.9rem] text-[0.65rem] font-semibold uppercase tracking-[0.35em]",
+                emphasized
+                  ? "border-neutral-400 bg-white text-neutral-950"
+                  : "border-white/40 bg-white/10 text-white backdrop-blur-sm",
+              ]}
+            >
+              {t(locale, "ui.viewShow")}
             </a>
           )
         }

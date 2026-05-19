@@ -1,5 +1,14 @@
 ---
 import { site } from "../content/site";
+import { t } from "../i18n/ui";
+import { localizePath } from "../i18n/routes";
+import type { Locale } from "../i18n/locale";
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
 ---
 
 <footer class="border-t border-black/10 bg-ink pb-24 pt-28 text-neutral-300">
@@ -10,26 +19,27 @@ import { site } from "../content/site";
         <p class="text-lg text-white">{site.email}</p>
         <div class="text-lg tracking-wide text-neutral-400">
           <p class="text-white">{site.whatsappDisplay}</p>
-          <p class="text-sm uppercase tracking-[0.45em] text-neutral-400">whatsapp</p>
-          <p class="text-sm lowercase text-neutral-500">available for shows and enquiries</p>
+          <p class="text-sm uppercase tracking-[0.45em] text-neutral-400">{t(locale, "footer.whatsappLabel")}</p>
+          <p class="text-sm lowercase text-neutral-500">{t(locale, "footer.whatsappSub")}</p>
         </div>
       </div>
     </div>
     <div>
-      <p class="pb-10 text-[0.65rem] font-semibold uppercase tracking-[0.45em] text-neutral-600">Navigate</p>
+      <p class="pb-10 text-[0.65rem] font-semibold uppercase tracking-[0.45em] text-neutral-600">{t(locale, "footer.navigate")}</p>
       <nav class="space-y-4 text-neutral-400">
-        <a class="block hover:text-brand" href="/events/">Shows</a>
-        <a class="block hover:text-brand" href="/locations/">Locations</a>
-        <a class="block hover:text-brand" href="/comedians/">Wall of comedians</a>
-        <a class="block hover:text-brand" href="/work-with-us/">Work with us</a>
-        <a class="block hover:text-brand" href="/perform-with-us/">Perform with us</a>
+        <a class="block hover:text-brand" href={localizePath(locale, "events")}>{t(locale, "footer.shows")}</a>
+        <a class="block hover:text-brand" href={localizePath(locale, "locations")}>{t(locale, "footer.locations")}</a>
+        <a class="block hover:text-brand" href={localizePath(locale, "comedians")}>{t(locale, "footer.wallOfComedians")}</a>
+        <a class="block hover:text-brand" href={localizePath(locale, "workWithUs")}>{t(locale, "footer.workWithUs")}</a>
+        <a class="block hover:text-brand" href={localizePath(locale, "hotelsAndResorts")}>{t(locale, "footer.hotelsAndResorts")}</a>
+        <a class="block hover:text-brand" href={localizePath(locale, "performWithUs")}>{t(locale, "footer.performWithUs")}</a>
       </nav>
     </div>
     <div>
-      <p class="pb-10 text-[0.65rem] font-semibold uppercase tracking-[0.45em] text-neutral-600">Info</p>
+      <p class="pb-10 text-[0.65rem] font-semibold uppercase tracking-[0.45em] text-neutral-600">{t(locale, "footer.info")}</p>
       <nav class="space-y-4 text-neutral-400">
-        <a class="block hover:text-brand" href="/about/">Story</a>
-        <a class="block hover:text-brand" href="/contact/">Contact</a>
+        <a class="block hover:text-brand" href={localizePath(locale, "about")}>{t(locale, "footer.story")}</a>
+        <a class="block hover:text-brand" href={localizePath(locale, "contact")}>{t(locale, "nav.contact")}</a>
         <a
           class="block hover:text-brand"
           href={`https://wa.me/${site.whatsappE164.replace(/\D+/g, "")}`}
@@ -41,14 +51,14 @@ import { site } from "../content/site";
       </nav>
     </div>
     <div>
-      <p class="pb-10 text-[0.65rem] font-semibold uppercase tracking-[0.45em] text-neutral-600">Legal</p>
+      <p class="pb-10 text-[0.65rem] font-semibold uppercase tracking-[0.45em] text-neutral-600">{t(locale, "footer.legal")}</p>
       <nav class="space-y-4 text-neutral-400">
-        <a class="block hover:text-brand" href="/legal/privacy-policy/">Privacy</a>
-        <a class="block hover:text-brand" href="/legal/terms-and-conditions/">Terms</a>
+        <a class="block hover:text-brand" href={localizePath(locale, "privacyPolicy")}>{t(locale, "footer.privacy")}</a>
+        <a class="block hover:text-brand" href={localizePath(locale, "termsAndConditions")}>{t(locale, "footer.terms")}</a>
       </nav>
     </div>
     <div>
-      <p class="pb-10 text-[0.65rem] font-semibold uppercase tracking-[0.45em] text-neutral-600">Socials</p>
+      <p class="pb-10 text-[0.65rem] font-semibold uppercase tracking-[0.45em] text-neutral-600">{t(locale, "footer.socials")}</p>
       <nav class="space-y-4 text-neutral-400">
         <a class="block hover:text-brand" href={site.instagramUrl} target="_blank" rel="noreferrer noopener">
           Instagram
@@ -63,10 +73,10 @@ import { site } from "../content/site";
     </div>
   </div>
   <div class="mx-auto mt-24 flex max-w-6xl flex-col gap-6 border-t border-white/15 px-4 pt-10 text-neutral-500 text-sm md:flex-row md:items-center md:justify-between sm:px-6">
-    <p>© {new Date().getFullYear()} Iguana Comedy. All laughs reserved.</p>
+    <p>© {new Date().getFullYear()} Iguana Comedy. {t(locale, "footer.copyright")}.</p>
     <div class="flex gap-4 text-neutral-500">
-      <a href="/store/" class="hover:text-brand">
-        Merch
+      <a href={localizePath(locale, "store")} class="hover:text-brand">
+        {t(locale, "nav.merch")}
       </a>
     </div>
   </div>

@@ -2,9 +2,13 @@
 import Base from "../../layouts/Base.astro";
 import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicEvent } from "@kintana/sdk";
-import { eventTicketsPath, formatEventScheduleLine } from "../../lib/events";
+import { eventTicketsPath, formatEventScheduleLine, formatMinorUnitsPrice } from "../../lib/events";
 import { getKintanaEnv } from "../../lib/kintana-env";
+import { getLocale } from "../../i18n/locale";
+import { t } from "../../i18n/ui";
+import { localizePath } from "../../i18n/routes";
 
+const locale = getLocale(Astro);
 const slug = Astro.params.slug;
 
 const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
@@ -18,32 +22,74 @@ if (hasCredentials && slug) {
   }
 }
 
-const ticketsHref = event ? eventTicketsPath(event) : null;
+const ticketingBlocked =
+  Boolean(event?.status === "sold-out" || event?.status === "postponed");
+const resolvedTicketsHref = event && !ticketingBlocked ? eventTicketsPath(event, locale) : null;
+const posterMobileSrc = event?.imageUrlMobile?.trim() || event?.imageUrl;
+const posterDesktopSrc = event?.imageUrl?.trim() || event?.imageUrlMobile?.trim();
+const priceFormatted = event ? formatMinorUnitsPrice(event, locale) : null;
+const priceDetailLabel = priceFormatted
+  ? t(locale, "events.priceStarting").replace("{price}", priceFormatted)
+  : null;
+const detailStatusBadge = event?.status === "sold-out"
+  ? t(locale, "ui.soldOut")
+  : event?.status === "postponed"
+    ? t(locale, "ui.postponed")
+    : null;
 ---
 
-<Base title={event ? `${event.name} · Events` : "Events · Iguana Comedy"} narrow={false} transparentHeader={false}>
+<Base title={event ? `${event.name} · ${t(locale, "events.title")}` : `${t(locale, "events.title")} · Iguana Comedy`} narrow={false} transparentHeader={false}>
   <section class="mx-auto max-w-5xl px-6 pb-24 pt-20">
-    <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.5rem] hover:underline" href="/events/">← Calendar</a>
+    <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.5rem] hover:underline" href={localizePath(locale, "events")}>{t(locale, "events.backToCalendar")}</a>
 
     {
       event ? (
         <article class="mt-14 space-y-12">
           <header class="space-y-8">
-            <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{formatEventScheduleLine(event)}</p>
+            <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{formatEventScheduleLine(event, locale)}</p>
+            {
+              detailStatusBadge ? (
+                <p class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-950">{detailStatusBadge}</p>
+              ) : null
+            }
             <h1 class="font-display text-5xl text-neutral-950" style={`font-family: var(--font-display);`}>
               {event.name}
             </h1>
+            {priceDetailLabel ? <p class="text-sm font-medium text-neutral-600">{priceDetailLabel}</p> : null}
             <div class="flex flex-wrap gap-6">
-              <a
-                href={ticketsHref ?? event.ticketUrl}
-                class="rounded-full bg-neutral-950 px-12 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-white hover:opacity-[0.95]"
-              >
-                Tickets
-              </a>
+              {
+                ticketingBlocked ? (
+                  <p class="text-sm text-neutral-600">{t(locale, "events.ticketsUnavailable")}</p>
+                ) : resolvedTicketsHref || event.ticketUrl ? (
+                  <a
+                    href={resolvedTicketsHref ?? event.ticketUrl}
+                    class="rounded-full bg-neutral-950 px-12 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-white hover:opacity-[0.95]"
+                  >
+                    {t(locale, "events.tickets")}
+                  </a>
+                ) : null
+              }
             </div>
           </header>
 
-          {event.imageUrl ? <img src={event.imageUrl} alt="" class="aspect-[21/13] rounded-[3rem] object-cover lg:aspect-video" loading="lazy" /> : null}
+          {
+            posterMobileSrc ? (
+              <div class="overflow-hidden rounded-[3rem]">
+                <img
+                  src={posterMobileSrc}
+                  alt=""
+                  class="aspect-[21/13] size-full object-cover md:hidden lg:aspect-video"
+                  loading="lazy"
+                />
+                <img
+                  src={posterDesktopSrc ?? posterMobileSrc}
+                  alt=""
+                  class="hidden aspect-[21/13] size-full object-cover md:block lg:aspect-video"
+                  loading="lazy"
+                />
+              </div>
+            ) : null
+          }
 
           {event.description ? <p class="text-lg leading-relaxed text-neutral-700">{event.description}</p> : null}
           {
@@ -59,18 +105,18 @@ const ticketsHref = event ? eventTicketsPath(event) : null;
             ) : null
           }
 
-          {event.headliner ? <p class="text-sm uppercase tracking-[0.35em] text-neutral-600">Spotlight · {event.headliner.name}</p> : null}
+          {event.headliner ? <p class="text-sm uppercase tracking-[0.35em] text-neutral-600">{t(locale, "events.spotlight").replace("{name}", event.headliner.name)}</p> : null}
 
           {
             event.lineup.length ? (
               <section class="space-y-6">
-                <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-400">Featured voices</h2>
+                <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-400">{t(locale, "events.featuredVoices")}</h2>
                 <ul class="grid gap-4 sm:grid-cols-2">
                   {event.lineup.map((member) => (
                     <li class="flex items-center gap-5 border-b border-black/15 pb-4">
                       {member.imageUrl ? <img src={member.imageUrl} alt="" class="size-16 rounded-[1.75rem] object-cover" /> : null}
                       <div class="flex-1 space-y-1">
-                        <a class="text-lg font-semibold text-neutral-950 hover:text-brand" href={`/comedians/${member.slug}/`}>{member.name}</a>
+                        <a class="text-lg font-semibold text-neutral-950 hover:text-brand" href={localizePath(locale, "comedianDetail", { slug: member.slug })}>{member.name}</a>
                         {member.role ? <p class="text-sm text-neutral-500">{member.role}</p> : null}
                       </div>
                     </li>
@@ -81,20 +127,20 @@ const ticketsHref = event ? eventTicketsPath(event) : null;
           }
 
           {
-            ticketsHref ? (
+            resolvedTicketsHref && !ticketingBlocked ? (
               <p class="text-center">
                 <a
-                  href={ticketsHref}
+                  href={resolvedTicketsHref}
                   class="inline-flex rounded-full bg-brand px-12 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-white hover:opacity-95"
                 >
-                  Get tickets
+                  {t(locale, "ui.getTickets")}
                 </a>
               </p>
             ) : null
           }
         </article>
       ) : (
-        <p class="mt-24 text-neutral-600">This show is resting—head back to the calendar.</p>
+        <p class="mt-24 text-neutral-600">{t(locale, "events.notFound")}</p>
       )
     }
   </section>

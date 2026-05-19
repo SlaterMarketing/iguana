@@ -1,12 +1,15 @@
 ---
 import { legacyVenueSlugs } from "../../lib/sitemap";
+import { getLocale } from "../../i18n/locale";
+import { localizePath } from "../../i18n/routes";
 
 const slug = Astro.params.slug;
 const known = slug ? legacyVenueSlugs().includes(slug) : false;
+const locale = getLocale(Astro);
 
 if (!known && slug) {
-  return Astro.redirect("/locations/", 301);
+  return Astro.redirect(localizePath(locale, "locations"), 301);
 }
 
-return Astro.redirect("/locations/", 301);
+return Astro.redirect(localizePath(locale, "locations"), 301);
 ---

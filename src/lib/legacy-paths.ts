@@ -8,7 +8,7 @@ export function mapLegacyPath(pathname: string): string | null {
   if (path.startsWith("/venues/")) return "/locations/";
 
   if (path === "/private-events/") return "/work-with-us/";
-  if (path === "/hotels-and-resorts/") return "/work-with-us/";
+  if (path === "/hotels-and-resorts/") return "/hotels-and-resorts/";
   if (path === "/investors/") return "/work-with-us/";
   if (path === "/comedy-for-everyone/") return "/about/";
 

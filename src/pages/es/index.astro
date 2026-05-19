@@ -1,0 +1,42 @@
+---
+import Base from "../../layouts/Base.astro";
+import HomeHero from "../../components/home/HomeHero.astro";
+import HomePageSections from "../../components/home/HomePageSections.astro";
+import { heroCityChoices, siteMessages } from "../../content/site";
+import { loadHomePageData } from "../../lib/home-page-data";
+import { localizePath } from "../../i18n/routes";
+
+const locale = "es";
+
+const redirectCity = Astro.url.searchParams.get("city")?.trim();
+if (redirectCity) {
+  return Astro.redirect(localizePath(locale, "cityDetail", { city: redirectCity }));
+}
+
+const pageData = await loadHomePageData();
+
+const cityPickerChoices = [
+  { slug: "", label: "Toda la costa" },
+  ...heroCityChoices.filter((entry) => entry.slug !== ""),
+];
+---
+
+<Base
+  transparentHeader
+  flushMain
+  narrow={false}
+  title="Iguana Comedy · Comedia en inglés en la Riviera Maya"
+  description={siteMessages[locale].shortTagline}
+>
+  <HomeHero
+    showsHref={localizePath(locale, "events")}
+    pickerChoices={cityPickerChoices}
+    activeCitySlug=""
+    eyebrow="Noches de comedia en inglés"
+    headlineLine1="Stand-up internacional"
+    headlineLine2Prefix="comedia en "
+    ctaLabel="Comprar boleto"
+    spotlightLabel="Ciudad destacada"
+  />
+  <HomePageSections {...pageData} apiConfigured={pageData.hasCredentials} locale={locale} />
+</Base>

@@ -16,12 +16,13 @@ export function storePriceLabel(
   priceFromCents: number | null,
   compareAtCents: number | null | undefined,
   currency: string,
+  locale: "en" | "es" = "en"
 ): string {
   const price = formatStorePrice(priceFromCents, currency);
   const compare = compareAtCents != null ? formatStorePrice(compareAtCents, currency) : null;
-  if (!price) return "Price at checkout";
+  if (!price) return locale === "es" ? "Precio al pagar" : "Price at checkout";
   if (compare && compareAtCents != null && priceFromCents != null && compareAtCents > priceFromCents) {
-    return `${price} · was ${compare}`;
+    return locale === "es" ? `${price} · era ${compare}` : `${price} · was ${compare}`;
   }
   return price;
 }

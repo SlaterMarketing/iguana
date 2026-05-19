@@ -1,10 +1,13 @@
 import type { APIRoute } from "astro";
 
-import { buildSitemapEntries, renderSitemapXml } from "../lib/sitemap";
+import {
+  buildLocalizedSitemapEntries,
+  renderSitemapXmlWithAlternates,
+} from "../lib/sitemap";
 
 export const GET: APIRoute = async () => {
-  const entries = await buildSitemapEntries();
-  return new Response(renderSitemapXml(entries), {
+  const entries = await buildLocalizedSitemapEntries();
+  return new Response(renderSitemapXmlWithAlternates(entries), {
     headers: { "Content-Type": "application/xml; charset=utf-8" },
   });
 };

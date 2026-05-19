@@ -1,14 +1,27 @@
 ---
 import Stat from "./Stat.astro";
 import { experienceStats } from "../content/site";
+import type { Locale } from "../i18n/locale";
+
+type BilingualLabel = { en: string; es: string };
+type StatItem = { value: number; suffix: string; label: string | BilingualLabel };
+
+const { stats = experienceStats, locale = "en" } = Astro.props as {
+  stats?: readonly StatItem[];
+  locale?: Locale;
+};
+
+function resolveLabel(label: string | BilingualLabel, lc: Locale): string {
+  return typeof label === "string" ? label : label[lc];
+}
 ---
 
 <div
   class="experience-stats grid grid-cols-3 gap-2 divide-x divide-neutral-200 rounded-[2rem] border border-neutral-200 px-4 py-6 sm:gap-4 sm:px-8 sm:py-8"
   data-experience-stats
 >
-  {experienceStats.map((stat) => (
-    <Stat value={stat.value} suffix={stat.suffix} label={stat.label} />
+  {stats.map((stat) => (
+    <Stat value={stat.value} suffix={stat.suffix} label={resolveLabel(stat.label, locale)} />
   ))}
 </div>
 

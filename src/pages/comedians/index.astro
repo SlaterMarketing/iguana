@@ -2,10 +2,13 @@
 import Base from "../../layouts/Base.astro";
 import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicArtistEmbed } from "@kintana/sdk";
-
 import ComedianTile from "../../components/ComedianTile.astro";
 import { logKintanaError, logKintanaSuccess } from "../../lib/kintana-error";
 import { getKintanaEnv } from "../../lib/kintana-env";
+import { getLocale } from "../../i18n/locale";
+import { t } from "../../i18n/ui";
+
+const locale = getLocale(Astro);
 
 const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
 
@@ -26,29 +29,29 @@ if (hasCredentials) {
 }
 ---
 
-<Base narrow={false} transparentHeader={false} title="Wall of comedians · Iguana Comedy">
+<Base narrow={false} transparentHeader={false} title={`${t(locale, "comedians.title")} · Iguana Comedy`}>
   <section class="mx-auto max-w-6xl px-6 pb-32 pt-20">
-    <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">Directory</p>
+    <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{t(locale, "comedians.directory")}</p>
     <div class="mt-10 grid gap-6 lg:flex lg:justify-between lg:gap-28">
-      <h1 class="font-display text-5xl leading-tight text-neutral-950 lg:text-[3.7rem]" style={`font-family: var(--font-display);`}>Comedians we platform</h1>
+      <h1 class="font-display text-5xl leading-tight text-neutral-950 lg:text-[3.7rem]" style={`font-family: var(--font-display);`}>{t(locale, "comedians.title")}</h1>
       <p class="max-w-xl text-lg text-neutral-600">
-        From headline imports to Playa regulars—we rotate guests across rooms so English comedy travellers always land on a fresh microphone.
+        {t(locale, "comedians.description")}
       </p>
     </div>
 
     {
       !(apiKey && baseUrl) ? (
-        <p class="mt-16 rounded-3xl border border-amber-200 bg-amber-50 px-6 py-8 text-neutral-950">Plug in ticketing credentials before this directory lights up.</p>
+        <p class="mt-16 rounded-3xl border border-amber-200 bg-amber-50 px-6 py-8 text-neutral-950">{t(locale, "comedians.noCredentials")}</p>
       ) : rosterFailed ? (
         <p class="mt-16 rounded-3xl border border-red-200 bg-red-50 px-6 py-8 text-neutral-950">
-          Directory didn&apos;t load—check terminal output first; wrong publish credentials commonly return HTTP 401/403.
+          {t(locale, "comedians.error")}
         </p>
       ) : artists.length === 0 ? (
-        <p class="mt-16 text-neutral-600">No comedians in your directory yet.</p>
+        <p class="mt-16 text-neutral-600">{t(locale, "comedians.empty")}</p>
       ) : (
         <div class="mt-20 grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
           {artists.map((artist) => (
-            <ComedianTile artist={artist} />
+            <ComedianTile artist={artist} locale={locale} />
           ))}
         </div>
       )

@@ -1,4 +1,8 @@
 ---
 export const prerender = true;
-return Astro.redirect("/about/", 301);
+import { getLocale } from "../i18n/locale";
+import { localizePath } from "../i18n/routes";
+
+const locale = getLocale(Astro);
+return Astro.redirect(localizePath(locale, "about"), 301);
 ---

@@ -3,7 +3,6 @@
     { "source": "/venues", "destination": "/locations", "permanent": true },
     { "source": "/venues/:path*", "destination": "/locations", "permanent": true },
     { "source": "/private-events", "destination": "/work-with-us/#private-events", "permanent": true },
-    { "source": "/hotels-and-resorts", "destination": "/work-with-us/#hotels", "permanent": true },
     { "source": "/investors", "destination": "/work-with-us/#investors", "permanent": true },
     { "source": "/comedy-for-everyone", "destination": "/about", "permanent": true }
   ]

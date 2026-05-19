@@ -1,23 +1,26 @@
 ---
 import type { KintanaPublicArtistEmbed } from "@kintana/sdk";
+import { t } from "../i18n/ui";
+import { localizePath } from "../i18n/routes";
+import type { Locale } from "../i18n/locale";
 
-const { artist } = Astro.props as { artist: KintanaPublicArtistEmbed };
+const { artist, locale = "en" } = Astro.props as { artist: KintanaPublicArtistEmbed; locale?: Locale };
 ---
 
-<a href={`/comedians/${artist.slug}/`} class="group relative block overflow-hidden rounded-[2rem]">
+<a href={localizePath(locale, "comedianDetail", { slug: artist.slug })} class="group relative block overflow-hidden rounded-[2rem]">
   <div class="aspect-[3/5] bg-neutral-200">
     {
       artist.imageUrl ? (
         <img src={artist.imageUrl} alt="" class="size-full object-cover duration-700 group-hover:scale-[1.03]" loading="lazy" decoding="async" />
       ) : (
-        <div class="flex size-full items-center justify-center bg-neutral-950 text-neutral-500">Portrait soon</div>
+        <div class="flex size-full items-center justify-center bg-neutral-950 text-neutral-500">{t(locale, "ui.loading")}</div>
       )
     }
   </div>
   <div
     class="pointer-events-none absolute inset-x-6 bottom-6 translate-y-[120%] text-center text-white opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100"
   >
-    <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white">Performer</p>
+    <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white">{t(locale, "ui.performer")}</p>
   </div>
   <div class="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/55 to-transparent p-6 pt-36">
     <p class="text-center font-display text-2xl font-semibold text-white">{artist.stageName ?? artist.name}</p>

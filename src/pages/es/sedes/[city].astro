@@ -1,0 +1,142 @@
+---
+import Base from "../../../layouts/Base.astro";
+import Cta from "../../../components/Cta.astro";
+import EventRow from "../../../components/EventRow.astro";
+import HomeHero from "../../../components/home/HomeHero.astro";
+import LocationOtherCities from "../../../components/locations/LocationOtherCities.astro";
+import { getCityLanding } from "../../../content/city-landings";
+import { getCityBlurb } from "../../../content/city-blurbs";
+import { heroCityChoices } from "../../../content/site";
+import { loadCityLocationsData } from "../../../lib/locations-data";
+import { t } from "../../../i18n/ui";
+import { localizePath } from "../../../i18n/routes";
+
+const locale = "es";
+const citySlug = Astro.params.city ?? "";
+const landing = getCityLanding(locale, citySlug);
+
+if (!landing) {
+  return Astro.redirect(localizePath(locale, "locations"));
+}
+
+const { venuesInCity, happenings } = await loadCityLocationsData(citySlug);
+const blurb = getCityBlurb(locale, citySlug);
+const secondaryParagraph = blurb?.paragraphs[1];
+
+const cityPickerChoices = [
+  { slug: "", label: t(locale, "ui.all") },
+  ...heroCityChoices.filter((entry) => entry.slug !== ""),
+];
+---
+
+<Base
+  transparentHeader
+  flushMain
+  narrow={false}
+  title={`${t(locale, "seo.defaultTitle")} · ${landing.label}`}
+  description={landing.experienceCopy}
+>
+  <HomeHero
+    activeCitySlug={citySlug}
+    cityLabel={landing.label}
+    eyebrow={landing.eyebrow}
+    heroImageUrl={landing.heroImage}
+    showsHref={`${localizePath(locale, "events")}?city=${encodeURIComponent(citySlug)}`}
+    pickerChoices={cityPickerChoices}
+    pickerNavigateTo="locations"
+    ctaLabel={t(locale, "locations.cta.buyTicket")}
+  />
+
+  {
+    secondaryParagraph ? (
+      <section class="mx-auto max-w-[118rem] px-6 py-20 lg:py-28">
+        <div class="mx-auto max-w-3xl text-center">
+          <p class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-500">{t(locale, "locations.onTheGround")}</p>
+          <p class="mt-8 text-lg leading-relaxed text-neutral-700 sm:text-xl">{secondaryParagraph}</p>
+        </div>
+      </section>
+    ) : null
+  }
+
+  <section id="shows" class="mx-auto max-w-[118rem] scroll-mt-28 px-6 py-28">
+    <div class="flex flex-col gap-16 lg:flex-row lg:justify-between">
+      <p class="font-display text-4xl text-neutral-950 sm:text-5xl" style="font-family: var(--font-display);">
+        {t(locale, "locations.upcomingIn").replace("{city}", landing.label)}
+      </p>
+      <a
+        href={`${localizePath(locale, "events")}?city=${encodeURIComponent(citySlug)}`}
+        class="self-start text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.6rem] hover:underline lg:self-end"
+      >
+        {t(locale, "locations.fullCalendar")}
+      </a>
+    </div>
+
+    {
+      happenings.length === 0 ? (
+        <p class="mx-auto mt-14 max-w-2xl rounded-3xl border border-neutral-200 px-10 py-6 text-center text-neutral-700">
+          {t(locale, "locations.noUpcomingIn").replace("{city}", landing.label)}
+        </p>
+      ) : (
+        <div class="mt-20 grid gap-16 lg:grid-cols-2">
+          {happenings.map((evt, index) => (
+            <EventRow evt={evt} highlightCity={citySlug} featured={happenings.length === 1 && index === 0} locale={locale} />
+          ))}
+        </div>
+      )
+    }
+  </section>
+
+  <section id="venues" class="mx-auto max-w-[118rem] scroll-mt-28 border-t border-black/15 px-6 py-28">
+    <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.6rem] hover:underline" href={localizePath(locale, "locations")}>
+      {t(locale, "locations.backToAll")}
+    </a>
+
+    <div class="mt-12 flex flex-col gap-16 lg:flex-row lg:justify-between">
+      <h2 class="font-display text-4xl text-neutral-950 sm:text-5xl" style="font-family: var(--font-display);">
+        {t(locale, "locations.venuesIn").replace("{city}", landing.label)}
+      </h2>
+      <p
+        class="font-display text-4xl uppercase tracking-[0.45em] text-neutral-600 sm:text-5xl lg:text-end"
+        style="font-family: var(--font-display); letter-spacing: 0.4em;"
+      >
+        {t(locale, "locations.roomsLabel")}
+      </p>
+    </div>
+
+    <ul class="mt-16 divide-y divide-black/10">
+      {
+        venuesInCity.length === 0 ? (
+          <li class="py-10 text-lg text-neutral-600">{t(locale, "locations.venueSyncPending")}</li>
+        ) : (
+          venuesInCity.map((venue) => (
+            <li class="grid gap-4 py-10 sm:grid-cols-[1fr_auto]">
+              <div class="space-y-2">
+                <p class="font-display text-2xl text-neutral-950 sm:text-3xl" style="font-family: var(--font-display);">
+                  {venue.name}
+                </p>
+                <p class="text-neutral-600">
+                  {[venue.address ?? "", venue.city, venue.country].filter(Boolean).join(" · ") || landing.label}
+                </p>
+              </div>
+              {
+                typeof venue.capacity === "number" ? (
+                  <p class="self-center rounded-full border border-neutral-200 px-6 py-2 text-xs uppercase tracking-[0.35em] text-neutral-900">
+                    {venue.capacity}+ {t(locale, "locations.seatsSuffix")}
+                  </p>
+                ) : null
+              }
+            </li>
+          ))
+        )
+      }
+    </ul>
+  </section>
+
+  <LocationOtherCities activeSlug={citySlug} locale={locale} />
+
+  <Cta
+    ctaHref={`${localizePath(locale, "events")}?city=${encodeURIComponent(citySlug)}`}
+    body={t(locale, "locations.cta.body")}
+    locale={locale}
+  />
+</Base>

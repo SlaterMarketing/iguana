@@ -2,18 +2,22 @@
 import Base from "../layouts/Base.astro";
 import HomeHero from "../components/home/HomeHero.astro";
 import HomePageSections from "../components/home/HomePageSections.astro";
-import { heroCityChoices, site } from "../content/site";
+import { heroCityChoices, siteMessages } from "../content/site";
 import { loadHomePageData } from "../lib/home-page-data";
+import { getLocale } from "../i18n/locale";
+import { localizePath } from "../i18n/routes";
+
+const locale = getLocale(Astro);
 
 const redirectCity = Astro.url.searchParams.get("city")?.trim();
 if (redirectCity) {
-  return Astro.redirect(`/locations/${redirectCity}/`);
+  return Astro.redirect(localizePath(locale, "cityDetail", { city: redirectCity }));
 }
 
 const pageData = await loadHomePageData();
 
 const cityPickerChoices = [
-  { slug: "", label: "Whole coastline" },
+  { slug: "", label: locale === "es" ? "Toda la costa" : "Whole coastline" },
   ...heroCityChoices.filter((entry) => entry.slug !== ""),
 ];
 ---
@@ -22,13 +26,18 @@ const cityPickerChoices = [
   transparentHeader
   flushMain
   narrow={false}
-  title="Iguana Comedy · English comedy across the Riviera Maya"
-  description={site.shortTagline}
+  title={locale === "es" ? "Iguana Comedy · Comedia en inglés en la Riviera Maya" : "Iguana Comedy · English comedy across the Riviera Maya"}
+  description={siteMessages[locale].shortTagline}
 >
   <HomeHero
-    showsHref="/events/"
+    showsHref={localizePath(locale, "events")}
     pickerChoices={cityPickerChoices}
     activeCitySlug=""
+    eyebrow={locale === "es" ? "Noches de comedia en inglés" : "Live English comedy nights"}
+    headlineLine1={locale === "es" ? "Stand-up internacional" : "International stand-up"}
+    headlineLine2Prefix={locale === "es" ? "comedia en " : "comedy in "}
+    ctaLabel={locale === "es" ? "Comprar boleto" : "Buy ticket"}
+    spotlightLabel={locale === "es" ? "Ciudad destacada" : "Spotlight city"}
   />
-  <HomePageSections {...pageData} apiConfigured={pageData.hasCredentials} />
+  <HomePageSections {...pageData} apiConfigured={pageData.hasCredentials} locale={locale} />
 </Base>

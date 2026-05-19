@@ -2,6 +2,7 @@
 import CityPicker from "../CityPicker.astro";
 import HeroCityRotator from "../HeroCityRotator.astro";
 import { heroCityChoices, site } from "../../content/site";
+import { mergeBrand } from "../../lib/merge-brand";
 
 interface PickerChoice {
   slug: string;
@@ -24,6 +25,7 @@ interface Props {
   rotatorCities?: readonly string[];
   pickerNavigateTo?: "home" | "locations";
   ctaLabel?: string;
+  spotlightLabel?: string;
 }
 
 const {
@@ -33,15 +35,20 @@ const {
   headlineLine1 = "International stand-up",
   headlineLine2Prefix = "comedy in ",
   headlineLine2Static,
-  heroVideoUrl = site.heroVideoUrl,
-  heroPosterUrl = site.heroImage,
+  heroVideoUrl: heroVideoUrlProp,
+  heroPosterUrl: heroPosterUrlProp,
   heroImageUrl,
   showsHref,
   pickerChoices,
   rotatorCities = heroCityChoices.filter((entry) => entry.slug !== "").map((entry) => entry.label),
   pickerNavigateTo = "home",
   ctaLabel = "Buy ticket",
+  spotlightLabel = "Spotlight city",
 } = Astro.props;
+
+const brandMerged = mergeBrand(Astro.locals.brandOverrides ?? {});
+const heroVideoUrl = heroVideoUrlProp ?? brandMerged.heroVideoUrl;
+const heroPosterUrl = heroPosterUrlProp ?? site.heroImage;
 
 const staticHeadlineCity =
   headlineLine2Static ??
@@ -105,7 +112,7 @@ const useImageHero = Boolean(heroImageUrl?.trim());
 
     <div class="flex w-full shrink-0 flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
       <div class="max-w-xs">
-        <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white/90">Spotlight city</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white/90">{spotlightLabel}</p>
         <CityPicker choices={pickerChoices} value={activeCitySlug} navigateTo={pickerNavigateTo} />
       </div>
 

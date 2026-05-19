@@ -1,0 +1,213 @@
+---
+import Base from "../../../layouts/Base.astro";
+import Cta from "../../../components/Cta.astro";
+import ExperienceStatsStrip from "../../../components/ExperienceStatsStrip.astro";
+import HomeHero from "../../../components/home/HomeHero.astro";
+import LocationCityCard from "../../../components/LocationCityCard.astro";
+import LocationRow from "../../../components/LocationRow.astro";
+import {
+  locationCityCards,
+  locationStatsCities,
+  getLocationsPage,
+  getLocationServices,
+} from "../../../content/locations-page";
+import { heroCityChoices } from "../../../content/site";
+import { mergeBrand } from "../../../lib/merge-brand";
+import { loadLocationsCatalog } from "../../../lib/locations-data";
+import { getKintanaEnv } from "../../../lib/kintana-env";
+import { slugify } from "../../../lib/slug";
+import { t } from "../../../i18n/ui";
+import { localizePath } from "../../../i18n/routes";
+
+const locale = "es";
+const brandMerged = mergeBrand(Astro.locals.brandOverrides ?? {});
+const locationsPage = getLocationsPage(locale);
+const locationServices = getLocationServices(locale);
+
+const catalog = await loadLocationsCatalog();
+const { apiKey, baseUrl } = getKintanaEnv();
+
+function venueCountFor(slug: string) {
+  return catalog.venueCountBySlug.get(slug) ?? 0;
+}
+
+function upcomingCountFor(slug: string) {
+  return catalog.upcomingCountBySlug.get(slug) ?? 0;
+}
+
+function cardMeta(slug: string) {
+  const upcoming = upcomingCountFor(slug);
+  const venues = venueCountFor(slug);
+  if (upcoming > 0 && venues > 0) return `${upcoming} shows · ${venues} venues`;
+  if (upcoming > 0) return `${upcoming} upcoming ${upcoming === 1 ? "show" : "shows"}`;
+  if (venues > 0) return `${venues} ${venues === 1 ? "venue" : "venues"}`;
+  return undefined;
+}
+
+const apiOnlyGroups = catalog.grouped.filter((group) => {
+  const slug = slugify(group.city);
+  return slug !== "unknown" && !locationCityCards.some((city) => city.slug === slug);
+});
+
+const cityPickerChoices = [
+  { slug: "", label: t(locale, "ui.all") },
+  ...heroCityChoices.filter((entry) => entry.slug !== ""),
+];
+---
+
+<Base
+  transparentHeader
+  flushMain
+  narrow={false}
+  title={locationsPage.heroTitle}
+  description={locationsPage.intro}
+>
+  <HomeHero
+    eyebrow={t(locale, "locations.eyebrow")}
+    headlineLine1={t(locale, "locations.headline")}
+    headlineLine2Prefix={t(locale, "locations.headlinePrefix")}
+    headlineLine2Static={t(locale, "locations.headlineStatic")}
+    heroImageUrl={locationsPage.heroImage}
+    showsHref={localizePath(locale, "events")}
+    pickerChoices={cityPickerChoices}
+    activeCitySlug=""
+    pickerNavigateTo="locations"
+    ctaLabel={t(locale, "locations.cta.buyTicket")}
+  />
+
+  <section class="mx-auto max-w-[118rem] px-6 py-28">
+    <div class="flex flex-col gap-16 lg:flex-row lg:justify-between">
+      <p class="font-display text-4xl text-neutral-950 sm:text-5xl" style="font-family: var(--font-display);">
+        {t(locale, "locations.ourCities")}
+      </p>
+      <p
+        class="font-display text-4xl uppercase tracking-[0.45em] text-neutral-600 sm:text-5xl lg:text-end"
+        style="font-family: var(--font-display); letter-spacing: 0.4em;"
+      >
+        {t(locale, "locations.label")}
+      </p>
+    </div>
+    <p class="mx-auto mt-10 max-w-3xl text-center text-lg leading-relaxed text-neutral-700 lg:mt-14">{locationsPage.intro}</p>
+
+    {
+      catalog.venuesRequestFailed && apiKey && baseUrl ? (
+        <p class="mx-auto mt-14 max-w-2xl rounded-3xl border border-amber-200 bg-amber-50 px-6 py-4 text-center text-neutral-900">
+          {t(locale, "locations.apiOffline")}
+        </p>
+      ) : null
+    }
+
+    <div class="mt-20 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+      {locationCityCards.map((city) => (
+        <LocationCityCard city={city} meta={cardMeta(city.slug)} locale={locale} />
+      ))}
+    </div>
+  </section>
+
+  {
+    apiOnlyGroups.length > 0 ? (
+      <section class="mx-auto max-w-[118rem] border-t border-black/15 px-6 py-20">
+        <p class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-500">{t(locale, "locations.fromCalendar")}</p>
+        <h2 class="mt-4 font-display text-3xl text-neutral-950 sm:text-4xl" style="font-family: var(--font-display);">
+          {t(locale, "locations.alsoOnCoast")}
+        </h2>
+        <div class="mt-8">
+          {apiOnlyGroups.map((group) => (
+            <LocationRow group={group} locale={locale} />
+          ))}
+        </div>
+      </section>
+    ) : null
+  }
+
+  <section class="mx-auto max-w-[118rem] px-6 pb-28">
+    <div class="grid gap-4 sm:grid-cols-3">
+      {locationsPage.galleryImages.map((src) => (
+        <div class="overflow-hidden rounded-[2.85rem]">
+          <img src={src} alt="" class="aspect-[4/3] size-full object-cover" loading="lazy" decoding="async" />
+        </div>
+      ))}
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-[118rem] px-6 pb-28 lg:pb-36">
+    <div class="grid items-center gap-12 lg:grid-cols-2 lg:gap-16 xl:gap-24">
+      <figure class="relative isolate mx-auto aspect-square w-full max-w-md overflow-hidden rounded-[2.5rem] bg-neutral-900 lg:mx-0 lg:max-w-none">
+        <img src={brandMerged.brandMomentImage} alt="" class="size-full object-cover" loading="lazy" />
+      </figure>
+
+      <div class="flex flex-col gap-10 lg:gap-12">
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-500">{t(locale, "locations.region")}</p>
+          <h2
+            class="mt-6 font-display text-4xl text-neutral-950 sm:text-[clamp(2.5rem,3vw+1.5rem,3.75rem)]"
+            style="font-family: var(--font-display);"
+          >
+            {locationsPage.statsHeading}
+          </h2>
+          <p class="mt-8 text-lg leading-relaxed text-neutral-700">{locationsPage.statsBody}</p>
+        </div>
+
+        <ExperienceStatsStrip locale={locale} />
+
+        <div class="grid gap-6 border-t border-black/10 pt-8 sm:grid-cols-2">
+          {locationStatsCities.map((city) => {
+            const count = venueCountFor(city.slug);
+            return (
+              <a
+                href={localizePath(locale, "cityDetail", { city: city.slug })}
+                class="group flex items-center gap-4 border-l-2 border-brand pl-5 transition hover:border-brand-hover"
+              >
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-[0.32em] text-neutral-500">{city.name}</p>
+                  <p class="mt-2 font-display text-3xl text-brand-hover sm:text-4xl" style="font-family: var(--font-display);">
+                    {count > 0 ? `${count}+` : "—"}
+                  </p>
+                  <p class="mt-1 text-sm text-neutral-600 group-hover:text-neutral-950">{t(locale, "locations.venuesSuffix")}</p>
+                </div>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-[118rem] border-t border-black/15 px-6 py-28">
+    <div class="grid gap-16 lg:grid-cols-[0.93fr_minmax(0,1fr)] lg:gap-24">
+      <div class="overflow-hidden rounded-[2.85rem]">
+        <img
+          src={locationsPage.servicesBackground}
+          alt=""
+          loading="lazy"
+          class="aspect-[14/17] object-cover lg:aspect-auto lg:min-h-[28rem]"
+        />
+      </div>
+      <div class="flex flex-col justify-center gap-10">
+        <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{t(locale, "locations.services.eyebrow")}</p>
+        <h2 class="font-display text-4xl tracking-tight text-neutral-950 sm:text-[3.05rem]" style="font-family: var(--font-display);">
+          {t(locale, "locations.services.headline")}
+        </h2>
+        <ol class="divide-y divide-black/10">
+          {
+            locationServices.map((service) => (
+              <li class="space-y-3 py-8 first:pt-0 last:pb-0">
+                <p class="text-xs font-semibold uppercase tracking-[0.35em] text-neutral-400">{service.number}</p>
+                <h3 class="font-display text-2xl text-neutral-950 sm:text-3xl" style="font-family: var(--font-display);">
+                  <a href={service.href} class="hover:text-brand">
+                    {service.title}
+                  </a>
+                </h3>
+                {"body" in service && service.body ? (
+                  <p class="max-w-xl text-lg leading-relaxed text-neutral-700">{service.body}</p>
+                ) : null}
+              </li>
+            ))
+          }
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <Cta body={t(locale, "locations.cta.body")} locale={locale} />
+</Base>
