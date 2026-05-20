@@ -24,8 +24,8 @@ const listId = `locale-flag-list-${Math.random().toString(36).slice(2, 9)}`;
   <button
     type="button"
     class:list={[
-      "locale-flag-trigger inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-2.5 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-colors outline-none hover:border-black/25 focus-visible:ring-2 focus-visible:ring-neutral-950/20",
-      compact ? "py-1.5 sm:py-2" : "",
+      "locale-flag-trigger inline-flex items-center justify-center rounded-md outline-none transition-[opacity] hover:opacity-80 focus-visible:ring-2 focus-visible:ring-[color:var(--color-brand)] focus-visible:ring-offset-2 focus-visible:ring-offset-transparent",
+      compact ? "-mr-0.5 sm:p-1.5" : "p-1.5",
     ]}
     aria-haspopup="listbox"
     aria-expanded="false"
@@ -34,8 +34,8 @@ const listId = `locale-flag-list-${Math.random().toString(36).slice(2, 9)}`;
     data-locale-flag-trigger=""
   >
     {locale === "en" ? (
-      <span class="flex items-center" aria-hidden="true">
-        <svg class="flag-uk h-[1.1rem] w-7 sm:h-5 sm:w-9" viewBox="0 0 60 30" aria-hidden="true">
+      <span class="flex items-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]" aria-hidden="true">
+        <svg class="flag-uk h-[1.15rem] w-7 sm:h-5 sm:w-9" viewBox="0 0 60 30" aria-hidden="true">
           <path fill="#012169" d="M0 0h60v30H0z" />
           <path stroke="#fff" stroke-width="6" d="M0 0l60 30M60 0L0 30" />
           <path stroke="#C8102E" stroke-width="4" d="M0 0l60 30M60 0L0 30" />
@@ -44,26 +44,14 @@ const listId = `locale-flag-list-${Math.random().toString(36).slice(2, 9)}`;
         </svg>
       </span>
     ) : (
-      <span class="flex items-center" aria-hidden="true">
-        <svg class="flag-mx h-[1.1rem] w-[1.65rem] sm:h-5 sm:w-8" viewBox="0 0 18 12" aria-hidden="true">
+      <span class="flex items-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]" aria-hidden="true">
+        <svg class="flag-mx h-[1.15rem] w-[1.65rem] sm:h-5 sm:w-8" viewBox="0 0 18 12" aria-hidden="true">
           <path fill="#006847" d="M0 0h6v12H0z" />
           <path fill="#fff" d="M6 0h6v12H6z" />
           <path fill="#ce1126" d="M12 0h6v12H12z" />
         </svg>
       </span>
     )}
-    <svg
-      class="locale-flag-chevron size-3 shrink-0 text-neutral-500 transition-transform sm:size-3.5"
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      aria-hidden="true"
-    >
-      <path
-        fill-rule="evenodd"
-        d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.24 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
-        clip-rule="evenodd"
-      />
-    </svg>
   </button>
 
   <ul
@@ -188,9 +176,3 @@ const listId = `locale-flag-list-${Math.random().toString(36).slice(2, 9)}`;
   initLocaleFlagDropdowns();
   document.addEventListener("astro:page-load", initLocaleFlagDropdowns);
 </script>
-
-<style>
-  [data-locale-flag-dropdown][data-open] .locale-flag-chevron {
-    transform: rotate(180deg);
-  }
-</style>
