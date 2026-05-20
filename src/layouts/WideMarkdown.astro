@@ -3,17 +3,48 @@ export const prerender = true;
 
 import Base from "./Base.astro";
 
-const props = Astro.props as { frontmatter?: { title?: string; description?: string } };
+const props = Astro.props as {
+  frontmatter?: {
+    title?: string;
+    description?: string;
+    /** e.g. `{ hotels: "/hotels-and-resorts/" }` — redirects `/#hotels` to the dedicated page (fragments are not visible to hosting redirects). */
+    hashRedirects?: Record<string, string>;
+  };
+};
 
 const fm = props.frontmatter ?? {};
 const title = typeof fm.title === "string" ? fm.title : "Iguana Comedy";
 const description = typeof fm.description === "string" ? fm.description : undefined;
+
+const rawRedirects = fm.hashRedirects;
+const hashRedirects =
+  rawRedirects && typeof rawRedirects === "object" && !Array.isArray(rawRedirects)
+    ? (rawRedirects as Record<string, string>)
+    : null;
+const hashRedirectJson =
+  hashRedirects && Object.keys(hashRedirects).length > 0 ? JSON.stringify(hashRedirects) : null;
 ---
 
 <Base title={title} description={description} narrow>
   <article class="prose-ish space-y-8 text-neutral-700">
     <slot />
   </article>
+  {
+    hashRedirectJson ? (
+      <script is:inline data-redirects={hashRedirectJson}>
+        (function () {
+          var el = document.currentScript;
+          var raw = el && el.getAttribute("data-redirects");
+          if (!raw) return;
+          try {
+            var map = JSON.parse(raw);
+            var key = location.hash.replace(/^#/, "");
+            if (key && map[key]) location.replace(map[key]);
+          } catch (_) {}
+        })();
+      </script>
+    ) : null
+  }
 </Base>
 
 <style>
