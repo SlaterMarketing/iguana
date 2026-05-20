@@ -7,6 +7,7 @@ import { localizePath } from "../../i18n/routes";
 const { activeSlug, locale = "en" } = Astro.props as { activeSlug: string; locale?: Locale };
 const others = locationCityCards.filter((city) => city.slug !== activeSlug);
 const locationsIndex = localizePath(locale, "locations");
+---
 
 {
   others.length > 0 ? (
