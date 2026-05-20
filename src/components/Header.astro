@@ -266,8 +266,6 @@ const esPath =
     function setOpen(open: boolean) {
       header.toggleAttribute("data-mobile-menu-open", open);
       panel.toggleAttribute("data-open", open);
-      panel.classList.toggle("pointer-events-none", !open);
-      panel.classList.toggle("pointer-events-auto", open);
       panel.setAttribute("aria-hidden", open ? "false" : "true");
       toggle.setAttribute("aria-expanded", open ? "true" : "false");
       toggle.querySelector(".sr-only")!.textContent = open ? "Close menu" : "Open menu";
@@ -278,15 +276,6 @@ const esPath =
       } else {
         panel.setAttribute("inert", "");
         document.body.classList.remove("overflow-hidden");
-      }
-
-      if (sheet instanceof HTMLElement) {
-        sheet.classList.toggle("translate-x-0", open);
-        sheet.classList.toggle("translate-x-full", !open);
-      }
-      if (backdrop instanceof HTMLElement) {
-        backdrop.classList.toggle("opacity-100", open);
-        backdrop.classList.toggle("opacity-0", !open);
       }
     }
 
@@ -383,8 +372,16 @@ const esPath =
     opacity: 1;
   }
 
-  /* Drive mobile menu visibility from [data-open] so it works regardless of
-     whether Tailwind's scanner picks up the dynamically-toggled class names. */
+  /* Drive mobile menu visibility from [data-open] — no reliance on
+     dynamically-toggled Tailwind classes that may be purged. */
+  .mobile-menu-sheet {
+    transform: translateX(100%);
+  }
+
+  .mobile-menu-backdrop {
+    opacity: 0;
+  }
+
   [data-mobile-menu][data-open] {
     pointer-events: auto;
   }
