@@ -99,6 +99,8 @@ const esPath =
         }
       </nav>
 
+      <LocaleFlagDropdown locale={locale} enPath={enPath} esPath={esPath} compact />
+
       <button
         type="button"
         class="mobile-menu-toggle inline-flex size-10 shrink-0 items-center justify-center rounded-full text-neutral-950 transition-colors hover:bg-neutral-100 md:hidden"
@@ -117,7 +119,6 @@ const esPath =
     </div>
 
     <div class="flex shrink-0 items-center gap-2 sm:gap-3">
-      <LocaleFlagDropdown locale={locale} enPath={enPath} esPath={esPath} compact />
       <a
         href={localizePath(locale, "events")}
         data-header-cta=""
