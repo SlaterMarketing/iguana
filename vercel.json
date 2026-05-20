@@ -1,5 +1,9 @@
 {
   "redirects": [
+    { "source": "/en", "destination": "/", "permanent": true },
+    { "source": "/en/", "destination": "/", "permanent": true },
+    { "source": "/en/:path*", "destination": "/:path*", "permanent": true },
+    { "source": "/es", "destination": "/es/", "permanent": false },
     { "source": "/venues", "destination": "/locations", "permanent": true },
     { "source": "/venues/:path*", "destination": "/locations", "permanent": true },
     { "source": "/private-events", "destination": "/work-with-us/#private-events", "permanent": true },

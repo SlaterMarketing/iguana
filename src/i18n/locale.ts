@@ -7,8 +7,10 @@ export type { Locale } from "./ui";
 export const locales: readonly Locale[] = ["en", "es"];
 export const defaultLocale: Locale = "en";
 
-/** Extract locale from Astro's currentLocale or pathname. */
+/** Extract locale from pathname (Spanish under /es/) or, if present, Astro i18n metadata. */
 export function getLocale(astro: AstroGlobal): Locale {
+  const path = astro.url.pathname;
+  if (path === "/es" || path.startsWith("/es/")) return "es";
   const lc = astro.currentLocale;
   if (lc === "es") return "es";
   return "en";
