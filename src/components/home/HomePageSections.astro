@@ -7,6 +7,8 @@ import type { HomePageData } from "../../lib/home-page-data";
 import { mergeBrand } from "../../lib/merge-brand";
 import { testimonials } from "../../content/testimonials";
 import type { Locale } from "../../i18n/locale";
+import { t } from "../../i18n/ui";
+import { localizePath } from "../../i18n/routes";
 
 interface Props extends HomePageData {
   activeCitySlug?: string;
@@ -22,8 +24,8 @@ interface Props extends HomePageData {
 const {
   activeCitySlug = "",
   cityLabel,
-  experienceHeading = 'The iguana <span class="text-brand">experience</span>',
-  experienceCopy = "Punchy British bits, understated Canadian dryness, sweaty American callbacks—woven together with Riviera hospitality. Ticketing behaves, rooms stay cool(er), microphones rarely bail mid-bit.",
+  experienceHeading: experienceHeadingProp,
+  experienceCopy: experienceCopyProp,
   eventsHeading,
   emptyEventsMessage,
   apiConfigured,
@@ -34,15 +36,32 @@ const {
   locale = "en",
 } = Astro.props;
 
+const experienceHeading = experienceHeadingProp ?? t(locale, "home.experienceHeading");
+const experienceCopy = experienceCopyProp ?? t(locale, "home.experienceCopy");
+
 const brandMerged = mergeBrand(Astro.locals.brandOverrides ?? {});
 
-const eventsTitle = eventsHeading ?? (cityLabel ? `Upcoming in ${cityLabel}` : "Upcoming");
+const eventsTitle =
+  eventsHeading ??
+  (cityLabel ? t(locale, "home.upcomingIn", { city: cityLabel }) : t(locale, "home.upcoming"));
+const eventsLabel = t(locale, "home.section.eventsLabel");
 const singleFeaturedEvent = trimmedEvents.length === 1;
 const eventsEmpty =
   emptyEventsMessage ??
   (cityLabel
-    ? `No upcoming shows listed for ${cityLabel} yet—check the full calendar or another coast town.`
-    : "Nothing matched this coastline filter yet—all upcoming rows may be cancelled—or your calendar is still unpublished for this ticketing account.");
+    ? t(locale, "home.eventsEmptyCity", { city: cityLabel })
+    : t(locale, "home.eventsEmptyNoCity"));
+const eventsCatalogFailedMsg = t(locale, "home.eventsCatalogFailed");
+const venuesCityHref = activeCitySlug
+  ? `${localizePath(locale, "cityDetail", { city: activeCitySlug })}#venues`
+  : "";
+
+const storyHeadline = cityLabel
+  ? t(locale, "home.storyHeadlineCity", { city: cityLabel })
+  : t(locale, "home.storyHeadline");
+const storyBody = cityLabel
+  ? t(locale, "home.storyBodyCity", { city: cityLabel })
+  : t(locale, "home.storyBody");
 ---
 
 <section class="mx-auto max-w-[118rem] px-6 py-28">
@@ -54,7 +73,7 @@ const eventsEmpty =
       class="lg:text-end font-display text-4xl uppercase tracking-[0.45em] text-neutral-600 sm:text-5xl"
       style="font-family: var(--font-display); letter-spacing: 0.4em;"
     >
-      events
+      {eventsLabel}
     </p>
   </div>
 
@@ -65,7 +84,7 @@ const eventsEmpty =
       </p>
     ) : eventsCatalogFailed ? (
       <p class="mx-auto mt-14 max-w-2xl rounded-3xl border border-red-200 bg-red-50 px-6 py-4 text-neutral-950">
-        We couldn&apos;t reach your ticketing catalogue for shows—your terminal printed an error code. Double-check your publish credentials.
+        {eventsCatalogFailedMsg}
       </p>
     ) : trimmedEvents.length === 0 ? (
       <p class="mx-auto mt-14 max-w-2xl rounded-3xl border border-neutral-200 px-10 py-6 text-neutral-700">{eventsEmpty}</p>
@@ -92,7 +111,7 @@ const eventsEmpty =
 
     <div class="flex flex-col gap-10 lg:gap-12">
       <div>
-        <p class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-500">Hands-on rhythm</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-500">{t(locale, "home.experienceEyebrow")}</p>
         <h2
           class="mt-6 font-display text-4xl text-neutral-950 sm:text-[clamp(2.5rem,3vw+1.5rem,3.75rem)]"
           style="font-family: var(--font-display);"
@@ -100,12 +119,12 @@ const eventsEmpty =
         />
         <p class="mt-8 text-lg leading-relaxed text-neutral-700">{experienceCopy}</p>
         {
-          activeCitySlug ? (
+          activeCitySlug && cityLabel ? (
             <a
               class="mt-6 inline-block text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.6rem] hover:underline"
-              href={`/locations/${activeCitySlug}/#venues`}
+              href={venuesCityHref}
             >
-              Venues &amp; rooms in {cityLabel} →
+              {t(locale, "home.venuesInCityLink", { city: cityLabel })}
             </a>
           ) : null
         }
@@ -123,19 +142,19 @@ const eventsEmpty =
     </div>
     <div class="scrollbar-none mt-12 flex gap-12 overflow-x-auto pb-6">
       {
-        testimonials.map((t) => (
+        testimonials.map((testimonial) => (
             <figure class="min-w-[20rem] max-w-[21rem] border-l border-neutral-200 pl-6">
               <div class="mb-6 flex gap-2">
-                {Array.from({ length: t.rating }).map(() => (
+                {Array.from({ length: testimonial.rating }).map(() => (
                   <span class="leading-none text-brand">&starf;</span>
                 ))}
               </div>
               <blockquote class="font-display text-2xl tracking-tight text-neutral-950" style="font-family: var(--font-display);">
-                {t.quote}
+                {testimonial.quote[locale]}
               </blockquote>
               <figcaption class="mt-6 text-sm uppercase tracking-[0.35em] text-neutral-500">
-                {t.author}
-                {t.city ? ` · ${t.city}` : ""}
+                {testimonial.author}
+                {testimonial.city ? ` · ${testimonial.city}` : ""}
               </figcaption>
             </figure>
           ))
@@ -147,18 +166,12 @@ const eventsEmpty =
 <section class="mx-auto max-w-[118rem] px-6 pb-36">
   <div class="grid gap-24 lg:grid-cols-[minmax(0,1fr)_0.93fr] lg:gap-52">
     <div class="flex flex-col justify-center gap-10">
-      <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">Believe softly</p>
+      <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{t(locale, "home.storyEyebrow")}</p>
       <h2 class="font-display text-4xl tracking-tight text-neutral-950 sm:text-[3.05rem]" style="font-family: var(--font-display);">
-        {cityLabel ? `English comedy in ${cityLabel}` : "English comedy in the Mexican Caribbean"}
+        {storyHeadline}
       </h2>
-      <p class="text-lg leading-relaxed text-neutral-700">
-        {
-          cityLabel
-            ? `From hotel lounges to indie rooms, ${cityLabel} gets the same producing discipline we run across Quintana Roo—tight doors, clear run-of-show, comics who actually want to be here.`
-            : "This coastline craved articulate punch—we opened venues, nurtured audiences, and convinced touring comedians Cancún beats another flyover Midwest weekend."
-        }
-      </p>
-      <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.6rem] hover:underline" href="/about/">Read story →</a>
+      <p class="text-lg leading-relaxed text-neutral-700">{storyBody}</p>
+      <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.6rem] hover:underline" href={localizePath(locale, "about")}>{t(locale, "home.readStory")}</a>
     </div>
     <div class="overflow-hidden rounded-[2.85rem]">
       <img src={brandMerged.clubPhotoImage} alt="" loading="lazy" class="aspect-[14/17] object-cover lg:aspect-auto lg:min-h-[28rem]" />
@@ -168,21 +181,19 @@ const eventsEmpty =
 
 <section class="border-t border-black/20 bg-neutral-950 py-32 text-neutral-100">
   <div class="mx-auto max-w-6xl px-6">
-    <p class="text-center font-display text-4xl text-white sm:text-5xl" style="font-family: var(--font-display);">
-      The Wall <span class="font-serif italic text-neutral-400">of</span> Comedians
-    </p>
+    <p class="text-center font-display text-4xl text-white sm:text-5xl" style="font-family: var(--font-display);" set:html={t(locale, "home.wallTitle")} />
     <p class="mx-auto mt-6 max-w-2xl text-center text-neutral-400">
-      A rotating collage—passports, punchlines, and poolside anecdotes from comics who rerouted itineraries for Mayan humidity.
+      {t(locale, "home.wallSubtitle")}
     </p>
     {
       wallArtists.length === 0 ? (
         performersCatalogFailed ? (
           <p class="mx-auto mt-16 max-w-2xl rounded-3xl border border-red-200 bg-red-50 px-12 py-8 text-center text-neutral-900">
-            Comedian bios didn&apos;t load—check terminal output alongside your publish credentials.
+            {t(locale, "home.wallErrorCredentials")}
           </p>
         ) : (
           <p class="mx-auto mt-16 max-w-2xl rounded-3xl border border-white/10 px-12 py-8 text-center text-neutral-500">
-            No performer profiles matched this ticketing account yet.
+            {t(locale, "home.wallEmpty")}
           </p>
         )
       ) : (
@@ -196,4 +207,12 @@ const eventsEmpty =
   </div>
 </section>
 
-<Cta locale={locale} />
+<Cta
+  locale={locale}
+  eyebrow={t(locale, "cta.eyebrow.audiences")}
+  headline={t(locale, "cta.headline.readyToLaugh")}
+  body={t(locale, "cta.body.perform")}
+  ctaHref={localizePath(locale, "events")}
+  secondaryHref={localizePath(locale, "contact")}
+  secondaryLabel={t(locale, "cta.secondaryLabel.talkWithUs")}
+/>

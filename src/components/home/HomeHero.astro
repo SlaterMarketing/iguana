@@ -26,6 +26,8 @@ interface Props {
   pickerNavigateTo?: "home" | "locations";
   ctaLabel?: string;
   spotlightLabel?: string;
+  /** Region label when rotating cities (e.g. "the Riviera Maya" / "la Riviera Maya"). */
+  rotatorFallback?: string;
 }
 
 const {
@@ -44,6 +46,7 @@ const {
   pickerNavigateTo = "home",
   ctaLabel = "Buy ticket",
   spotlightLabel = "Spotlight city",
+  rotatorFallback = "the Riviera Maya",
 } = Astro.props;
 
 const brandMerged = mergeBrand(Astro.locals.brandOverrides ?? {});
@@ -100,7 +103,7 @@ const useImageHero = Boolean(heroImageUrl?.trim());
             {headlineLine2Prefix}
             {
               useRotator ? (
-                <HeroCityRotator cities={rotatorCities} fallback="the Riviera Maya" />
+                <HeroCityRotator cities={rotatorCities} fallback={rotatorFallback} />
               ) : (
                 <span class="text-brand-hover">{staticHeadlineCity}</span>
               )

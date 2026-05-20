@@ -182,6 +182,38 @@ export const ui = {
     "store.currentlySoldOut": "Currently sold out",
     "aria.ticketCheckout": "Ticket checkout",
     "aria.collections": "Collections",
+
+    "home.section.eventsLabel": "events",
+    "home.upcoming": "Upcoming",
+    "home.upcomingIn": "Upcoming in {city}",
+    "home.eventsEmptyNoCity":
+      "Nothing matched this coastline filter yet—all upcoming rows may be cancelled—or your calendar is still unpublished for this ticketing account.",
+    "home.eventsEmptyCity":
+      "No upcoming shows listed for {city} yet—check the full calendar or another coast town.",
+    "home.eventsCatalogFailed":
+      "We couldn't reach your ticketing catalogue for shows—your terminal printed an error code. Double-check your publish credentials.",
+    "home.experienceEyebrow": "Hands-on rhythm",
+    "home.experienceHeading": "The iguana <span class=\"text-brand\">experience</span>",
+    "home.experienceCopy":
+      "Punchy British bits, understated Canadian dryness, sweaty American callbacks—woven together with Riviera hospitality. Ticketing behaves, rooms stay cool(er), microphones rarely bail mid-bit.",
+    "home.venuesInCityLink": "Venues & rooms in {city} →",
+    "home.storyEyebrow": "Believe softly",
+    "home.storyHeadline": "English comedy in the Mexican Caribbean",
+    "home.storyHeadlineCity": "English comedy in {city}",
+    "home.storyBody":
+      "This coastline craved articulate punch—we opened venues, nurtured audiences, and convinced touring comedians Cancún beats another flyover Midwest weekend.",
+    "home.storyBodyCity":
+      "From hotel lounges to indie rooms, {city} gets the same producing discipline we run across Quintana Roo—tight doors, clear run-of-show, comics who actually want to be here.",
+    "home.readStory": "Read story →",
+    "home.wallTitle": "The Wall <span class=\"font-serif italic text-neutral-400\">of</span> Comedians",
+    "home.wallSubtitle":
+      "A rotating collage—passports, punchlines, and poolside anecdotes from comics who rerouted itineraries for Mayan humidity.",
+    "home.wallErrorCredentials":
+      "Comedian bios didn't load—check terminal output alongside your publish credentials.",
+    "home.wallEmpty": "No performer profiles matched this ticketing account yet.",
+    "home.heroFallbackRegion": "the Riviera Maya",
+
+    "footer.linkWhatsApp": "WhatsApp",
   },
   es: {
     "nav.events": "Eventos",
@@ -356,7 +388,7 @@ export const ui = {
     "store.error": "No pudimos cargar el catálogo de merch ahora—vuelve a intentar pronto o usa el enlace de abajo.",
     "store.empty": "Aún no hay nada publicado en la tienda—vuelve pronto.",
     "store.visitLegacy": "Visitar tienda anterior →",
-    "store.backToMerch": "← Merch",
+    "store.backToMerch": "← Tienda",
     "store.notFound": "Ese producto no está disponible ahora.",
     "store.photoSoon": "Foto pronto",
     "store.soldOut": "agotado",
@@ -364,11 +396,49 @@ export const ui = {
     "store.currentlySoldOut": "Agotado actualmente",
     "aria.ticketCheckout": "Checkout de boletos",
     "aria.collections": "Colecciones",
+
+    "home.section.eventsLabel": "eventos",
+    "home.upcoming": "Próximos",
+    "home.upcomingIn": "Próximos en {city}",
+    "home.eventsEmptyNoCity":
+      "Nada coincidió con este filtro de costa: todas las filas próximas pueden estar canceladas o tu calendario aún no está publicado para esta cuenta de taquilla.",
+    "home.eventsEmptyCity":
+      "Aún no hay shows próximos listados para {city}—revisa el calendario completo u otro pueblo de la costa.",
+    "home.eventsCatalogFailed":
+      "No pudimos alcanzar el catálogo de taquilla para shows—tu terminal mostró un código de error. Verifica tus credenciales de publicación.",
+    "home.experienceEyebrow": "Ritmo manos a la obra",
+    "home.experienceHeading": "La iguana <span class=\"text-brand\">experiencia</span>",
+    "home.experienceCopy":
+      "Chistes británicos directos, sequedad canadiense sutil, callbacks estadounidenses sudorosos—tejidos con hospitalidad de la Riviera. La taquilla responde, las salas se mantienen frescas (más o menos) y los micrófonos rara vez fallan a mitad del bit.",
+    "home.venuesInCityLink": "Sedes y salas en {city} →",
+    "home.storyEyebrow": "Créelo con calma",
+    "home.storyHeadline": "Comedia en inglés en el Caribe mexicano",
+    "home.storyHeadlineCity": "Comedia en inglés en {city}",
+    "home.storyBody":
+      "Esta costa pedía remates con garra—inauguramos sedes, criamos audiencias y convencimos a comediantes de gira de que Cancún gana a otro fin de semana de escala en el medio oeste.",
+    "home.storyBodyCity":
+      "De lounges de hotel a salas indie, {city} recibe la misma disciplina de producción que aplicamos en Quintana Roo—puertas claras, run-of-show ordenado, cómicos que de verdad quieren estar aquí.",
+    "home.readStory": "Leer historia →",
+    "home.wallTitle": "El muro <span class=\"font-serif italic text-neutral-400\">de</span> comediantes",
+    "home.wallSubtitle":
+      "Un collage rotativo—pasaportes, remates y anécdotas junto a la alberca de cómicos que redirigieron itinerarios por la humedad maya.",
+    "home.wallErrorCredentials":
+      "Las biografías de comediantes no cargaron—revisa la salida de la terminal junto con tus credenciales de publicación.",
+    "home.wallEmpty": "Aún no hay perfiles de artistas que coincidan con esta cuenta de taquilla.",
+    "home.heroFallbackRegion": "la Riviera Maya",
+
+    "footer.linkWhatsApp": "WhatsApp",
   },
 } as const;
 
 export type UIKey = keyof (typeof ui)["en"];
 
-export function t(locale: Locale, key: UIKey): string {
-  return ui[locale][key] ?? ui["en"][key];
+export function t(locale: Locale, key: UIKey, vars?: Record<string, string>): string {
+  let s: string = ui[locale][key] ?? ui["en"][key];
+  if (vars) {
+    for (const [k, v] of Object.entries(vars)) {
+      s = s.replaceAll(`{${k}}`, v);
+    }
+  }
+  return s;
 }

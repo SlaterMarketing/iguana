@@ -5,6 +5,7 @@ import HomePageSections from "../../components/home/HomePageSections.astro";
 import { heroCityChoices, siteMessages } from "../../content/site";
 import { loadHomePageData } from "../../lib/home-page-data";
 import { localizePath } from "../../i18n/routes";
+import { t } from "../../i18n/ui";
 
 const locale = "es";
 
@@ -37,6 +38,7 @@ const cityPickerChoices = [
     headlineLine2Prefix="comedia en "
     ctaLabel="Comprar boleto"
     spotlightLabel="Ciudad destacada"
+    rotatorFallback={t(locale, "home.heroFallbackRegion")}
   />
   <HomePageSections {...pageData} apiConfigured={pageData.hasCredentials} locale={locale} />
 </Base>
