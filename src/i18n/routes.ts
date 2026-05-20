@@ -64,9 +64,15 @@ export function localizePath(
   return interpolate(template, params);
 }
 
+/** Strip the locale prefix (e.g. "/en/events/" → "/events/") */
+function stripLocalePrefix(pathname: string): string {
+  return pathname.replace(/^\/(en|es)\b/, "");
+}
+
 /** Reverse-lookup: given a locale and an actual pathname, find the route key. */
 export function resolveRouteKey(locale: Locale, pathname: string): RouteKey | null {
-  const normalized = pathname.replace(/\/$/, "") || "/";
+  const withoutPrefix = stripLocalePrefix(pathname);
+  const normalized = withoutPrefix.replace(/\/$/, "") || "/";
   const entries = Object.entries(routeMap[locale]) as [RouteKey, string][];
 
   for (const [key, template] of entries) {
@@ -85,8 +91,9 @@ export function getAlternatePath(locale: Locale, pathname: string): string | nul
 
   const currentTemplate = routeMap[locale][key];
   const params: Record<string, string> = {};
+  const withoutPrefix = stripLocalePrefix(pathname);
   const currentParts = currentTemplate.split("/");
-  const pathParts = pathname.split("/");
+  const pathParts = withoutPrefix.split("/");
 
   for (let i = 0; i < currentParts.length; i++) {
     if (currentParts[i].startsWith(":")) {
