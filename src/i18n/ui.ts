@@ -12,6 +12,7 @@ export const ui = {
     "nav.cta": "The next event",
     "nav.aria.primary": "Primary",
     "nav.aria.mobile": "Mobile primary",
+    "nav.language": "Language",
 
     "lang.en": "English",
     "lang.es": "Español",
@@ -226,6 +227,7 @@ export const ui = {
     "nav.cta": "El próximo evento",
     "nav.aria.primary": "Principal",
     "nav.aria.mobile": "Principal móvil",
+    "nav.language": "Idioma",
 
     "lang.en": "English",
     "lang.es": "Español",

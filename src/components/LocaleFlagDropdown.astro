@@ -1,0 +1,196 @@
+---
+import { t } from "../i18n/ui";
+import type { Locale } from "../i18n/locale";
+
+interface Props {
+  locale: Locale;
+  enPath: string;
+  esPath: string;
+  /** Extra compact in the top bar on small screens */
+  compact?: boolean;
+  /** Add to links inside the mobile sheet so choosing a language closes the menu */
+  closeMobileMenu?: boolean;
+}
+
+const { locale, enPath, esPath, compact = false, closeMobileMenu = false } = Astro.props;
+
+const listId = `locale-flag-list-${Math.random().toString(36).slice(2, 9)}`;
+---
+
+<div
+  class:list={["relative", compact ? "shrink-0" : ""]}
+  data-locale-flag-dropdown=""
+>
+  <button
+    type="button"
+    class:list={[
+      "locale-flag-trigger inline-flex items-center gap-1.5 rounded-full border border-black/10 bg-white px-2.5 py-2 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-colors outline-none hover:border-black/25 focus-visible:ring-2 focus-visible:ring-neutral-950/20",
+      compact ? "py-1.5 sm:py-2" : "",
+    ]}
+    aria-haspopup="listbox"
+    aria-expanded="false"
+    aria-controls={listId}
+    aria-label={t(locale, "nav.language")}
+    data-locale-flag-trigger=""
+  >
+    {locale === "en" ? (
+      <span class="flex items-center" aria-hidden="true">
+        <svg class="flag-uk h-[1.1rem] w-7 sm:h-5 sm:w-9" viewBox="0 0 60 30" aria-hidden="true">
+          <path fill="#012169" d="M0 0h60v30H0z" />
+          <path stroke="#fff" stroke-width="6" d="M0 0l60 30M60 0L0 30" />
+          <path stroke="#C8102E" stroke-width="4" d="M0 0l60 30M60 0L0 30" />
+          <path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60" />
+          <path stroke="#C8102E" stroke-width="6" d="M30 0v30M0 15h60" />
+        </svg>
+      </span>
+    ) : (
+      <span class="flex items-center" aria-hidden="true">
+        <svg class="flag-mx h-[1.1rem] w-[1.65rem] sm:h-5 sm:w-8" viewBox="0 0 18 12" aria-hidden="true">
+          <path fill="#006847" d="M0 0h6v12H0z" />
+          <path fill="#fff" d="M6 0h6v12H6z" />
+          <path fill="#ce1126" d="M12 0h6v12H12z" />
+        </svg>
+      </span>
+    )}
+    <svg
+      class="locale-flag-chevron size-3 shrink-0 text-neutral-500 transition-transform sm:size-3.5"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden="true"
+    >
+      <path
+        fill-rule="evenodd"
+        d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.94a.75.75 0 1 1 1.08 1.04l-4.24 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
+        clip-rule="evenodd"
+      />
+    </svg>
+  </button>
+
+  <ul
+    id={listId}
+    role="listbox"
+    tabindex="-1"
+    hidden
+    class="absolute right-0 top-[calc(100%+0.35rem)] z-[60] min-w-[10.5rem] overflow-hidden rounded-2xl border border-black/10 bg-white py-1.5 shadow-[0_16px_48px_rgba(0,0,0,0.18)]"
+    data-locale-flag-list=""
+  >
+    <li role="presentation">
+      {locale === "en" ? (
+        <span
+          class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-neutral-400"
+          aria-current="true"
+        >
+          <svg class="h-5 w-8 shrink-0 opacity-70" viewBox="0 0 60 30" aria-hidden="true">
+            <path fill="#012169" d="M0 0h60v30H0z" />
+            <path stroke="#fff" stroke-width="6" d="M0 0l60 30M60 0L0 30" />
+            <path stroke="#C8102E" stroke-width="4" d="M0 0l60 30M60 0L0 30" />
+            <path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60" />
+            <path stroke="#C8102E" stroke-width="6" d="M30 0v30M0 15h60" />
+          </svg>
+          {t(locale, "lang.en")}
+        </span>
+      ) : (
+        <a
+          href={enPath}
+          data-locale-preference="en"
+          class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-neutral-800 transition hover:bg-neutral-50"
+          role="option"
+          {...(closeMobileMenu ? ({ "data-mobile-menu-close": "" } as const) : {})}
+        >
+          <svg class="h-5 w-8 shrink-0" viewBox="0 0 60 30" aria-hidden="true">
+            <path fill="#012169" d="M0 0h60v30H0z" />
+            <path stroke="#fff" stroke-width="6" d="M0 0l60 30M60 0L0 30" />
+            <path stroke="#C8102E" stroke-width="4" d="M0 0l60 30M60 0L0 30" />
+            <path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60" />
+            <path stroke="#C8102E" stroke-width="6" d="M30 0v30M0 15h60" />
+          </svg>
+          {t(locale, "lang.en")}
+        </a>
+      )}
+    </li>
+    <li role="presentation">
+      {locale === "es" ? (
+        <span
+          class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-neutral-400"
+          aria-current="true"
+        >
+          <svg class="h-5 w-8 shrink-0 opacity-70" viewBox="0 0 18 12" aria-hidden="true">
+            <path fill="#006847" d="M0 0h6v12H0z" />
+            <path fill="#fff" d="M6 0h6v12H6z" />
+            <path fill="#ce1126" d="M12 0h6v12H12z" />
+          </svg>
+          {t(locale, "lang.es")}
+        </span>
+      ) : (
+        <a
+          href={esPath}
+          data-locale-preference="es"
+          class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-neutral-800 transition hover:bg-neutral-50"
+          role="option"
+          {...(closeMobileMenu ? ({ "data-mobile-menu-close": "" } as const) : {})}
+        >
+          <svg class="h-5 w-8 shrink-0" viewBox="0 0 18 12" aria-hidden="true">
+            <path fill="#006847" d="M0 0h6v12H0z" />
+            <path fill="#fff" d="M6 0h6v12H6z" />
+            <path fill="#ce1126" d="M12 0h6v12H12z" />
+          </svg>
+          {t(locale, "lang.es")}
+        </a>
+      )}
+    </li>
+  </ul>
+</div>
+
+<script>
+  function initLocaleFlagDropdowns() {
+    document.querySelectorAll("[data-locale-flag-dropdown]").forEach((root) => {
+      if (!(root instanceof HTMLElement) || root.dataset.localeDropdownReady === "1") return;
+      root.dataset.localeDropdownReady = "1";
+
+      const trigger = root.querySelector("[data-locale-flag-trigger]");
+      const list = root.querySelector("[data-locale-flag-list]");
+      if (!(trigger instanceof HTMLButtonElement) || !(list instanceof HTMLUListElement)) return;
+
+      function close() {
+        root.dataset.open = "";
+        trigger.setAttribute("aria-expanded", "false");
+        list.hidden = true;
+      }
+
+      function open() {
+        root.dataset.open = "true";
+        trigger.setAttribute("aria-expanded", "true");
+        list.hidden = false;
+      }
+
+      function toggle() {
+        if (list.hidden) open();
+        else close();
+      }
+
+      trigger.addEventListener("click", (event) => {
+        event.stopPropagation();
+        toggle();
+      });
+
+      document.addEventListener("click", (event) => {
+        if (!root.contains(event.target as Node)) close();
+      });
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") close();
+      });
+
+      document.addEventListener("astro:page-load", close);
+    });
+  }
+
+  initLocaleFlagDropdowns();
+  document.addEventListener("astro:page-load", initLocaleFlagDropdowns);
+</script>
+
+<style>
+  [data-locale-flag-dropdown][data-open] .locale-flag-chevron {
+    transform: rotate(180deg);
+  }
+</style>

@@ -8,6 +8,7 @@ import {
   LOCALE_PREFERENCE_COOKIE,
   LOCALE_PREFERENCE_MAX_AGE_SECONDS,
 } from "../lib/locale-preference";
+import LocaleFlagDropdown from "./LocaleFlagDropdown.astro";
 
 interface Props {
   pathname?: string;
@@ -35,8 +36,10 @@ const links: { key: "events" | "locations" | "comedians" | "store" | "contact"; 
   { key: "contact" },
 ];
 
-const alternatePath = getAlternatePath(locale, pathnameRaw);
-const switchTargetLocale: Locale = locale === "en" ? "es" : "en";
+const enPath =
+  locale === "en" ? pathnameRaw : getAlternatePath("es", pathnameRaw) ?? localizePath("en", "home");
+const esPath =
+  locale === "es" ? pathnameRaw : getAlternatePath("en", pathnameRaw) ?? localizePath("es", "home");
 ---
 
 <header
@@ -94,21 +97,6 @@ const switchTargetLocale: Locale = locale === "en" ? "es" : "en";
             );
           })
         }
-
-        <!-- Language switcher (desktop) -->
-        {alternatePath && (
-          <>
-            <span class="text-neutral-400/90" aria-hidden="true">/</span>
-            <a
-              href={alternatePath}
-              data-locale-preference={switchTargetLocale}
-              class="hover:text-neutral-800"
-              aria-label={`${t(locale, "lang.switchTo")} ${locale === "en" ? t(locale, "lang.es") : t(locale, "lang.en")}`}
-            >
-              {locale === "en" ? "ES" : "EN"}
-            </a>
-          </>
-        )}
       </nav>
 
       <button
@@ -128,17 +116,20 @@ const switchTargetLocale: Locale = locale === "en" ? "es" : "en";
       </button>
     </div>
 
-    <a
-      href={localizePath(locale, "events")}
-      data-header-cta=""
-      class="header-cta btn-pill hidden shrink-0 items-center gap-2 rounded-full bg-white px-6 py-2.5 text-[0.62rem] font-bold uppercase tracking-[0.22em] text-neutral-950 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out sm:inline-flex sm:px-8 sm:py-3 sm:text-[0.65rem] sm:tracking-[0.26em]"
-      aria-label={t(locale, "nav.cta")}
-    >
-      {t(locale, "nav.cta")}
-      <svg class="btn-pill-arrow h-[0.65rem] w-[1.1rem] shrink-0 text-brand transition-colors" viewBox="0 0 22 14" aria-hidden="true">
-        <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m2 7h18m-6-6 6 6-6 6" />
-      </svg>
-    </a>
+    <div class="flex shrink-0 items-center gap-2 sm:gap-3">
+      <LocaleFlagDropdown locale={locale} enPath={enPath} esPath={esPath} compact />
+      <a
+        href={localizePath(locale, "events")}
+        data-header-cta=""
+        class="header-cta btn-pill hidden items-center gap-2 rounded-full bg-white px-6 py-2.5 text-[0.62rem] font-bold uppercase tracking-[0.22em] text-neutral-950 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out sm:inline-flex sm:px-8 sm:py-3 sm:text-[0.65rem] sm:tracking-[0.26em]"
+        aria-label={t(locale, "nav.cta")}
+      >
+        {t(locale, "nav.cta")}
+        <svg class="btn-pill-arrow h-[0.65rem] w-[1.1rem] shrink-0 text-brand transition-colors" viewBox="0 0 22 14" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m2 7h18m-6-6 6 6-6 6" />
+        </svg>
+      </a>
+    </div>
   </div>
 
   <div
@@ -198,19 +189,9 @@ const switchTargetLocale: Locale = locale === "en" ? "es" : "en";
         }
       </nav>
 
-      <!-- Language switcher (mobile) -->
-      {alternatePath && (
-        <div class="mt-4 flex gap-2 border-t border-black/10 pt-4">
-          <a
-            href={alternatePath}
-            data-locale-preference={switchTargetLocale}
-            class="flex-1 rounded-2xl bg-neutral-100 py-3 text-center text-sm font-semibold text-neutral-950"
-            data-mobile-menu-close=""
-          >
-            {locale === "en" ? t(locale, "lang.es") : t(locale, "lang.en")}
-          </a>
-        </div>
-      )}
+      <div class="mt-6 border-t border-black/10 pt-5">
+        <LocaleFlagDropdown locale={locale} enPath={enPath} esPath={esPath} closeMobileMenu />
+      </div>
 
       <a
         href={localizePath(locale, "events")}
@@ -384,6 +365,16 @@ const switchTargetLocale: Locale = locale === "en" ? "es" : "en";
     .site-header[data-scrolled] .header-cta.btn-pill:hover {
       background-color: var(--color-brand-hover);
       color: #fff;
+    }
+
+    .site-header[data-scrolled] .locale-flag-trigger {
+      background-color: #121715;
+      border-color: rgba(255, 255, 255, 0.14);
+      box-shadow: none;
+    }
+
+    .site-header[data-scrolled] .locale-flag-chevron {
+      color: rgba(255, 255, 255, 0.88);
     }
   }
 
