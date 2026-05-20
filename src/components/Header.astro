@@ -4,6 +4,10 @@ import type { MergedSite } from "../lib/merge-brand";
 import { t } from "../i18n/ui";
 import { localizePath, getAlternatePath } from "../i18n/routes";
 import type { Locale } from "../i18n/locale";
+import {
+  LOCALE_PREFERENCE_COOKIE,
+  LOCALE_PREFERENCE_MAX_AGE_SECONDS,
+} from "../lib/locale-preference";
 
 interface Props {
   pathname?: string;
@@ -32,6 +36,7 @@ const links: { key: "events" | "locations" | "comedians" | "store" | "contact"; 
 ];
 
 const alternatePath = getAlternatePath(locale, pathnameRaw);
+const switchTargetLocale: Locale = locale === "en" ? "es" : "en";
 ---
 
 <header
@@ -96,6 +101,7 @@ const alternatePath = getAlternatePath(locale, pathnameRaw);
             <span class="text-neutral-400/90" aria-hidden="true">/</span>
             <a
               href={alternatePath}
+              data-locale-preference={switchTargetLocale}
               class="hover:text-neutral-800"
               aria-label={`${t(locale, "lang.switchTo")} ${locale === "en" ? t(locale, "lang.es") : t(locale, "lang.en")}`}
             >
@@ -197,6 +203,7 @@ const alternatePath = getAlternatePath(locale, pathnameRaw);
         <div class="mt-4 flex gap-2 border-t border-black/10 pt-4">
           <a
             href={alternatePath}
+            data-locale-preference={switchTargetLocale}
             class="flex-1 rounded-2xl bg-neutral-100 py-3 text-center text-sm font-semibold text-neutral-950"
             data-mobile-menu-close=""
           >
@@ -219,7 +226,26 @@ const alternatePath = getAlternatePath(locale, pathnameRaw);
   </div>
 </header>
 
-<script>
+<script
+  define:vars={{
+    localeCookieName: LOCALE_PREFERENCE_COOKIE,
+    localeCookieMaxAge: LOCALE_PREFERENCE_MAX_AGE_SECONDS,
+  }}
+>
+  function initLocalePreferenceOnSwitch() {
+    document.querySelectorAll("a[data-locale-preference]").forEach((el) => {
+      if (!(el instanceof HTMLAnchorElement)) return;
+      if (el.dataset.localePreferenceBound === "1") return;
+      el.dataset.localePreferenceBound = "1";
+      el.addEventListener("click", () => {
+        const loc = el.dataset.localePreference;
+        if (loc !== "en" && loc !== "es") return;
+        const secure = typeof location !== "undefined" && location.protocol === "https:" ? "; Secure" : "";
+        document.cookie = `${localeCookieName}=${loc}; Path=/; Max-Age=${String(localeCookieMaxAge)}; SameSite=Lax${secure}`;
+      });
+    });
+  }
+
   function initSiteHeaderScroll() {
     const header = document.querySelector("[data-site-header]");
     if (!(header instanceof HTMLElement) || header.dataset.headerScrollReady === "1") return;
@@ -307,9 +333,11 @@ const alternatePath = getAlternatePath(locale, pathnameRaw);
 
   initSiteHeaderScroll();
   initMobileMenu();
+  initLocalePreferenceOnSwitch();
   document.addEventListener("astro:page-load", () => {
     initSiteHeaderScroll();
     initMobileMenu();
+    initLocalePreferenceOnSwitch();
   });
 </script>
 

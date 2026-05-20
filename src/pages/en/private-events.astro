@@ -1,7 +1,7 @@
 ---
 export const prerender = true;
-import { getLocale } from "../i18n/locale";
-import { localizePath } from "../i18n/routes";
+import { getLocale } from "../../i18n/locale";
+import { localizePath } from "../../i18n/routes";
 
 const locale = getLocale(Astro);
 return Astro.redirect(localizePath(locale, "workWithUs") + "#private-events", 301);

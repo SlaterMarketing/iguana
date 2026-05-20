@@ -1,9 +1,6 @@
 /**
- * Bilingual route map for fully-localized slugs.
- * Every route key has an English and a Spanish path.
- * Dynamic segments use :param notation and are interpolated by localizePath().
+ * Bilingual route map — paths are **without** locale prefix; {@link localizePath} adds `/en` or `/es`.
  */
-
 export const routeMap = {
   en: {
     home: "/",
@@ -54,14 +51,19 @@ function interpolate(template: string, params?: Record<string, string>): string 
   return template.replace(/:([^/]+)/g, (_, key) => params[key] ?? `:${key}`);
 }
 
-/** Get a localized path for a route key. */
+const LOCALE_PREFIX: Record<Locale, string> = { en: "/en", es: "/es" };
+
+/** Prefix locale segment for public URLs (`/en/events/`, `/es/eventos/`). */
 export function localizePath(
   locale: Locale,
   key: RouteKey,
   params?: Record<string, string>
 ): string {
   const template = routeMap[locale][key];
-  return interpolate(template, params);
+  const path = interpolate(template, params);
+  const prefix = LOCALE_PREFIX[locale];
+  if (path === "/" || path === "") return `${prefix}/`;
+  return `${prefix}${path}`.replace(/\/+/g, "/");
 }
 
 /** Strip the locale prefix (e.g. "/en/events/" → "/events/") */

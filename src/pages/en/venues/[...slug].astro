@@ -1,7 +1,7 @@
 ---
-import { legacyVenueSlugs } from "../../lib/sitemap";
-import { getLocale } from "../../i18n/locale";
-import { localizePath } from "../../i18n/routes";
+import { legacyVenueSlugs } from "../../../lib/sitemap";
+import { getLocale } from "../../../i18n/locale";
+import { localizePath } from "../../../i18n/routes";
 
 const slug = Astro.params.slug;
 const known = slug ? legacyVenueSlugs().includes(slug) : false;

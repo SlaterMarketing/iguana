@@ -127,8 +127,8 @@ function addCoreLocalizedPages(map: Map<string, LocalizedSitemapEntry>) {
 
   const now = new Date().toISOString();
   for (const page of core) {
-    const enPath = prefixLocale("en", localizePath("en", page.key, page.params));
-    const esPath = prefixLocale("es", localizePath("es", page.key, page.params));
+    const enPath = localizePath("en", page.key, page.params);
+    const esPath = localizePath("es", page.key, page.params);
     const alternates = [
       { locale: "en", path: enPath },
       { locale: "es", path: esPath },
@@ -163,14 +163,8 @@ async function addKintanaLocalizedPages(
     for (const evt of events) {
       const key = evt.slug?.trim() || evt.id?.trim();
       if (!key) continue;
-      const enPath = prefixLocale(
-        "en",
-        localizePath("en", "eventDetail", { slug: key })
-      );
-      const esPath = prefixLocale(
-        "es",
-        localizePath("es", "eventDetail", { slug: key })
-      );
+      const enPath = localizePath("en", "eventDetail", { slug: key });
+      const esPath = localizePath("es", "eventDetail", { slug: key });
       const alternates = [
         { locale: "en", path: enPath },
         { locale: "es", path: esPath },
@@ -197,14 +191,8 @@ async function addKintanaLocalizedPages(
     for (const artist of artists) {
       const key = artist.slug?.trim();
       if (!key) continue;
-      const enPath = prefixLocale(
-        "en",
-        localizePath("en", "comedianDetail", { slug: key })
-      );
-      const esPath = prefixLocale(
-        "es",
-        localizePath("es", "comedianDetail", { slug: key })
-      );
+      const enPath = localizePath("en", "comedianDetail", { slug: key });
+      const esPath = localizePath("es", "comedianDetail", { slug: key });
       const alternates = [
         { locale: "en", path: enPath },
         { locale: "es", path: esPath },
@@ -232,14 +220,8 @@ async function addKintanaLocalizedPages(
     for (const city of cities) {
       const slug = slugify(city.city ?? "");
       if (!slug || !getCityBlurb("en", slug)) continue;
-      const enPath = prefixLocale(
-        "en",
-        localizePath("en", "cityDetail", { city: slug })
-      );
-      const esPath = prefixLocale(
-        "es",
-        localizePath("es", "cityDetail", { city: slug })
-      );
+      const enPath = localizePath("en", "cityDetail", { city: slug });
+      const esPath = localizePath("es", "cityDetail", { city: slug });
       const alternates = [
         { locale: "en", path: enPath },
         { locale: "es", path: esPath },
@@ -267,7 +249,7 @@ function addLegacyLocalizedPages(map: Map<string, LocalizedSitemapEntry>) {
     const enPath = prefixLocale("en", entry.path);
     const key = resolveRouteKey("en", entry.path);
     if (key) {
-      const esPath = prefixLocale("es", localizePath("es", key));
+      const esPath = localizePath("es", key);
       const alternates = [
         { locale: "en", path: enPath },
         { locale: "es", path: esPath },
@@ -361,18 +343,18 @@ export async function buildSitemapEntries(): Promise<SitemapEntry[]> {
 
 function addCorePages(map: Map<string, SitemapEntry>) {
   const core: Array<{ path: string; priority: number }> = [
-    { path: "/", priority: 1 },
-    { path: "/events/", priority: 0.8 },
-    { path: "/locations/", priority: 0.8 },
-    { path: "/comedians/", priority: 0.8 },
-    { path: "/store/", priority: 0.8 },
-    { path: "/contact/", priority: 0.8 },
-    { path: "/about/", priority: 0.8 },
-    { path: "/work-with-us/", priority: 0.8 },
-    { path: "/perform-with-us/", priority: 0.85 },
-    { path: "/hotels-and-resorts/", priority: 0.85 },
-    { path: "/legal/privacy-policy/", priority: 0.8 },
-    { path: "/legal/terms-and-conditions/", priority: 0.8 },
+    { path: "/en/", priority: 1 },
+    { path: "/en/events/", priority: 0.8 },
+    { path: "/en/locations/", priority: 0.8 },
+    { path: "/en/comedians/", priority: 0.8 },
+    { path: "/en/store/", priority: 0.8 },
+    { path: "/en/contact/", priority: 0.8 },
+    { path: "/en/about/", priority: 0.8 },
+    { path: "/en/work-with-us/", priority: 0.8 },
+    { path: "/en/perform-with-us/", priority: 0.85 },
+    { path: "/en/hotels-and-resorts/", priority: 0.85 },
+    { path: "/en/legal/privacy-policy/", priority: 0.8 },
+    { path: "/en/legal/terms-and-conditions/", priority: 0.8 },
   ];
 
   const now = new Date().toISOString();
@@ -393,7 +375,7 @@ async function addKintanaPages(map: Map<string, SitemapEntry>) {
     for (const evt of events) {
       const key = evt.slug?.trim() || evt.id?.trim();
       if (!key) continue;
-      upsert(map, { path: `/events/${key}/`, priority: 0.64, lastmod: now });
+      upsert(map, { path: `/en/events/${key}/`, priority: 0.64, lastmod: now });
     }
   } catch {
     /* build continues with legacy + static URLs */
@@ -404,7 +386,7 @@ async function addKintanaPages(map: Map<string, SitemapEntry>) {
     for (const artist of artists) {
       const key = artist.slug?.trim();
       if (!key) continue;
-      upsert(map, { path: `/comedians/${key}/`, priority: 0.64, lastmod: now });
+      upsert(map, { path: `/en/comedians/${key}/`, priority: 0.64, lastmod: now });
     }
   } catch {
     /* noop */
@@ -416,7 +398,7 @@ async function addKintanaPages(map: Map<string, SitemapEntry>) {
     for (const city of cities) {
       const slug = slugify(city.city ?? "");
       if (!slug || !getCityBlurb("en", slug)) continue;
-      upsert(map, { path: `/locations/${slug}/`, priority: 0.64, lastmod: now });
+      upsert(map, { path: `/en/locations/${slug}/`, priority: 0.64, lastmod: now });
     }
   } catch {
     /* noop */

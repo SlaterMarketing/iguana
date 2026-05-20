@@ -9,9 +9,19 @@ interface Props {
   value: string;
   /** Where an empty slug navigates, and the URL prefix for city pages. */
   navigateTo?: "home" | "locations";
+  /** Locale-prefixed home URL (e.g. `/en/`). */
+  homeHref?: string;
+  /** Base path for city pages (e.g. `/en/locations/`). */
+  locationsBaseHref?: string;
 }
 
-const { choices, value, navigateTo = "home" } = Astro.props;
+const {
+  choices,
+  value,
+  navigateTo = "home",
+  homeHref = "/en/",
+  locationsBaseHref = "/en/locations/",
+} = Astro.props;
 
 const selected = choices.find((entry) => entry.slug === value) ?? choices[0];
 const listId = "city-picker-list";
@@ -45,6 +55,8 @@ const listId = "city-picker-list";
     role="listbox"
     hidden
     data-city-picker-navigate={navigateTo}
+    data-city-home-href={homeHref}
+    data-city-locations-base-href={locationsBaseHref}
     class="absolute bottom-[calc(100%+0.5rem)] left-0 right-0 z-50 max-h-[min(16rem,50vh)] overflow-auto rounded-2xl border border-white/15 bg-neutral-950/95 py-2 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-xl"
     data-city-picker-list
   >
@@ -111,13 +123,15 @@ const listId = "city-picker-list";
       }
 
       const navigateMode = list.dataset.cityPickerNavigate ?? "home";
+      const homePath = list.dataset.cityHomeHref ?? "/en/";
+      const locationsBase = list.dataset.cityLocationsBaseHref ?? "/en/locations/";
 
       function navigate(slug: string) {
         const path = !slug.length
           ? navigateMode === "locations"
-            ? "/locations/"
-            : "/"
-          : `/locations/${slug}/`;
+            ? locationsBase
+            : homePath
+          : `${locationsBase.replace(/\/$/, "")}/${slug}/`;
         try {
           if (slug.length) window.localStorage.setItem("iguana-preferred-city", slug);
           else window.localStorage.removeItem("iguana-preferred-city");

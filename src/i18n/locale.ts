@@ -1,18 +1,21 @@
 import type { AstroGlobal } from "astro";
 import type { Locale } from "./ui";
-import { getAlternatePath } from "./routes";
+import { getAlternatePath, localizePath } from "./routes";
 
 export type { Locale } from "./ui";
 
 export const locales: readonly Locale[] = ["en", "es"];
+/** Used when a path has no `/en` or `/es` prefix; `/` picks {@link resolveRootLocale} (cookie + Accept-Language). */
 export const defaultLocale: Locale = "en";
 
-/** Extract locale from pathname (Spanish under /es/) or, if present, Astro i18n metadata. */
+/** Extract locale from pathname (`/en/…`, `/es/…`). */
 export function getLocale(astro: AstroGlobal): Locale {
   const path = astro.url.pathname;
   if (path === "/es" || path.startsWith("/es/")) return "es";
+  if (path === "/en" || path.startsWith("/en/")) return "en";
   const lc = astro.currentLocale;
   if (lc === "es") return "es";
+  if (lc === "en") return "en";
   return "en";
 }
 
@@ -35,7 +38,7 @@ export function getAlternateUrls(
       return { locale, url: `${site}${currentPath}` };
     }
     const altPath = getAlternatePath(currentLocale, currentPath);
-    return { locale, url: altPath ? `${site}${altPath}` : `${site}/${locale}/` };
+    return { locale, url: altPath ? `${site}${altPath}` : `${site}${localizePath(locale, "home")}` };
   });
 }
 

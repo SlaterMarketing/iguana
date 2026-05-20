@@ -1,24 +1,24 @@
 ---
-import Base from "../../layouts/Base.astro";
-import Cta from "../../components/Cta.astro";
-import ExperienceStatsStrip from "../../components/ExperienceStatsStrip.astro";
-import HomeHero from "../../components/home/HomeHero.astro";
-import LocationCityCard from "../../components/LocationCityCard.astro";
-import LocationRow from "../../components/LocationRow.astro";
+import Base from "../../../layouts/Base.astro";
+import Cta from "../../../components/Cta.astro";
+import ExperienceStatsStrip from "../../../components/ExperienceStatsStrip.astro";
+import HomeHero from "../../../components/home/HomeHero.astro";
+import LocationCityCard from "../../../components/LocationCityCard.astro";
+import LocationRow from "../../../components/LocationRow.astro";
 import {
   locationCityCards,
   locationStatsCities,
   getLocationsPage,
   getLocationServices,
-} from "../../content/locations-page";
-import { heroCityChoices } from "../../content/site";
-import { mergeBrand } from "../../lib/merge-brand";
-import { loadLocationsCatalog } from "../../lib/locations-data";
-import { getKintanaEnv } from "../../lib/kintana-env";
-import { slugify } from "../../lib/slug";
-import { getLocale } from "../../i18n/locale";
-import { t } from "../../i18n/ui";
-import { localizePath } from "../../i18n/routes";
+} from "../../../content/locations-page";
+import { heroCityChoices } from "../../../content/site";
+import { mergeBrand } from "../../../lib/merge-brand";
+import { loadLocationsCatalog } from "../../../lib/locations-data";
+import { getKintanaEnv } from "../../../lib/kintana-env";
+import { slugify } from "../../../lib/slug";
+import { getLocale } from "../../../i18n/locale";
+import { t } from "../../../i18n/ui";
+import { localizePath } from "../../../i18n/routes";
 
 const locale = getLocale(Astro);
 const brandMerged = mergeBrand(Astro.locals.brandOverrides ?? {});
@@ -64,6 +64,7 @@ const cityPickerChoices = [
   description={locationsPage.intro}
 >
   <HomeHero
+    locale={locale}
     eyebrow={t(locale, "locations.eyebrow")}
     headlineLine1={t(locale, "locations.headline")}
     headlineLine2Prefix={t(locale, "locations.headlinePrefix")}

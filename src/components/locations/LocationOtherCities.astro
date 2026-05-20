@@ -2,10 +2,11 @@
 import LocationCityCard from "../LocationCityCard.astro";
 import { locationCityCards } from "../../content/locations-page";
 import type { Locale } from "../../i18n/locale";
+import { localizePath } from "../../i18n/routes";
 
 const { activeSlug, locale = "en" } = Astro.props as { activeSlug: string; locale?: Locale };
 const others = locationCityCards.filter((city) => city.slug !== activeSlug);
----
+const locationsIndex = localizePath(locale, "locations");
 
 {
   others.length > 0 ? (
@@ -28,7 +29,7 @@ const others = locationCityCards.filter((city) => city.slug !== activeSlug);
           ))}
         </div>
         <p class="mt-14 text-center">
-          <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.6rem] hover:underline" href="/locations/">
+          <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.6rem] hover:underline" href={locationsIndex}>
             All locations →
           </a>
         </p>

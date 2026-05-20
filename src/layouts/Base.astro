@@ -4,9 +4,7 @@ import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
 import { site } from "../content/site";
 import { getKintanaEnv } from "../lib/kintana-env";
-import { mergeBrand } from "../lib/merge-brand";
-import { getLocale, getCanonicalUrl, getAlternateUrls } from "../i18n/locale";
-import type { Locale } from "../i18n/locale";
+import { getLocale, getCanonicalUrl, getAlternateUrls, type Locale } from "../i18n/locale";
 import { t } from "../i18n/ui";
 
 interface Props {
@@ -38,8 +36,6 @@ function escapeAttr(v: string) {
   return v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
 
-const brand = mergeBrand(Astro.locals.brandOverrides ?? {});
-
 const canonicalUrl = getCanonicalUrl(Astro);
 const alternateUrls = getAlternateUrls(Astro);
 const ogLocale = t(locale, "seo.ogLocale");
@@ -53,7 +49,7 @@ const trackerMarkup =
   TRACK_BASE && TRACK_TOKEN
     ? `<script async src="${escapeAttr(TRACK_BASE)}/_t/k.js" data-token="${escapeAttr(
         TRACK_TOKEN
-      )}" data-api-base="${escapeAttr(TRACK_BASE)}"><\\/script>`
+      )}" data-api-base="${escapeAttr(TRACK_BASE)}"></` + `script>`
     : "";
 ---
 
@@ -98,8 +94,8 @@ const trackerMarkup =
       inLanguage: locale,
     })} />
 
-    <link rel="icon" type="image/webp" href={brand.faviconUrl} />
-    <link rel="apple-touch-icon" href={brand.faviconUrl} />
+    <link rel="icon" type="image/webp" href={site.faviconUrl} />
+    <link rel="apple-touch-icon" href={site.faviconUrl} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
@@ -108,7 +104,7 @@ const trackerMarkup =
     />
   </head>
   <body class="bg-white text-neutral-900 antialiased">
-    <Header transparent={transparentHeader} pathname={Astro.url.pathname} locale={locale} brand={brand} />
+    <Header transparent={transparentHeader} pathname={Astro.url.pathname} locale={locale} />
     <main
       class:list={[
         flushMain ? "relative w-full" : narrow ? "mx-auto max-w-6xl px-4 pb-20 pt-8 sm:px-6 lg:pt-14" : "relative w-full",

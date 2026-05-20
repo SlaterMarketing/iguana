@@ -1,6 +1,7 @@
 /** Editorial content for /locations/ — aligned with the legacy Framer page. */
 
 import { heroCityChoices } from "./site";
+import { localizePath } from "../i18n/routes";
 import type { Locale } from "../i18n/locale";
 
 export function getLocationsPage(locale: Locale) {
@@ -73,7 +74,7 @@ export function getLocationServices(locale: Locale) {
       body: isES
         ? "Iguana trabaja para traer regularmente la mejor comedia a Quintana Roo de todo el mundo, organizando shows de los que los comediantes están orgullosos de participar y el público quiere ser parte."
         : "Iguana works to regularly bring the best comedy to Quintana Roo from all across the world, hosting shows that comedians are proud to perform at and audiences want to be a part of.",
-      href: "/events/",
+      href: localizePath(isES ? "es" : "en", "events"),
     },
     {
       number: "02",
@@ -81,17 +82,17 @@ export function getLocationServices(locale: Locale) {
       body: isES
         ? "Open mics semanales y rotativos dan tiempo de escenario a cómicos locales y a viajeros la oportunidad de ver material fresco antes de que llegue al circuito de festivales."
         : "Weekly and rotating open mics give local comics stage time and travellers a chance to catch fresh material before it hits the festival circuit.",
-      href: "/events/",
+      href: localizePath(isES ? "es" : "en", "events"),
     },
     {
       number: "03",
       title: isES ? "Eventos privados corporativos" : "Private corporate events",
-      href: "/work-with-us/#private-events",
+      href: localizePath(isES ? "es" : "en", "workWithUs") + "#private-events",
     },
     {
       number: "04",
       title: isES ? "Shows para hoteles y resorts" : "Hotel and resort shows",
-      href: "/hotels-and-resorts/",
+      href: localizePath(isES ? "es" : "en", "hotelsAndResorts"),
     },
   ] as const;
 }

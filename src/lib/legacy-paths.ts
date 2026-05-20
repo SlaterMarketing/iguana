@@ -4,13 +4,13 @@ export function mapLegacyPath(pathname: string): string | null {
   if (!path.startsWith("/")) path = `/${path}`;
   if (path.length > 1 && !path.endsWith("/")) path = `${path}/`;
 
-  if (path === "/venues/") return "/locations/";
-  if (path.startsWith("/venues/")) return "/locations/";
+  if (path === "/venues/") return "/en/locations/";
+  if (path.startsWith("/venues/")) return "/en/locations/";
 
-  if (path === "/private-events/") return "/work-with-us/";
-  if (path === "/hotels-and-resorts/") return "/hotels-and-resorts/";
-  if (path === "/investors/") return "/work-with-us/";
-  if (path === "/comedy-for-everyone/") return "/about/";
+  if (path === "/private-events/") return "/en/work-with-us/";
+  if (path === "/hotels-and-resorts/") return "/en/hotels-and-resorts/";
+  if (path === "/investors/") return "/en/work-with-us/";
+  if (path === "/comedy-for-everyone/") return "/en/about/";
 
   return path;
 }

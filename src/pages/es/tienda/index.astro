@@ -7,8 +7,10 @@ import { logKintanaError, logKintanaSuccess } from "../../../lib/kintana-error";
 import { getKintanaEnv } from "../../../lib/kintana-env";
 import { site } from "../../../content/site";
 import { t } from "../../../i18n/ui";
+import { localizePath } from "../../../i18n/routes";
 
 const locale = "es";
+const storeBase = localizePath(locale, "store");
 
 const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
 const collectionFilter = Astro.url.searchParams.get("collection")?.trim() ?? "";
@@ -58,7 +60,7 @@ if (hasCredentials) {
       collections.length > 0 ? (
         <nav class="mt-14 flex flex-wrap gap-3" aria-label={t(locale, "aria.collections")}>
           <a
-            href="/store/"
+            href={storeBase}
             class:list={[
               "rounded-full border px-5 py-2 text-xs font-semibold uppercase tracking-[0.32em] transition",
               !collectionFilter ? "border-neutral-950 bg-neutral-950 text-white" : "border-neutral-300 text-neutral-700 hover:border-neutral-950",
@@ -69,7 +71,7 @@ if (hasCredentials) {
           {
             collections.map((collection) => (
               <a
-                href={`/store/?collection=${encodeURIComponent(collection.slug)}`}
+                href={`${storeBase}?collection=${encodeURIComponent(collection.slug)}`}
                 class:list={[
                   "rounded-full border px-5 py-2 text-xs font-semibold uppercase tracking-[0.32em] transition",
                   collectionFilter === collection.slug

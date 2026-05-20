@@ -1,35 +1,33 @@
 ---
-import Base from "../layouts/Base.astro";
-import Cta from "../components/Cta.astro";
-import ExperienceStatsStrip from "../components/ExperienceStatsStrip.astro";
-import HotelsFaq from "../components/hotels/HotelsFaq.astro";
-import { ContactFormIsland } from "../components/ContactFormIsland";
+import Base from "../../layouts/Base.astro";
+import Cta from "../../components/Cta.astro";
+import ExperienceStatsStrip from "../../components/ExperienceStatsStrip.astro";
+import PerformFaq from "../../components/perform/PerformFaq.astro";
+import { ContactFormIsland } from "../../components/ContactFormIsland";
 import {
-  getHotelsPage,
-  getHospitalityStats,
-  getHotelsOffers,
-  getHotelsFaq,
-} from "../content/hotels-and-resorts";
-import { site } from "../content/site";
-import { getKintanaEnv } from "../lib/kintana-env";
-import { getLocale } from "../i18n/locale";
-import { t } from "../i18n/ui";
-import { localizePath } from "../i18n/routes";
+  getPerformPage,
+  getPerformOffers,
+  getPerformFaq,
+} from "../../content/perform-with-us";
+import { site } from "../../content/site";
+import { getKintanaEnv } from "../../lib/kintana-env";
+import { getLocale } from "../../i18n/locale";
+import { t } from "../../i18n/ui";
+import { localizePath } from "../../i18n/routes";
 
 const locale = getLocale(Astro);
-const hotelsPage = getHotelsPage(locale);
-const hospitalityStats = getHospitalityStats(locale);
-const hotelsOffers = getHotelsOffers(locale);
-const hotelsFaq = getHotelsFaq(locale);
+const performPage = getPerformPage(locale);
+const performOffers = getPerformOffers(locale);
+const performFaq = getPerformFaq(locale);
 
 const { apiKey, baseUrl, formId, hasCredentials } = getKintanaEnv();
-const prefills = { subject: "hotels" };
+const prefills = { subject: "perform" };
 ---
 
 <Base
   narrow={false}
-  title={`${hotelsPage.title} · Iguana Comedy`}
-  description={hotelsPage.description}
+  title={`${performPage.title} · Iguana Comedy`}
+  description={performPage.description}
 >
   <section class="relative isolate overflow-hidden bg-brand-hover px-6 py-28 text-center text-white sm:py-36">
     <div
@@ -38,22 +36,22 @@ const prefills = { subject: "hotels" };
       aria-hidden="true"
     ></div>
     <h1
-      class="relative z-10 font-display text-[clamp(2.25rem,6.5vw,6.25rem)] uppercase leading-[0.95] tracking-wide"
+      class="relative z-10 font-display text-[clamp(3rem,8vw,6.25rem)] uppercase leading-[0.95] tracking-wide"
       style="font-family: var(--font-display);"
     >
-      {hotelsPage.title}
+      {performPage.title}
     </h1>
   </section>
 
   <section class="mx-auto max-w-3xl px-6 py-20 text-center sm:py-28">
-    {hotelsPage.intro.map((paragraph) => (
+    {performPage.intro.map((paragraph) => (
       <p class="mt-8 text-lg leading-relaxed text-neutral-800 first:mt-0 sm:text-xl">{paragraph}</p>
     ))}
   </section>
 
   <section class="mx-auto max-w-[118rem] px-6 pb-20">
     <div class="grid gap-4 sm:grid-cols-3">
-      {hotelsPage.galleryImages.map((src) => (
+      {performPage.galleryImages.map((src) => (
         <div class="overflow-hidden rounded-[2rem] shadow-[0_16px_48px_rgba(0,0,0,0.1)]">
           <img src={src} alt="" class="aspect-[4/3] size-full object-cover" loading="lazy" decoding="async" />
         </div>
@@ -62,18 +60,16 @@ const prefills = { subject: "hotels" };
   </section>
 
   <section class="border-t border-black/10 bg-neutral-50">
-    <div class="mx-auto max-w-[118rem] px-6 py-20 sm:py-28">
-      <div class="grid gap-12 lg:grid-cols-2 lg:gap-20">
-        <h2
-          class="font-display text-3xl uppercase leading-[1.08] text-neutral-950 sm:text-4xl lg:text-[2.75rem]"
-          style="font-family: var(--font-display);"
-        >
-          {hotelsPage.credibilityHeading}
-        </h2>
-        <p class="text-lg leading-relaxed text-neutral-700 lg:pt-2">{hotelsPage.credibilityBody}</p>
-      </div>
-      <div class="mt-14">
-        <ExperienceStatsStrip stats={hospitalityStats} locale={locale} />
+    <div class="mx-auto max-w-4xl px-6 py-20 text-center sm:py-28">
+      <h2
+        class="font-display text-3xl uppercase leading-[1.08] text-neutral-950 sm:text-4xl"
+        style="font-family: var(--font-display);"
+      >
+        {performPage.pilgrimageHeading}
+      </h2>
+      <p class="mx-auto mt-8 max-w-2xl text-lg leading-relaxed text-neutral-700">{performPage.pilgrimageBody}</p>
+      <div class="mx-auto mt-14 max-w-3xl">
+        <ExperienceStatsStrip locale={locale} />
       </div>
     </div>
   </section>
@@ -83,11 +79,11 @@ const prefills = { subject: "hotels" };
       class="text-center font-display text-3xl uppercase text-neutral-950 sm:text-4xl"
       style="font-family: var(--font-display);"
     >
-      {hotelsPage.offersHeading}
+      {performPage.offersHeading}
     </h2>
     <ul class="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {
-        hotelsOffers.map((offer) => (
+        performOffers.map((offer) => (
           <li
             class:list={[
               "flex min-h-[8.5rem] items-center justify-center rounded-[1.75rem] px-6 py-8 text-center font-display text-xl uppercase leading-snug tracking-wide sm:text-2xl",
@@ -105,12 +101,12 @@ const prefills = { subject: "hotels" };
   </section>
 
   <section class="mx-auto max-w-[118rem] border-t border-black/10 px-6 py-20 sm:py-28">
-    <HotelsFaq faq={hotelsFaq} />
+    <PerformFaq faq={performFaq} />
   </section>
 
-  <section id="enquire" class="relative isolate scroll-mt-24 overflow-hidden">
+  <section id="apply" class="relative isolate scroll-mt-24 overflow-hidden">
     <img
-      src={hotelsPage.formBackdrop}
+      src={performPage.formBackdrop}
       alt=""
       class="absolute inset-0 size-full object-cover"
       loading="lazy"
@@ -122,15 +118,15 @@ const prefills = { subject: "hotels" };
           class="text-center font-display text-4xl text-brand-hover sm:text-5xl"
           style="font-family: var(--font-display); color: var(--color-brand-hover);"
         >
-          {hotelsPage.formHeading}
+          {performPage.formHeading}
         </h2>
-        <p class="mx-auto mt-6 max-w-xl text-center text-neutral-700">{hotelsPage.formIntro}</p>
+        <p class="mx-auto mt-6 max-w-xl text-center text-neutral-700">{performPage.formIntro}</p>
 
         <div class="mt-12">
           {
             !hasCredentials || !formId ? (
               <p class="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-8 text-center text-neutral-950">
-                {t(locale, "hotels.formUnavailable").replace("{email}", site.email)}
+                {t(locale, "perform.formUnavailable").replace("{email}", site.email)}
               </p>
             ) : (
               <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} formId={formId} prefills={prefills} hideHeading />
@@ -139,7 +135,7 @@ const prefills = { subject: "hotels" };
         </div>
 
         <p class="mt-12 text-center text-xs font-semibold uppercase tracking-[0.4em] text-neutral-500">
-          {t(locale, "hotels.orMessageSocials")}
+          {t(locale, "perform.orMessageSocials")}
         </p>
         <nav class="mt-6 flex flex-wrap justify-center gap-x-10 gap-y-4 text-sm text-neutral-800">
           <a class="hover:text-brand" href={site.instagramUrl} target="_blank" rel="noreferrer noopener">
@@ -162,11 +158,11 @@ const prefills = { subject: "hotels" };
   </section>
 
   <Cta
-    eyebrow={t(locale, "cta.eyebrow.programming")}
+    eyebrow={t(locale, "cta.eyebrow.audiences")}
     headline={t(locale, "cta.headline.readyToLaugh")}
-    body={t(locale, "cta.body.hotels")}
+    body={t(locale, "cta.body.perform")}
     ctaHref={localizePath(locale, "events")}
-    secondaryHref={`${localizePath(locale, "contact")}?subject=hotels`}
+    secondaryHref={localizePath(locale, "contact")}
     secondaryLabel={t(locale, "cta.secondaryLabel.talkWithUs")}
     locale={locale}
   />
