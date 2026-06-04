@@ -8,11 +8,14 @@ interface Props {
   choices: Choice[];
   value: string;
   /** Where an empty slug navigates, and the URL prefix for city pages. */
-  navigateTo?: "home" | "locations";
+  navigateTo?: "home" | "locations" | "events";
   /** Locale-prefixed home URL (e.g. `/en/`). */
   homeHref?: string;
   /** Base path for city pages (e.g. `/en/locations/`). */
   locationsBaseHref?: string;
+  /** Base path for events calendar (e.g. `/en/events/`). */
+  eventsBaseHref?: string;
+  variant?: "dark" | "light";
 }
 
 const {
@@ -21,16 +24,24 @@ const {
   navigateTo = "home",
   homeHref = "/en/",
   locationsBaseHref = "/en/locations/",
+  eventsBaseHref = "/en/events/",
+  variant = "dark",
 } = Astro.props;
 
 const selected = choices.find((entry) => entry.slug === value) ?? choices[0];
 const listId = "city-picker-list";
+const isLight = variant === "light";
 ---
 
 <div class="city-picker relative mt-3 max-w-xs" data-city-picker>
   <button
     type="button"
-    class="flex w-full items-center justify-between gap-3 rounded-full border border-white/30 bg-neutral-950/45 px-5 py-[0.85rem] text-left text-sm text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md transition hover:border-white/50"
+    class:list={[
+      "flex w-full items-center justify-between gap-3 rounded-full px-5 py-[0.85rem] text-left text-sm transition",
+      isLight
+        ? "border border-neutral-200 bg-white text-neutral-950 shadow-sm hover:border-neutral-300"
+        : "border border-white/30 bg-neutral-950/45 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md hover:border-white/50",
+    ]}
     aria-haspopup="listbox"
     aria-expanded="false"
     aria-controls={listId}
@@ -38,7 +49,10 @@ const listId = "city-picker-list";
   >
     <span class="truncate font-medium tracking-wide" data-city-picker-label>{selected?.label ?? "Whole coastline"}</span>
     <svg
-      class="city-picker-chevron size-4 shrink-0 text-white/80 transition-transform"
+      class:list={[
+        "city-picker-chevron size-4 shrink-0 transition-transform",
+        isLight ? "text-neutral-500" : "text-white/80",
+      ]}
       viewBox="0 0 20 20"
       fill="currentColor"
       aria-hidden="true"
@@ -57,7 +71,13 @@ const listId = "city-picker-list";
     data-city-picker-navigate={navigateTo}
     data-city-home-href={homeHref}
     data-city-locations-base-href={locationsBaseHref}
-    class="absolute bottom-[calc(100%+0.5rem)] left-0 right-0 z-50 max-h-[min(16rem,50vh)] overflow-auto rounded-2xl border border-white/15 bg-neutral-950/95 py-2 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+    data-city-events-base-href={eventsBaseHref}
+    class:list={[
+      "absolute left-0 right-0 z-50 max-h-[min(16rem,50vh)] overflow-auto rounded-2xl py-2",
+      isLight
+        ? "top-[calc(100%+0.5rem)] border border-neutral-200 bg-white shadow-[0_16px_48px_rgba(0,0,0,0.12)]"
+        : "bottom-[calc(100%+0.5rem)] border border-white/15 bg-neutral-950/95 shadow-[0_16px_48px_rgba(0,0,0,0.45)] backdrop-blur-xl",
+    ]}
     data-city-picker-list
   >
     {
@@ -71,9 +91,13 @@ const listId = "city-picker-list";
               aria-selected={isSelected ? "true" : "false"}
               class:list={[
                 "flex w-full px-4 py-2.5 text-left text-sm transition",
-                isSelected
-                  ? "bg-brand/25 font-semibold text-white"
-                  : "text-neutral-200 hover:bg-white/10 hover:text-white",
+                isLight
+                  ? isSelected
+                    ? "bg-brand/15 font-semibold text-neutral-950"
+                    : "text-neutral-700 hover:bg-neutral-100 hover:text-neutral-950"
+                  : isSelected
+                    ? "bg-brand/25 font-semibold text-white"
+                    : "text-neutral-200 hover:bg-white/10 hover:text-white",
               ]}
               data-city-option
               data-value={entry.slug}
@@ -125,13 +149,17 @@ const listId = "city-picker-list";
       const navigateMode = list.dataset.cityPickerNavigate ?? "home";
       const homePath = list.dataset.cityHomeHref ?? "/en/";
       const locationsBase = list.dataset.cityLocationsBaseHref ?? "/en/locations/";
+      const eventsBase = list.dataset.cityEventsBaseHref ?? "/en/events/";
 
       function navigate(slug: string) {
-        const path = !slug.length
-          ? navigateMode === "locations"
-            ? locationsBase
-            : homePath
-          : `${locationsBase.replace(/\/$/, "")}/${slug}/`;
+        let path: string;
+        if (navigateMode === "events") {
+          path = slug.length ? `${eventsBase}?city=${encodeURIComponent(slug)}` : eventsBase;
+        } else if (!slug.length) {
+          path = navigateMode === "locations" ? locationsBase : homePath;
+        } else {
+          path = `${locationsBase.replace(/\/$/, "")}/${slug}/`;
+        }
         try {
           if (slug.length) window.localStorage.setItem("iguana-preferred-city", slug);
           else window.localStorage.removeItem("iguana-preferred-city");

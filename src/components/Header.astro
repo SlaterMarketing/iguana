@@ -53,14 +53,18 @@ const esPath =
   <div
     data-header-track=""
     class:list={[
-      "header-track mx-auto flex w-full max-w-[110rem] items-center justify-between gap-3 px-4 py-4 transition-all duration-300 ease-out sm:px-8 sm:py-5",
+      "header-track mx-auto w-full max-w-[110rem] px-4 py-4 transition-all duration-300 ease-out sm:px-8 sm:py-5",
       transparent ? "pointer-events-auto" : "border-b border-black/10 bg-white/95 backdrop-blur-md",
     ]}
   >
     <div
-      data-header-nav-cluster=""
-      class="header-nav-cluster flex min-w-0 flex-1 items-center justify-between gap-3 rounded-full bg-white px-4 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out sm:gap-x-8 sm:px-8 sm:py-3 md:flex-initial md:justify-start"
+      data-header-bar=""
+      class="header-bar mx-auto flex w-full max-w-[110rem] items-center justify-between gap-3 transition-all duration-300 ease-out md:gap-4"
     >
+      <div
+        data-header-nav-cluster=""
+        class="header-nav-cluster flex min-w-0 flex-1 items-center justify-between gap-3 rounded-full bg-white px-4 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out sm:gap-x-8 sm:px-8 sm:py-3 md:flex-initial md:justify-start"
+      >
       <a href={localizePath(locale, "home")} class="shrink-0">
         <img
           src={brand.heroLogoUrl}
@@ -120,18 +124,17 @@ const esPath =
       </div>
     </div>
 
-    <div class="flex shrink-0 items-center gap-2 sm:gap-3">
-      <a
-        href={localizePath(locale, "events")}
-        data-header-cta=""
-        class="header-cta btn-pill hidden items-center gap-2 rounded-full bg-white px-6 py-2.5 text-[0.62rem] font-bold uppercase tracking-[0.22em] text-neutral-950 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out sm:inline-flex sm:px-8 sm:py-3 sm:text-[0.65rem] sm:tracking-[0.26em]"
-        aria-label={t(locale, "nav.cta")}
-      >
-        {t(locale, "nav.cta")}
-        <svg class="btn-pill-arrow h-[0.65rem] w-[1.1rem] shrink-0 text-brand transition-colors" viewBox="0 0 22 14" aria-hidden="true">
-          <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m2 7h18m-6-6 6 6-6 6" />
-        </svg>
-      </a>
+    <a
+      href={localizePath(locale, "events")}
+      data-header-cta=""
+      class="header-cta btn-pill hidden shrink-0 items-center gap-2 rounded-full bg-white px-6 py-2.5 text-[0.62rem] font-bold uppercase tracking-[0.22em] text-neutral-950 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out sm:inline-flex sm:px-8 sm:py-3 sm:text-[0.65rem] sm:tracking-[0.26em]"
+      aria-label={t(locale, "nav.cta")}
+    >
+      {t(locale, "nav.cta")}
+      <svg class="btn-pill-arrow h-[0.65rem] w-[1.1rem] shrink-0 text-brand transition-colors" viewBox="0 0 22 14" aria-hidden="true">
+        <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m2 7h18m-6-6 6 6-6 6" />
+      </svg>
+    </a>
     </div>
   </div>
 
@@ -235,7 +238,7 @@ const esPath =
     if (!(header instanceof HTMLElement) || header.dataset.headerScrollReady === "1") return;
     header.dataset.headerScrollReady = "1";
 
-    const threshold = 56;
+    const threshold = 32;
     const desktopNav = window.matchMedia("(min-width: 768px)");
 
     function update() {
@@ -322,23 +325,25 @@ const esPath =
     }
 
     .site-header[data-scrolled] .header-track {
-      width: 80vw;
-      max-width: 72rem;
+      border-bottom-color: transparent;
+      background-color: transparent;
+      backdrop-filter: none;
+    }
+
+    .site-header[data-scrolled] .header-bar {
+      width: min(96vw, 84rem);
       flex-wrap: nowrap;
       gap: 1rem;
-      border: 1px solid #000;
+      border: 1px solid rgba(0, 0, 0, 0.12);
       border-radius: 9999px;
       background-color: #fff;
       padding: 0.45rem 0.55rem 0.45rem 1.25rem;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
     }
 
-    .site-header[data-transparent-bg="1"][data-scrolled] .header-track {
-      border-bottom: 1px solid #000;
-      backdrop-filter: none;
-    }
-
     .site-header[data-scrolled] .header-nav-cluster {
+      flex: 1;
+      border-radius: 0;
       background: transparent;
       box-shadow: none;
       padding: 0.35rem 0;

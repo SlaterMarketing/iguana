@@ -1,6 +1,6 @@
 ---
 import type { KintanaPublicEvent } from "@kintana/sdk";
-import { eventCitySlug, eventSupportsOnSiteCheckout, formatEventScheduleLine, formatMinorUnitsPrice } from "../lib/events";
+import { eventCitySlug, eventSupportsOnSiteCheckout, eventLanguageLabel, formatEventScheduleLine, formatMinorUnitsPrice } from "../lib/events";
 import { t } from "../i18n/ui";
 import { localizePath } from "../i18n/routes";
 import type { Locale } from "../i18n/locale";
@@ -27,6 +27,7 @@ const posterDesktopSrc = evt.imageUrl?.trim() || evt.imageUrlMobile?.trim();
 
 const priceFormatted = formatMinorUnitsPrice(evt, locale);
 const priceLabel = priceFormatted ? t(locale, "events.priceStarting").replace("{price}", priceFormatted) : null;
+const languageLabel = eventLanguageLabel(evt, locale);
 
 const statusBadge =
   past
@@ -126,6 +127,9 @@ const emphasized =
         }
 
         <p class="text-base leading-relaxed opacity-[0.93]">{meta}</p>
+        <p class="text-xs font-semibold uppercase tracking-[0.35em] opacity-85">
+          {t(locale, "events.offeredIn").replace("{language}", languageLabel)}
+        </p>
         {priceLabel ? <p class="text-sm font-medium opacity-[0.9]">{priceLabel}</p> : null}
       </div>
 

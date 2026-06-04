@@ -1,0 +1,158 @@
+---
+import Base from "../../layouts/Base.astro";
+import CityPicker from "../CityPicker.astro";
+import EventRow from "../EventRow.astro";
+import { createKintanaClient } from "@kintana/sdk";
+import type { KintanaPublicEvent } from "@kintana/sdk";
+import { heroCityChoices } from "../../content/site";
+import { eventCitySlug, groupEventsByMonth } from "../../lib/events";
+import { loadEventsForCalendarPages } from "../../lib/events-catalog";
+import { logKintanaError, logKintanaSuccess, kintanaHttpStatus } from "../../lib/kintana-error";
+import { getKintanaEnv } from "../../lib/kintana-env";
+import type { Locale } from "../../i18n/locale";
+import { t } from "../../i18n/ui";
+import { localizePath } from "../../i18n/routes";
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+
+const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
+
+const citySlugFilter = Astro.url.searchParams.get("city") ?? "";
+
+const cityPickerChoices = [
+  { slug: "", label: locale === "es" ? "Toda la costa" : "Whole coastline" },
+  ...heroCityChoices.filter((entry) => entry.slug !== ""),
+];
+
+const activeCityLabel = cityPickerChoices.find((entry) => entry.slug === citySlugFilter)?.label;
+
+let upcoming: KintanaPublicEvent[] = [];
+let past: KintanaPublicEvent[] = [];
+let listingsRequestFailed = false;
+let listingsHttpStatus: number | undefined;
+
+if (hasCredentials) {
+  try {
+    const client = createKintanaClient({ apiKey, baseUrl });
+    const loaded = await loadEventsForCalendarPages(client);
+    upcoming = loaded.upcoming;
+    past = loaded.past;
+    logKintanaSuccess(`listEvents /events (calendar)`, upcoming.length + past.length);
+  } catch (err) {
+    logKintanaError("listEvents /events", err);
+    listingsHttpStatus = kintanaHttpStatus(err);
+    listingsRequestFailed = true;
+    upcoming = [];
+    past = [];
+  }
+}
+
+if (citySlugFilter) {
+  upcoming = upcoming.filter((evt) => eventCitySlug(evt) === citySlugFilter);
+  past = past.filter((evt) => eventCitySlug(evt) === citySlugFilter);
+}
+
+const upcomingGrouped = groupEventsByMonth(upcoming, "asc", locale);
+const pastGrouped = groupEventsByMonth(past, "desc", locale);
+const hasAnyShows = upcomingGrouped.size > 0 || pastGrouped.size > 0;
+
+const emptyMessage =
+  citySlugFilter && activeCityLabel
+    ? t(locale, "home.eventsEmptyCity").replace("{city}", activeCityLabel)
+    : t(locale, "events.empty");
+---
+
+<Base narrow={false} title={`${t(locale, "events.title")} · Iguana Comedy`} transparentHeader={false}>
+  <section class="mx-auto max-w-6xl px-6 pb-24 pt-20">
+    <div class="max-w-xs">
+      <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">
+        {locale === "es" ? "Ciudad destacada" : "Spotlight city"}
+      </p>
+      <CityPicker
+        variant="light"
+        navigateTo="events"
+        eventsBaseHref={localizePath(locale, "events")}
+        choices={cityPickerChoices}
+        value={citySlugFilter}
+      />
+    </div>
+
+    {!hasCredentials ? (
+      <div class="mt-16 rounded-3xl border border-amber-200 bg-amber-50 px-6 py-6 text-neutral-950">
+        {t(locale, "events.noCredentials")}
+      </div>
+    ) : listingsRequestFailed ? (
+      <div class="mt-16 space-y-3 rounded-3xl border border-red-300 bg-red-50 px-6 py-12 text-neutral-900">
+        <p class="font-semibold">
+          {
+            listingsHttpStatus === 401
+              ? t(locale, "events.error.401")
+              : listingsHttpStatus != null
+                ? t(locale, "events.error.http").replace("{status}", String(listingsHttpStatus))
+                : t(locale, "events.error.generic")
+          }
+        </p>
+        {listingsHttpStatus === 401 ? (
+          <p class="text-sm leading-relaxed">
+            {t(locale, "events.error.401Help")}
+          </p>
+        ) : (
+          <p class="text-sm leading-relaxed">{t(locale, "events.error.logsHelp")}</p>
+        )}
+      </div>
+    ) : !hasAnyShows ? (
+      <div class="mt-16 rounded-3xl border border-neutral-200 px-6 py-12 text-neutral-700">
+        {emptyMessage}
+      </div>
+    ) : (
+      <div class="mt-20 space-y-28">
+        <div>
+          <h2 class="font-display text-3xl text-neutral-950" style="font-family: var(--font-display);">
+            {citySlugFilter && activeCityLabel
+              ? t(locale, "home.upcomingIn").replace("{city}", activeCityLabel)
+              : t(locale, "ui.upcomingShows")}
+          </h2>
+          {upcomingGrouped.size === 0 ? (
+            <p class="mt-8 text-neutral-600">{t(locale, "events.noUpcoming")}</p>
+          ) : (
+            <div class="mt-14 space-y-24">
+              {Array.from(upcomingGrouped.entries()).map(([month, rows]) => (
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{month}</p>
+                  <div class="mt-10 grid gap-12 lg:gap-14">
+                    {rows.map((evt) => (
+                      <EventRow evt={evt} highlightCity={citySlugFilter} locale={locale} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {pastGrouped.size > 0 ? (
+          <div class="border-t border-neutral-200 pt-28">
+            <h2 class="font-display text-3xl text-neutral-950" style="font-family: var(--font-display);">{t(locale, "ui.pastShows")}</h2>
+            <p class="mt-6 max-w-2xl text-neutral-600">{t(locale, "events.pastDescription")}</p>
+            <div class="mt-14 space-y-24">
+              {Array.from(pastGrouped.entries()).map(([month, rows]) => (
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{month}</p>
+                  <div class="mt-10 grid gap-12 lg:gap-14">
+                    {rows.map((evt) => (
+                      <EventRow evt={evt} highlightCity={citySlugFilter} past locale={locale} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    )}
+  </section>
+</Base>

@@ -1,0 +1,33 @@
+---
+interface Props {
+  faq: ReadonlyArray<{ question: string; answer: string; open?: boolean }>;
+  title: string;
+}
+
+const { faq, title } = Astro.props;
+---
+
+<section class="space-y-8">
+  <h2 class="font-display text-3xl uppercase tracking-wide text-neutral-950 sm:text-4xl" style="font-family: var(--font-display);">
+    {title}
+  </h2>
+  <div class="divide-y divide-black/10 border-t border-black/10">
+    {
+      faq.map((item) => (
+        <details class="group py-6" open={item.open ? true : undefined}>
+          <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-base font-semibold text-neutral-950 sm:text-lg">
+            <span>{item.question}</span>
+            <span class="shrink-0 text-xl text-brand transition group-open:rotate-45" aria-hidden="true">+</span>
+          </summary>
+          <p class="mt-4 max-w-2xl text-base leading-relaxed text-neutral-700">{item.answer}</p>
+        </details>
+      ))
+    }
+  </div>
+</section>
+
+<style>
+  details > summary::-webkit-details-marker {
+    display: none;
+  }
+</style>

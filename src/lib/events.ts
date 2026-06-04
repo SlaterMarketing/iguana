@@ -148,22 +148,38 @@ export function formatEventScheduleLine(
   return parts.join(" · ");
 }
 
+/** Human-readable show language for listings (defaults to English). */
+export function eventLanguageLabel(
+  event: Pick<KintanaPublicEvent, "language">,
+  locale: Locale = "en"
+): string {
+  return event.language === "es"
+    ? locale === "es"
+      ? "Español"
+      : "Spanish"
+    : locale === "es"
+      ? "Inglés"
+      : "English";
+}
+
 /** Formatted money from ticketing minor units (`priceFrom`) when present on the event payload. */
 export function formatMinorUnitsPrice(
   event: Pick<KintanaPublicEvent, "priceFrom" | "priceCurrency">,
   locale: Locale = "en"
 ): string | null {
   if (event.priceFrom == null) return null;
-  const currency = event.priceCurrency?.trim() || "USD";
+  const currency = (event.priceCurrency?.trim() || "USD").toUpperCase();
   const major = event.priceFrom / 100;
+  const digits = major % 1 === 0 ? major.toFixed(0) : major.toFixed(2);
   try {
-    return new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", {
+    const amount = new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", {
       style: "currency",
       currency,
       maximumFractionDigits: major % 1 === 0 ? 0 : 2,
     }).format(major);
+    return `${amount}${currency}`;
   } catch {
-    return `${major % 1 === 0 ? major.toFixed(0) : major.toFixed(2)} ${currency}`;
+    return `$${digits}${currency}`;
   }
 }
 

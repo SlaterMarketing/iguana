@@ -122,6 +122,10 @@ export const ui = {
     "events.notFound": "This show is resting—head back to the calendar.",
     "events.priceStarting": "From {price}",
     "events.ticketsUnavailable": "Tickets unavailable for now—please check listing details.",
+    "events.venueTitle": "The venue",
+    "events.viewOnMaps": "View on Google Maps",
+    "events.faqTitle": "Frequently asked questions",
+    "events.offeredIn": "Offered in {language}",
 
     "tickets.back.showDetails": "Show details",
     "tickets.back.calendar": "Calendar",
@@ -338,6 +342,10 @@ export const ui = {
     "events.notFound": "Este show está descansando—regresa al calendario.",
     "events.priceStarting": "Desde {price}",
     "events.ticketsUnavailable": "Boletos no disponibles por ahora—revisa los detalles del listing.",
+    "events.venueTitle": "El venue",
+    "events.viewOnMaps": "Ver en Google Maps",
+    "events.faqTitle": "Preguntas frecuentes",
+    "events.offeredIn": "Ofrecido en {language}",
 
     "tickets.back.showDetails": "Detalles del show",
     "tickets.back.calendar": "Calendario",

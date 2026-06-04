@@ -1,0 +1,253 @@
+---
+import Base from "../../layouts/Base.astro";
+import EventCheckoutWidget from "../EventCheckoutWidget.astro";
+import EventFaq from "./EventFaq.astro";
+import type { KintanaPublicEvent } from "@kintana/sdk";
+import {
+  eventSupportsOnSiteCheckout,
+  formatEventScheduleLine,
+  formatEventTime,
+  formatMinorUnitsPrice,
+  eventLanguageLabel,
+} from "../../lib/events";
+import {
+  eventVenueLabel,
+  eventVenueMapsUrl,
+  formatEventHeroDateParts,
+  splitEventDisplayTitle,
+} from "../../lib/event-hero";
+import { getEventTicketingFaq } from "../../content/event-ticketing-faq";
+import { formatStarRating, pressQuotes } from "../../content/press-quotes";
+import { t } from "../../i18n/ui";
+import { localizePath } from "../../i18n/routes";
+import type { Locale } from "../../i18n/locale";
+
+interface Props {
+  event: KintanaPublicEvent | null;
+  locale: Locale;
+}
+
+const { event, locale } = Astro.props;
+
+const ticketingBlocked = Boolean(event?.status === "sold-out" || event?.status === "postponed");
+const onSiteCheckout = event ? eventSupportsOnSiteCheckout(event) : false;
+const posterMobileSrc = event?.imageUrlMobile?.trim() || event?.imageUrl;
+const posterDesktopSrc = event?.imageUrl?.trim() || event?.imageUrlMobile?.trim();
+const heroPoster = posterDesktopSrc ?? posterMobileSrc;
+const dateParts = event ? formatEventHeroDateParts(event.date, locale) : null;
+const { headline, subtitle } = event ? splitEventDisplayTitle(event.name) : { headline: "", subtitle: null };
+const venueName = event ? eventVenueLabel(event) : "";
+const venueAddress = event?.venue?.address?.trim() || "";
+const mapsUrl = event ? eventVenueMapsUrl(event) : null;
+const priceFormatted = event ? formatMinorUnitsPrice(event, locale) : null;
+const showTimeLabel = event ? formatEventTime(event.showTime, locale) : null;
+const faq = getEventTicketingFaq(locale);
+const languageLabel = event ? eventLanguageLabel(event, locale) : "";
+---
+
+<Base
+  title={event ? `${event.name} · ${t(locale, "events.title")}` : `${t(locale, "events.title")} · Iguana Comedy`}
+  narrow={false}
+  transparentHeader={Boolean(event && heroPoster)}
+  flushMain={Boolean(event && heroPoster)}
+>
+  {
+    !event ? (
+      <section class="mx-auto max-w-5xl px-6 pb-24 pt-20">
+        <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.5rem] hover:underline" href={localizePath(locale, "events")}>
+          {t(locale, "events.backToCalendar")}
+        </a>
+        <p class="mt-24 text-neutral-600">{t(locale, "events.notFound")}</p>
+      </section>
+    ) : (
+      <>
+        {
+          heroPoster ? (
+            <section class="relative isolate min-h-[min(52vh,28rem)] w-full bg-neutral-950 md:min-h-[min(58vh,32rem)]">
+              <img src={heroPoster} alt="" class="absolute inset-0 hidden size-full object-cover md:block" loading="eager" />
+              <img src={posterMobileSrc ?? heroPoster} alt="" class="absolute inset-0 size-full object-cover md:hidden" loading="eager" />
+              <div class="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/55 to-neutral-950/25" aria-hidden="true" />
+
+              <div class="relative z-10 flex min-h-[inherit] flex-col justify-end px-4 pb-28 pt-24 sm:px-6 lg:px-10">
+                <a class="mb-8 inline-flex text-xs font-semibold uppercase tracking-[0.45em] text-white/85 hover:text-white" href={localizePath(locale, "events")}>
+                  {t(locale, "events.backToCalendar")}
+                </a>
+
+                {
+                  dateParts ? (
+                    <div class="mb-6 flex flex-wrap items-end gap-3">
+                      <div class="flex min-w-[4.5rem] flex-col items-center rounded-lg bg-brand px-3 py-2.5 text-center text-neutral-950 shadow-lg">
+                        <span class="text-[10px] font-semibold uppercase tracking-wide">{dateParts.weekday}</span>
+                        <span class="font-display text-2xl leading-none" style="font-family: var(--font-display);">{dateParts.day}</span>
+                        <span class="text-[10px] font-semibold uppercase tracking-wide">{dateParts.month}</span>
+                        {event.city ? <span class="mt-1 max-w-[6rem] truncate text-[9px] font-medium opacity-90">{event.city}</span> : null}
+                      </div>
+                      {
+                        event.status === "sold-out" || event.status === "postponed" ? (
+                          <span class="rounded-full bg-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-white backdrop-blur-sm">
+                            {event.status === "sold-out" ? t(locale, "ui.soldOut") : t(locale, "ui.postponed")}
+                          </span>
+                        ) : null
+                      }
+                    </div>
+                  ) : null
+                }
+
+                <h1 class="max-w-4xl font-display text-[clamp(2.75rem,6vw,4.5rem)] leading-[0.95] text-white" style="font-family: var(--font-display);">
+                  {headline}
+                </h1>
+                {subtitle ? <p class="mt-3 max-w-2xl text-xl text-white/90 md:text-2xl">{subtitle}</p> : null}
+              </div>
+            </section>
+          ) : (
+            <section class="border-b border-black/10 bg-neutral-50 px-6 pb-10 pt-24">
+              <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.5rem] hover:underline" href={localizePath(locale, "events")}>
+                {t(locale, "events.backToCalendar")}
+              </a>
+              <h1 class="mt-10 font-display text-5xl text-neutral-950" style="font-family: var(--font-display);">{headline}</h1>
+              {subtitle ? <p class="mt-3 text-xl text-neutral-600">{subtitle}</p> : null}
+            </section>
+          )
+        }
+
+        <section class="relative bg-white pb-28 pt-12 md:pb-20">
+          <div class="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,22rem)] lg:items-start lg:gap-14 lg:px-8">
+            <div class="min-w-0 space-y-10 text-neutral-950 md:text-left">
+              {
+                !heroPoster ? (
+                  <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{formatEventScheduleLine(event, locale)}</p>
+                ) : null
+              }
+
+              {
+                event.headliner && event.headliner.name !== headline ? (
+                  <p class="text-sm font-semibold uppercase tracking-[0.38em] text-neutral-500">
+                    {t(locale, "events.spotlight").replace("{name}", event.headliner.name)}
+                  </p>
+                ) : null
+              }
+
+              {
+                event.description || event.longDescription ? (
+                  <div class="space-y-4 text-lg leading-relaxed text-neutral-700">
+                    {event.description ? <p>{event.description}</p> : null}
+                    {
+                      event.longDescription
+                        ? event.longDescription
+                            .split(/\r?\n\s*\r?\n/)
+                            .filter((chunk) => chunk.trim().length > 0)
+                            .map((chunk) => <p>{chunk.trim()}</p>)
+                        : null
+                    }
+                  </div>
+                ) : null
+              }
+
+              {
+                onSiteCheckout && !ticketingBlocked ? (
+                  <p class="lg:hidden">
+                    <a href="#tickets" class="inline-flex rounded-full bg-neutral-950 px-10 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-white hover:opacity-95">
+                      {t(locale, "ui.buyTickets")}
+                    </a>
+                  </p>
+                ) : null
+              }
+
+              <ul class="space-y-3 border-y border-black/10 py-8 text-sm text-neutral-700">
+                {
+                  pressQuotes.map((item) => (
+                    <li class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                      {item.quote ? <span class="text-neutral-800">‘{item.quote}’</span> : null}
+                      <span class="text-brand">{formatStarRating(item.stars)}</span>
+                      <span class="text-neutral-500">{item.source}</span>
+                    </li>
+                  ))
+                }
+              </ul>
+
+              {
+                venueName ? (
+                  <section id="venue" class="space-y-4">
+                    <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-400">{t(locale, "events.venueTitle")}</h2>
+                    <div class="space-y-2">
+                      <p class="text-xl font-semibold text-neutral-950">{venueName}</p>
+                      {venueAddress ? <p class="text-base text-neutral-600">{venueAddress}</p> : null}
+                      {
+                        mapsUrl ? (
+                          <a href={mapsUrl} target="_blank" rel="noopener noreferrer" class="inline-flex text-sm font-semibold text-brand underline-offset-4 hover:underline">
+                            {t(locale, "events.viewOnMaps")}
+                          </a>
+                        ) : null
+                      }
+                    </div>
+                  </section>
+                ) : null
+              }
+
+              {
+                event.lineup.length ? (
+                  <section class="space-y-6">
+                    <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-400">{t(locale, "events.featuredVoices")}</h2>
+                    <ul class="space-y-4">
+                      {event.lineup.map((member) => (
+                        <li class="flex items-center gap-4 border-b border-black/10 pb-4">
+                          {member.imageUrl ? <img src={member.imageUrl} alt="" class="size-14 rounded-2xl object-cover" loading="lazy" /> : null}
+                          <div class="min-w-0 flex-1">
+                            <a class="text-lg font-semibold text-neutral-950 hover:text-brand" href={localizePath(locale, "comedianDetail", { slug: member.slug })}>
+                              {member.name}
+                            </a>
+                            {member.role ? <p class="text-sm text-neutral-500">{member.role}</p> : null}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  </section>
+                ) : null
+              }
+
+              <EventFaq faq={faq} title={t(locale, "events.faqTitle")} />
+            </div>
+
+            <aside class="min-w-0 lg:sticky lg:top-24 lg:self-start">
+              {
+                onSiteCheckout ? (
+                  <div class="overflow-hidden rounded-xl bg-white shadow-[0_18px_50px_-24px_rgba(0,0,0,0.45)] ring-1 ring-black/10">
+                    <div class="bg-brand px-4 py-3 text-center">
+                      <h2 class="text-base font-bold uppercase tracking-[0.28em] text-neutral-950">{t(locale, "ui.buyTickets")}</h2>
+                      <p class="mt-1 text-xs font-medium text-neutral-900/85">{formatEventScheduleLine(event, locale)}</p>
+                      {showTimeLabel ? <p class="text-xs text-neutral-900/75">{showTimeLabel}</p> : null}
+                      <p class="text-xs text-neutral-900/75">{venueName}</p>
+                      {priceFormatted ? <p class="mt-1 text-sm font-semibold text-neutral-950">{t(locale, "events.priceStarting").replace("{price}", priceFormatted)}</p> : null}
+                    </div>
+                    <div class="p-3 sm:p-4">
+                      <EventCheckoutWidget eventId={event.id} locale={locale} blocked={ticketingBlocked} class="!min-h-[24rem] !rounded-lg !border-0 !bg-white" />
+                    </div>
+                    <p class="border-t border-black/10 px-4 py-3 text-center text-[11px] text-neutral-500">
+                      {t(locale, "events.offeredIn").replace("{language}", languageLabel)}
+                    </p>
+                  </div>
+                ) : ticketingBlocked ? (
+                  <p class="rounded-xl border border-black/10 bg-neutral-50 px-6 py-10 text-center text-sm text-neutral-600">{t(locale, "events.ticketsUnavailable")}</p>
+                ) : event.ticketUrl ? (
+                  <a href={event.ticketUrl} class="flex rounded-xl bg-neutral-950 px-6 py-4 text-center text-xs font-semibold uppercase tracking-[0.35em] text-white hover:opacity-95">
+                    {t(locale, "ui.buyTickets")}
+                  </a>
+                ) : null
+              }
+            </aside>
+          </div>
+        </section>
+
+        {
+          onSiteCheckout && !ticketingBlocked ? (
+            <div class="fixed inset-x-0 bottom-0 z-40 border-t border-black/10 bg-white/95 p-3 backdrop-blur-md lg:hidden">
+              <a href="#tickets" class="flex w-full items-center justify-center rounded-full bg-neutral-950 py-3.5 text-xs font-semibold uppercase tracking-[0.35em] text-white">
+                {t(locale, "ui.buyTickets")}
+              </a>
+            </div>
+          ) : null
+        }
+      </>
+    )
+  }
+</Base>
