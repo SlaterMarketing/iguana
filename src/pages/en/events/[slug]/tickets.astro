@@ -1,5 +1,6 @@
 ---
 import Base from "../../../../layouts/Base.astro";
+import EventCheckoutWidget from "../../../../components/EventCheckoutWidget.astro";
 import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import { formatEventScheduleLine } from "../../../../lib/events";
@@ -63,13 +64,7 @@ const ticketingBlocked =
             ticketingBlocked ? (
               <p class="text-neutral-700">{t(locale, "events.ticketsUnavailable")}</p>
             ) : (
-              <div
-                class="min-h-[28rem] overflow-hidden rounded-[2.5rem] border border-black/10 bg-neutral-50"
-                data-kintana-widget={`event:${event.id}`}
-                aria-label={t(locale, "aria.ticketCheckout")}
-              >
-                <p class="px-8 py-10 text-center text-sm text-neutral-500">{t(locale, "tickets.loading")}</p>
-              </div>
+              <EventCheckoutWidget eventId={event.id} locale={locale} />
             )
           }
         </article>

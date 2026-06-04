@@ -1,8 +1,9 @@
 ---
 import Base from "../../../layouts/Base.astro";
+import EventCheckoutWidget from "../../../components/EventCheckoutWidget.astro";
 import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicEvent } from "@kintana/sdk";
-import { eventTicketsPath, formatEventScheduleLine, formatMinorUnitsPrice } from "../../../lib/events";
+import { eventSupportsOnSiteCheckout, formatEventScheduleLine, formatMinorUnitsPrice } from "../../../lib/events";
 import { getKintanaEnv } from "../../../lib/kintana-env";
 import { t } from "../../../i18n/ui";
 import { localizePath } from "../../../i18n/routes";
@@ -23,7 +24,7 @@ if (hasCredentials && slug) {
 
 const ticketingBlocked =
   Boolean(event?.status === "sold-out" || event?.status === "postponed");
-const resolvedTicketsHref = event && !ticketingBlocked ? eventTicketsPath(event, locale) : null;
+const onSiteCheckout = event ? eventSupportsOnSiteCheckout(event) : false;
 const posterMobileSrc = event?.imageUrlMobile?.trim() || event?.imageUrl;
 const posterDesktopSrc = event?.imageUrl?.trim() || event?.imageUrlMobile?.trim();
 const priceFormatted = event ? formatMinorUnitsPrice(event, locale) : null;
@@ -59,9 +60,16 @@ const detailStatusBadge = event?.status === "sold-out"
               {
                 ticketingBlocked ? (
                   <p class="text-sm text-neutral-600">{t(locale, "events.ticketsUnavailable")}</p>
-                ) : resolvedTicketsHref || event.ticketUrl ? (
+                ) : onSiteCheckout ? (
                   <a
-                    href={resolvedTicketsHref ?? event.ticketUrl}
+                    href="#tickets"
+                    class="rounded-full bg-neutral-950 px-12 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-white hover:opacity-[0.95]"
+                  >
+                    {t(locale, "events.tickets")}
+                  </a>
+                ) : event.ticketUrl ? (
+                  <a
+                    href={event.ticketUrl}
                     class="rounded-full bg-neutral-950 px-12 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-white hover:opacity-[0.95]"
                   >
                     {t(locale, "events.tickets")}
@@ -107,6 +115,15 @@ const detailStatusBadge = event?.status === "sold-out"
           {event.headliner ? <p class="text-sm uppercase tracking-[0.35em] text-neutral-600">{t(locale, "events.spotlight").replace("{name}", event.headliner.name)}</p> : null}
 
           {
+            onSiteCheckout ? (
+              <section class="space-y-6">
+                <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-400">{t(locale, "ui.getTickets")}</h2>
+                <EventCheckoutWidget eventId={event.id} locale={locale} blocked={ticketingBlocked} />
+              </section>
+            ) : null
+          }
+
+          {
             event.lineup.length ? (
               <section class="space-y-6">
                 <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-400">{t(locale, "events.featuredVoices")}</h2>
@@ -122,19 +139,6 @@ const detailStatusBadge = event?.status === "sold-out"
                   ))}
                 </ul>
               </section>
-            ) : null
-          }
-
-          {
-            resolvedTicketsHref && !ticketingBlocked ? (
-              <p class="text-center">
-                <a
-                  href={resolvedTicketsHref}
-                  class="inline-flex rounded-full bg-brand px-12 py-3 text-xs font-semibold uppercase tracking-[0.35em] text-white hover:opacity-95"
-                >
-                  {t(locale, "ui.getTickets")}
-                </a>
-              </p>
             ) : null
           }
         </article>

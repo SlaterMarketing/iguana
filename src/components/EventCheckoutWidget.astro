@@ -1,0 +1,31 @@
+---
+import { t } from "../i18n/ui";
+import type { Locale } from "../i18n/locale";
+
+interface Props {
+  eventId: string;
+  locale?: Locale;
+  blocked?: boolean;
+  class?: string;
+}
+
+const { eventId, locale = "en", blocked = false, class: className } = Astro.props;
+---
+
+{
+  blocked ? (
+    <p class="text-neutral-700">{t(locale, "events.ticketsUnavailable")}</p>
+  ) : (
+    <div
+      id="tickets"
+      class:list={[
+        "min-h-[28rem] scroll-mt-28 overflow-hidden rounded-[2.5rem] border border-black/10 bg-neutral-50",
+        className,
+      ]}
+      data-kintana-widget={`event:${eventId}`}
+      aria-label={t(locale, "aria.ticketCheckout")}
+    >
+      <p class="px-8 py-10 text-center text-sm text-neutral-500">{t(locale, "tickets.loading")}</p>
+    </div>
+  )
+}

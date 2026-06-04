@@ -14,6 +14,13 @@ export function eventTicketsPath(event: Pick<KintanaPublicEvent, "slug" | "id">,
   return key ? localizePath(locale, "eventTickets", { slug: key }) : null;
 }
 
+/** True when the event detail page can mount the embedded checkout widget. */
+export function eventSupportsOnSiteCheckout(
+  event: Pick<KintanaPublicEvent, "id" | "status">
+): boolean {
+  return Boolean(event.id?.trim()) && event.status !== "sold-out" && event.status !== "postponed";
+}
+
 export function sortEventsAscending(events: KintanaPublicEvent[]): KintanaPublicEvent[] {
   return [...events].sort((a, b) => parseEventTs(a.date) - parseEventTs(b.date));
 }

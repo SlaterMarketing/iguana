@@ -1,6 +1,6 @@
 ---
 import type { KintanaPublicEvent } from "@kintana/sdk";
-import { eventCitySlug, eventTicketsPath, formatEventScheduleLine, formatMinorUnitsPrice } from "../lib/events";
+import { eventCitySlug, eventSupportsOnSiteCheckout, formatEventScheduleLine, formatMinorUnitsPrice } from "../lib/events";
 import { t } from "../i18n/ui";
 import { localizePath } from "../i18n/routes";
 import type { Locale } from "../i18n/locale";
@@ -13,11 +13,14 @@ const { evt, highlightCity, featured = false, past = false, locale = "en" } = As
   locale?: Locale;
 };
 
+const detailHref = localizePath(locale, "eventDetail", { slug: evt.slug });
+const onSiteCheckout = eventSupportsOnSiteCheckout(evt);
 const ticketsHref =
   past || evt.status === "sold-out" || evt.status === "postponed"
     ? null
-    : eventTicketsPath(evt, locale) ?? evt.ticketUrl;
-const detailHref = localizePath(locale, "eventDetail", { slug: evt.slug });
+    : onSiteCheckout
+      ? `${detailHref}#tickets`
+      : evt.ticketUrl;
 
 const posterMobileSrc = evt.imageUrlMobile?.trim() || evt.imageUrl;
 const posterDesktopSrc = evt.imageUrl?.trim() || evt.imageUrlMobile?.trim();
