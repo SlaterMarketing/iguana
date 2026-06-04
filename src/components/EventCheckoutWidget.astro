@@ -19,7 +19,7 @@ const { eventId, locale = "en", blocked = false, class: className } = Astro.prop
     <div
       id="tickets"
       class:list={[
-        "min-h-[28rem] scroll-mt-28 overflow-hidden rounded-[2.5rem] border border-black/10 bg-neutral-50",
+        "min-h-0 scroll-mt-28 overflow-hidden rounded-[2.5rem] border border-black/10 bg-neutral-50",
         className,
       ]}
       data-kintana-widget={`event:${eventId}`}

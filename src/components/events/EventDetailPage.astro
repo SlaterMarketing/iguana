@@ -6,18 +6,17 @@ import type { KintanaPublicEvent } from "@kintana/sdk";
 import {
   eventSupportsOnSiteCheckout,
   formatEventScheduleLine,
-  formatEventTime,
   formatMinorUnitsPrice,
-  eventLanguageLabel,
 } from "../../lib/events";
 import {
   eventVenueLabel,
   eventVenueMapsUrl,
+  eventVenueMapEmbedUrl,
   formatEventHeroDateParts,
   splitEventDisplayTitle,
 } from "../../lib/event-hero";
 import { getEventTicketingFaq } from "../../content/event-ticketing-faq";
-import { formatStarRating, pressQuotes } from "../../content/press-quotes";
+import { eventReviews, formatStarRating } from "../../lib/event-reviews";
 import { t } from "../../i18n/ui";
 import { localizePath } from "../../i18n/routes";
 import type { Locale } from "../../i18n/locale";
@@ -39,10 +38,10 @@ const { headline, subtitle } = event ? splitEventDisplayTitle(event.name) : { he
 const venueName = event ? eventVenueLabel(event) : "";
 const venueAddress = event?.venue?.address?.trim() || "";
 const mapsUrl = event ? eventVenueMapsUrl(event) : null;
+const mapEmbedUrl = event ? eventVenueMapEmbedUrl(event) : null;
 const priceFormatted = event ? formatMinorUnitsPrice(event, locale) : null;
-const showTimeLabel = event ? formatEventTime(event.showTime, locale) : null;
-const faq = getEventTicketingFaq(locale);
-const languageLabel = event ? eventLanguageLabel(event, locale) : "";
+const faq = event ? getEventTicketingFaq(locale, event) : getEventTicketingFaq(locale);
+const reviews = event ? eventReviews(event) : [];
 ---
 
 <Base
@@ -63,12 +62,12 @@ const languageLabel = event ? eventLanguageLabel(event, locale) : "";
       <>
         {
           heroPoster ? (
-            <section class="relative isolate min-h-[min(52vh,28rem)] w-full bg-neutral-950 md:min-h-[min(58vh,32rem)]">
+            <section class="relative isolate h-[100svh] w-full overflow-hidden bg-neutral-950">
               <img src={heroPoster} alt="" class="absolute inset-0 hidden size-full object-cover md:block" loading="eager" />
               <img src={posterMobileSrc ?? heroPoster} alt="" class="absolute inset-0 size-full object-cover md:hidden" loading="eager" />
               <div class="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/55 to-neutral-950/25" aria-hidden="true" />
 
-              <div class="relative z-10 flex min-h-[inherit] flex-col justify-end px-4 pb-28 pt-24 sm:px-6 lg:px-10">
+              <div class="relative z-10 flex h-full flex-col justify-end px-4 pb-28 pt-24 sm:px-6 lg:px-10">
                 <a class="mb-8 inline-flex text-xs font-semibold uppercase tracking-[0.45em] text-white/85 hover:text-white" href={localizePath(locale, "events")}>
                   {t(locale, "events.backToCalendar")}
                 </a>
@@ -111,7 +110,7 @@ const languageLabel = event ? eventLanguageLabel(event, locale) : "";
         }
 
         <section class="relative bg-white pb-28 pt-12 md:pb-20">
-          <div class="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-[minmax(0,1.15fr)_minmax(18rem,22rem)] lg:items-start lg:gap-14 lg:px-8">
+          <div class="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-14 lg:px-8">
             <div class="min-w-0 space-y-10 text-neutral-950 md:text-left">
               {
                 !heroPoster ? (
@@ -153,25 +152,48 @@ const languageLabel = event ? eventLanguageLabel(event, locale) : "";
                 ) : null
               }
 
-              <ul class="space-y-3 border-y border-black/10 py-8 text-sm text-neutral-700">
-                {
-                  pressQuotes.map((item) => (
-                    <li class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
-                      {item.quote ? <span class="text-neutral-800">‘{item.quote}’</span> : null}
-                      <span class="text-brand">{formatStarRating(item.stars)}</span>
-                      <span class="text-neutral-500">{item.source}</span>
-                    </li>
-                  ))
-                }
-              </ul>
+              {
+                reviews.length > 0 ? (
+                  <ul class="space-y-3 border-y border-black/10 py-8 text-sm text-neutral-700">
+                    {
+                      reviews.map((item) => (
+                        <li class="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+                          {item.quote ? <span class="text-neutral-800">‘{item.quote}’</span> : null}
+                          <span class="text-brand">{formatStarRating(item.stars)}</span>
+                          <span class="text-neutral-500">{item.source}</span>
+                        </li>
+                      ))
+                    }
+                  </ul>
+                ) : null
+              }
 
               {
                 venueName ? (
                   <section id="venue" class="space-y-4">
                     <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-400">{t(locale, "events.venueTitle")}</h2>
-                    <div class="space-y-2">
-                      <p class="text-xl font-semibold text-neutral-950">{venueName}</p>
-                      {venueAddress ? <p class="text-base text-neutral-600">{venueAddress}</p> : null}
+                    <div class="space-y-4">
+                      <div class="space-y-2">
+                        <p class="text-xl font-semibold text-neutral-950">{venueName}</p>
+                        {venueAddress ? <p class="text-base text-neutral-600">{venueAddress}</p> : null}
+                      </div>
+                      {
+                        mapEmbedUrl ? (
+                          <div class="overflow-hidden rounded-2xl border border-black/10">
+                            <iframe
+                              title={`${venueName} on Google Maps`}
+                              src={mapEmbedUrl}
+                              width="100%"
+                              height="280"
+                              style="border: 0;"
+                              allowfullscreen
+                              loading="lazy"
+                              referrerpolicy="no-referrer-when-downgrade"
+                              class="block w-full"
+                            />
+                          </div>
+                        ) : null
+                      }
                       {
                         mapsUrl ? (
                           <a href={mapsUrl} target="_blank" rel="noopener noreferrer" class="inline-flex text-sm font-semibold text-brand underline-offset-4 hover:underline">
@@ -215,16 +237,10 @@ const languageLabel = event ? eventLanguageLabel(event, locale) : "";
                     <div class="bg-brand px-4 py-3 text-center">
                       <h2 class="text-base font-bold uppercase tracking-[0.28em] text-neutral-950">{t(locale, "ui.buyTickets")}</h2>
                       <p class="mt-1 text-xs font-medium text-neutral-900/85">{formatEventScheduleLine(event, locale)}</p>
-                      {showTimeLabel ? <p class="text-xs text-neutral-900/75">{showTimeLabel}</p> : null}
                       <p class="text-xs text-neutral-900/75">{venueName}</p>
                       {priceFormatted ? <p class="mt-1 text-sm font-semibold text-neutral-950">{t(locale, "events.priceStarting").replace("{price}", priceFormatted)}</p> : null}
                     </div>
-                    <div class="p-3 sm:p-4">
-                      <EventCheckoutWidget eventId={event.id} locale={locale} blocked={ticketingBlocked} class="!min-h-[24rem] !rounded-lg !border-0 !bg-white" />
-                    </div>
-                    <p class="border-t border-black/10 px-4 py-3 text-center text-[11px] text-neutral-500">
-                      {t(locale, "events.offeredIn").replace("{language}", languageLabel)}
-                    </p>
+                    <EventCheckoutWidget eventId={event.id} locale={locale} blocked={ticketingBlocked} class="!min-h-0 !rounded-none !border-0 !bg-white !p-3 sm:!p-4" />
                   </div>
                 ) : ticketingBlocked ? (
                   <p class="rounded-xl border border-black/10 bg-neutral-50 px-6 py-10 text-center text-sm text-neutral-600">{t(locale, "events.ticketsUnavailable")}</p>

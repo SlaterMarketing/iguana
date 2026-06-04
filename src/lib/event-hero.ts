@@ -43,6 +43,22 @@ export function eventVenueMapsUrl(
   return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : null;
 }
 
+/** Google Maps iframe embed — no API key; prefers coordinates when available. */
+export function eventVenueMapEmbedUrl(
+  event: Pick<KintanaPublicEvent, "venue" | "city">
+): string | null {
+  const venue = event.venue;
+  if (venue?.lat != null && venue?.lng != null) {
+    return `https://maps.google.com/maps?q=${venue.lat},${venue.lng}&z=15&output=embed`;
+  }
+  const query = venue?.address?.trim()
+    ? `${venue.name?.trim() ? `${venue.name.trim()}, ` : ""}${venue.address.trim()}`
+    : [venue?.name, event.city].filter(Boolean).join(", ");
+  return query
+    ? `https://maps.google.com/maps?q=${encodeURIComponent(query)}&t=&z=15&ie=UTF8&iwloc=&output=embed`
+    : null;
+}
+
 export function eventVenueLabel(event: Pick<KintanaPublicEvent, "venue" | "city" | "country">): string {
   if (event.venue?.name?.trim()) return event.venue.name.trim();
   return [event.city, event.country].filter(Boolean).join(", ");
