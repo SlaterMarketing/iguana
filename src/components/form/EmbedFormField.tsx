@@ -1,4 +1,5 @@
 import type { KintanaFormField } from "@kintana/sdk";
+import { PhoneInput } from "@kintana/sdk/react";
 
 const inputClass =
   "rounded-full border border-neutral-400/55 bg-neutral-50 px-4 py-3 text-base text-neutral-900 shadow-inner outline-none transition focus:border-brand";
@@ -177,16 +178,12 @@ export function EmbedFormField({
     case "phone":
       return (
         <>
-          <input
+          <PhoneInput
             id={field.id}
-            type="tel"
             name={field.id}
             required={field.required}
             disabled={disabled}
-            placeholder={field.placeholder}
-            autoComplete="tel"
-            className={inputClass}
-            defaultValue={def ?? undefined}
+            placeholder={field.placeholder ?? "412 345 678"}
           />
           {help}
         </>
