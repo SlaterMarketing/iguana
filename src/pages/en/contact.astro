@@ -8,7 +8,8 @@ import { localizePath } from "../../i18n/routes";
 
 const locale = getLocale(Astro);
 
-const { apiKey, baseUrl, formId, hasCredentials } = getKintanaEnv();
+const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
+const endpointSlug = "contact";
 
 const subjectPrefill =
   Astro.url.searchParams.get("subject") ??
@@ -55,14 +56,14 @@ const subjectSummary: Record<string, { en: string; es: string }> = {
       </details>
     </div>
 
-    {!hasCredentials || !formId ? (
+    {!hasCredentials ? (
       <p class="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-8 text-neutral-950">
         {locale === "es"
           ? "El formulario de consulta se conecta automáticamente una vez que lleguen las credenciales de ticketing."
           : "The enquiry form wires up automatically once ticketing credentials arrive."}
       </p>
     ) : (
-      <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} formId={formId} prefills={prefills} />
+      <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} endpointSlug={endpointSlug} prefills={prefills} />
     )}
   </section>
 </Base>

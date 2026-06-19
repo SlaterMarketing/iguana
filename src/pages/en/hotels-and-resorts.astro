@@ -22,7 +22,8 @@ const hospitalityStats = getHospitalityStats(locale);
 const hotelsOffers = getHotelsOffers(locale);
 const hotelsFaq = getHotelsFaq(locale);
 
-const { apiKey, baseUrl, formId, hasCredentials } = getKintanaEnv();
+const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
+const endpointSlug = "hotels-and-resorts";
 const prefills = { subject: "hotels" };
 ---
 
@@ -128,12 +129,12 @@ const prefills = { subject: "hotels" };
 
         <div class="mt-12">
           {
-            !hasCredentials || !formId ? (
+            !hasCredentials ? (
               <p class="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-8 text-center text-neutral-950">
                 {t(locale, "hotels.formUnavailable").replace("{email}", site.email)}
               </p>
             ) : (
-              <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} formId={formId} prefills={prefills} hideHeading />
+              <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} endpointSlug={endpointSlug} prefills={prefills} hideHeading />
             )
           }
         </div>

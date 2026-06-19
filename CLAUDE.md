@@ -23,5 +23,5 @@ Optional **`KINTANA_SECRET_API_KEY`** (`kpa_secret_…`) is loaded in [`src/lib/
 ## SDK reminders
 
 - `listEvents` accepts `{ limit, tourId, artistSlug, from, to, status }`; `listArtists({ limit })` powers directories.
-- `getFormSchema` accepts `{ cache }`; `ContactFormIsland` caches through `force-cache`.
+- Contact forms use `useKintanaSubmit(slug)` with custom UI — no schema fetch.
 - Hydrate React only where hooks are unavoidable (today: contact form island).

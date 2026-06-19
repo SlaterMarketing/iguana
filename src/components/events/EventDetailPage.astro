@@ -72,30 +72,34 @@ const reviews = event ? eventReviews(event) : [];
                   {t(locale, "events.backToCalendar")}
                 </a>
 
-                {
-                  dateParts ? (
-                    <div class="mb-6 flex flex-wrap items-end gap-3">
-                      <div class="flex min-w-[4.5rem] flex-col items-center rounded-lg bg-brand px-3 py-2.5 text-center text-neutral-950 shadow-lg">
-                        <span class="text-[10px] font-semibold uppercase tracking-wide">{dateParts.weekday}</span>
-                        <span class="font-display text-2xl leading-none" style="font-family: var(--font-display);">{dateParts.day}</span>
-                        <span class="text-[10px] font-semibold uppercase tracking-wide">{dateParts.month}</span>
-                        {event.city ? <span class="mt-1 max-w-[6rem] truncate text-[9px] font-medium opacity-90">{event.city}</span> : null}
-                      </div>
-                      {
-                        event.status === "sold-out" || event.status === "postponed" ? (
-                          <span class="rounded-full bg-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-white backdrop-blur-sm">
-                            {event.status === "sold-out" ? t(locale, "ui.soldOut") : t(locale, "ui.postponed")}
-                          </span>
-                        ) : null
-                      }
-                    </div>
-                  ) : null
-                }
+                <div class="flex items-end justify-between gap-4 sm:gap-6">
+                  <div class="min-w-0 flex-1">
+                    <h1 class="max-w-4xl font-display text-[clamp(2.75rem,6vw,4.5rem)] leading-[0.95] text-white" style="font-family: var(--font-display);">
+                      {headline}
+                    </h1>
+                    {subtitle ? <p class="mt-3 max-w-2xl text-xl text-white/90 md:text-2xl">{subtitle}</p> : null}
+                  </div>
 
-                <h1 class="max-w-4xl font-display text-[clamp(2.75rem,6vw,4.5rem)] leading-[0.95] text-white" style="font-family: var(--font-display);">
-                  {headline}
-                </h1>
-                {subtitle ? <p class="mt-3 max-w-2xl text-xl text-white/90 md:text-2xl">{subtitle}</p> : null}
+                  {
+                    dateParts ? (
+                      <div class="flex shrink-0 flex-wrap items-end justify-end gap-3">
+                        <div class="flex min-w-[4.5rem] flex-col items-center rounded-lg bg-brand px-3 py-2.5 text-center text-neutral-950 shadow-lg">
+                          <span class="text-[10px] font-semibold uppercase tracking-wide">{dateParts.weekday}</span>
+                          <span class="font-display text-2xl leading-none" style="font-family: var(--font-display);">{dateParts.day}</span>
+                          <span class="text-[10px] font-semibold uppercase tracking-wide">{dateParts.month}</span>
+                          {event.city ? <span class="mt-1 max-w-[6rem] truncate text-[9px] font-medium opacity-90">{event.city}</span> : null}
+                        </div>
+                        {
+                          event.status === "sold-out" || event.status === "postponed" ? (
+                            <span class="rounded-full bg-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-white backdrop-blur-sm">
+                              {event.status === "sold-out" ? t(locale, "ui.soldOut") : t(locale, "ui.postponed")}
+                            </span>
+                          ) : null
+                        }
+                      </div>
+                    ) : null
+                  }
+                </div>
               </div>
             </section>
           ) : (
@@ -230,10 +234,10 @@ const reviews = event ? eventReviews(event) : [];
               <EventFaq faq={faq} title={t(locale, "events.faqTitle")} />
             </div>
 
-            <aside class="min-w-0 lg:sticky lg:top-24 lg:self-start">
+            <aside class="relative z-50 min-w-0 lg:sticky lg:top-24 lg:self-start">
               {
                 onSiteCheckout ? (
-                  <div class="overflow-hidden rounded-xl bg-white shadow-[0_18px_50px_-24px_rgba(0,0,0,0.45)] ring-1 ring-black/10">
+                  <div class="overflow-visible rounded-xl bg-white shadow-[0_18px_50px_-24px_rgba(0,0,0,0.45)] ring-1 ring-black/10">
                     <div class="bg-brand px-4 py-3 text-center">
                       <h2 class="text-base font-bold uppercase tracking-[0.28em] text-neutral-950">{t(locale, "ui.buyTickets")}</h2>
                       <p class="mt-1 text-xs font-medium text-neutral-900/85">{formatEventScheduleLine(event, locale)}</p>

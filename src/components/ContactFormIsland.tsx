@@ -1,48 +1,34 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
-import { KintanaProvider, useKintana } from "@kintana/sdk/react";
+import React from "react";
+import type { KintanaFormField } from "@kintana/sdk";
+import { KintanaProvider, useKintanaSubmit } from "@kintana/sdk/react";
 
-import type { KintanaClient, KintanaPublicFormSchema } from "@kintana/sdk";
+import { EmbedFormField } from "./form/EmbedFormField";
 
-async function buildSubmitValues(
-  client: KintanaClient,
-  form: HTMLFormElement,
-  schema: KintanaPublicFormSchema,
-): Promise<Record<string, string>> {
+const CONTACT_FORM_FIELDS: KintanaFormField[] = [
+  { id: "firstName", type: "text", label: "First name", required: true },
+  { id: "lastName", type: "text", label: "Last name", required: true },
+  { id: "email", type: "email", label: "Email", required: true },
+  { id: "phone", type: "phone", label: "Phone", required: false },
+  { id: "subject", type: "text", label: "Subject", required: false },
+  { id: "message", type: "textarea", label: "Message", required: true },
+];
+
+function collectFormValues(form: HTMLFormElement, fields: KintanaFormField[]): Record<string, string> {
   const fd = new FormData(form);
   const values: Record<string, string> = {};
 
-  for (const field of schema.fields) {
-    if (field.type === "file") {
-      const input = form.elements.namedItem(field.id);
-      if (!(input instanceof HTMLInputElement) || input.type !== "file") {
-        values[field.id] = "";
-        continue;
-      }
-      const picked = input.files?.[0];
-      if (!picked) {
-        if (field.required) throw new Error(`${field.label} is required`);
-        values[field.id] = "";
-        continue;
-      }
-      const err = validateFileField(field, picked);
-      if (err) throw new Error(err);
-      const uploaded = await client.uploadEmbedFormFile(schema.id, field.id, picked);
-      if (!uploaded.ok || !uploaded.url) throw new Error(uploaded.error ?? "Upload failed");
-      values[field.id] = uploaded.url;
-      continue;
-    }
-
+  for (const field of fields) {
     if (field.type === "boolean") {
       const el = form.elements.namedItem(field.id);
-      values[field.id] = el instanceof HTMLInputElement && el.type === "checkbox" && el.checked ? "true" : "false";
+      values[field.id] =
+        el instanceof HTMLInputElement && el.type === "checkbox" && el.checked ? "true" : "false";
       continue;
     }
 
     if (field.type === "multiselect") {
-      const all = fd.getAll(field.id);
-      values[field.id] = all.map(String).join(",");
+      values[field.id] = fd.getAll(field.id).map(String).join(",");
       continue;
     }
 
@@ -53,95 +39,69 @@ async function buildSubmitValues(
   return values;
 }
 
+function applyPrefills(form: HTMLFormElement, fields: KintanaFormField[], prefills: Record<string, string>) {
+  for (const field of fields) {
+    const val = prefills[field.id];
+    if (!val) continue;
+    const el = form.elements.namedItem(field.id);
+    if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
+      el.value = val;
+    }
+    if (el instanceof HTMLInputElement && el.type === "checkbox") {
+      el.checked = val === "true" || val === "1";
+    }
+    if (el instanceof HTMLSelectElement && !el.multiple) {
+      el.value = val;
+    }
+  }
+}
+
 function StyledFormInner({
-  formId,
+  endpointSlug,
   prefills,
   hideHeading = false,
+  title = "Get in touch",
 }: {
-  formId: string;
+  endpointSlug: string;
   prefills: Record<string, string>;
   hideHeading?: boolean;
+  title?: string;
 }) {
-  const client = useKintana();
-  const [schema, setSchema] = useState<KintanaPublicFormSchema | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const { submit, submitting, message, error } = useKintanaSubmit(endpointSlug);
 
-  useEffect(() => {
-    let alive = true;
-
-    client
-      .getFormSchema(formId, { cache: "force-cache" })
-      .then((s) => {
-        if (!alive) return;
-        setSchema(s);
-      })
-      .catch(() => alive && setMessage("We could not load this form yet."))
-      .finally(() => alive && setLoading(false));
-
-    return () => {
-      alive = false;
-    };
-  }, [client, formId]);
-
-  async function submit(e: React.FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!schema) return;
-    setSubmitting(true);
-    setMessage(null);
+    const values = collectFormValues(e.currentTarget, CONTACT_FORM_FIELDS);
+    const email = values.email?.trim();
+    if (!email) return;
 
-    try {
-      const values = await buildSubmitValues(client, e.currentTarget, schema);
-      const result = await client.submitForm(schema.id, values);
-      if (result.redirectUrl) {
-        window.location.assign(result.redirectUrl);
-        return;
-      }
-      if (result.ok !== true) {
-        setMessage("Something went sideways—try WhatsApp?");
-        return;
-      }
-      setMessage(result.successMessage ?? "Got it—we will reply shortly.");
-      e.currentTarget.reset();
-      if (prefills) {
-        for (const field of schema.fields) {
-          const val = prefills[field.id];
-          if (!val) continue;
-          const el = e.currentTarget.elements.namedItem(field.id);
-          if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
-            el.value = val;
-          }
-          if (el instanceof HTMLInputElement && el.type === "checkbox") {
-            el.checked = val === "true" || val === "1";
-          }
-          if (el instanceof HTMLSelectElement && !el.multiple) el.value = val;
-        }
-      }
-    } catch (submitErr) {
-      setMessage(submitErr instanceof Error ? submitErr.message : "Submission failed.");
-    } finally {
-      setSubmitting(false);
-    }
+    const { email: _email, phone, ...fields } = values;
+
+    await submit({
+      email,
+      phone: phone?.trim() || undefined,
+      fields,
+    });
+
+    e.currentTarget.reset();
+    applyPrefills(e.currentTarget, CONTACT_FORM_FIELDS, prefills);
   }
 
   const defaults = prefills ?? {};
 
-  if (loading)
-    return <p className="rounded-3xl bg-neutral-100 px-6 py-4 text-neutral-700">Loading form…</p>;
-  if (!schema)
-    return <p className="rounded-3xl border border-neutral-300 px-6 py-4 text-neutral-700">{message}</p>;
-
   return (
     <div className="max-w-xl">
       {hideHeading ? null : (
-        <h2 className="font-display text-2xl tracking-tight text-neutral-950" style={{ fontFamily: "var(--font-display)" }}>
-          {schema.title}
+        <h2
+          className="font-display text-2xl tracking-tight text-neutral-950"
+          style={{ fontFamily: "var(--font-display)" }}
+        >
+          {title}
         </h2>
       )}
 
-      <form className={hideHeading ? "grid gap-5" : "mt-8 grid gap-5"} onSubmit={(e) => void submit(e)}>
-        {schema.fields.map((field) => (
+      <form className={hideHeading ? "grid gap-5" : "mt-8 grid gap-5"} onSubmit={(e) => void handleSubmit(e)}>
+        {CONTACT_FORM_FIELDS.map((field) => (
           <div key={field.id} className="grid gap-2 text-sm font-medium text-neutral-900">
             {field.type === "boolean" ? (
               <span>
@@ -165,6 +125,7 @@ function StyledFormInner({
           {submitting ? "Sending…" : "Send message"}
         </button>
       </form>
+      {error ? <p className="mt-6 text-red-700">{error}</p> : null}
       {message ? <p className="mt-6 text-neutral-700">{message}</p> : null}
     </div>
   );
@@ -173,21 +134,28 @@ function StyledFormInner({
 export function ContactFormIsland({
   apiKey,
   baseUrl,
-  formId,
+  endpointSlug,
   prefills,
   hideHeading = false,
+  title,
 }: {
   apiKey: string;
   baseUrl: string;
-  formId: string;
+  endpointSlug: string;
   prefills?: Record<string, string>;
   hideHeading?: boolean;
+  title?: string;
 }) {
   const merged = React.useMemo(() => prefills ?? {}, [prefills]);
 
   return (
     <KintanaProvider apiKey={apiKey} baseUrl={baseUrl}>
-      <StyledFormInner formId={formId} prefills={merged} hideHeading={hideHeading} />
+      <StyledFormInner
+        endpointSlug={endpointSlug}
+        prefills={merged}
+        hideHeading={hideHeading}
+        title={title}
+      />
     </KintanaProvider>
   );
 }

@@ -19,7 +19,8 @@ const performPage = getPerformPage(locale);
 const performOffers = getPerformOffers(locale);
 const performFaq = getPerformFaq(locale);
 
-const { apiKey, baseUrl, formId, hasCredentials } = getKintanaEnv();
+const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
+const endpointSlug = "perform-with-us";
 const prefills = { subject: "perform" };
 ---
 
@@ -123,12 +124,12 @@ const prefills = { subject: "perform" };
 
         <div class="mt-12">
           {
-            !hasCredentials || !formId ? (
+            !hasCredentials ? (
               <p class="rounded-3xl border border-amber-200 bg-amber-50 px-6 py-8 text-center text-neutral-950">
                 {t(locale, "perform.formUnavailable").replace("{email}", site.email)}
               </p>
             ) : (
-              <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} formId={formId} prefills={prefills} hideHeading />
+              <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} endpointSlug={endpointSlug} prefills={prefills} hideHeading />
             )
           }
         </div>

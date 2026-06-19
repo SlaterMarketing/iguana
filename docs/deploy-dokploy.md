@@ -21,8 +21,9 @@ Add every variable below under **Environment** (runtime), one per line, exactly 
 PUBLIC_SITE_URL=https://iguanacomedy.com
 PUBLIC_KINTANA_API_KEY=kpa_live_…
 PUBLIC_KINTANA_BASE_URL=https://kintana.app
-PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID=…
 ```
+
+Provision submission endpoints in Kintana (`contact`, `perform-with-us`, `hotels-and-resorts`) — see `docs/kintana-forms-architecture.md`.
 
 No `export` prefix, no quotes unless the value contains spaces. After saving, **restart** the app.
 
@@ -37,7 +38,6 @@ Copy from `.env.example` and set in Dokploy:
 | `PUBLIC_SITE_URL` | Yes | Live URL, no trailing slash (e.g. `https://iguanacomedy.com`) |
 | `PUBLIC_KINTANA_API_KEY` | Yes | Publish key (`kpa_live_…`) |
 | `PUBLIC_KINTANA_BASE_URL` | Yes | Kintana host, no trailing slash (e.g. `https://kintana.app`) |
-| `PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID` | Yes | Contact form ID |
 | `PUBLIC_KINTANA_TRACKER_TOKEN` | No | Tracker `data-token` from Kintana → Websites |
 
 After changing any `PUBLIC_*` value, **restart** the application so the container rebuilds the static files.
@@ -53,7 +53,6 @@ docker build -t iguana-comedy \
   --build-arg PUBLIC_SITE_URL=https://iguanacomedy.com \
   --build-arg PUBLIC_KINTANA_API_KEY=your_key \
   --build-arg PUBLIC_KINTANA_BASE_URL=https://kintana.app \
-  --build-arg PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID=your_form_id \
   .
 
 docker run --rm -p 8080:3000 iguana-comedy
@@ -67,5 +66,5 @@ Open http://localhost:8080
 - **502 right after deploy** — wait 1–2 minutes on first boot while Astro builds; healthcheck allows up to ~3 minutes.
 - **502 Bad Gateway** — container port must match nginx (`3000` by default, or set `PORT` and the same container port).
 - **Empty shows / comedians** — API key rejected from the server, or vars not loaded. Check runtime logs for `[Kintana:…]` errors.
-- **Contact form broken** — confirm `PUBLIC_KINTANA_SHOW_REQUEST_FORM_ID` is set and the form allows your site origin.
+- **Contact form broken** — confirm submission endpoints exist in Kintana and CORS allows your site origin.
 - **Wrong canonical URLs** — set `PUBLIC_SITE_URL` to the final public URL, then restart.
