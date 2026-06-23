@@ -49,14 +49,14 @@ const emphasized =
 <section aria-label={`${evt.name} — ticketing`}>
   <div
     class:list={[
-      "overflow-hidden rounded-[1.85rem] border border-black/10 lg:grid lg:rounded-[2.75rem]",
-      featured ? "lg:grid-cols-[minmax(280px,34%)_1fr] lg:min-h-[22rem]" : "lg:grid-cols-[42%_1fr]",
+      "grid grid-cols-1 overflow-hidden rounded-[1.85rem] border border-black/10",
+      featured && "lg:min-h-[22rem] lg:grid-cols-[minmax(280px,34%)_1fr] lg:rounded-[2.75rem]",
     ]}
   >
     <div
       class:list={[
-        "bg-neutral-200 lg:aspect-auto",
-        featured ? "aspect-[16/10] lg:min-h-[22rem]" : "aspect-[4/5] lg:min-h-[20rem]",
+        "aspect-[16/10] bg-neutral-200",
+        featured && "lg:aspect-auto lg:min-h-[22rem]",
       ]}
     >
       {
@@ -85,7 +85,8 @@ const emphasized =
 
     <div
       class:list={[
-        "flex flex-col justify-between px-8 py-10 lg:px-14 lg:py-16",
+        "flex flex-col justify-between px-8 py-10",
+        featured && "lg:px-14 lg:py-16",
         past
           ? "bg-neutral-100 text-neutral-950"
           : emphasized
