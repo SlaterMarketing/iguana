@@ -4,6 +4,11 @@ import EventCheckoutWidget from "../../../../components/EventCheckoutWidget.astr
 import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import { formatEventScheduleLine } from "../../../../lib/events";
+import {
+  absoluteMediaUrl,
+  eventHeroImageUrl,
+  eventSocialDescription,
+} from "../../../../lib/event-hero";
 import { getKintanaEnv } from "../../../../lib/kintana-env";
 import { t } from "../../../../i18n/ui";
 import { localizePath } from "../../../../i18n/routes";
@@ -28,10 +33,19 @@ const venueLine = event?.venue?.name
 
 const ticketingBlocked =
   Boolean(event?.status === "sold-out" || event?.status === "postponed");
+
+const siteOrigin = Astro.site?.origin ?? "https://iguanacomedy.com";
+const socialDescription = event
+  ? eventSocialDescription(event, locale, t(locale, "seo.defaultDescription"))
+  : t(locale, "seo.defaultDescription");
+const heroImage = event ? eventHeroImageUrl(event) : null;
+const socialImage = heroImage ? absoluteMediaUrl(heroImage, siteOrigin) : undefined;
 ---
 
 <Base
   title={event ? `${t(locale, "ui.getTickets")} · ${event.name}` : `${t(locale, "ui.getTickets")} · Iguana Comedy`}
+  description={socialDescription}
+  ogImage={socialImage}
   narrow={false}
   transparentHeader={false}
 >

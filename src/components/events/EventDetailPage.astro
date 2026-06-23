@@ -14,6 +14,9 @@ import {
   eventVenueMapEmbedUrl,
   formatEventHeroDateParts,
   splitEventDisplayTitle,
+  eventHeroImageUrl,
+  eventSocialDescription,
+  absoluteMediaUrl,
 } from "../../lib/event-hero";
 import { getEventTicketingFaq } from "../../content/event-ticketing-faq";
 import { eventReviews, formatStarRating } from "../../lib/event-reviews";
@@ -32,7 +35,12 @@ const ticketingBlocked = Boolean(event?.status === "sold-out" || event?.status =
 const onSiteCheckout = event ? eventSupportsOnSiteCheckout(event) : false;
 const posterMobileSrc = event?.imageUrlMobile?.trim() || event?.imageUrl;
 const posterDesktopSrc = event?.imageUrl?.trim() || event?.imageUrlMobile?.trim();
-const heroPoster = posterDesktopSrc ?? posterMobileSrc;
+const heroPoster = event ? eventHeroImageUrl(event) : null;
+const siteOrigin = Astro.site?.origin ?? "https://iguanacomedy.com";
+const socialDescription = event
+  ? eventSocialDescription(event, locale, t(locale, "seo.defaultDescription"))
+  : t(locale, "seo.defaultDescription");
+const socialImage = heroPoster ? absoluteMediaUrl(heroPoster, siteOrigin) : undefined;
 const dateParts = event ? formatEventHeroDateParts(event.date, locale) : null;
 const { headline, subtitle } = event ? splitEventDisplayTitle(event.name) : { headline: "", subtitle: null };
 const venueName = event ? eventVenueLabel(event) : "";
@@ -46,6 +54,8 @@ const reviews = event ? eventReviews(event) : [];
 
 <Base
   title={event ? `${event.name} · ${t(locale, "events.title")}` : `${t(locale, "events.title")} · Iguana Comedy`}
+  description={socialDescription}
+  ogImage={socialImage}
   narrow={false}
   transparentHeader={Boolean(event && heroPoster)}
   flushMain={Boolean(event && heroPoster)}

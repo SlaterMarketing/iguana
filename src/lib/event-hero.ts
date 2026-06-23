@@ -1,5 +1,42 @@
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import type { Locale } from "../i18n/locale";
+import { formatEventScheduleLine } from "./events";
+
+export function eventHeroImageUrl(
+  event: Pick<KintanaPublicEvent, "imageUrl" | "imageUrlMobile">
+): string | null {
+  return event.imageUrl?.trim() || event.imageUrlMobile?.trim() || null;
+}
+
+export function absoluteMediaUrl(url: string, siteOrigin: string): string {
+  if (/^https?:\/\//i.test(url)) return url;
+  const path = url.startsWith("/") ? url : `/${url}`;
+  return `${siteOrigin.replace(/\/$/, "")}${path}`;
+}
+
+export function eventSocialDescription(
+  event: KintanaPublicEvent,
+  locale: Locale,
+  fallback: string
+): string {
+  const raw =
+    event.description?.trim() ||
+    event.longDescription?.trim().split(/\r?\n\s*\r?\n/)[0]?.trim() ||
+    "";
+
+  if (raw) {
+    const singleLine = raw.replace(/\s+/g, " ").trim();
+    if (singleLine.length <= 300) return singleLine;
+    const cut = singleLine.slice(0, 297);
+    const lastSpace = cut.lastIndexOf(" ");
+    return `${lastSpace > 200 ? cut.slice(0, lastSpace) : cut}…`;
+  }
+
+  const schedule = formatEventScheduleLine(event, locale);
+  const venue = eventVenueLabel(event);
+  const parts = [schedule, venue].filter(Boolean);
+  return parts.length ? parts.join(" · ") : fallback;
+}
 
 export function formatEventHeroDateParts(dateInput: string, locale: Locale = "en") {
   const raw = dateInput.trim();
