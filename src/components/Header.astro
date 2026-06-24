@@ -45,25 +45,22 @@ const esPath =
 <header
   data-site-header=""
   data-transparent-bg={transparent ? "1" : "0"}
-  class:list={[
-    "site-header top-0 z-40 w-full transition-[padding] duration-300 ease-out",
-    transparent ? "fixed pointer-events-none" : "sticky",
-  ]}
+  class="site-header relative z-40 w-full"
 >
   <div
     data-header-track=""
     class:list={[
-      "header-track mx-auto w-full max-w-[110rem] px-4 py-4 transition-all duration-300 ease-out sm:px-8 sm:py-5",
-      transparent ? "pointer-events-auto" : "border-b border-black/10 bg-white/95 backdrop-blur-md",
+      "header-track mx-auto w-full max-w-[110rem] px-4 py-4 sm:px-8 sm:py-5",
+      transparent ? "" : "border-b border-black/10 bg-white/95 backdrop-blur-md",
     ]}
   >
     <div
       data-header-bar=""
-      class="header-bar mx-auto flex w-full max-w-[110rem] items-center justify-between gap-3 transition-all duration-300 ease-out md:gap-4"
+      class="header-bar mx-auto flex w-full max-w-[110rem] items-center justify-between gap-3 md:gap-4"
     >
       <div
         data-header-nav-cluster=""
-        class="header-nav-cluster flex min-w-0 flex-1 items-center justify-between gap-3 rounded-full bg-white px-4 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out sm:gap-x-8 sm:px-8 sm:py-3 md:flex-initial md:justify-start"
+        class="header-nav-cluster flex min-w-0 flex-1 items-center justify-between gap-3 rounded-full bg-white px-4 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] sm:gap-x-8 sm:px-8 sm:py-3 md:flex-initial md:justify-start"
       >
       <a href={localizePath(locale, "home")} class="shrink-0">
         <img
@@ -127,7 +124,7 @@ const esPath =
     <a
       href={localizePath(locale, "events")}
       data-header-cta=""
-      class="header-cta btn-pill hidden shrink-0 items-center gap-2 rounded-full bg-white px-6 py-2.5 text-[0.62rem] font-bold uppercase tracking-[0.22em] text-neutral-950 shadow-[0_8px_32px_rgba(0,0,0,0.12)] transition-all duration-300 ease-out sm:inline-flex sm:px-8 sm:py-3 sm:text-[0.65rem] sm:tracking-[0.26em]"
+      class="header-cta btn-pill hidden shrink-0 items-center gap-2 rounded-full bg-white px-6 py-2.5 text-[0.62rem] font-bold uppercase tracking-[0.22em] text-neutral-950 shadow-[0_8px_32px_rgba(0,0,0,0.12)] sm:inline-flex sm:px-8 sm:py-3 sm:text-[0.65rem] sm:tracking-[0.26em]"
       aria-label={t(locale, "nav.cta")}
     >
       {t(locale, "nav.cta")}
@@ -233,25 +230,6 @@ const esPath =
     });
   }
 
-  function initSiteHeaderScroll() {
-    const header = document.querySelector("[data-site-header]");
-    if (!(header instanceof HTMLElement) || header.dataset.headerScrollReady === "1") return;
-    header.dataset.headerScrollReady = "1";
-
-    const threshold = 32;
-    const desktopNav = window.matchMedia("(min-width: 768px)");
-
-    function update() {
-      const scrolled = window.scrollY > threshold;
-      header.toggleAttribute("data-scrolled", desktopNav.matches && scrolled);
-    }
-
-    update();
-    desktopNav.addEventListener("change", update);
-    window.addEventListener("scroll", update, { passive: true });
-    document.addEventListener("astro:page-load", update);
-  }
-
   function initMobileMenu() {
     const header = document.querySelector("[data-site-header]");
     const panel = document.querySelector("[data-mobile-menu]");
@@ -307,63 +285,15 @@ const esPath =
     document.addEventListener("astro:page-load", closeMenu);
   }
 
-  initSiteHeaderScroll();
   initMobileMenu();
   initLocalePreferenceOnSwitch();
   document.addEventListener("astro:page-load", () => {
-    initSiteHeaderScroll();
     initMobileMenu();
     initLocalePreferenceOnSwitch();
   });
 </script>
 
 <style>
-  @media (min-width: 768px) {
-    .site-header[data-scrolled] {
-      padding-top: 0.65rem;
-    }
-
-    .site-header[data-scrolled] .header-track {
-      border-bottom-color: transparent;
-      background-color: transparent;
-      backdrop-filter: none;
-    }
-
-    .site-header[data-scrolled] .header-bar {
-      width: min(96vw, 84rem);
-      flex-wrap: nowrap;
-      gap: 1rem;
-      border: 1px solid rgba(0, 0, 0, 0.12);
-      border-radius: 9999px;
-      background-color: #fff;
-      padding: 0.45rem 0.55rem 0.45rem 1.25rem;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-    }
-
-    .site-header[data-scrolled] .header-nav-cluster {
-      flex: 1;
-      border-radius: 0;
-      background: transparent;
-      box-shadow: none;
-      padding: 0.35rem 0;
-    }
-
-    .site-header[data-scrolled] .header-cta {
-      background-color: #121715;
-      color: #fff;
-      box-shadow: none;
-    }
-
-    .site-header[data-scrolled] .header-cta .btn-pill-arrow {
-      color: #fff;
-    }
-
-    .site-header[data-scrolled] .header-cta.btn-pill:hover {
-      background-color: var(--color-brand-hover);
-      color: #fff;
-    }
-  }
-
   .site-header[data-mobile-menu-open] .mobile-menu-toggle {
     position: relative;
   }
