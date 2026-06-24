@@ -10,7 +10,7 @@ import { t } from "../i18n/ui";
 interface Props {
   title?: string;
   description?: string;
-  /** Homepage hero sits below the nav in document flow */
+  /** Overlay hero pages: nav floats over the hero and scrolls away with the page */
   transparentHeader?: boolean;
   /** Narrow inner column for prose pages */
   narrow?: boolean;
@@ -103,7 +103,7 @@ const trackerMarkup =
       rel="stylesheet"
     />
   </head>
-  <body class="bg-white text-neutral-900 antialiased">
+  <body class="relative bg-white text-neutral-900 antialiased">
     <Header transparent={transparentHeader} pathname={Astro.url.pathname} locale={locale} />
     <main
       class:list={[

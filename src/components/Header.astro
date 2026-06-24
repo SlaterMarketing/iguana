@@ -45,13 +45,16 @@ const esPath =
 <header
   data-site-header=""
   data-transparent-bg={transparent ? "1" : "0"}
-  class="site-header relative z-40 w-full"
+  class:list={[
+    "site-header z-40 w-full",
+    transparent ? "absolute inset-x-0 top-0 pointer-events-none" : "relative",
+  ]}
 >
   <div
     data-header-track=""
     class:list={[
       "header-track mx-auto w-full max-w-[110rem] px-4 py-4 sm:px-8 sm:py-5",
-      transparent ? "" : "border-b border-black/10 bg-white/95 backdrop-blur-md",
+      transparent ? "pointer-events-auto" : "border-b border-black/10 bg-white/95 backdrop-blur-md",
     ]}
   >
     <div
