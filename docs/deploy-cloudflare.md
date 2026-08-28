@@ -60,7 +60,7 @@ For Wrangler-specific local bindings, also copy `.dev.vars.example` to `.dev.var
 - **Empty shows / comedians** — API key rejected or vars missing at runtime. Check Pages **Functions** logs for `[Kintana:…]` errors.
 - **Contact form broken** — confirm submission endpoints exist in Kintana and CORS allows your site origin.
 - **Wrong canonical URLs** — set `PUBLIC_SITE_URL` to the final public URL, then redeploy.
-- **Legacy redirects** — handled in `astro.config.mjs` and `public/_redirects`.
+- **Legacy redirects** — handled in `astro.config.mjs`.
 
 ## Migrating from Dokploy
 
