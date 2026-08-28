@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "node scripts/check-kintana-env.mjs && astro build",
+    "build": "node scripts/check-kintana-env.mjs && astro build && node scripts/verify-dist.mjs",
     "preview": "wrangler pages dev ./dist",
     "cf:types": "wrangler types"
   },

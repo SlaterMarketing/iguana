@@ -56,6 +56,10 @@ For Wrangler-specific local bindings, also copy `.dev.vars.example` to `.dev.var
 
 ## Troubleshooting
 
+- **Site returns 404 but deployment is green** — open the latest deployment log and confirm you see `[Cloudflare build] dist output looks valid.` If the build failed on missing Kintana vars, Pages keeps serving an older broken deploy. Set all required env vars, then redeploy.
+- **Only `/robots.txt` works** — the Pages project is not publishing the full `dist` folder. Re-check **Build command** (`npm run build`) and **Build output directory** (`dist`, not `public`).
+- **Functions compatibility** — in the Pages project → **Settings → Functions**, add compatibility flag `nodejs_compat`.
+- **Custom domain still blank** — attach `iguanacomedy.com` under **Custom domains** on the Pages project (DNS in Cloudflare alone is not enough).
 - **“Connect ticketing credentials so listings can hydrate”** — confirm `PUBLIC_KINTANA_API_KEY` and `PUBLIC_KINTANA_BASE_URL` are set for the active environment, then redeploy.
 - **Empty shows / comedians** — API key rejected or vars missing at runtime. Check Pages **Functions** logs for `[Kintana:…]` errors.
 - **Contact form broken** — confirm submission endpoints exist in Kintana and CORS allows your site origin.

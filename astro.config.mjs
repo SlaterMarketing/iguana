@@ -8,10 +8,14 @@ import { defineConfig } from "astro/config";
 export default defineConfig({
   site: process.env.PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://iguanacomedy.com",
   output: "server",
+  session: {
+    driver: "memory",
+  },
   adapter: cloudflare({
     platformProxy: {
       enabled: true,
     },
+    imageService: "compile",
   }),
   integrations: [react(), mdx()],
   redirects: {
@@ -28,8 +32,19 @@ export default defineConfig({
       alias: import.meta.env.PROD
         ? {
             "react-dom/server": "react-dom/server.edge",
+            "react-dom/server.browser": "react-dom/server.edge",
           }
         : undefined,
+    },
+    ssr: {
+      resolve: {
+        alias: import.meta.env.PROD
+          ? {
+              "react-dom/server": "react-dom/server.edge",
+              "react-dom/server.browser": "react-dom/server.edge",
+            }
+          : undefined,
+      },
     },
   },
 });
