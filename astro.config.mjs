@@ -19,7 +19,6 @@ export default defineConfig({
   }),
   integrations: [react(), mdx()],
   redirects: {
-    "/es": "/es/",
     "/venues": { status: 301, destination: "/en/locations" },
     "/venues/[...path]": { status: 301, destination: "/en/locations" },
     "/private-events": { status: 301, destination: "/en/work-with-us/#private-events" },

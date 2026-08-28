@@ -14,6 +14,10 @@ export const onRequest = defineMiddleware(async (context, next) => {
     return context.redirect(`/${locale}/`, 302);
   }
 
+  if (pathname === "/es") {
+    return context.redirect("/es/", 302);
+  }
+
   const { locals } = context;
   const runtimeEnv = locals.runtime?.env as Record<string, string | undefined> | undefined;
   const { apiKey, baseUrl } = getKintanaEnv(runtimeEnv);
