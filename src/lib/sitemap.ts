@@ -1,7 +1,5 @@
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
 import { createKintanaClient } from "@kintana/sdk";
+import legacySitemapXml from "../../sitemap.xml?raw";
 import { groupVenuesByCity } from "@kintana/sdk/locations";
 
 import { getCityBlurb } from "../content/city-blurbs";
@@ -66,13 +64,8 @@ function prefixLocale(locale: Locale, path: string): string {
 }
 
 function parseLegacySitemapFile(): SitemapEntry[] {
-  const filePath = resolve(process.cwd(), "sitemap.xml");
-  let xml: string;
-  try {
-    xml = readFileSync(filePath, "utf8");
-  } catch {
-    return [];
-  }
+  const xml = legacySitemapXml.trim();
+  if (!xml) return [];
 
   const entries: SitemapEntry[] = [];
   for (const block of xml.matchAll(/<url>([\s\S]*?)<\/url>/g)) {

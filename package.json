@@ -5,18 +5,16 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
-    "build:docker": "node scripts/check-kintana-env.mjs && astro build",
-    "preview": "astro preview",
-    "docker:build": "docker build -t iguana-comedy .",
-    "docker:run": "docker run --rm -p 8080:3000 iguana-comedy"
+    "build": "node scripts/check-kintana-env.mjs && astro build",
+    "preview": "wrangler pages dev ./dist",
+    "cf:types": "wrangler types"
   },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
+    "@astrojs/cloudflare": "^12.6.12",
     "@astrojs/mdx": "^4.3.14",
-    "@astrojs/node": "^9.5.5",
     "@astrojs/react": "^4.4.2",
     "@kintana/sdk": "file:./vendor/kintana-sdk-0.11.1.tgz",
     "astro": "^5.13.14",
@@ -28,6 +26,7 @@
     "@tailwindcss/vite": "^4.1.17",
     "@types/react": "^19",
     "tailwindcss": "^4.1.17",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "wrangler": "^4.127.0"
   }
 }

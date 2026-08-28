@@ -1,17 +1,26 @@
 import { createKintanaClient } from "@kintana/sdk";
 
-/** Server/runtime env (Dokploy) with build-time fallback for local dev. */
-export function getKintanaEnv() {
-  const fromProcess = (key: string) =>
-    typeof process !== "undefined" ? process.env[key]?.trim() : undefined;
+type RuntimeEnv = Record<string, string | undefined>;
 
-  const apiKey = fromProcess("PUBLIC_KINTANA_API_KEY") || import.meta.env.PUBLIC_KINTANA_API_KEY?.trim() || "";
-  const baseUrl = fromProcess("PUBLIC_KINTANA_BASE_URL") || import.meta.env.PUBLIC_KINTANA_BASE_URL?.trim() || "";
-  const trackerToken =
-    fromProcess("PUBLIC_KINTANA_TRACKER_TOKEN") || import.meta.env.PUBLIC_KINTANA_TRACKER_TOKEN?.trim() || "";
-  const siteUrl = fromProcess("PUBLIC_SITE_URL") || import.meta.env.PUBLIC_SITE_URL?.trim() || "";
-  const secretApiKey =
-    fromProcess("KINTANA_SECRET_API_KEY") || import.meta.env.KINTANA_SECRET_API_KEY?.trim() || "";
+function readEnv(key: string, runtime?: RuntimeEnv): string {
+  const fromRuntime = runtime?.[key]?.trim();
+  if (fromRuntime) return fromRuntime;
+
+  const fromProcess =
+    typeof process !== "undefined" ? process.env[key]?.trim() : undefined;
+  if (fromProcess) return fromProcess;
+
+  const fromImport = import.meta.env[key as keyof ImportMetaEnv];
+  return typeof fromImport === "string" ? fromImport.trim() : "";
+}
+
+/** Server/runtime env (Cloudflare Pages, local `.env`) with build-time fallback. */
+export function getKintanaEnv(runtime?: RuntimeEnv) {
+  const apiKey = readEnv("PUBLIC_KINTANA_API_KEY", runtime);
+  const baseUrl = readEnv("PUBLIC_KINTANA_BASE_URL", runtime);
+  const trackerToken = readEnv("PUBLIC_KINTANA_TRACKER_TOKEN", runtime);
+  const siteUrl = readEnv("PUBLIC_SITE_URL", runtime);
+  const secretApiKey = readEnv("KINTANA_SECRET_API_KEY", runtime);
 
   return {
     apiKey,

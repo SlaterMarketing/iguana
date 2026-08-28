@@ -15,7 +15,8 @@ export const onRequest = defineMiddleware(async (context, next) => {
   }
 
   const { locals } = context;
-  const { apiKey, baseUrl } = getKintanaEnv();
+  const runtimeEnv = locals.runtime?.env as Record<string, string | undefined> | undefined;
+  const { apiKey, baseUrl } = getKintanaEnv(runtimeEnv);
   if (apiKey && baseUrl) {
     try {
       locals.brandOverrides = await fetchCachedBrandOverrides(apiKey, baseUrl);

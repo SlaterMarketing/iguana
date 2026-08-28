@@ -4,7 +4,7 @@ Copy `.env.example` to `.env`, add your **publish key** (`PUBLIC_KINTANA_API_KEY
 
 Static builds call the catalogue at build time, so CI/deploy needs the same variables when generating `/shows/[slug]` routes.
 
-**Dokploy:** see [docs/deploy-dokploy.md](docs/deploy-dokploy.md) — Docker Node server on port **3000**; set `PUBLIC_*` in Environment (runtime).
+**Cloudflare Pages:** see [docs/deploy-cloudflare.md](docs/deploy-cloudflare.md) — Astro SSR via `@astrojs/cloudflare`; set `PUBLIC_*` (and optional `KINTANA_SECRET_API_KEY`) in the Pages project environment.
 
 **Routes shipped:** `/`, `/shows`, `/shows/[slug]`, `/comedians`, `/comedians/[slug]`, `/locations`, `/locations/[city]`, `/about`, `/work-with-us`, `/contact`.
 
