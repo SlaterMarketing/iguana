@@ -9,6 +9,7 @@ import {
   LOCALE_PREFERENCE_MAX_AGE_SECONDS,
 } from "../lib/locale-preference";
 import LocaleFlagDropdown from "./LocaleFlagDropdown.astro";
+import { AccountNavLink } from "./account/AccountNavLink";
 
 interface Props {
   pathname?: string;
@@ -29,13 +30,12 @@ function matches(href: string) {
 }
 
 const links: {
-  key: "events" | "locations" | "comedians" | "store" | "membership" | "contact";
+  key: "events" | "locations" | "comedians" | "membership" | "contact";
   external?: boolean;
 }[] = [
   { key: "events" },
   { key: "locations" },
   { key: "comedians" },
-  { key: "store" },
   { key: "membership" },
   { key: "contact" },
 ];
@@ -44,8 +44,6 @@ function navLabel(key: (typeof links)[number]["key"]): string {
   switch (key) {
     case "locations":
       return t(locale, "nav.cities");
-    case "store":
-      return t(locale, "nav.merch");
     case "events":
       return t(locale, "nav.events");
     case "comedians":
@@ -145,17 +143,26 @@ const esPath =
       </div>
     </div>
 
-    <a
-      href={localizePath(locale, "events")}
-      data-header-cta=""
-      class="header-cta btn-pill hidden shrink-0 items-center gap-2 rounded-full bg-white px-6 py-2.5 text-[0.62rem] font-bold uppercase tracking-[0.22em] text-neutral-950 shadow-[0_8px_32px_rgba(0,0,0,0.12)] sm:inline-flex sm:px-8 sm:py-3 sm:text-[0.65rem] sm:tracking-[0.26em]"
-      aria-label={t(locale, "nav.cta")}
-    >
-      {t(locale, "nav.cta")}
-      <svg class="btn-pill-arrow h-[0.65rem] w-[1.1rem] shrink-0 text-brand transition-colors" viewBox="0 0 22 14" aria-hidden="true">
-        <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m2 7h18m-6-6 6 6-6 6" />
-      </svg>
-    </a>
+    <div class="header-cta-group hidden shrink-0 items-center gap-3 sm:flex">
+      <AccountNavLink
+        client:load
+        locale={locale}
+        loginLabel={t(locale, "nav.login")}
+        accountLabel={t(locale, "nav.account")}
+        className="btn-pill inline-flex items-center rounded-full bg-white/90 px-5 py-2.5 text-[0.62rem] font-bold uppercase tracking-[0.22em] text-neutral-700 shadow-[0_8px_32px_rgba(0,0,0,0.08)] transition-colors hover:text-neutral-950 sm:px-6 sm:py-3 sm:text-[0.65rem] sm:tracking-[0.24em]"
+      />
+      <a
+        href={localizePath(locale, "events")}
+        data-header-cta=""
+        class="header-cta btn-pill inline-flex items-center gap-2 rounded-full bg-white px-6 py-2.5 text-[0.62rem] font-bold uppercase tracking-[0.22em] text-neutral-950 shadow-[0_8px_32px_rgba(0,0,0,0.12)] sm:px-8 sm:py-3 sm:text-[0.65rem] sm:tracking-[0.26em]"
+        aria-label={t(locale, "nav.cta")}
+      >
+        {t(locale, "nav.cta")}
+        <svg class="btn-pill-arrow h-[0.65rem] w-[1.1rem] shrink-0 text-brand transition-colors" viewBox="0 0 22 14" aria-hidden="true">
+          <path fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="m2 7h18m-6-6 6 6-6 6" />
+        </svg>
+      </a>
+    </div>
     </div>
   </div>
 
@@ -214,13 +221,14 @@ const esPath =
             );
           })
         }
-        <a
-          href={localizePath(locale, "account")}
-          class="rounded-2xl px-4 py-3.5 text-lg font-semibold tracking-tight text-neutral-500 transition-colors hover:bg-neutral-50 hover:text-neutral-950"
-          data-mobile-menu-close=""
-        >
-          {t(locale, "nav.account")}
-        </a>
+        <AccountNavLink
+          client:load
+          locale={locale}
+          loginLabel={t(locale, "nav.login")}
+          accountLabel={t(locale, "nav.account")}
+          closeMobileMenu
+          className="rounded-2xl px-4 py-3.5 text-lg font-semibold tracking-tight text-neutral-500 transition-colors hover:bg-neutral-50 hover:text-neutral-950"
+        />
       </nav>
 
       <div class="mt-6 border-t border-black/10 pt-5">
@@ -273,14 +281,13 @@ const esPath =
 
     const sheet = panel.querySelector(".mobile-menu-sheet");
     const backdrop = panel.querySelector(".mobile-menu-backdrop");
-    const closeTargets = panel.querySelectorAll("[data-mobile-menu-close]");
 
-    function setOpen(open: boolean) {
+    function setOpen(open) {
       header.toggleAttribute("data-mobile-menu-open", open);
       panel.toggleAttribute("data-open", open);
       panel.setAttribute("aria-hidden", open ? "false" : "true");
       toggle.setAttribute("aria-expanded", open ? "true" : "false");
-      toggle.querySelector(".sr-only")!.textContent = open ? "Close menu" : "Open menu";
+      toggle.querySelector(".sr-only").textContent = open ? "Close menu" : "Open menu";
 
       if (open) {
         panel.removeAttribute("inert");
@@ -299,8 +306,10 @@ const esPath =
       setOpen(!header.hasAttribute("data-mobile-menu-open"));
     });
 
-    closeTargets.forEach((el) => {
-      el.addEventListener("click", closeMenu);
+    panel.addEventListener("click", (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      if (target.closest("[data-mobile-menu-close]")) closeMenu();
     });
 
     document.addEventListener("keydown", (event) => {

@@ -1,27 +1,31 @@
 export const membershipContent = {
   en: {
     metaDescription:
-      "Join Iguana Member from $9 a month — 15% off tickets, early access, and members-only nights across the Riviera Maya.",
+      "Join Iguana Member from MX$99 a month — two free tickets on eligible shows, 10% off for guests, early access, and members-only nights across the Riviera Maya.",
     hero: {
       kicker: "",
       headline: "Laugh more. Pay less. Stay in the know.",
       support:
-        "Iguana Member is your bilingual pass to English stand-up nights from Cancún to Tulum — member pricing, early access, and rooms reserved for members.",
-      priceHook: "From $9 / month · $99 / year",
+        "Iguana Member is your bilingual pass to English stand-up nights from Cancún to Tulum — free member tickets, guest discounts, early access, and rooms reserved for members.",
+      priceHook: "From MX$99 / month · MX$999 / year",
       ctaLabel: "Join now",
       ctaHref: "#join",
     },
     what: {
       kicker: "What it is",
       headline: "Your Riviera Maya comedy pass",
-      body: "Iguana Member is how regulars and travellers get the best of our rooms — about 15% off when member rates are on, first look at new shows, and nights put on just for members. One membership. Cancel anytime.",
+      body: "Iguana Member is how regulars and travellers get the best of our rooms — two free tickets on eligible shows, 10% off for guests beyond that, first look at new nights, and shows put on just for members. One membership. Cancel anytime.",
     },
     benefitsEyebrow: "What you get",
     benefitsHeadline: "Built for people who come back",
     benefits: [
       {
-        title: "About 15% off tickets",
-        body: "Member pricing on eligible shows — savings that add up if you catch more than one night a month.",
+        title: "Two free tickets",
+        body: "On eligible shows, your membership covers two tickets — bring a friend or keep both for yourself.",
+      },
+      {
+        title: "10% off for guests",
+        body: "After your two free tickets, extra guests still get 10% off on eligible shows.",
       },
       {
         title: "Early access & presales",
@@ -32,22 +36,18 @@ export const membershipContent = {
         body: "Exclusive shows and offers reserved for Iguana Members along the coast.",
       },
       {
-        title: "Bilingual hospitality",
-        body: "English comedy with Riviera Maya warmth — sign in once, use it at any Iguana night.",
-      },
-      {
         title: "Cancel anytime",
         body: "No lock-in. Manage or cancel from your account whenever you like.",
       },
     ],
     value: {
       kicker: "The maths",
-      headline: "Less than a beach cocktail a month",
-      body: "Iguana Member starts at $9 a month — or $99 a year (about $8.25 a month) if you want the better rate. One cheap night out already covers it.",
-      monthlyCompare: "$9 / month",
-      coffeeLine: "≈ less than one cocktail",
-      annualCompare: "$99 / year",
-      annualLine: "≈ $8.25 / month — save vs monthly",
+      headline: "A night out that pays for itself",
+      body: "Iguana Member starts at MX$99 a month — or MX$999 a year (about MX$83 a month) if you want the better rate. Two free tickets on eligible shows can cover the membership in a single visit.",
+      monthlyCompare: "MX$99 / month",
+      coffeeLine: "≈ one night’s membership",
+      annualCompare: "MX$999 / year",
+      annualLine: "≈ MX$83 / month — save vs monthly",
     },
     join: {
       kicker: "Join",
@@ -59,11 +59,11 @@ export const membershipContent = {
     faq: [
       {
         q: "What do I get as an Iguana Member?",
-        a: "Member ticket pricing where available (about 15% off), early access when we run presales, and access to members-only nights and offers.",
+        a: "Two free tickets on eligible shows, 10% off for additional guests, early access when we run presales, and access to members-only nights and offers.",
       },
       {
-        q: "How does member pricing work?",
-        a: "When a show has member rates, you’ll see the lower price once you’re signed in and purchasing as a member. Not every ticket type is discounted — check each show.",
+        q: "How do the free tickets and guest discount work?",
+        a: "On eligible shows, signed-in members can claim two free tickets. Tickets after that get 10% off where the guest discount applies — check each show for what’s included.",
       },
       {
         q: "Can I cancel?",
@@ -76,41 +76,45 @@ export const membershipContent = {
     ],
     closing: {
       headline: "Ready for your next night out?",
-      body: "Join Iguana Member in a couple of taps and start saving on shows.",
-      ctaLabel: "Join from $9/mo",
+      body: "Join Iguana Member in a couple of taps and start using your free tickets.",
+      ctaLabel: "Join from MX$99/mo",
       ctaHref: "#join",
     },
     defaultBenefitLabels: [
-      "About 15% off tickets on eligible shows",
-      "Early access and presales",
+      "Two free tickets to eligible shows",
+      "10% off for guests beyond the 2 tickets",
+      "Early access to shows",
       "Members-only nights and offers",
-      "Use it across Riviera Maya Iguana nights",
-      "Cancel anytime",
+      "Cancel anytime from your account",
     ],
   },
   es: {
     metaDescription:
-      "Únete a Iguana Member desde $9 al mes — 15% de descuento en boletos, acceso anticipado y noches solo para miembros en la Riviera Maya.",
+      "Únete a Iguana Member desde MX$99 al mes — dos boletos gratis en shows elegibles, 10% de descuento para invitados, acceso anticipado y noches solo para miembros en la Riviera Maya.",
     hero: {
       kicker: "",
       headline: "Ríe más. Paga menos. Entérate primero.",
       support:
-        "Iguana Member es tu pase bilingüe a las noches de stand-up en inglés de Cancún a Tulum — precios de miembro, acceso anticipado y salas reservadas para miembros.",
-      priceHook: "Desde $9 / mes · $99 / año",
+        "Iguana Member es tu pase bilingüe a las noches de stand-up en inglés de Cancún a Tulum — boletos gratis de miembro, descuento para invitados, acceso anticipado y salas reservadas para miembros.",
+      priceHook: "Desde MX$99 / mes · MX$999 / año",
       ctaLabel: "Únete ahora",
       ctaHref: "#join",
     },
     what: {
       kicker: "Qué es",
       headline: "Tu pase de comedia en la Riviera Maya",
-      body: "Iguana Member es cómo los habituales y viajeros aprovechan lo mejor de nuestras salas — alrededor de 15% de descuento cuando hay tarifas de miembro, primer vistazo a shows nuevos y noches solo para miembros. Una membresía. Cancela cuando quieras.",
+      body: "Iguana Member es cómo los habituales y viajeros aprovechan lo mejor de nuestras salas — dos boletos gratis en shows elegibles, 10% de descuento para invitados adicionales, primer vistazo a noches nuevas y shows solo para miembros. Una membresía. Cancela cuando quieras.",
     },
     benefitsEyebrow: "Qué obtienes",
     benefitsHeadline: "Hecho para quien vuelve",
     benefits: [
       {
-        title: "Alrededor de 15% en boletos",
-        body: "Precios de miembro en shows elegibles — el ahorro suma si vienes más de una noche al mes.",
+        title: "Dos boletos gratis",
+        body: "En shows elegibles, tu membresía cubre dos boletos — invita a alguien o úsalos tú.",
+      },
+      {
+        title: "10% de descuento para invitados",
+        body: "Después de tus dos boletos gratis, los invitados extra siguen con 10% de descuento en shows elegibles.",
       },
       {
         title: "Acceso anticipado y preventas",
@@ -121,22 +125,18 @@ export const membershipContent = {
         body: "Shows y ofertas exclusivas reservadas para miembros Iguana a lo largo de la costa.",
       },
       {
-        title: "Hospitalidad bilingüe",
-        body: "Comedia en inglés con calidez de la Riviera — inicia sesión una vez y úsala en cualquier noche Iguana.",
-      },
-      {
         title: "Cancela cuando quieras",
         body: "Sin amarre. Administra o cancela desde tu cuenta cuando te plazca.",
       },
     ],
     value: {
       kicker: "Las cuentas",
-      headline: "Menos que un cóctel en la playa al mes",
-      body: "Iguana Member empieza en $9 al mes — o $99 al año (unos $8.25 al mes) si quieres la mejor tarifa. Una noche barata ya lo cubre.",
-      monthlyCompare: "$9 / mes",
-      coffeeLine: "≈ menos que un cóctel",
-      annualCompare: "$99 / año",
-      annualLine: "≈ $8.25 / mes — ahorra vs mensual",
+      headline: "Una noche que se paga sola",
+      body: "Iguana Member empieza en MX$99 al mes — o MX$999 al año (unos MX$83 al mes) si quieres la mejor tarifa. Dos boletos gratis en shows elegibles pueden cubrir la membresía en una sola visita.",
+      monthlyCompare: "MX$99 / mes",
+      coffeeLine: "≈ la membresía de una noche",
+      annualCompare: "MX$999 / año",
+      annualLine: "≈ MX$83 / mes — ahorra vs mensual",
     },
     join: {
       kicker: "Únete",
@@ -148,11 +148,11 @@ export const membershipContent = {
     faq: [
       {
         q: "¿Qué obtengo como Iguana Member?",
-        a: "Precios de miembro donde apliquen (alrededor de 15% de descuento), acceso anticipado cuando hay preventas, y acceso a noches y ofertas solo para miembros.",
+        a: "Dos boletos gratis en shows elegibles, 10% de descuento para invitados adicionales, acceso anticipado cuando hay preventas, y acceso a noches y ofertas solo para miembros.",
       },
       {
-        q: "¿Cómo funcionan los precios de miembro?",
-        a: "Cuando un show tiene tarifas de miembro, verás el precio más bajo al iniciar sesión y comprar como miembro. No todos los tipos de boleto tienen descuento — revisa cada show.",
+        q: "¿Cómo funcionan los boletos gratis y el descuento para invitados?",
+        a: "En shows elegibles, los miembros con sesión iniciada pueden usar dos boletos gratis. Los boletos siguientes tienen 10% de descuento donde aplique — revisa cada show para ver qué incluye.",
       },
       {
         q: "¿Puedo cancelar?",
@@ -165,16 +165,16 @@ export const membershipContent = {
     ],
     closing: {
       headline: "¿Listo para tu próxima noche?",
-      body: "Únete a Iguana Member en un par de toques y empieza a ahorrar en shows.",
-      ctaLabel: "Únete desde $9/mes",
+      body: "Únete a Iguana Member en un par de toques y empieza a usar tus boletos gratis.",
+      ctaLabel: "Únete desde MX$99/mes",
       ctaHref: "#join",
     },
     defaultBenefitLabels: [
-      "Alrededor de 15% en boletos en shows elegibles",
-      "Acceso anticipado y preventas",
+      "Dos boletos gratis en shows elegibles",
+      "10% de descuento para invitados después de 2 boletos",
+      "Acceso anticipado a shows",
       "Noches y ofertas solo para miembros",
-      "Úsalo en las noches Iguana de la Riviera Maya",
-      "Cancela cuando quieras",
+      "Cancela cuando quieras desde tu cuenta",
     ],
   },
 } as const;
