@@ -2,6 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import EventCheckoutWidget from "../EventCheckoutWidget.astro";
 import EventFaq from "./EventFaq.astro";
+import { EventMemberOffer } from "./EventMemberOffer";
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import {
   eventSupportsOnSiteCheckout,
@@ -23,6 +24,7 @@ import { eventReviews, formatStarRating } from "../../lib/event-reviews";
 import { t } from "../../i18n/ui";
 import { localizePath } from "../../i18n/routes";
 import type { Locale } from "../../i18n/locale";
+import { getKintanaEnv } from "../../lib/kintana-env";
 
 interface Props {
   event: KintanaPublicEvent | null;
@@ -30,6 +32,8 @@ interface Props {
 }
 
 const { event, locale } = Astro.props;
+const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
+const membershipHref = localizePath(locale, "membership");
 
 const ticketingBlocked = Boolean(event?.status === "sold-out" || event?.status === "postponed");
 const onSiteCheckout = event ? eventSupportsOnSiteCheckout(event) : false;
@@ -255,13 +259,41 @@ const reviews = event ? eventReviews(event) : [];
                       {priceFormatted ? <p class="mt-1 text-sm font-semibold text-neutral-950">{t(locale, "events.priceStarting").replace("{price}", priceFormatted)}</p> : null}
                     </div>
                     <EventCheckoutWidget eventId={event.id} locale={locale} blocked={ticketingBlocked} class="!min-h-0 !rounded-none !border-0 !bg-white !p-3 sm:!p-4" />
+                    {
+                      hasCredentials && apiKey && baseUrl ? (
+                        <div class="border-t border-black/5 px-4 pb-4">
+                          <EventMemberOffer
+                            client:load
+                            apiKey={apiKey}
+                            baseUrl={baseUrl}
+                            locale={locale}
+                            slug={event.slug}
+                            membershipHref={membershipHref}
+                          />
+                        </div>
+                      ) : null
+                    }
                   </div>
                 ) : ticketingBlocked ? (
                   <p class="rounded-xl border border-black/10 bg-neutral-50 px-6 py-10 text-center text-sm text-neutral-600">{t(locale, "events.ticketsUnavailable")}</p>
                 ) : event.ticketUrl ? (
-                  <a href={event.ticketUrl} class="flex rounded-xl bg-neutral-950 px-6 py-4 text-center text-xs font-semibold uppercase tracking-[0.35em] text-white hover:opacity-95">
-                    {t(locale, "ui.buyTickets")}
-                  </a>
+                  <div>
+                    <a href={event.ticketUrl} class="flex rounded-xl bg-neutral-950 px-6 py-4 text-center text-xs font-semibold uppercase tracking-[0.35em] text-white hover:opacity-95">
+                      {t(locale, "ui.buyTickets")}
+                    </a>
+                    {
+                      hasCredentials && apiKey && baseUrl ? (
+                        <EventMemberOffer
+                          client:load
+                          apiKey={apiKey}
+                          baseUrl={baseUrl}
+                          locale={locale}
+                          slug={event.slug}
+                          membershipHref={membershipHref}
+                        />
+                      ) : null
+                    }
+                  </div>
                 ) : null
               }
             </aside>

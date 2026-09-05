@@ -1,0 +1,38 @@
+---
+import Base from "../../../layouts/Base.astro";
+import { VerifyTokenHandler } from "../../../components/account/VerifyTokenHandler";
+import { site } from "../../../content/site";
+import { membershipPaths } from "../../../lib/kintana-auth";
+import { getKintanaEnv, hasKintanaCredentials } from "../../../lib/kintana-env";
+
+const locale = "en" as const;
+const { apiKey, baseUrl } = getKintanaEnv();
+const token = Astro.url.searchParams.get("token")?.trim() ?? "";
+const signInHref = membershipPaths(locale).accountSignIn;
+---
+
+<Base narrow title={`Sign in · ${site.name}`} noindex>
+  <div class="account-auth">
+    <header class="account-auth-head">
+      <h1 class="account-auth-title">Signing in</h1>
+      <p class="account-auth-lead">Hang on while we confirm your link.</p>
+    </header>
+
+    {
+      hasKintanaCredentials() && token ? (
+        <VerifyTokenHandler
+          client:load
+          apiKey={apiKey!}
+          baseUrl={baseUrl!}
+          locale={locale}
+          token={token}
+        />
+      ) : (
+        <p class="account-status-copy">
+          {token ? "Something went wrong." : "Missing sign-in token."}{" "}
+          <a href={signInHref}>Try again</a>
+        </p>
+      )
+    }
+  </div>
+</Base>

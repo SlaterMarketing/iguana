@@ -1,0 +1,122 @@
+---
+import Base from "../../layouts/Base.astro";
+import { MembershipPage } from "../../components/membership/MembershipPage";
+import { membershipContent } from "../../content/membership";
+import { site } from "../../content/site";
+import { getKintanaEnv, hasKintanaCredentials } from "../../lib/kintana-env";
+
+const locale = "en" as const;
+const copy = membershipContent[locale];
+const { apiKey, baseUrl } = getKintanaEnv();
+const heroImage = site.brandMomentImage || site.clubPhotoImage || site.heroImage;
+---
+
+<Base
+  transparentHeader
+  flushMain
+  narrow={false}
+  title={`Membership · ${site.name}`}
+  description={copy.metaDescription}
+>
+  <section class="membership-hero">
+    <div class="membership-hero-media" aria-hidden="true">
+      <img src={heroImage} alt="" fetchpriority="high" decoding="async" />
+    </div>
+    <div class="membership-hero-overlay" aria-hidden="true"></div>
+    <div class="membership-hero-inner">
+      {copy.hero.kicker ? <p class="membership-hero-kicker">{copy.hero.kicker}</p> : null}
+      <h1 class="membership-hero-title">{copy.hero.headline}</h1>
+      <p class="membership-hero-support">{copy.hero.support}</p>
+      {copy.hero.priceHook ? <p class="membership-hero-price">{copy.hero.priceHook}</p> : null}
+      <a href={copy.hero.ctaHref} class="btn-brand membership-hero-cta">{copy.hero.ctaLabel}</a>
+    </div>
+  </section>
+
+  <section class="membership-section">
+    <div class="membership-section-inner membership-section-inner--narrow">
+      <p class="section-kicker">{copy.what.kicker}</p>
+      <h2 class="membership-section-title">{copy.what.headline}</h2>
+      <p class="membership-section-body">{copy.what.body}</p>
+    </div>
+  </section>
+
+  <section class="membership-section membership-section--alt">
+    <div class="membership-section-inner">
+      <p class="section-kicker">{copy.benefitsEyebrow}</p>
+      <h2 class="membership-section-title">{copy.benefitsHeadline}</h2>
+      <ul class="membership-benefit-list">
+        {
+          copy.benefits.map((item) => (
+            <li class="membership-benefit-row">
+              <h3 class="membership-benefit-title">{item.title}</h3>
+              <p class="membership-benefit-body">{item.body}</p>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
+  </section>
+
+  <section class="membership-section membership-value">
+    <div class="membership-section-inner membership-section-inner--narrow">
+      <p class="section-kicker">{copy.value.kicker}</p>
+      <h2 class="membership-section-title">{copy.value.headline}</h2>
+      <p class="membership-section-body">{copy.value.body}</p>
+      <div class="membership-value-compare" role="list">
+        <div class="membership-value-item" role="listitem">
+          <p class="membership-value-figure">{copy.value.monthlyCompare}</p>
+          <p class="membership-value-note">{copy.value.coffeeLine}</p>
+        </div>
+        <div class="membership-value-item" role="listitem">
+          <p class="membership-value-figure">{copy.value.annualCompare}</p>
+          <p class="membership-value-note">{copy.value.annualLine}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="join" class="membership-section membership-join-section">
+    <div class="membership-section-inner membership-section-inner--join">
+      <p class="section-kicker">{copy.join.kicker}</p>
+      <h2 class="membership-section-title">{copy.join.headline}</h2>
+      <p class="membership-section-body">{copy.join.body}</p>
+
+      {
+        hasKintanaCredentials() ? (
+          <div class="membership-join-panel mt-10">
+            <MembershipPage client:load apiKey={apiKey!} baseUrl={baseUrl!} locale={locale} />
+          </div>
+        ) : (
+          <p class="mt-8 text-muted">Membership is not configured yet.</p>
+        )
+      }
+    </div>
+  </section>
+
+  <section class="membership-section membership-section--alt">
+    <div class="membership-section-inner membership-section-inner--narrow">
+      <p class="section-kicker">{copy.faqEyebrow}</p>
+      <h2 class="membership-section-title">{copy.faqHeadline}</h2>
+      <dl class="membership-faq">
+        {
+          copy.faq.map((item) => (
+            <div class="membership-faq-item">
+              <dt>{item.q}</dt>
+              <dd>{item.a}</dd>
+            </div>
+          ))
+        }
+      </dl>
+    </div>
+  </section>
+
+  <section class="membership-section membership-closing">
+    <div class="membership-section-inner membership-section-inner--narrow">
+      <h2 class="membership-section-title">{copy.closing.headline}</h2>
+      <p class="membership-section-body">{copy.closing.body}</p>
+      <a href={copy.closing.ctaHref} class="btn-brand membership-hero-cta mt-8 inline-flex">
+        {copy.closing.ctaLabel}
+      </a>
+    </div>
+  </section>
+</Base>

@@ -34,6 +34,10 @@ export function getKintanaEnv(runtime?: RuntimeEnv) {
   };
 }
 
+export function hasKintanaCredentials(runtime?: RuntimeEnv) {
+  return getKintanaEnv(runtime).hasCredentials;
+}
+
 /**
  * Kintana client with optional workspace secret — use from server contexts only (pages/middleware/endpoints).
  * Passes `secretApiKey` when `KINTANA_SECRET_API_KEY` is set (embed-form workspace writes, CRM field helpers).

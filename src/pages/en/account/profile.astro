@@ -1,0 +1,24 @@
+---
+import Base from "../../../layouts/Base.astro";
+import { AccountPage } from "../../../components/account/AccountPage";
+import { site } from "../../../content/site";
+import { getKintanaEnv, hasKintanaCredentials } from "../../../lib/kintana-env";
+
+const locale = "en" as const;
+const { apiKey, baseUrl } = getKintanaEnv();
+---
+
+<Base
+  narrow
+  title={`Profile · ${site.name}`}
+  description="Update your Iguana Comedy profile."
+  noindex
+>
+  {
+    hasKintanaCredentials() ? (
+      <AccountPage client:load apiKey={apiKey!} baseUrl={baseUrl!} locale={locale} view="profile" />
+    ) : (
+      <p class="text-muted">Account sign-in is not configured yet.</p>
+    )
+  }
+</Base>

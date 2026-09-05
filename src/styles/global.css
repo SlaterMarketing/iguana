@@ -9,6 +9,14 @@
   --color-ink: #121715;
 }
 
+:root {
+  --color-line: rgb(18 23 21 / 0.12);
+  --color-muted: rgb(18 23 21 / 0.62);
+  --color-surface: #ffffff;
+  --color-surface-alt: #f4f6f4;
+  --color-navy-deep: var(--color-ink);
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -56,4 +64,962 @@ body {
 
 .scrollbar-none::-webkit-scrollbar {
   display: none;
+}
+
+.section-kicker {
+  color: var(--color-brand);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.42em;
+  text-transform: uppercase;
+}
+
+.text-muted {
+  color: var(--color-muted);
+}
+
+.btn-brand {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: var(--color-brand);
+  color: #fff;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  transition: background-color 0.2s ease;
+}
+
+.btn-brand:hover {
+  background: var(--color-brand-hover);
+}
+
+.btn-brand:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  border: 1px solid var(--color-line);
+  color: var(--color-ink);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  background: transparent;
+  transition:
+    border-color 0.2s ease,
+    color 0.2s ease;
+}
+
+.btn-outline:hover {
+  border-color: var(--color-brand);
+  color: var(--color-brand);
+}
+
+.btn-outline:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.form-error {
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+  color: #b42318;
+}
+
+.form-link-button {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 0.875rem;
+  color: var(--color-brand);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+  cursor: pointer;
+}
+
+.form-link-button:hover {
+  color: var(--color-brand-hover);
+}
+
+.form-link-button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 40%, transparent);
+  outline-offset: 3px;
+}
+
+.activation-code-input {
+  padding: 0.65rem 0.85rem;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+/* —— Account auth / shell —— */
+
+.account-shell,
+.account-auth {
+  max-width: 36rem;
+  caret-color: var(--color-brand);
+}
+
+.account-shell ::selection,
+.account-auth ::selection {
+  background: var(--color-brand-soft);
+  color: var(--color-ink);
+}
+
+.account-shell a,
+.account-auth a {
+  color: var(--color-brand);
+  text-underline-offset: 0.18em;
+}
+
+.account-shell a:hover,
+.account-auth a:hover {
+  color: var(--color-brand-hover);
+}
+
+.account-shell a.btn-brand,
+.account-auth a.btn-brand {
+  color: #fff;
+}
+
+.account-shell a.btn-brand:hover,
+.account-auth a.btn-brand:hover {
+  color: #fff;
+}
+
+.account-shell a:focus-visible,
+.account-auth a:focus-visible,
+.account-form input:focus-visible,
+.account-auth-code:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 40%, transparent);
+  outline-offset: 2px;
+}
+
+.account-status-copy {
+  color: var(--color-ink);
+  opacity: 0.72;
+}
+
+.account-shell-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+}
+
+.account-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.85rem, 4vw, 2.35rem);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+  color: var(--color-ink);
+}
+
+.account-email {
+  margin-top: 0.45rem;
+  font-size: 0.95rem;
+  color: var(--color-ink);
+  opacity: 0.72;
+}
+
+.account-subnav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.35rem;
+  margin-top: 1.75rem;
+  padding-bottom: 0.15rem;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.account-subnav a {
+  position: relative;
+  padding-block: 0.25rem;
+  color: var(--color-ink);
+  text-decoration: none;
+}
+
+.account-subnav a:hover {
+  color: var(--color-brand);
+}
+
+.account-subnav a[aria-current="page"] {
+  color: var(--color-brand);
+}
+
+.account-subnav a[aria-current="page"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -0.35rem;
+  height: 2px;
+  border-radius: 9999px;
+  background: var(--color-brand);
+}
+
+.account-panel {
+  margin-top: 2.25rem;
+}
+
+.account-flash {
+  margin-bottom: 1.5rem;
+  font-size: 0.98rem;
+  color: var(--color-ink);
+}
+
+.account-plan-list {
+  display: grid;
+  gap: 1.35rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.account-plan-name {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--color-ink);
+}
+
+.account-plan-meta {
+  margin-top: 0.35rem;
+  font-size: 0.95rem;
+  color: var(--color-ink);
+  opacity: 0.72;
+}
+
+.account-empty p {
+  font-size: 1.02rem;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+
+.account-action,
+.account-auth-submit {
+  padding: 0.75rem 1.5rem;
+  margin-top: 1.15rem;
+}
+
+.account-ticket-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account-ticket {
+  padding-block: 1.2rem;
+  border-top: 1px solid var(--color-line);
+}
+
+.account-ticket:last-child {
+  border-bottom: 1px solid var(--color-line);
+}
+
+.account-ticket-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1rem;
+}
+
+.account-ticket-name {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--color-ink);
+}
+
+.account-ticket-date {
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink);
+  opacity: 0.72;
+}
+
+.account-ticket-meta {
+  margin-top: 0.3rem;
+  font-size: 0.92rem;
+  color: var(--color-ink);
+  opacity: 0.72;
+}
+
+.account-ticket-link {
+  display: inline-block;
+  margin-top: 0.55rem;
+  font-size: 0.92rem;
+}
+
+.account-form {
+  display: grid;
+  gap: 1.15rem;
+  max-width: 24rem;
+}
+
+.account-form label,
+.account-auth-form label {
+  display: block;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.account-form input,
+.account-auth-form input {
+  display: block;
+  width: 100%;
+  margin-top: 0.35rem;
+  padding: 0.75rem 0.9rem;
+  font: inherit;
+  border: 1px solid var(--color-line);
+  border-radius: 0.75rem;
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+.account-form input:focus,
+.account-auth-form input:focus {
+  outline: 2px solid color-mix(in srgb, var(--color-brand) 30%, transparent);
+  border-color: var(--color-brand);
+}
+
+.account-form-msg {
+  font-size: 0.875rem;
+  color: var(--color-ink);
+  opacity: 0.72;
+}
+
+.account-credits {
+  margin-top: 2.75rem;
+  padding-top: 2.25rem;
+  border-top: 1px solid var(--color-line);
+}
+
+.account-credits-title {
+  font-family: var(--font-display);
+  font-size: 1.35rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--color-ink);
+}
+
+.account-credits-balance {
+  margin-top: 0.45rem;
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-ink);
+}
+
+.credit-amount {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28em;
+}
+
+.credit-ticket-icon {
+  width: 0.85em;
+  height: 0.85em;
+  flex-shrink: 0;
+  opacity: 0.88;
+}
+
+.account-credits-balance .credit-ticket-icon {
+  width: 0.78em;
+  height: 0.78em;
+}
+
+.account-credits-note,
+.account-credits-empty,
+.account-credits-pending {
+  margin-top: 0.45rem;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  color: var(--color-ink);
+  opacity: 0.72;
+}
+
+.account-credits-form {
+  margin-top: 1.5rem;
+}
+
+.account-credits-history {
+  margin: 1.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.account-credits-history li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.2rem 1rem;
+  padding-block: 0.85rem;
+  border-top: 1px solid var(--color-line);
+  font-size: 0.95rem;
+  color: var(--color-ink);
+}
+
+.account-credits-history li:last-child {
+  border-bottom: 1px solid var(--color-line);
+}
+
+.account-credits-history-amt {
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.account-credits-history-status {
+  grid-column: 1 / -1;
+  font-size: 0.82rem;
+  color: var(--color-ink);
+  opacity: 0.72;
+}
+
+.account-auth-head {
+  margin-bottom: 1.75rem;
+}
+
+.account-auth-title {
+  font-family: var(--font-display);
+  font-size: clamp(1.85rem, 4vw, 2.35rem);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+  color: var(--color-ink);
+}
+
+.account-auth-lead {
+  margin-top: 0.7rem;
+  max-width: 28rem;
+  font-size: 1.02rem;
+  line-height: 1.5;
+  color: var(--color-ink);
+  opacity: 0.72;
+}
+
+.account-auth-form {
+  display: grid;
+  gap: 1.15rem;
+  animation: account-auth-in 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes account-auth-in {
+  from {
+    opacity: 0.35;
+    filter: blur(6px);
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: none;
+  }
+}
+
+.account-auth-code {
+  max-width: 12.5rem;
+  padding: 0.85rem 0.75rem;
+  font-size: 1.45rem;
+  font-weight: 600;
+  letter-spacing: 0.28em;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.account-auth-sent {
+  margin-bottom: 1.25rem;
+  font-size: 0.98rem;
+  line-height: 1.5;
+  color: var(--color-ink);
+  opacity: 0.78;
+}
+
+.account-auth-sent strong {
+  font-weight: 600;
+  color: var(--color-ink);
+  opacity: 1;
+}
+
+.account-auth-switch {
+  margin-top: 1.75rem;
+  font-size: 0.92rem;
+  color: var(--color-ink);
+  opacity: 0.78;
+}
+
+.account-auth-switch a,
+.account-auth-switch-link {
+  color: var(--color-brand);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .account-auth-form {
+    animation: none;
+  }
+}
+
+/* —— Membership sales funnel —— */
+
+.membership-hero {
+  position: relative;
+  isolation: isolate;
+  min-height: min(92svh, 44rem);
+  display: flex;
+  align-items: flex-end;
+  overflow: hidden;
+  color: #fff;
+  background: #1a2e1c;
+}
+
+.membership-hero-media {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+
+.membership-hero-media img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+}
+
+.membership-hero-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background:
+    linear-gradient(180deg, rgb(18 23 21 / 0.35) 0%, rgb(18 23 21 / 0.55) 40%, rgb(18 23 21 / 0.88) 100%),
+    radial-gradient(ellipse at 20% 10%, color-mix(in srgb, var(--color-brand) 35%, transparent), transparent 55%);
+}
+
+.membership-hero-inner {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  max-width: 72rem;
+  margin-inline: auto;
+  padding: max(6.5rem, calc(env(safe-area-inset-top, 0px) + 5.5rem)) 1rem 3rem;
+}
+
+@media (min-width: 640px) {
+  .membership-hero-inner {
+    padding-inline: 1.5rem;
+    padding-bottom: 3.75rem;
+  }
+}
+
+.membership-hero-kicker {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgb(255 255 255 / 0.78);
+}
+
+.membership-hero-title {
+  margin-top: 0.75rem;
+  max-width: 16ch;
+  font-family: var(--font-display);
+  font-size: clamp(2.75rem, 9vw, 4.75rem);
+  font-weight: 400;
+  line-height: 0.95;
+  letter-spacing: 0.03em;
+}
+
+.membership-hero-support {
+  margin-top: 1rem;
+  max-width: 32rem;
+  font-size: 1.05rem;
+  line-height: 1.55;
+  color: rgb(255 255 255 / 0.88);
+}
+
+.membership-hero-price {
+  margin-top: 1.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: color-mix(in srgb, var(--color-brand-soft) 80%, white);
+}
+
+.membership-hero-cta {
+  margin-top: 1.75rem;
+  display: inline-flex;
+  padding: 0.85rem 1.5rem;
+  font-size: 0.68rem;
+  letter-spacing: 0.22em;
+}
+
+.membership-section {
+  padding: 4.5rem 1rem;
+}
+
+@media (min-width: 640px) {
+  .membership-section {
+    padding-inline: 1.5rem;
+    padding-block: 5.5rem;
+  }
+}
+
+.membership-section--alt {
+  background: var(--color-surface-alt);
+  border-block: 1px solid var(--color-line);
+}
+
+.membership-section-inner {
+  max-width: 72rem;
+  margin-inline: auto;
+}
+
+.membership-section-inner--narrow {
+  max-width: 40rem;
+}
+
+.membership-section-inner--join {
+  max-width: 36rem;
+}
+
+.membership-section-title {
+  margin-top: 0.65rem;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4.5vw, 2.75rem);
+  font-weight: 400;
+  color: var(--color-ink);
+  letter-spacing: 0.03em;
+  line-height: 1.1;
+}
+
+.membership-section-body {
+  margin-top: 1.15rem;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  color: var(--color-muted);
+}
+
+.membership-benefit-list {
+  margin-top: 2.5rem;
+  display: grid;
+  gap: 0;
+  list-style: none;
+  padding: 0;
+}
+
+.membership-benefit-row {
+  padding-block: 1.35rem;
+  border-top: 1px solid var(--color-line);
+}
+
+.membership-benefit-row:last-child {
+  border-bottom: 1px solid var(--color-line);
+}
+
+.membership-benefit-title {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--color-ink);
+}
+
+.membership-benefit-body {
+  margin-top: 0.4rem;
+  max-width: 36rem;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: var(--color-muted);
+}
+
+.membership-value {
+  background: var(--color-ink);
+  color: #fff;
+  border: none;
+}
+
+.membership-value .section-kicker {
+  color: rgb(255 255 255 / 0.65);
+}
+
+.membership-value .membership-section-title {
+  color: #fff;
+}
+
+.membership-value .membership-section-body {
+  color: rgb(255 255 255 / 0.82);
+}
+
+.membership-value-compare {
+  margin-top: 2.25rem;
+  display: grid;
+  gap: 1.75rem;
+}
+
+@media (min-width: 640px) {
+  .membership-value-compare {
+    grid-template-columns: 1fr 1fr;
+    gap: 2.5rem;
+  }
+}
+
+.membership-value-figure {
+  font-family: var(--font-display);
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: color-mix(in srgb, var(--color-brand) 70%, white);
+}
+
+.membership-value-note {
+  margin-top: 0.35rem;
+  font-size: 0.95rem;
+  color: rgb(255 255 255 / 0.75);
+}
+
+.membership-join-section {
+  scroll-margin-top: 5rem;
+}
+
+.membership-join-panel {
+  max-width: 100%;
+}
+
+.membership-current-line {
+  font-size: 1.02rem;
+  line-height: 1.5;
+  color: var(--color-ink);
+}
+
+.membership-current-line a {
+  color: var(--color-brand);
+  text-underline-offset: 0.18em;
+}
+
+.membership-current-line a:hover {
+  color: var(--color-brand-hover);
+}
+
+.membership-plan-block {
+  padding-top: 0.25rem;
+  max-width: 28rem;
+}
+
+.membership-billing-toggle {
+  display: flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.65rem;
+  margin-bottom: 1.25rem;
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.membership-billing-toggle .membership-billing-label {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 500;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--color-muted);
+  cursor: pointer;
+  white-space: nowrap;
+  line-height: 1.2;
+  box-shadow: none;
+}
+
+.membership-billing-toggle .membership-billing-label.is-active {
+  font-weight: 700;
+  color: var(--color-ink);
+  background: transparent;
+}
+
+.membership-billing-toggle .membership-billing-switch {
+  appearance: none;
+  position: relative;
+  width: 2.75rem;
+  height: 1.55rem;
+  min-width: 2.75rem;
+  border: 2px solid var(--color-ink);
+  border-radius: 999px;
+  background: var(--color-brand);
+  cursor: pointer;
+  padding: 0;
+  margin: 0;
+  flex-shrink: 0;
+  letter-spacing: 0;
+  text-transform: none;
+  box-shadow: none;
+  transition: background-color 0.15s ease;
+}
+
+.membership-billing-toggle .membership-billing-switch:not(.is-yearly) {
+  background: var(--color-ink);
+}
+
+.membership-billing-knob {
+  position: absolute;
+  top: 50%;
+  left: 0.15rem;
+  width: 1.1rem;
+  height: 1.1rem;
+  border-radius: 999px;
+  background: #fff;
+  transform: translateY(-50%);
+  transition: transform 0.18s ease;
+  pointer-events: none;
+  display: block;
+}
+
+.membership-billing-switch.is-yearly .membership-billing-knob {
+  transform: translate(1.15rem, -50%);
+}
+
+.membership-discount-badge {
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  border-radius: 0.35rem;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  color: var(--color-ink);
+  background: #fff;
+  border: 1px solid color-mix(in srgb, var(--color-brand) 40%, transparent);
+}
+
+.membership-plan-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1.5rem 1.35rem 1.4rem;
+  border-radius: 1.35rem;
+  background: var(--color-brand-soft);
+}
+
+.membership-plan-panel-copy {
+  display: grid;
+  gap: 1rem;
+}
+
+.membership-plan-price {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.membership-plan-amount {
+  font-family: var(--font-display);
+  font-size: clamp(2.4rem, 8vw, 3.1rem);
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  line-height: 1;
+  color: var(--color-ink);
+}
+
+.membership-plan-cadence {
+  font-size: 0.95rem;
+  color: var(--color-muted);
+}
+
+.membership-plan-billed {
+  margin-top: 0.2rem;
+  font-size: 0.82rem;
+  color: var(--color-ink);
+  opacity: 0.75;
+}
+
+.membership-plan-benefits {
+  display: grid;
+  gap: 0.65rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.membership-plan-benefits li {
+  display: flex;
+  gap: 0.65rem;
+  align-items: flex-start;
+  font-size: 0.95rem;
+  line-height: 1.45;
+  color: var(--color-ink);
+}
+
+.membership-plan-check {
+  flex-shrink: 0;
+  color: var(--color-brand);
+  font-weight: 700;
+}
+
+.membership-plan-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.65rem;
+  margin-top: auto;
+}
+
+.membership-join-btn {
+  padding: 0.85rem 1.25rem;
+  font-size: 0.7rem;
+  letter-spacing: 0.18em;
+  text-align: center;
+  border-radius: 999px;
+}
+
+.membership-join-btn-primary {
+  width: 100%;
+}
+
+.membership-faq {
+  margin-top: 2.25rem;
+  display: grid;
+  gap: 1.75rem;
+}
+
+.membership-faq-item dt {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 400;
+  letter-spacing: 0.03em;
+  color: var(--color-ink);
+}
+
+.membership-faq-item dd {
+  margin-top: 0.45rem;
+  font-size: 0.98rem;
+  line-height: 1.55;
+  color: var(--color-muted);
+}
+
+.membership-closing {
+  text-align: left;
+  border-top: 4px solid var(--color-brand);
 }

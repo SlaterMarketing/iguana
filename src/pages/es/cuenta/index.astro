@@ -1,0 +1,24 @@
+---
+import Base from "../../../layouts/Base.astro";
+import { AccountPage } from "../../../components/account/AccountPage";
+import { site } from "../../../content/site";
+import { getKintanaEnv, hasKintanaCredentials } from "../../../lib/kintana-env";
+
+const locale = "es" as const;
+const { apiKey, baseUrl } = getKintanaEnv();
+---
+
+<Base
+  narrow
+  title={`Membresía · ${site.name}`}
+  description="Consulta y administra tu membresía de Iguana Comedy."
+  noindex
+>
+  {
+    hasKintanaCredentials() ? (
+      <AccountPage client:load apiKey={apiKey!} baseUrl={baseUrl!} locale={locale} view="membership" />
+    ) : (
+      <p class="text-muted">El acceso a la cuenta aún no está configurado.</p>
+    )
+  }
+</Base>

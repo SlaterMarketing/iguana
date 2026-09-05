@@ -28,13 +28,34 @@ function matches(href: string) {
   return p === h;
 }
 
-const links: { key: "events" | "locations" | "comedians" | "store" | "contact"; external?: boolean }[] = [
+const links: {
+  key: "events" | "locations" | "comedians" | "store" | "membership" | "contact";
+  external?: boolean;
+}[] = [
   { key: "events" },
   { key: "locations" },
   { key: "comedians" },
   { key: "store" },
+  { key: "membership" },
   { key: "contact" },
 ];
+
+function navLabel(key: (typeof links)[number]["key"]): string {
+  switch (key) {
+    case "locations":
+      return t(locale, "nav.cities");
+    case "store":
+      return t(locale, "nav.merch");
+    case "events":
+      return t(locale, "nav.events");
+    case "comedians":
+      return t(locale, "nav.comedians");
+    case "membership":
+      return t(locale, "nav.membership");
+    case "contact":
+      return t(locale, "nav.contact");
+  }
+}
 
 const enPath =
   locale === "en" ? pathnameRaw : getAlternatePath("es", pathnameRaw) ?? localizePath("en", "home");
@@ -95,7 +116,7 @@ const esPath =
                   ]}
                   {...(link.external ? { target: "_blank", rel: "noreferrer noopener" } : {})}
                 >
-                  {t(locale, `nav.${link.key === "locations" ? "cities" : link.key === "store" ? "merch" : link.key}`)}
+                  {navLabel(link.key)}
                 </a>
               </>
             );
@@ -188,11 +209,18 @@ const esPath =
                 {...(link.external ? { target: "_blank", rel: "noreferrer noopener" } : {})}
                 data-mobile-menu-close=""
               >
-                {t(locale, `nav.${link.key === "locations" ? "cities" : link.key === "store" ? "merch" : link.key}`)}
+                {navLabel(link.key)}
               </a>
             );
           })
         }
+        <a
+          href={localizePath(locale, "account")}
+          class="rounded-2xl px-4 py-3.5 text-lg font-semibold tracking-tight text-neutral-500 transition-colors hover:bg-neutral-50 hover:text-neutral-950"
+          data-mobile-menu-close=""
+        >
+          {t(locale, "nav.account")}
+        </a>
       </nav>
 
       <div class="mt-6 border-t border-black/10 pt-5">

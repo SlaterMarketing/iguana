@@ -16,7 +16,9 @@
     "@astrojs/cloudflare": "^12.6.12",
     "@astrojs/mdx": "^4.3.14",
     "@astrojs/react": "^4.4.2",
-    "@kintana/sdk": "file:./vendor/kintana-sdk-0.11.1.tgz",
+    "@kintana/sdk": "file:./vendor/kintana-sdk-0.15.5.tgz",
+    "@stripe/react-stripe-js": "^3.7.0",
+    "@stripe/stripe-js": "^7.3.1",
     "astro": "^5.13.14",
     "react": "^19.2.3",
     "react-dom": "^19.2.3"

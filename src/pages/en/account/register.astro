@@ -1,0 +1,51 @@
+---
+import Base from "../../../layouts/Base.astro";
+import { SignInForm } from "../../../components/account/SignInForm";
+import { site } from "../../../content/site";
+import { accountVerifyRedirectUrl, membershipPaths } from "../../../lib/kintana-auth";
+import { getKintanaEnv, hasKintanaCredentials } from "../../../lib/kintana-env";
+import { localizePath } from "../../../i18n/routes";
+
+const locale = "en" as const;
+const { apiKey, baseUrl } = getKintanaEnv();
+const redirectUrl = accountVerifyRedirectUrl(locale);
+const signInHref = Astro.url.search
+  ? `${localizePath(locale, "accountSignIn")}${Astro.url.search}`
+  : membershipPaths(locale).accountSignIn;
+---
+
+<Base
+  narrow
+  title={`Register · ${site.name}`}
+  description="Create your Iguana Comedy member account."
+  noindex
+>
+  <div class="account-auth">
+    <header class="account-auth-head">
+      <h1 class="account-auth-title">Create account</h1>
+      <p class="account-auth-lead">
+        Enter your email and we’ll send a confirmation link and a 6-digit code.
+      </p>
+    </header>
+
+    {
+      hasKintanaCredentials() ? (
+        <>
+          <SignInForm
+            client:load
+            apiKey={apiKey!}
+            baseUrl={baseUrl!}
+            locale={locale}
+            redirectUrl={redirectUrl}
+            mode="register"
+          />
+          <p class="account-auth-switch">
+            Already have an account? <a href={signInHref}>Sign in</a>
+          </p>
+        </>
+      ) : (
+        <p class="account-status-copy">Account registration is not configured yet.</p>
+      )
+    }
+  </div>
+</Base>

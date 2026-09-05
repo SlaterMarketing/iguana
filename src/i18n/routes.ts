@@ -20,6 +20,13 @@ export const routeMap = {
     hotelsAndResorts: "/hotels-and-resorts/",
     privacyPolicy: "/legal/privacy-policy/",
     termsAndConditions: "/legal/terms-and-conditions/",
+    membership: "/membership/",
+    account: "/account/",
+    accountSignIn: "/account/sign-in/",
+    accountVerify: "/account/verify/",
+    accountTickets: "/account/tickets/",
+    accountProfile: "/account/profile/",
+    accountRegister: "/account/register/",
   },
   es: {
     home: "/",
@@ -39,6 +46,13 @@ export const routeMap = {
     hotelsAndResorts: "/hoteles-y-resorts/",
     privacyPolicy: "/legal/politica-de-privacidad/",
     termsAndConditions: "/legal/terminos-y-condiciones/",
+    membership: "/membresia/",
+    account: "/cuenta/",
+    accountSignIn: "/cuenta/iniciar-sesion/",
+    accountVerify: "/cuenta/verificar/",
+    accountTickets: "/cuenta/boletos/",
+    accountProfile: "/cuenta/perfil/",
+    accountRegister: "/cuenta/registro/",
   },
 } as const;
 
