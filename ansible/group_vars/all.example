@@ -8,6 +8,7 @@ projectname: iguana
 app_dir: /home/www/iguana
 site_domain: iguanacomedy.mx
 api_domain: api.iguanacomedy.mx
+mail_domain: mail.iguanacomedy.mx
 server_ipv4: 38.86.78.36
 server_ipv6: "2001:550:2:dd::f9:68"
 certbot_email: hello@iguanacomedy.com
@@ -18,8 +19,12 @@ django_secret_key: "{{ lookup('file', creds + '/django_secret_key') }}"
 public_api_key: "{{ lookup('file', creds + '/public_api_key') }}"
 secret_api_key: "{{ lookup('file', creds + '/secret_api_key') }}"
 notify_emails: ["hello@iguanacomedy.com"]
-# Until iguanacomedy.mx points here, serve the site on http://<ip>/ and the API on http://<ip>:8080.
-dns_live: false
+# DNS is live (ns1-3.vps.org) since 2026-09-14. Set false only to serve by IP (site :80, API :8080).
+dns_live: true
 site_url: "{{ ('https://' + site_domain) if dns_live | bool else ('http://' + server_ipv4) }}"
 backend_url: "{{ ('https://' + api_domain) if dns_live | bool else ('http://' + server_ipv4 + ':8080') }}"
 site_urls: "{{ [site_url, 'https://www.' + site_domain] if dns_live | bool else [site_url] }}"
+
+# Mail: hello@ and the DSN/role aliases deliver to the local `inbox` user; DMARC reports to local `dmarc`.
+mail_inbox_aliases: [hello, noreply, no-reply, postmaster, abuse, mailer-daemon]
+mail_test_recipient: someone-else@example.com

@@ -1,0 +1,144 @@
+---
+# Postfix + OpenDKIM for iguanacomedy.mx, following ~/.claude/docs/email-and-stripe.md "golden standard":
+# direct delivery, dual stack, DKIM selector `mail`, bare domain only in virtual_alias_domains, hello@ and the
+# DSN/role aliases delivered to a local `inbox` user, DMARC reports to a local `dmarc` user, no catch-all.
+#
+#   ansible-playbook mail.yml           apply
+#   ansible-playbook email_check.yml    verify DNS, DKIM, TLS, queue, and send test mail
+
+- hosts: web
+  become: true
+  tasks:
+    - name: Mail packages
+      apt:
+        pkg: [postfix, opendkim, opendkim-tools, mailutils]
+        state: present
+      environment: {DEBIAN_FRONTEND: noninteractive}
+
+    - name: Local mailbox users (no login shell)
+      user: {name: "{{ item }}", system: true, shell: /usr/sbin/nologin, home: "/var/lib/{{ item }}", create_home: true}
+      loop: [inbox, dmarc]
+
+    # ------------------------------------------------------------- DKIM
+    - name: DKIM key directory
+      file: {path: "/etc/opendkim/keys/{{ site_domain }}", state: directory, owner: opendkim, group: opendkim, mode: "0750"}
+
+    - name: DKIM key (selector mail)
+      command: opendkim-genkey -b 2048 -d {{ site_domain }} -s mail -D /etc/opendkim/keys/{{ site_domain }}
+      args: {creates: "/etc/opendkim/keys/{{ site_domain }}/mail.private"}
+
+    - name: DKIM key ownership
+      file: {path: "/etc/opendkim/keys/{{ site_domain }}/mail.private", owner: opendkim, group: opendkim, mode: "0600"}
+
+    - name: OpenDKIM tables
+      copy:
+        dest: "/etc/opendkim/{{ item.name }}"
+        content: "{{ item.content }}"
+        owner: opendkim
+        group: opendkim
+      loop:
+        - {name: KeyTable, content: "mail._domainkey.{{ site_domain }} {{ site_domain }}:mail:/etc/opendkim/keys/{{ site_domain }}/mail.private\n"}
+        - {name: SigningTable, content: "*@{{ site_domain }} mail._domainkey.{{ site_domain }}\n"}
+        - {name: TrustedHosts, content: "127.0.0.1\nlocalhost\n::1\n"}
+      notify: restart opendkim
+
+    - name: OpenDKIM config
+      copy:
+        dest: /etc/opendkim.conf
+        content: |
+          Syslog yes
+          UMask 007
+          Mode sv
+          Canonicalization relaxed/simple
+          OversignHeaders From
+          KeyTable refile:/etc/opendkim/KeyTable
+          SigningTable refile:/etc/opendkim/SigningTable
+          ExternalIgnoreList refile:/etc/opendkim/TrustedHosts
+          InternalHosts refile:/etc/opendkim/TrustedHosts
+          Socket inet:8891@127.0.0.1
+          PidFile /run/opendkim/opendkim.pid
+          UserID opendkim
+      notify: restart opendkim
+
+    # ---------------------------------------------------------- Postfix
+    - name: Mail name
+      copy: {dest: /etc/mailname, content: "{{ mail_domain }}\n"}
+
+    - name: Look for mail TLS certificate
+      stat: {path: "/etc/letsencrypt/live/{{ mail_domain }}/fullchain.pem"}
+      register: mail_cert
+
+    - name: Postfix main.cf settings
+      command: postconf -e "{{ item }}"
+      loop:
+        - "myhostname = {{ mail_domain }}"
+        - "myorigin = /etc/mailname"
+        - "mydestination = localhost, {{ mail_domain }}"
+        - "virtual_alias_domains = {{ site_domain }}"
+        - "virtual_alias_maps = hash:/etc/postfix/virtual"
+        - "relayhost ="
+        - "inet_interfaces = all"
+        - "inet_protocols = all"
+        - "smtp_bind_address = {{ server_ipv4 }}"
+        - "smtp_bind_address6 = {{ server_ipv6 }}"
+        # 38.86.78.0/24 is on the Spamhaus PBL (ISP-maintained, 127.0.0.11), so Gmail refuses the v4 address.
+        # The v6 address has forward-confirmed rDNS and is in SPF, so prefer it wherever the MX has AAAA.
+        - "smtp_address_preference = ipv6"
+        - "mynetworks = 127.0.0.0/8 [::1]/128"
+        - "smtpd_relay_restrictions = permit_mynetworks, reject_unauth_destination"
+        - "smtpd_recipient_restrictions = permit_mynetworks, reject_unauth_destination, reject_unknown_recipient_domain"
+        - "smtpd_helo_required = yes"
+        - "disable_vrfy_command = yes"
+        - "message_size_limit = 26214400"
+        - "header_checks = regexp:/etc/postfix/header_checks"
+        - "milter_default_action = accept"
+        - "milter_protocol = 6"
+        - "smtpd_milters = inet:127.0.0.1:8891"
+        - "non_smtpd_milters = inet:127.0.0.1:8891"
+        - "smtp_tls_security_level = may"
+        - "smtp_tls_loglevel = 1"
+        - "smtpd_tls_security_level = may"
+        - "smtpd_tls_loglevel = 1"
+        - "smtpd_tls_cert_file = {{ ('/etc/letsencrypt/live/' + mail_domain + '/fullchain.pem') if mail_cert.stat.exists else '/etc/ssl/certs/ssl-cert-snakeoil.pem' }}"
+        - "smtpd_tls_key_file = {{ ('/etc/letsencrypt/live/' + mail_domain + '/privkey.pem') if mail_cert.stat.exists else '/etc/ssl/private/ssl-cert-snakeoil.key' }}"
+      changed_when: false
+      notify: restart postfix
+
+    - name: Reject mail with an empty Message-Id (botnet spam Google refuses anyway)
+      copy: {dest: /etc/postfix/header_checks, content: "/^Message-Id:\\s*<?\\s*>?\\s*$/ REJECT Missing Message-Id\n"}
+      notify: restart postfix
+
+    - name: Virtual alias map
+      template: {src: files/postfix_virtual.j2, dest: /etc/postfix/virtual}
+      register: virtual_map
+
+    - name: postmap virtual
+      command: postmap /etc/postfix/virtual
+      when: virtual_map.changed
+      notify: restart postfix
+
+    - name: System aliases deliver to inbox (DSNs about our own mail must not bounce)
+      lineinfile:
+        path: /etc/aliases
+        regexp: "^{{ item }}:"
+        line: "{{ item }}: inbox"
+      loop: [postmaster, noreply, no-reply, mailer-daemon, abuse, root]
+      register: aliases
+
+    - name: newaliases
+      command: newaliases
+      when: aliases.changed
+
+    - name: Mail services enabled
+      service: {name: "{{ item }}", enabled: true, state: started}
+      loop: [opendkim, postfix]
+
+    - name: Reload postfix so postconf changes take effect
+      command: postfix reload
+      changed_when: false
+
+  handlers:
+    - name: restart opendkim
+      service: {name: opendkim, state: restarted}
+    - name: restart postfix
+      service: {name: postfix, state: restarted}

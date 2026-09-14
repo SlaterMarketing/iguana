@@ -5,8 +5,10 @@
 #   ansible-playbook deploy.yml --tags all,first_run,load_data
 # Code/content update:
 #   ansible-playbook deploy.yml
-# Once iguanacomedy.mx and api.iguanacomedy.mx resolve here:
-#   ansible-playbook deploy.yml -e dns_live=true --tags all,certs
+# New certificates (site, api, mail):
+#   ansible-playbook deploy.yml --tags all,certs
+# Mail only / mail health check:
+#   ansible-playbook mail.yml    ansible-playbook email_check.yml
 #
 # Code is rsynced from this checkout (not git-pulled) until the repo destination is decided.
 
@@ -51,53 +53,10 @@
       args: {creates: /swapfile}
       tags: [first_run]
 
-    - name: Postfix, send-only on loopback (sign-in links, order confirmations)
-      become: true
-      shell: |
-        debconf-set-selections <<< "postfix postfix/mailname string {{ site_domain }}"
-        debconf-set-selections <<< "postfix postfix/main_mailer_type string 'Internet Site'"
-        DEBIAN_FRONTEND=noninteractive apt-get install -y postfix
-        postconf -e "myhostname = {{ site_domain }}" "inet_interfaces = loopback-only" "inet_protocols = all" \
-                    "mydestination = localhost" "relayhost ="
-        systemctl restart postfix
-      args: {executable: /bin/bash, creates: /etc/postfix/main.cf}
-      tags: [first_run]
-
-    - name: OpenDKIM signing for outbound mail (selector "mail")
-      become: true
-      shell: |
-        set -e
-        DEBIAN_FRONTEND=noninteractive apt-get install -y opendkim opendkim-tools
-        mkdir -p /etc/opendkim/keys/{{ site_domain }} /run/opendkim
-        cd /etc/opendkim/keys/{{ site_domain }}
-        [ -f mail.private ] || opendkim-genkey -b 2048 -d {{ site_domain }} -s mail
-        chown -R opendkim:opendkim /etc/opendkim /run/opendkim && chmod 600 mail.private
-        echo "mail._domainkey.{{ site_domain }} {{ site_domain }}:mail:/etc/opendkim/keys/{{ site_domain }}/mail.private" > /etc/opendkim/KeyTable
-        echo "*@{{ site_domain }} mail._domainkey.{{ site_domain }}" > /etc/opendkim/SigningTable
-        printf '127.0.0.1\nlocalhost\n::1\n' > /etc/opendkim/TrustedHosts
-        cat > /etc/opendkim.conf <<CONF
-        Syslog yes
-        UMask 007
-        Mode sv
-        Canonicalization relaxed/simple
-        KeyTable refile:/etc/opendkim/KeyTable
-        SigningTable refile:/etc/opendkim/SigningTable
-        ExternalIgnoreList refile:/etc/opendkim/TrustedHosts
-        InternalHosts refile:/etc/opendkim/TrustedHosts
-        Socket inet:8891@127.0.0.1
-        PidFile /run/opendkim/opendkim.pid
-        UserID opendkim
-        CONF
-        postconf -e "milter_default_action = accept" "milter_protocol = 6" \
-                    "smtpd_milters = inet:127.0.0.1:8891" "non_smtpd_milters = inet:127.0.0.1:8891"
-        systemctl enable --now opendkim && systemctl restart opendkim postfix
-      args: {executable: /bin/bash, creates: /etc/opendkim/SigningTable}
-      tags: [first_run, mail]
-
     - name: Firewall rules
       become: true
       ufw: {rule: allow, port: "{{ item }}", proto: tcp}
-      loop: ["22", "80", "443"]
+      loop: ["22", "25", "80", "443"]
       tags: [first_run]
 
     - name: Temporary API port until DNS is live
@@ -273,6 +232,7 @@
       loop:
         - {name: "{{ site_domain }}", domains: ["{{ site_domain }}", "www.{{ site_domain }}"]}
         - {name: "{{ api_domain }}", domains: ["{{ api_domain }}"]}
+        - {name: "{{ mail_domain }}", domains: ["{{ mail_domain }}"]}
       when: dns_live | bool
       tags: [certs, never]
 
@@ -280,7 +240,7 @@
       become: true
       copy:
         dest: /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
-        content: "#!/bin/sh\nsystemctl reload nginx\n"
+        content: "#!/bin/sh\nsystemctl reload nginx\nsystemctl reload postfix\n"
         mode: "0755"
       tags: [certs, never]
 
@@ -290,3 +250,5 @@
       retries: 10
       delay: 3
       until: health.status == 200
+
+- import_playbook: mail.yml

@@ -57,17 +57,15 @@ server {
 }
 {% if site_tls %}
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    http2 on;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     server_name www.{{ site_domain }};
 {{ tls(site_domain) }}
     return 301 https://{{ site_domain }}$request_uri;
 }
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    http2 on;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     server_name {{ site_domain }};
 {{ tls(site_domain) }}
 {{ site_locations() }}
@@ -88,14 +86,22 @@ server {
 }
 {% if api_tls %}
 server {
-    listen 443 ssl;
-    listen [::]:443 ssl;
-    http2 on;
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     server_name {{ api_domain }};
 {{ tls(api_domain) }}
 {{ api_locations() }}
 }
 {% endif %}
+
+# ---- mail.iguanacomedy.mx (certificate only) ----
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ mail_domain }};
+    location ^~ /.well-known/acme-challenge/ { root /var/www/letsencrypt; }
+    location / { return 301 https://{{ site_domain }}/; }
+}
 
 # ---- bare IP (pre-DNS smoke tests) ----
 server {

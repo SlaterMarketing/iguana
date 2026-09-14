@@ -63,11 +63,31 @@ Single VPS on the VPS.org `free` account: `38.86.78.36` / `2001:550:2:dd::f9:68`
 `api.iguanacomedy.mx`. Postgres `iguana`, Postfix send-only with OpenDKIM selector `mail`. DNS zone exists on
 VPS.org; the registrar (GoDaddy) currently delegates to Cloudflare.
 
+DNS is on VPS.org (ns1-3.vps.org, zone in the `free` account) and live since 2026-09-14.
+
 ```bash
 cd ansible
-ansible-playbook deploy.yml                                   # sync code from this checkout, build, restart
-ansible-playbook deploy.yml -e dns_live=true --tags all,certs # once DNS resolves here: certs + https URLs
+ansible-playbook deploy.yml                    # sync code from this checkout, build, restart, apply mail.yml
+ansible-playbook deploy.yml --tags all,certs   # also issue any missing certificates (site, api, mail)
+ansible-playbook mail.yml                      # Postfix + OpenDKIM only
+ansible-playbook email_check.yml               # end-to-end mail test (see below)
 ```
 
-Until `dns_live=true` the site is on `http://38.86.78.36/` and the API on `http://38.86.78.36:8080/`.
+### Email
+
+`mail.yml` follows the fleet golden standard: direct delivery, DKIM selector `mail`, MX `mail.iguanacomedy.mx`
+with a Let's Encrypt cert for STARTTLS, SPF `-all`, DMARC `p=reject` with `rua` to the local `dmarc` mailbox.
+`hello@`, `noreply@`, `no-reply@`, `postmaster@`, `abuse@` and `mailer-daemon` deliver to the local `inbox`
+user (`sudo mail -f /var/mail/inbox`); nothing forwards offsite and there is no catch-all.
+
+`email_check.yml` asserts on content: public DNS values and forward-confirmed PTR (v4 + v6), the published
+DKIM key against the key on disk, the STARTTLS certificate name, open-relay refusal, inbound delivery to
+`hello@`, per-message `status=sent` tracked by Message-ID, and SPF/DKIM `pass` from
+`check-auth@verifier.port25.com` (its report is read back from the local inbox). Send a one-off test with
+`venv/bin/python manage.py send_test_email you@example.com`.
+
+**IPv4 is on the Spamhaus PBL.** 38.86.78.0/24 returns `127.0.0.11` (ISP-maintained PBL), so Gmail answers
+`550-5.7.1 ... not authorized to send email directly`. Postfix therefore sets `smtp_address_preference = ipv6`;
+Gmail and most large providers accept over IPv6. Receivers without AAAA MX still see the v4 address, so the
+real fix is the network owner (VPS.org / Cogent) removing the PBL listing for the range.
 `ASTRO_ADAPTER=node` (`npm run build:node`) builds the Node server; the default build stays Cloudflare Pages.
