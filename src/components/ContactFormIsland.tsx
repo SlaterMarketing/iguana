@@ -71,7 +71,8 @@ function StyledFormInner({
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const values = collectFormValues(e.currentTarget, CONTACT_FORM_FIELDS);
+    const form = e.currentTarget;
+    const values = collectFormValues(form, CONTACT_FORM_FIELDS);
     const email = values.email?.trim();
     if (!email) return;
 
@@ -83,8 +84,8 @@ function StyledFormInner({
       fields,
     });
 
-    e.currentTarget.reset();
-    applyPrefills(e.currentTarget, CONTACT_FORM_FIELDS, prefills);
+    form.reset();
+    applyPrefills(form, CONTACT_FORM_FIELDS, prefills);
   }
 
   const defaults = prefills ?? {};

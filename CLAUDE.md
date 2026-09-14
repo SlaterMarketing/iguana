@@ -25,3 +25,11 @@ Optional **`KINTANA_SECRET_API_KEY`** (`kpa_secret_…`) is loaded in [`src/lib/
 - `listEvents` accepts `{ limit, tourId, artistSlug, from, to, status }`; `listArtists({ limit })` powers directories.
 - Contact forms use `useKintanaSubmit(slug)` with custom UI — no schema fetch.
 - Hydrate React only where hooks are unavoidable (today: contact form island).
+
+## Backend (branch `backend-django`, off Kintana)
+
+Kintana is being replaced by the Django app in [`backend/`](backend/README.md). It implements the same
+`/api/public/v1`, `/api/fan/v1`, `/_t/k.js` and `/embed/event/<id>` paths the SDK and tracker use, so the
+site code keeps calling `@kintana/sdk`; only `PUBLIC_KINTANA_BASE_URL` and the key change. Local: backend on
+`127.0.0.1:8000`, `npm run dev` on `127.0.0.1:4321`. Raw export CSVs and Wayback mirrors live outside the
+repo in `~/iguana-migration/` (customer PII, never commit).

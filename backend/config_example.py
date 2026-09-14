@@ -1,0 +1,28 @@
+# Copy to config.py (gitignored) and fill in real values.
+DEBUG = False
+SECRET_KEY = 'change-me'
+ALLOWED_HOSTS = ['api.iguanacomedy.com']
+
+# Public origin of this backend (used for embed/checkout/ticket URLs).
+BACKEND_URL = 'https://api.iguanacomedy.com'
+# Public origin of the Astro site (CORS + magic-link redirect allowlist).
+SITE_URLS = ['https://iguanacomedy.com']
+
+# Leave DATABASE empty for SQLite in the backend directory.
+DATABASE = {
+    # 'ENGINE': 'django.db.backends.postgresql',
+    # 'NAME': 'iguana', 'USER': 'iguana', 'PASSWORD': '', 'HOST': 'localhost', 'PORT': '5432',
+}
+
+# Keys the Astro site sends as `Authorization: Bearer ...` (PUBLIC_KINTANA_API_KEY).
+PUBLIC_API_KEYS = ['ipk_live_change_me']
+SECRET_API_KEYS = ['isk_live_change_me']
+
+STRIPE_PUBLISHABLE_KEY = ''
+STRIPE_SECRET_KEY = ''
+STRIPE_WEBHOOK_SECRET = ''
+
+DEFAULT_FROM_EMAIL = '"Iguana Comedy" <no-reply@iguanacomedy.com>'
+EMAIL_HOST = 'localhost'
+EMAIL_PORT = 25
+NOTIFY_EMAILS = ['hello@iguanacomedy.com']

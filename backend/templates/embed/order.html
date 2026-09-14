@@ -1,0 +1,48 @@
+{% extends "embed/base.html" %}
+{% load showtime %}
+{% block title %}Your tickets · {{ order.event_name }}{% endblock %}
+{% block head %}
+<style>
+  .ticket { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; }
+  .qr { width: 132px; height: 132px; background: #fff; }
+  .qr img, .qr canvas { width: 132px !important; height: 132px !important; }
+  @media (max-width: 420px) { .ticket { grid-template-columns: 1fr; } }
+  .status { display: inline-block; font-size: .7rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; padding: 6px 10px; border-radius: 999px; background: var(--brand-soft); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="stack">
+  <p class="eyebrow">Your tickets</p>
+  <h1>{{ order.event_name }}</h1>
+  {% if order.event %}
+    <p class="muted">
+      {{ order.event.date|date:"l j F Y" }}{% if order.event.doors_open %} · doors {{ order.event.doors_open|clock12 }}{% endif %}{% if order.event.show_time %} · show {{ order.event.show_time|clock12 }}{% endif %}<br>
+      {% if order.event.venue %}{{ order.event.venue.name }}{% if order.event.venue.address %}, {{ order.event.venue.address }}{% endif %}{% else %}{{ order.event.venue_label }}{% endif %}
+    </p>
+  {% endif %}
+  {% if order.status != "COMPLETED" %}
+    <p class="ok">This order is {{ order.get_status_display|lower }}. Tickets appear here once payment completes.</p>
+  {% else %}
+    <p class="muted">Booked by {{ order.customer_name|default:order.customer_email }}. Show the code for each ticket at the door.</p>
+    {% for ticket in order.tickets.all %}
+      <section class="card ticket">
+        <div>
+          <p class="eyebrow">Ticket {{ forloop.counter }} of {{ order.tickets.count }}</p>
+          <h2>{{ ticket.ticket_type_name }}</h2>
+          {% if ticket.checked_in_at %}<span class="status">Checked in</span>{% endif %}
+        </div>
+        <div class="qr" data-qr="{{ request.scheme }}://{{ request.get_host }}{% url 'checkin' ticket.checkin_token %}" aria-label="Check-in code"></div>
+      </section>
+    {% endfor %}
+  {% endif %}
+  {% if site_url %}<a class="btn" href="{{ site_url }}">Back to Iguana Comedy</a>{% endif %}
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+  document.querySelectorAll("[data-qr]").forEach(function (el) {
+    if (window.QRCode) new QRCode(el, { text: el.getAttribute("data-qr"), width: 132, height: 132, correctLevel: QRCode.CorrectLevel.M });
+  });
+</script>
+{% endblock %}

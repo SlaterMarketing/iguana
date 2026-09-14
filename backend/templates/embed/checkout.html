@@ -1,0 +1,207 @@
+{% extends "embed/base.html" %}
+{% block title %}Tickets · {{ event.name }}{% endblock %}
+{% block head %}
+<style>
+  .types { display: grid; gap: 12px; }
+  .type { display: flex; gap: 16px; align-items: center; justify-content: space-between; }
+  .type-name { font-weight: 600; }
+  .type-meta { font-size: .85rem; }
+  .qty { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
+  .qty button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(0,0,0,.2); background: #fff; font-size: 1.1rem; cursor: pointer; }
+  .qty button[disabled] { opacity: .35; cursor: not-allowed; }
+  .qty output { min-width: 1.5ch; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
+  .summary div { display: flex; justify-content: space-between; font-size: .95rem; padding: 4px 0; }
+  .summary .total { font-weight: 700; font-size: 1.05rem; border-top: 1px solid var(--line); margin-top: 6px; padding-top: 10px; }
+  .grid2 { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 480px) { .grid2 { grid-template-columns: 1fr; } }
+  .dev { border: 1px dashed #b7791f; background: #fffaf0; border-radius: 14px; padding: 12px 16px; font-size: .85rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="stack" id="checkout">
+  {% if not embedded %}
+    <p class="eyebrow">Tickets</p>
+    <h1>{{ event.name }}</h1>
+  {% endif %}
+  <noscript><p class="error">Checkout needs JavaScript enabled.</p></noscript>
+  <p id="member-note" class="ok" hidden>Member pricing applied.</p>
+  <section class="card"><div class="types" id="types"></div></section>
+  <section class="card summary" id="summary" hidden></section>
+  <form class="card stack" id="details" hidden novalidate>
+    <h2>Your details</h2>
+    <label>Full name<input name="name" autocomplete="name" required></label>
+    <div class="grid2">
+      <label>Email<input name="email" type="email" autocomplete="email" required></label>
+      <label>Phone (optional)<input name="phone" type="tel" autocomplete="tel"></label>
+    </div>
+    <p class="error" id="details-error" hidden></p>
+    <button class="btn" type="submit" id="continue">Continue</button>
+  </form>
+  <section class="card stack" id="payment" hidden>
+    <h2>Payment</h2>
+    <div id="payment-element"></div>
+    <p class="dev" id="dev-note" hidden>Local development: Stripe keys are not configured, so this button simulates a successful payment.</p>
+    <p class="error" id="payment-error" hidden></p>
+    <button class="btn" type="button" id="pay">Pay</button>
+  </section>
+  <p class="muted" id="unavailable" hidden>Tickets are not on sale for this show.</p>
+</div>
+{{ bootstrap|json_script:"bootstrap" }}
+{% endblock %}
+{% block scripts %}
+<script src="https://js.stripe.com/v3/" defer></script>
+<script>
+(function () {
+  var B = JSON.parse(document.getElementById("bootstrap").textContent);
+  var ev = B.event;
+  var qty = {};
+  var fanToken = "";
+  var attribution = {};
+  var order = null;
+  var stripe = null, elements = null;
+  var $ = function (id) { return document.getElementById(id); };
+
+  function money(cents) {
+    try {
+      return new Intl.NumberFormat("en-US", { style: "currency", currency: ev.currency.toUpperCase() }).format(cents / 100);
+    } catch (e) { return (cents / 100).toFixed(2) + " " + ev.currency.toUpperCase(); }
+  }
+  function postJSON(url, body) {
+    return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong."); return j; }); });
+  }
+  function show(el, on) { el.hidden = !on; }
+  function setError(el, msg) { el.textContent = msg || ""; show(el, !!msg); }
+  function totalQty() { return Object.keys(qty).reduce(function (n, k) { return n + qty[k]; }, 0); }
+
+  function reportHeight() {
+    if (window.parent === window) return;
+    window.parent.postMessage({ type: "kintana-embed-height", height: Math.ceil(document.documentElement.scrollHeight) }, "*");
+  }
+  if (window.ResizeObserver) new ResizeObserver(reportHeight).observe(document.body);
+
+  var parentOrigin = "";
+  try {
+    var ref = document.referrer ? new URL(document.referrer).origin : "";
+    if (B.siteOrigins.indexOf(ref) !== -1) parentOrigin = ref;
+  } catch (e) {}
+
+  function success(url) {
+    if (window.parent !== window && parentOrigin) {
+      window.parent.postMessage({ type: "kintana-embed-checkout-success", url: url }, parentOrigin);
+    } else {
+      window.location.assign(url);
+    }
+  }
+
+  function renderTypes() {
+    var box = $("types");
+    box.innerHTML = "";
+    var onSale = ev.ticketingType === "INTERNAL" && ["CANCELLED", "POSTPONED", "SOLD_OUT"].indexOf(ev.status) === -1;
+    if (!onSale || !ev.ticketTypes.length) {
+      show($("unavailable"), true);
+      box.parentNode.hidden = true;
+      return;
+    }
+    ev.ticketTypes.forEach(function (t) {
+      qty[t.id] = qty[t.id] || 0;
+      var row = document.createElement("div"); row.className = "type";
+      var info = document.createElement("div");
+      var name = document.createElement("div"); name.className = "type-name"; name.textContent = t.name;
+      var meta = document.createElement("div"); meta.className = "type-meta muted";
+      var price = t.yourPriceCents != null ? t.yourPriceCents : t.priceCents;
+      meta.textContent = t.soldOut ? "Sold out" : money(price) + (t.memberAccess === "MEMBERS_ONLY" ? " · members only" : "") +
+        (t.remaining != null && t.remaining <= 20 ? " · " + t.remaining + " left" : "");
+      info.appendChild(name); info.appendChild(meta);
+      if (t.description) { var d = document.createElement("div"); d.className = "type-meta muted"; d.textContent = t.description; info.appendChild(d); }
+      var ctl = document.createElement("div"); ctl.className = "qty";
+      var minus = document.createElement("button"); minus.type = "button"; minus.textContent = "−"; minus.setAttribute("aria-label", "Remove one " + t.name);
+      var out = document.createElement("output"); out.textContent = qty[t.id];
+      var plus = document.createElement("button"); plus.type = "button"; plus.textContent = "+"; plus.setAttribute("aria-label", "Add one " + t.name);
+      function sync() {
+        out.textContent = qty[t.id];
+        minus.disabled = qty[t.id] === 0 || !!order;
+        plus.disabled = t.soldOut || !!order || (t.remaining != null && qty[t.id] >= t.remaining) || qty[t.id] >= 20;
+      }
+      minus.onclick = function () { qty[t.id] = Math.max(0, qty[t.id] - 1); sync(); quote(); };
+      plus.onclick = function () { qty[t.id] += 1; sync(); quote(); };
+      sync();
+      ctl.appendChild(minus); ctl.appendChild(out); ctl.appendChild(plus);
+      row.appendChild(info); row.appendChild(ctl); box.appendChild(row);
+    });
+  }
+
+  var quoteSeq = 0;
+  function quote() {
+    var seq = ++quoteSeq;
+    if (!totalQty()) { show($("summary"), false); show($("details"), false); reportHeight(); return; }
+    postJSON(B.apiBase + "/api/checkout/" + ev.id + "/quote", { items: qty, fanToken: fanToken })
+      .then(function (q) {
+        if (seq !== quoteSeq) return;
+        var s = $("summary"); s.innerHTML = "";
+        function line(label, value, cls) {
+          var d = document.createElement("div"); if (cls) d.className = cls;
+          var a = document.createElement("span"); a.textContent = label;
+          var b = document.createElement("span"); b.textContent = value;
+          d.appendChild(a); d.appendChild(b); s.appendChild(d);
+        }
+        line("Subtotal", money(q.subtotalCents));
+        if (q.discountCents) line(q.freeTickets ? "Member benefit (" + q.freeTickets + " free)" : "Member discount", "−" + money(q.discountCents));
+        line("Total", money(q.totalCents), "total");
+        show(s, true); show($("details"), true);
+        show($("member-note"), q.isMember);
+        setError($("details-error"), "");
+        reportHeight();
+      })
+      .catch(function (err) { if (seq === quoteSeq) { show($("details"), true); setError($("details-error"), err.message); reportHeight(); } });
+  }
+
+  window.addEventListener("message", function (e) {
+    var d = e.data;
+    if (!d || d.type !== "kintana-fan-auth" || B.siteOrigins.indexOf(e.origin) === -1) return;
+    parentOrigin = e.origin;
+    fanToken = typeof d.token === "string" ? d.token : "";
+    attribution = d.attribution && typeof d.attribution === "object" ? d.attribution : {};
+    quote();
+  });
+
+  $("details").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var f = e.currentTarget;
+    var body = { items: qty, fanToken: fanToken, attribution: attribution, name: f.name.value, email: f.email.value, phone: f.phone.value };
+    $("continue").disabled = true;
+    setError($("details-error"), "");
+    postJSON(B.apiBase + "/api/checkout/" + ev.id + "/start", body)
+      .then(function (res) {
+        order = res;
+        renderTypes();
+        Array.prototype.forEach.call(f.elements, function (el) { el.disabled = true; });
+        if (res.complete) return success(res.successUrl);
+        show($("payment"), true);
+        $("pay").textContent = "Pay " + money(res.totalCents);
+        if (res.devPayment) { show($("dev-note"), true); reportHeight(); return; }
+        stripe = window.Stripe(B.stripeKey);
+        elements = stripe.elements({ clientSecret: res.clientSecret, appearance: { variables: { colorPrimary: "#3f7d3e", borderRadius: "12px" } } });
+        elements.create("payment").mount("#payment-element");
+        reportHeight();
+      })
+      .catch(function (err) { $("continue").disabled = false; setError($("details-error"), err.message); reportHeight(); });
+  });
+
+  $("pay").addEventListener("click", function () {
+    var btn = $("pay"); btn.disabled = true; setError($("payment-error"), "");
+    var confirm = order.devPayment ? Promise.resolve({}) : stripe.confirmPayment({ elements: elements, redirect: "if_required", confirmParams: { return_url: order.successUrl } });
+    confirm
+      .then(function (r) {
+        if (r.error) throw new Error(r.error.message);
+        return postJSON(B.apiBase + "/api/checkout/orders/" + order.orderId + "/confirm", {});
+      })
+      .then(function (res) { success(res.successUrl); })
+      .catch(function (err) { btn.disabled = false; setError($("payment-error"), err.message); reportHeight(); });
+  });
+
+  renderTypes();
+  reportHeight();
+})();
+</script>
+{% endblock %}
