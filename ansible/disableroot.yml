@@ -1,0 +1,132 @@
+---
+# Initial server setup - Run ONCE to create a non-root user and disable root login
+#
+# USAGE:
+#   1. Get a fresh Ubuntu 24.04 server with root access
+#   2. Add your SSH key to root: ssh-copy-id root@your-server-ip
+#   3. Update the vars below OR use group_vars/all
+#   4. Run: ansible-playbook -i servers disableroot.yml -e "ansible_user=root"
+#   5. After this, root login is DISABLED - use the new deploy user
+#
+# After running this playbook, use djangodeployubuntu24.yml to deploy the app
+
+- hosts: all
+  tasks:
+    - name: Validate password is set
+      fail:
+        msg: "deploy_password not set. Set it in group_vars/all or pass with -e."
+      when: deploy_password is not defined or deploy_password == ""
+
+    - name: Update apt cache
+      become: true
+      apt:
+        update_cache: true
+
+    - name: Install sudo (if not present)
+      become: true
+      apt:
+        name: sudo
+        state: present
+
+    - name: Create deploy user '{{ deploy_user }}'
+      become: true
+      user:
+        name: "{{ deploy_user }}"
+        state: present
+        groups: sudo
+        shell: /bin/bash
+        create_home: true
+        password: "{{ deploy_password | password_hash('sha512') }}"
+
+    - name: Allow deploy user to sudo without password
+      become: true
+      lineinfile:
+        path: /etc/sudoers.d/{{ deploy_user }}
+        line: "{{ deploy_user }} ALL=(ALL) NOPASSWD:ALL"
+        create: true
+        mode: '0440'
+        validate: 'visudo -cf %s'
+
+    - name: Create .ssh directory for deploy user
+      become: true
+      file:
+        path: /home/{{ deploy_user }}/.ssh
+        state: directory
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_user }}"
+        mode: '0700'
+
+    - name: Copy authorized_keys from root to deploy user
+      become: true
+      copy:
+        src: /root/.ssh/authorized_keys
+        dest: /home/{{ deploy_user }}/.ssh/authorized_keys
+        remote_src: true
+        owner: "{{ deploy_user }}"
+        group: "{{ deploy_user }}"
+        mode: '0600'
+      ignore_errors: true
+
+    - name: Disable root password login
+      become: true
+      user:
+        name: root
+        password_lock: true
+
+    - name: Disable root SSH login
+      become: true
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PermitRootLogin'
+        line: 'PermitRootLogin no'
+        state: present
+      notify: restart sshd
+
+    # The sshd_config edit above is a SILENT NO-OP on Ubuntu 24.04 cloud images:
+    # sshd_config Includes sshd_config.d/*.conf first, 99-cloud-init.conf sets
+    # PermitRootLogin yes, and sshd keeps the FIRST value it reads. This web box
+    # still accepted root on 2026-09-14. A drop-in that sorts first wins.
+    - name: Disable root SSH login (drop-in that sorts before cloud-init)
+      become: true
+      copy:
+        dest: /etc/ssh/sshd_config.d/00-disable-root-login.conf
+        content: "PermitRootLogin no\n"
+        mode: '0644'
+      notify: restart sshd
+
+    - name: Enable password authentication (so we can login from any computer)
+      become: true
+      lineinfile:
+        path: /etc/ssh/sshd_config
+        regexp: '^#?PasswordAuthentication'
+        line: 'PasswordAuthentication yes'
+        state: present
+      notify: restart sshd
+
+    - name: Print success message
+      debug:
+        msg: |
+          ✓ Deploy user '{{ deploy_user }}' created successfully
+          ✓ Root login has been DISABLED
+
+          Next steps:
+          1. Update ansible/group_vars/all with ansible_user={{ deploy_user }}
+          2. SSH to server: ssh {{ deploy_user }}@<server-ip>
+          3. Deploy app: ansible-playbook -i servers djangodeployubuntu24.yml
+
+    - name: Apply sshd config now
+      meta: flush_handlers
+
+    - name: Verify the EFFECTIVE sshd config refuses root
+      become: true
+      command: sshd -T
+      register: sshd_effective
+      changed_when: false
+      failed_when: "'permitrootlogin no' not in sshd_effective.stdout"
+
+  handlers:
+    - name: restart sshd
+      become: true
+      service:
+        name: ssh
+        state: restarted

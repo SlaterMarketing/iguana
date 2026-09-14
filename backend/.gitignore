@@ -5,3 +5,4 @@ media/
 staticfiles/
 __pycache__/
 *.pyc
+local_data.json

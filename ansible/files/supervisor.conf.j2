@@ -1,0 +1,25 @@
+[group:{{ projectname }}]
+programs={{ projectname }}-web,{{ projectname }}-api
+
+[program:{{ projectname }}-web]
+command=/usr/bin/node {{ app_dir }}/dist/server/entry.mjs
+directory={{ app_dir }}
+user={{ deploy_user }}
+environment=HOST="127.0.0.1",PORT="3000",NODE_ENV="production"
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+stdout_logfile=/var/log/{{ projectname }}/web.out.log
+stderr_logfile=/var/log/{{ projectname }}/web.err.log
+
+[program:{{ projectname }}-api]
+command={{ app_dir }}/backend/venv/bin/gunicorn iguana.wsgi:application --bind 127.0.0.1:8001 --workers 3 --timeout 60 --access-logfile -
+directory={{ app_dir }}/backend
+user={{ deploy_user }}
+autostart=true
+autorestart=true
+stopasgroup=true
+killasgroup=true
+stdout_logfile=/var/log/{{ projectname }}/api.out.log
+stderr_logfile=/var/log/{{ projectname }}/api.err.log

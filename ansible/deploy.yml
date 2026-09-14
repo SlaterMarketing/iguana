@@ -1,0 +1,292 @@
+---
+# Iguana Comedy on a single VPS: Astro (Node) on :3000, Django (gunicorn) on :8001, Postgres, nginx, supervisor.
+#
+# First time (after disableroot.yml):
+#   ansible-playbook deploy.yml --tags all,first_run,load_data
+# Code/content update:
+#   ansible-playbook deploy.yml
+# Once iguanacomedy.mx and api.iguanacomedy.mx resolve here:
+#   ansible-playbook deploy.yml -e dns_live=true --tags all,certs
+#
+# Code is rsynced from this checkout (not git-pulled) until the repo destination is decided.
+
+- hosts: web
+  vars:
+    repo_root: "{{ playbook_dir }}/.."
+    fixture_local: "{{ playbook_dir }}/../backend/local_data.json"
+  tasks:
+    # ---------------------------------------------------------------- system
+    - name: Install system packages
+      become: true
+      apt:
+        update_cache: true
+        cache_valid_time: 3600
+        pkg: [git, rsync, acl, curl, ca-certificates, gnupg, htop, build-essential, python3-venv, python3-dev,
+               python3-psycopg2, libpq-dev, postgresql, postgresql-contrib, nginx, supervisor, certbot, ufw]
+      tags: [first_run]
+
+    - name: Add NodeSource key
+      become: true
+      shell: curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+      args: {creates: /etc/apt/keyrings/nodesource.gpg}
+      tags: [first_run]
+
+    - name: Add NodeSource Node 20 repo
+      become: true
+      copy:
+        dest: /etc/apt/sources.list.d/nodesource.list
+        content: "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_20.x nodistro main\n"
+      tags: [first_run]
+
+    - name: Install Node.js 20
+      become: true
+      apt: {name: nodejs, update_cache: true, state: present}
+      tags: [first_run]
+
+    - name: Create 2G swap file
+      become: true
+      shell: |
+        fallocate -l 2G /swapfile && chmod 600 /swapfile && mkswap /swapfile && swapon /swapfile
+        echo '/swapfile none swap sw 0 0' >> /etc/fstab
+      args: {creates: /swapfile}
+      tags: [first_run]
+
+    - name: Postfix, send-only on loopback (sign-in links, order confirmations)
+      become: true
+      shell: |
+        debconf-set-selections <<< "postfix postfix/mailname string {{ site_domain }}"
+        debconf-set-selections <<< "postfix postfix/main_mailer_type string 'Internet Site'"
+        DEBIAN_FRONTEND=noninteractive apt-get install -y postfix
+        postconf -e "myhostname = {{ site_domain }}" "inet_interfaces = loopback-only" "inet_protocols = all" \
+                    "mydestination = localhost" "relayhost ="
+        systemctl restart postfix
+      args: {executable: /bin/bash, creates: /etc/postfix/main.cf}
+      tags: [first_run]
+
+    - name: OpenDKIM signing for outbound mail (selector "mail")
+      become: true
+      shell: |
+        set -e
+        DEBIAN_FRONTEND=noninteractive apt-get install -y opendkim opendkim-tools
+        mkdir -p /etc/opendkim/keys/{{ site_domain }} /run/opendkim
+        cd /etc/opendkim/keys/{{ site_domain }}
+        [ -f mail.private ] || opendkim-genkey -b 2048 -d {{ site_domain }} -s mail
+        chown -R opendkim:opendkim /etc/opendkim /run/opendkim && chmod 600 mail.private
+        echo "mail._domainkey.{{ site_domain }} {{ site_domain }}:mail:/etc/opendkim/keys/{{ site_domain }}/mail.private" > /etc/opendkim/KeyTable
+        echo "*@{{ site_domain }} mail._domainkey.{{ site_domain }}" > /etc/opendkim/SigningTable
+        printf '127.0.0.1\nlocalhost\n::1\n' > /etc/opendkim/TrustedHosts
+        cat > /etc/opendkim.conf <<CONF
+        Syslog yes
+        UMask 007
+        Mode sv
+        Canonicalization relaxed/simple
+        KeyTable refile:/etc/opendkim/KeyTable
+        SigningTable refile:/etc/opendkim/SigningTable
+        ExternalIgnoreList refile:/etc/opendkim/TrustedHosts
+        InternalHosts refile:/etc/opendkim/TrustedHosts
+        Socket inet:8891@127.0.0.1
+        PidFile /run/opendkim/opendkim.pid
+        UserID opendkim
+        CONF
+        postconf -e "milter_default_action = accept" "milter_protocol = 6" \
+                    "smtpd_milters = inet:127.0.0.1:8891" "non_smtpd_milters = inet:127.0.0.1:8891"
+        systemctl enable --now opendkim && systemctl restart opendkim postfix
+      args: {executable: /bin/bash, creates: /etc/opendkim/SigningTable}
+      tags: [first_run, mail]
+
+    - name: Firewall rules
+      become: true
+      ufw: {rule: allow, port: "{{ item }}", proto: tcp}
+      loop: ["22", "80", "443"]
+      tags: [first_run]
+
+    - name: Temporary API port until DNS is live
+      become: true
+      ufw: {rule: allow, port: "8080", proto: tcp, delete: "{{ dns_live | bool }}"}
+
+    - name: Enable firewall
+      become: true
+      ufw: {state: enabled, policy: deny}
+      tags: [first_run]
+
+    # -------------------------------------------------------------- database
+    - name: Postgres user
+      become: true
+      become_user: postgres
+      community.postgresql.postgresql_user: {name: "{{ db_user }}", password: "{{ db_password }}"}
+      tags: [first_run]
+
+    - name: Postgres database
+      become: true
+      become_user: postgres
+      community.postgresql.postgresql_db: {name: "{{ db_name }}", owner: "{{ db_user }}"}
+      tags: [first_run]
+
+    # ------------------------------------------------------------------ code
+    - name: App directories
+      become: true
+      file: {path: "{{ item }}", state: directory, owner: "{{ deploy_user }}", group: "{{ deploy_user }}", mode: "0755"}
+      loop: ["/home/www", "{{ app_dir }}", "/var/log/{{ projectname }}", "/var/www/letsencrypt"]
+
+    - name: Sync code and archive media
+      ansible.posix.synchronize:
+        src: "{{ repo_root }}/"
+        dest: "{{ app_dir }}/"
+        delete: true
+        rsync_opts:
+          - "--exclude=.git/"
+          - "--exclude=node_modules/"
+          - "--exclude=dist/"
+          - "--exclude=.astro/"
+          - "--exclude=.env"
+          - "--exclude=.dev.vars"
+          - "--exclude=ansible/"
+          - "--exclude=backend/.venv/"
+          - "--exclude=backend/venv/"
+          - "--exclude=backend/config.py"
+          - "--exclude=backend/db.sqlite3"
+          - "--exclude=backend/staticfiles/"
+          - "--exclude=backend/local_data.json"
+          - "--exclude=__pycache__/"
+          - "--exclude=.wrangler/"
+
+    - name: Site env (.env)
+      template: {src: files/env.j2, dest: "{{ app_dir }}/.env", mode: "0600"}
+      register: site_env
+
+    - name: Backend config.py
+      template: {src: files/config.py.j2, dest: "{{ app_dir }}/backend/config.py", mode: "0600"}
+
+    # --------------------------------------------------------------- backend
+    - name: Backend virtualenv and requirements
+      pip:
+        requirements: "{{ app_dir }}/backend/requirements.txt"
+        virtualenv: "{{ app_dir }}/backend/venv"
+        virtualenv_command: python3 -m venv
+
+    - name: Migrate
+      command: venv/bin/python manage.py migrate --noinput
+      args: {chdir: "{{ app_dir }}/backend"}
+      register: migrate
+      changed_when: "'No migrations to apply' not in migrate.stdout"
+
+    - name: Collect static
+      command: venv/bin/python manage.py collectstatic --noinput
+      args: {chdir: "{{ app_dir }}/backend"}
+      changed_when: false
+
+    - name: Load data fixture (contains customer data; always removed afterwards)
+      tags: [load_data, never]
+      block:
+        - name: Upload data fixture
+          copy: {src: "{{ fixture_local }}", dest: "{{ app_dir }}/backend/local_data.json", mode: "0600"}
+        - name: Load data
+          command: venv/bin/python manage.py loaddata local_data.json
+          args: {chdir: "{{ app_dir }}/backend"}
+      always:
+        - name: Remove data fixture
+          file: {path: "{{ app_dir }}/backend/local_data.json", state: absent}
+
+    - name: Seed site defaults
+      command: venv/bin/python manage.py seed_site_defaults
+      args: {chdir: "{{ app_dir }}/backend"}
+      changed_when: false
+
+    - name: Admin user
+      command: venv/bin/python manage.py shell -c "{{ admin_script }}"
+      args: {chdir: "{{ app_dir }}/backend"}
+      vars:
+        admin_script: >-
+          from django.contrib.auth.models import User;
+          u = User.objects.filter(username='admin').first() or User(username='admin', email='hello@iguanacomedy.com');
+          u.is_staff = u.is_superuser = True;
+          u.set_password('''{{ lookup('file', creds + '/admin_password') }}''') if not u.pk else None;
+          u.save()
+      no_log: true
+      tags: [first_run]
+
+    # ------------------------------------------------------------------ site
+    - name: npm ci
+      command: npm ci --no-audit --no-fund
+      args: {chdir: "{{ app_dir }}"}
+      changed_when: false
+
+    - name: Build site (Node adapter)
+      command: npm run build:node
+      args: {chdir: "{{ app_dir }}"}
+      environment: {NODE_OPTIONS: "--max-old-space-size=1536"}
+      changed_when: true
+
+    # ----------------------------------------------------------- nginx/procs
+    - name: Look for site certificate
+      become: true
+      stat: {path: "/etc/letsencrypt/live/{{ site_domain }}/fullchain.pem"}
+      register: site_cert
+
+    - name: Look for API certificate
+      become: true
+      stat: {path: "/etc/letsencrypt/live/{{ api_domain }}/fullchain.pem"}
+      register: api_cert
+
+    - name: nginx proxy params
+      become: true
+      copy: {src: files/iguana_proxy_params, dest: /etc/nginx/iguana_proxy_params, mode: "0644"}
+
+    - name: nginx site
+      become: true
+      template: {src: files/nginx.conf.j2, dest: "/etc/nginx/sites-available/{{ projectname }}.conf", mode: "0644"}
+
+    - name: Enable nginx site
+      become: true
+      file: {src: "/etc/nginx/sites-available/{{ projectname }}.conf", dest: "/etc/nginx/sites-enabled/{{ projectname }}.conf", state: link, force: true}
+
+    - name: Remove default nginx site
+      become: true
+      file: {path: /etc/nginx/sites-enabled/default, state: absent}
+
+    - name: nginx -t and reload
+      become: true
+      shell: nginx -t && systemctl reload nginx
+      changed_when: false
+
+    - name: Supervisor programs
+      become: true
+      template: {src: files/supervisor.conf.j2, dest: "/etc/supervisor/conf.d/{{ projectname }}.conf", mode: "0644"}
+
+    - name: Supervisor update
+      become: true
+      command: supervisorctl update
+      changed_when: false
+
+    - name: Restart app
+      become: true
+      command: "supervisorctl restart {{ projectname }}:"
+      changed_when: true
+
+    # ----------------------------------------------------------------- certs
+    - name: Obtain certificates (needs DNS pointing here)
+      become: true
+      command: >-
+        certbot certonly --webroot -w /var/www/letsencrypt -n --agree-tos -m {{ certbot_email }}
+        --cert-name {{ item.name }} {{ item.domains | map('regex_replace', '^', '-d ') | join(' ') }}
+      args: {creates: "/etc/letsencrypt/live/{{ item.name }}/fullchain.pem"}
+      loop:
+        - {name: "{{ site_domain }}", domains: ["{{ site_domain }}", "www.{{ site_domain }}"]}
+        - {name: "{{ api_domain }}", domains: ["{{ api_domain }}"]}
+      when: dns_live | bool
+      tags: [certs, never]
+
+    - name: Reload nginx after certificate renewals
+      become: true
+      copy:
+        dest: /etc/letsencrypt/renewal-hooks/deploy/reload-nginx.sh
+        content: "#!/bin/sh\nsystemctl reload nginx\n"
+        mode: "0755"
+      tags: [certs, never]
+
+    - name: Wait for the site
+      uri: {url: "http://127.0.0.1:3000/en/", status_code: 200}
+      register: health
+      retries: 10
+      delay: 3
+      until: health.status == 200

@@ -54,3 +54,20 @@ Tests: `.venv/bin/python manage.py test api`
   lists, campaign recipients, inbox, events). Contains customer personal data: keep the CSVs out of git.
 - Comedians, venue details, event posters and merch were not in the export and are recovered from Wayback
   Machine captures of the old Framer site and the Kintana-era site.
+
+## Production (iguanacomedy.mx, interim)
+
+Single VPS on the VPS.org `free` account: `38.86.78.36` / `2001:550:2:dd::f9:68`, Ubuntu 24.04, user `iguana`
+(credentials in `~/.credentials/vpsorg/iguanacomedy/`). nginx fronts Astro (Node adapter, supervisor
+`iguana:iguana-web` on :3000) at `iguanacomedy.mx` and Django (gunicorn, `iguana:iguana-api` on :8001) at
+`api.iguanacomedy.mx`. Postgres `iguana`, Postfix send-only with OpenDKIM selector `mail`. DNS zone exists on
+VPS.org; the registrar (GoDaddy) currently delegates to Cloudflare.
+
+```bash
+cd ansible
+ansible-playbook deploy.yml                                   # sync code from this checkout, build, restart
+ansible-playbook deploy.yml -e dns_live=true --tags all,certs # once DNS resolves here: certs + https URLs
+```
+
+Until `dns_live=true` the site is on `http://38.86.78.36/` and the API on `http://38.86.78.36:8080/`.
+`ASTRO_ADAPTER=node` (`npm run build:node`) builds the Node server; the default build stays Cloudflare Pages.

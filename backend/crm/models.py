@@ -7,8 +7,8 @@ from iguana.ids import new_id
 class Contact(models.Model):
     id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
     email = models.EmailField(unique=True)
-    first_name = models.CharField(max_length=120, blank=True)
-    last_name = models.CharField(max_length=120, blank=True)
+    first_name = models.CharField(max_length=200, blank=True)
+    last_name = models.CharField(max_length=200, blank=True)
     phone = models.CharField(max_length=40, blank=True)
     phone_e164 = models.CharField(max_length=20, blank=True)
     subscribed = models.BooleanField(default=True)

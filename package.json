@@ -7,7 +7,9 @@
     "dev": "astro dev",
     "build": "node scripts/check-kintana-env.mjs && astro build && node scripts/verify-dist.mjs",
     "preview": "wrangler pages dev ./dist",
-    "cf:types": "wrangler types"
+    "cf:types": "wrangler types",
+    "build:node": "node scripts/check-kintana-env.mjs && ASTRO_ADAPTER=node astro build",
+    "start:node": "node dist/server/entry.mjs"
   },
   "engines": {
     "node": ">=20"
@@ -15,6 +17,7 @@
   "dependencies": {
     "@astrojs/cloudflare": "^12.6.12",
     "@astrojs/mdx": "^4.3.14",
+    "@astrojs/node": "^9.5.5",
     "@astrojs/react": "^4.4.2",
     "@kintana/sdk": "file:./vendor/kintana-sdk-0.15.5.tgz",
     "@stripe/react-stripe-js": "^3.7.0",

@@ -91,3 +91,18 @@ SERVER_EMAIL = config.DEFAULT_FROM_EMAIL
 EMAIL_BACKEND = getattr(config, 'EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 EMAIL_HOST = getattr(config, 'EMAIL_HOST', 'localhost')
 EMAIL_PORT = getattr(config, 'EMAIL_PORT', 25)
+
+# Behind nginx with TLS terminated there
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_TRUSTED_ORIGINS = [BACKEND_URL] + SITE_URLS
+if not DEBUG:
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {'console': {'class': 'logging.StreamHandler'}},
+    'root': {'handlers': ['console'], 'level': 'WARNING'},
+}

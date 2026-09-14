@@ -1,2 +1,5 @@
 Django==6.1.1
+gunicorn==26.2.0
+psycopg==3.3.5
+psycopg-binary==3.3.5
 stripe==15.6.1

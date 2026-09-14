@@ -1,0 +1,115 @@
+# Managed by ansible/deploy.yml. TLS server blocks are part of this template (rendered once the certificates
+# exist), so re-running the deploy never strips HTTPS the way a certbot-edited conf would.
+{% set site_tls = site_cert.stat.exists %}
+{% set api_tls = api_cert.stat.exists %}
+
+upstream iguana_web { server 127.0.0.1:3000; keepalive 16; }
+upstream iguana_api { server 127.0.0.1:8001; }
+
+{% macro site_locations() %}
+    client_max_body_size 10m;
+    gzip on;
+    gzip_types text/css application/javascript application/json image/svg+xml;
+
+    location ^~ /_astro/ {
+        alias {{ app_dir }}/dist/client/_astro/;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    location ^~ /media/ {
+        alias {{ app_dir }}/dist/client/media/;
+        expires 7d;
+    }
+    location / {
+        proxy_pass http://iguana_web;
+        include /etc/nginx/iguana_proxy_params;
+    }
+{% endmacro %}
+
+{% macro api_locations() %}
+    client_max_body_size 10m;
+    location ^~ /static/ { alias {{ app_dir }}/backend/staticfiles/; expires 7d; }
+    location ^~ /media/ { alias {{ app_dir }}/backend/media/; expires 7d; }
+    location / {
+        proxy_pass http://iguana_api;
+        include /etc/nginx/iguana_proxy_params;
+    }
+{% endmacro %}
+
+{% macro tls(name) %}
+    ssl_certificate /etc/letsencrypt/live/{{ name }}/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/{{ name }}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_session_cache shared:iguana_ssl:10m;
+{% endmacro %}
+
+# ---- iguanacomedy.mx ----
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ site_domain }} www.{{ site_domain }};
+    location ^~ /.well-known/acme-challenge/ { root /var/www/letsencrypt; }
+{% if site_tls %}
+    location / { return 301 https://{{ site_domain }}$request_uri; }
+{% else %}
+{{ site_locations() }}
+{% endif %}
+}
+{% if site_tls %}
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name www.{{ site_domain }};
+{{ tls(site_domain) }}
+    return 301 https://{{ site_domain }}$request_uri;
+}
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name {{ site_domain }};
+{{ tls(site_domain) }}
+{{ site_locations() }}
+}
+{% endif %}
+
+# ---- api.iguanacomedy.mx ----
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ api_domain }};
+    location ^~ /.well-known/acme-challenge/ { root /var/www/letsencrypt; }
+{% if api_tls %}
+    location / { return 301 https://{{ api_domain }}$request_uri; }
+{% else %}
+{{ api_locations() }}
+{% endif %}
+}
+{% if api_tls %}
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+    server_name {{ api_domain }};
+{{ tls(api_domain) }}
+{{ api_locations() }}
+}
+{% endif %}
+
+# ---- bare IP (pre-DNS smoke tests) ----
+server {
+    listen 80 default_server;
+    listen [::]:80 default_server;
+    server_name _;
+    location ^~ /.well-known/acme-challenge/ { root /var/www/letsencrypt; }
+{{ site_locations() }}
+}
+{% if not dns_live | bool %}
+server {
+    listen 8080 default_server;
+    listen [::]:8080 default_server;
+    server_name _;
+{{ api_locations() }}
+}
+{% endif %}

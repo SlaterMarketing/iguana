@@ -1,9 +1,20 @@
 // @ts-check
 import cloudflare from "@astrojs/cloudflare";
+import node from "@astrojs/node";
 import react from "@astrojs/react";
 import mdx from "@astrojs/mdx";
 import tailwindcss from "@tailwindcss/vite";
 import { defineConfig } from "astro/config";
+
+// Cloudflare Pages by default; ASTRO_ADAPTER=node builds a standalone Node server (VPS / Docker).
+const useNode = process.env.ASTRO_ADAPTER === "node";
+const edgeReactAliases =
+  import.meta.env.PROD && !useNode
+    ? {
+        "react-dom/server": "react-dom/server.edge",
+        "react-dom/server.browser": "react-dom/server.edge",
+      }
+    : undefined;
 
 export default defineConfig({
   site: process.env.PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://iguanacomedy.com",
@@ -11,12 +22,14 @@ export default defineConfig({
   session: {
     driver: "memory",
   },
-  adapter: cloudflare({
-    platformProxy: {
-      enabled: true,
-    },
-    imageService: "compile",
-  }),
+  adapter: useNode
+    ? node({ mode: "standalone" })
+    : cloudflare({
+        platformProxy: {
+          enabled: true,
+        },
+        imageService: "compile",
+      }),
   integrations: [react(), mdx()],
   redirects: {
     "/venues": { status: 301, destination: "/en/locations" },
@@ -28,21 +41,11 @@ export default defineConfig({
   vite: {
     plugins: [tailwindcss()],
     resolve: {
-      alias: import.meta.env.PROD
-        ? {
-            "react-dom/server": "react-dom/server.edge",
-            "react-dom/server.browser": "react-dom/server.edge",
-          }
-        : undefined,
+      alias: edgeReactAliases,
     },
     ssr: {
       resolve: {
-        alias: import.meta.env.PROD
-          ? {
-              "react-dom/server": "react-dom/server.edge",
-              "react-dom/server.browser": "react-dom/server.edge",
-            }
-          : undefined,
+        alias: edgeReactAliases,
       },
     },
   },
