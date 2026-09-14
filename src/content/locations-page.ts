@@ -11,7 +11,7 @@ export function getLocationsPage(locale: Locale) {
       ? "Sedes de comedia en Quintana Roo"
       : "Comedy locations in Quintana Roo",
     heroImage:
-      "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/8c3d112d09f2afd980eb02d754988b1f71eedfbb1638623ec5ee276784c55f41.webp",
+      "/media/locations-hero.webp",
     intro: isES
       ? "A lo largo de los años, a medida que hemos crecido, hemos comenzado a ofrecer shows de comedia en más y más ubicaciones en Quintana Roo."
       : "Over the years, as we've grown, we've begun to offer comedy shows in more and more locations across Quintana Roo.",
@@ -41,19 +41,19 @@ export type LocationCityCard = {
 
 const cityImages: Record<string, string> = {
   cancun:
-    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/a7f73321788a60c5e26fbc169098d29ca831a9fd8f81a1a4b04cb8f31b23905f.jpg",
+    "/media/city-cancun.jpg",
   cozumel:
-    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/e3861e77e1377e8c41284752355ab7b3b815031fcb684553d4ecb115c3e792ed.jpg",
+    "/media/city-cozumel.jpg",
   merida:
-    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/e6864340e4c847c6212334eb852febdbbb5bbe872e2260a1801bb39b56491084.jpeg",
+    "/media/city-merida.jpeg",
   "playa-del-carmen":
-    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/fc28c62ff25bfe59ab4a1b77d48f063eeba57ba8c4f7605211cfd701fa7c6d27.jpg",
+    "/media/city-playa-del-carmen.jpg",
   "puerto-aventuras":
-    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/3fbec67adea60b37a8f4d8334ef5c90cac31b8717922357a6d21e11ce078aa52.webp",
+    "/media/city-puerto-aventuras.webp",
   "puerto-morelos":
-    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/b40c63c032e048fe72ac7292d97c87d62f92a2d1d17fa175bda8071c2d9f518e.jpg",
+    "/media/city-puerto-morelos.jpg",
   tulum:
-    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/4b654104e25fb08b6a3271259adebe774fd8e016daf0801620df9d1b65ca22e9.jpg",
+    "/media/city-tulum.jpg",
 };
 
 /** City cards in nav order — labels match the homepage city picker. */

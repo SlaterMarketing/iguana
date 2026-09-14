@@ -14,17 +14,17 @@ export const site = {
   linkedInUrl: "https://www.linkedin.com/company/iguanacomedy",
   merchantShopUrl: "https://shop.iguanacomedy.com/",
   faviconUrl:
-    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/77795f0850fd355d573c25746b12f1441081892680f0abceb7dcd9cb23e3a822.webp",
+    "/media/favicon.webp",
   heroImage:
     "https://images.unsplash.com/photo-1585699324551-f6c309eedeca?q=80&w=2070&auto=format&fit=crop",
   heroVideoUrl:
-    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/b95b1066ef9a5f4c5ea44b24556fbaa917690ed4a46d196689804705ed7e4fdf.mp4?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=67dc011dab30cb610adb962a4a211efd%2F20260518%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260518T215704Z&X-Amz-Expires=3600&X-Amz-Signature=3148170ad962e3a72fa74c1f584d485216386655eea9a6eb4361a41234fa51e9&X-Amz-SignedHeaders=host&x-id=GetObject",
+    "/media/hero.mp4",
   heroLogoUrl:
-    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/72bc27068af9b73439a6954aed55729ec8803ddd8f32c6a07b9181b597580f1e.png?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=67dc011dab30cb610adb962a4a211efd%2F20260518%2Fauto%2Fs3%2Faws4_request&X-Amz-Date=20260518T221118Z&X-Amz-Expires=3600&X-Amz-Signature=22c181a18f9c13cd4012f124365a650f3cefb0c02defe5c4dc93938f70b67b72&X-Amz-SignedHeaders=host&x-id=GetObject",
+    "/media/logo-hero.png",
   brandMomentImage:
-    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/6d6ddfb32a322b9ee512a538014505b6fe412c22e21ab2cd84b09588e9a61e31.webp",
+    "/media/brand-moment.webp",
   clubPhotoImage:
-    "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/ca28774d9da638010afa93daa353c2e6f40844bb6b6eafe8c75de4f246671d01.webp",
+    "/media/club-photo.webp",
 } as const;
 
 export const siteMessages = {

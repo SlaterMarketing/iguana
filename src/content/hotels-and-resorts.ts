@@ -34,11 +34,11 @@ export function getHotelsPage(locale: Locale) {
       : "Share property details, preferred dates, audience mix, and any AV or F&B constraints. We reply from the producing desk with availability and options—not a generic brochure.",
     galleryImages: [
       site.clubPhotoImage,
-      "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/fc28c62ff25bfe59ab4a1b77d48f063eeba57ba8c4f7605211cfd701fa7c6d27.jpg",
+      "/media/city-playa-del-carmen.jpg",
       site.brandMomentImage,
     ],
     formBackdrop:
-      "https://files.kintana.app/workspaces/cmncfee5w000004l74ya0p0s6/blobs/e3861e77e1377e8c41284752355ab7b3b815031fcb684553d4ecb115c3e792ed.jpg",
+      "/media/city-cozumel.jpg",
   } as const;
 }
 
