@@ -15,6 +15,11 @@ export type HomePageData = {
   wallArtists: KintanaPublicArtistEmbed[];
 };
 
+/** `YYYY-MM-DD` for today in Quintana Roo, where every show happens. */
+function todayInCancun(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Cancun" }).format(now);
+}
+
 export async function loadHomePageData(citySlug?: string): Promise<HomePageData> {
   const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
 
@@ -27,7 +32,7 @@ export async function loadHomePageData(citySlug?: string): Promise<HomePageData>
     const client = createKintanaClient({ apiKey, baseUrl });
 
     try {
-      eventsPool = await client.listEvents({ limit: 40 });
+      eventsPool = await client.listEvents({ limit: 40, from: todayInCancun() });
       logKintanaSuccess("listEvents", eventsPool.length);
     } catch (err) {
       logKintanaError("listEvents", err);
@@ -46,7 +51,10 @@ export async function loadHomePageData(citySlug?: string): Promise<HomePageData>
   }
 
   const slug = citySlug?.trim() ?? "";
-  let cityFiltered = sortEventsAscending(eventsPool.filter((evt) => evt.status !== "cancelled"));
+  // The API marks a show "past" once its day has ended in Cancún, so this holds whatever timezone the server runs in.
+  let cityFiltered = sortEventsAscending(
+    eventsPool.filter((evt) => evt.status !== "cancelled" && evt.status !== "past"),
+  );
   if (slug.length) {
     cityFiltered = cityFiltered.filter((evt) => eventCitySlug(evt) === slug);
   }
