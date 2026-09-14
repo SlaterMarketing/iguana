@@ -22,7 +22,7 @@ export function getLocationsPage(locale: Locale) {
       ? "Iguana comenzó con un solo comediante mexicano buscando oportunidad, dándose cuenta de que no existía, y empezando a construirla. Después de vivir en Chicago y regresar, quería presentarse, y se dio cuenta de que si quería eso, tendría que organizar los shows para lograrlo."
       : "Iguana started with just one Mexican comedian looking for opportunity, realising it didn't exist, and starting to build it. After living in Chicago and getting back, he wanted to perform, and realised if he wanted that, he'd have to run the shows to do it.",
     galleryImages: [
-      "https://images.unsplash.com/photo-1540039155733-5bb546b929d3?q=80&w=1200&auto=format&fit=crop",
+      "/media/club-photo.webp",
       "https://images.unsplash.com/photo-1470229722913-7c0e2dbbafd3?q=80&w=1200&auto=format&fit=crop",
       "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?q=80&w=1200&auto=format&fit=crop",
     ],

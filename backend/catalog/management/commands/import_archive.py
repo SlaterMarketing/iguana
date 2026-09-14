@@ -86,8 +86,9 @@ class Command(BaseCommand):
             created = venue is None
             if created:
                 venue = Venue(slug=row['slug'][:120], name=row['name'])
+            address = row.get('address') or ''
             self.assign(venue, name=row.get('name'), city=row.get('city'), country=row.get('country'),
-                        address=row.get('address'), capacity=row.get('capacity') or 0, description=row.get('description'),
+                        address=address if any(ch.isdigit() for ch in address) else None,  # most are placeholders like "Cancun" capacity=row.get('capacity') or 0, description=row.get('description'),
                         lat=row.get('lat'), lng=row.get('lng'),
                         image_url=self.media_path(row.get('image_file'), row.get('image_url')))
             venue.save()
@@ -106,11 +107,18 @@ class Command(BaseCommand):
             self.assign(artist, name=row.get('name'), stage_name=row.get('stage_name') if row.get('stage_name') != row.get('name') else None,
                         bio=row.get('bio_en'), bio_es=row.get('bio_es'), website=row.get('website'),
                         socials=row.get('socials') or {}, home_city=row.get('home_city'),
-                        image_url=self.media_path(row.get('image_file'), row.get('image_url')))
+                        image_url=self.artist_image(row))
             artist.save()
             by_slug[artist.slug] = artist
             self.bump('artists_created' if created else 'artists_updated')
         return by_slug
+
+    def artist_image(self, row):
+        # Framer originals are full size; the Kintana-era copies are recompressed AVIF.
+        for alt in row.get('alt_images') or []:
+            if alt.get('source') == 'framer' and alt.get('file'):
+                return self.media_path(alt['file'], alt.get('url'))
+        return self.media_path(row.get('image_file'), row.get('image_url'))
 
     def import_events(self, venues, artists):
         for row in self.load('events.json'):
@@ -153,17 +161,25 @@ class Command(BaseCommand):
     def import_store(self, publish):
         data = self.load('store.json')
         collections = {}
+        products = [p for p in data.get('products') or [] if p.get('product_type') != 'DIGITAL']  # digital = tickets for past shows
+        wanted = {s for p in products for s in p.get('collection_slugs') or []}
         for i, row in enumerate(data.get('collections') or []):
-            collections[row['slug']], _ = StoreCollection.objects.get_or_create(slug=row['slug'][:120], defaults={'name': row['name'], 'sort_order': i})
-        for i, row in enumerate(data.get('products') or []):
+            if row['slug'] in wanted:
+                collections[row['slug']], _ = StoreCollection.objects.get_or_create(slug=row['slug'][:120], defaults={
+                    'name': row['name'], 'sort_order': i, 'image_url': self.media_path(row.get('image_file'), row.get('image_url'))})
+        for i, row in enumerate(products):
             product, created = StoreProduct.objects.get_or_create(slug=row['slug'][:160], defaults={
                 'name': row['name'], 'active': publish, 'sort_order': i})
             self.assign(product, name=row.get('name'), description=row.get('description'),
                         currency=(row.get('currency') or '').lower() or None, external_url=row.get('product_url'))
             product.save()
             product.collections.add(*[collections[s] for s in row.get('collection_slugs') or [] if s in collections])
-            if row.get('price_cents') is not None and not product.variants.exists():
-                StoreVariant.objects.create(product=product, price_cents=row['price_cents'], compare_at_cents=row.get('compare_at_cents'))
+            if not product.variants.exists():
+                variants = row.get('variants') or ([{'name': 'Default', 'price_cents': row['price_cents'], 'compare_at_cents': row.get('compare_at_cents')}]
+                                                   if row.get('price_cents') is not None else [])
+                for j, v in enumerate(variants):
+                    StoreVariant.objects.create(product=product, name=(v.get('name') or 'Default')[:120], price_cents=v['price_cents'],
+                                                compare_at_cents=v.get('compare_at_cents'), available_quantity=v.get('available_quantity'), sort_order=j)
             if not product.images.exists():
                 for j, image in enumerate(row.get('images') or []):
                     url = self.media_path(image.get('file'), image.get('url'))
