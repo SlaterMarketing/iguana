@@ -9,7 +9,7 @@ from catalog.models import Artist, Event, FormEndpoint, FormSubmission, LineupEn
 from sales.services import upsert_contact
 
 from .auth import api_view, error
-from .serializers import active_plan, artist_json, event_json, today_local, venue_json
+from .serializers import active_plan, artist_json, event_json, media, today_local, venue_json
 
 
 def _limit(request, default, cap=200):
@@ -182,7 +182,7 @@ def product_json(p, detail=False):
         'priceFromCents': cheapest.price_cents if cheapest else None,
         'compareAtCents': cheapest.compare_at_cents if cheapest else None,
         'inStock': in_stock,
-        'images': [{'url': i.url, 'alt': i.alt or None} for i in p.images.all()],
+        'images': [{'url': media(i.url), 'alt': i.alt or None} for i in p.images.all()],
         'productUrl': p.external_url or _store_url(),
         'storeUrl': _store_url(),
     }
@@ -219,7 +219,7 @@ def store_product_detail(request, key):
 def collection_json(c):
     return {
         'id': c.id, 'slug': c.slug, 'name': c.name, 'description': c.description or None,
-        'imageUrl': c.image_url or None, 'productCount': c.products.filter(active=True).count(),
+        'imageUrl': media(c.image_url), 'productCount': c.products.filter(active=True).count(),
         'collectionUrl': f'{_store_url()}?collection={c.slug}', 'storeUrl': _store_url(),
     }
 

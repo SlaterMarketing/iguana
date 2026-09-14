@@ -17,7 +17,7 @@ class Venue(models.Model):
     lng = models.FloatField(null=True, blank=True)
     time_zone = models.CharField(max_length=60, default='America/Cancun')
     capacity = models.PositiveIntegerField(default=0)
-    image_url = models.URLField(max_length=500, blank=True)
+    image_url = models.CharField(max_length=500, blank=True, help_text='Absolute URL or /media/... path')
     wheelchair_accessible = models.BooleanField(null=True, blank=True)
     listed = models.BooleanField(default=True, help_text='Show on the public locations pages.')
 
@@ -40,7 +40,7 @@ class Artist(models.Model):
     stage_name = models.CharField(max_length=200, blank=True)
     bio = models.TextField(blank=True)
     bio_es = models.TextField(blank=True)
-    image_url = models.URLField(max_length=500, blank=True)
+    image_url = models.CharField(max_length=500, blank=True, help_text='Absolute URL or /media/... path')
     website = models.URLField(max_length=500, blank=True)
     home_city = models.CharField(max_length=120, blank=True)
     residency = models.CharField(max_length=200, blank=True)
@@ -65,7 +65,7 @@ class Tour(models.Model):
     id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
     slug = models.SlugField(max_length=120, unique=True)
     name = models.CharField(max_length=200)
-    image_url = models.URLField(max_length=500, blank=True)
+    image_url = models.CharField(max_length=500, blank=True, help_text='Absolute URL or /media/... path')
 
     def __str__(self):
         return self.name
@@ -86,12 +86,12 @@ class Event(models.Model):
     end_time = models.CharField(max_length=10, blank=True)
     description = models.TextField(blank=True)
     long_description = models.TextField(blank=True)
-    image_url = models.URLField(max_length=500, blank=True)
-    image_url_mobile = models.URLField(max_length=500, blank=True)
+    image_url = models.CharField(max_length=500, blank=True, help_text='Absolute URL or /media/... path')
+    image_url_mobile = models.CharField(max_length=500, blank=True, help_text='Absolute URL or /media/... path')
     status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=DRAFT)
     visibility = models.CharField(max_length=10, choices=VISIBILITY_CHOICES, default='PUBLIC')
     ticketing_type = models.CharField(max_length=10, choices=TICKETING_CHOICES, default='INTERNAL')
-    external_ticket_url = models.URLField(max_length=500, blank=True)
+    external_ticket_url = models.CharField(max_length=500, blank=True, help_text='Absolute URL or /media/... path')
     currency = models.CharField(max_length=3, default='usd')
     language = models.CharField(max_length=5, default='en')
     age_restriction = models.CharField(max_length=40, blank=True)
@@ -173,7 +173,7 @@ class StoreCollection(models.Model):
     slug = models.SlugField(max_length=120, unique=True)
     name = models.CharField(max_length=200)
     description = models.TextField(blank=True)
-    image_url = models.URLField(max_length=500, blank=True)
+    image_url = models.CharField(max_length=500, blank=True, help_text='Absolute URL or /media/... path')
     sort_order = models.IntegerField(default=0)
 
     class Meta:
@@ -203,7 +203,7 @@ class StoreProduct(models.Model):
 
 class StoreProductImage(models.Model):
     product = models.ForeignKey(StoreProduct, on_delete=models.CASCADE, related_name='images')
-    url = models.URLField(max_length=500)
+    url = models.CharField(max_length=500, help_text='Absolute URL or /media/... path')
     alt = models.CharField(max_length=200, blank=True)
     sort_order = models.IntegerField(default=0)
 

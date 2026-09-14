@@ -11,6 +11,13 @@ from sales.models import MembershipPlan, Order, OrderItem
 CANCUN = ZoneInfo('America/Cancun')
 
 
+def media(value):
+    """Image fields hold absolute URLs or backend-relative /media/ paths."""
+    if not value:
+        return None
+    return f'{settings.BACKEND_URL}{value}' if value.startswith('/') else value
+
+
 def iso(dt):
     if dt is None:
         return None
@@ -43,7 +50,7 @@ def venue_json(venue, listed=False):
         'wheelchairAccessible': venue.wheelchair_accessible,
     }
     if listed:
-        data.update(capacity=venue.capacity, imageUrl=venue.image_url or None)
+        data.update(capacity=venue.capacity, imageUrl=media(venue.image_url))
     return data
 
 
@@ -54,7 +61,7 @@ def artist_json(artist, locale='en'):
         'slug': artist.slug,
         'name': artist.name,
         'bio': bio or None,
-        'imageUrl': artist.image_url or None,
+        'imageUrl': media(artist.image_url),
         'website': artist.website or None,
         'stageName': artist.stage_name or None,
         'homeCity': artist.home_city or None,
@@ -98,7 +105,7 @@ def lineup_entry_json(entry):
         'name': entry.artist.stage_name or entry.artist.name,
         'role': entry.role or None,
         'sortOrder': entry.sort_order,
-        'imageUrl': entry.artist.image_url or None,
+        'imageUrl': media(entry.artist.image_url),
     }
 
 
@@ -129,8 +136,8 @@ def event_json(event, plan=None):
         'date': event_day(event),
         'city': event.venue.city if event.venue and event.venue.city else None,
         'country': event.venue.country if event.venue and event.venue.country else None,
-        'imageUrl': event.image_url or None,
-        'imageUrlMobile': event.image_url_mobile or None,
+        'imageUrl': media(event.image_url),
+        'imageUrlMobile': media(event.image_url_mobile),
         'ticketUrl': ticket_url,
         'embedUrl': embed_url,
         'doorsOpen': event.doors_open or None,
@@ -141,7 +148,7 @@ def event_json(event, plan=None):
         'status': listing_status(event, types),
         'language': event.language or 'en',
         'venue': venue,
-        'tour': {'id': event.tour.id, 'slug': event.tour.slug, 'name': event.tour.name, 'imageUrl': event.tour.image_url or None} if event.tour else None,
+        'tour': {'id': event.tour.id, 'slug': event.tour.slug, 'name': event.tour.name, 'imageUrl': media(event.tour.image_url)} if event.tour else None,
         'lineup': [lineup_entry_json(e) for e in lineup],
         'headliner': lineup_entry_json(headliner) if headliner else None,
         'ticketingType': event.ticketing_type,

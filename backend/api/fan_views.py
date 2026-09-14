@@ -16,7 +16,7 @@ from sales.services import current_membership, member_unit_price, stripe_client,
 
 from .auth import api_view, error, fan_contact, fan_required, issue_fan_token
 from .public_views import _by_id_or_slug, public_events
-from .serializers import event_day, iso, membership_json, order_ticket_json, plan_json, remaining
+from .serializers import event_day, iso, media, membership_json, order_ticket_json, plan_json, remaining
 
 
 def _allowed_redirect(url):
@@ -252,7 +252,7 @@ def fan_event_json(event, contact):
         'id': event.id, 'slug': event.slug, 'name': event.name, 'date': event_day(event),
         'doorsOpen': event.doors_open or None, 'showTime': event.show_time or None, 'endTime': event.end_time or None,
         'description': event.description or None, 'longDescription': event.long_description or None,
-        'imageUrl': event.image_url or None, 'imageUrlMobile': event.image_url_mobile or None,
+        'imageUrl': media(event.image_url), 'imageUrlMobile': media(event.image_url_mobile),
         'status': event.status, 'ticketingType': event.ticketing_type, 'visibility': event.visibility,
         'venue': venue.name if venue else event.venue_label, 'venueAddress': venue.address or None if venue else None,
         'city': venue.city if venue else '', 'country': venue.country if venue else '',
@@ -279,7 +279,7 @@ def fan_events(request):
                      'country': v.country if v else '', 'citySlug': v.city.lower().replace(' ', '-') if v else '',
                      'countrySlug': v.country.lower().replace(' ', '-') if v else '', 'status': e.status,
                      'ticketingType': e.ticketing_type, 'url': f'{settings.BACKEND_URL}/embed/event/{e.id}',
-                     'imageUrl': e.image_url or None, 'venueAddress': v.address or None if v else None,
+                     'imageUrl': media(e.image_url), 'venueAddress': v.address or None if v else None,
                      'venueTimeZone': v.time_zone if v else 'America/Cancun'})
     return JsonResponse({'events': rows})
 
