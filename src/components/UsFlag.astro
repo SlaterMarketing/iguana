@@ -1,0 +1,36 @@
+---
+/** United States flag (19:10), used for the English locale. Star ids are unique per instance. */
+interface Props {
+  class?: string;
+}
+
+const { class: className } = Astro.props;
+const uid = Math.random().toString(36).slice(2, 8);
+const id = (name: string) => `usflag-${uid}-${name}`;
+---
+
+<svg class={className} viewBox="0 0 7410 3900" aria-hidden="true">
+  <rect width="7410" height="3900" fill="#b22234" />
+  <path d="M0,450H7410m0,600H0m0,600H7410m0,600H0m0,600H7410m0,600H0" stroke="#fff" stroke-width="300" />
+  <rect width="2964" height="2100" fill="#3c3b6e" />
+  <g fill="#fff">
+    <g id={id("s18")}>
+      <g id={id("s9")}>
+        <g id={id("s5")}>
+          <g id={id("s4")}>
+            <path id={id("s")} d="M247,90 317.534,307.082 132.873,164.918H361.127L176.466,307.082z" />
+            <use href={`#${id("s")}`} y="420" />
+            <use href={`#${id("s")}`} y="840" />
+            <use href={`#${id("s")}`} y="1260" />
+          </g>
+          <use href={`#${id("s")}`} y="1680" />
+        </g>
+        <use href={`#${id("s4")}`} x="247" y="210" />
+      </g>
+      <use href={`#${id("s9")}`} x="494" />
+    </g>
+    <use href={`#${id("s18")}`} x="988" />
+    <use href={`#${id("s9")}`} x="1976" />
+    <use href={`#${id("s5")}`} x="2470" />
+  </g>
+</svg>

@@ -1,4 +1,5 @@
 ---
+import UsFlag from "./UsFlag.astro";
 import { t } from "../i18n/ui";
 import type { Locale } from "../i18n/locale";
 
@@ -35,13 +36,7 @@ const listId = `locale-flag-list-${Math.random().toString(36).slice(2, 9)}`;
   >
     {locale === "en" ? (
       <span class="flex items-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]" aria-hidden="true">
-        <svg class="flag-uk h-[1.15rem] w-7 sm:h-5 sm:w-9" viewBox="0 0 60 30" aria-hidden="true">
-          <path fill="#012169" d="M0 0h60v30H0z" />
-          <path stroke="#fff" stroke-width="6" d="M0 0l60 30M60 0L0 30" />
-          <path stroke="#C8102E" stroke-width="4" d="M0 0l60 30M60 0L0 30" />
-          <path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60" />
-          <path stroke="#C8102E" stroke-width="6" d="M30 0v30M0 15h60" />
-        </svg>
+        <UsFlag class="flag-us h-[1.15rem] w-[2.2rem] sm:h-5 sm:w-[2.4rem]" />
       </span>
     ) : (
       <span class="flex items-center drop-shadow-[0_1px_2px_rgba(0,0,0,0.35)]" aria-hidden="true">
@@ -70,13 +65,7 @@ const listId = `locale-flag-list-${Math.random().toString(36).slice(2, 9)}`;
           class="flex items-center gap-3 px-4 py-2.5 text-sm font-medium text-neutral-400"
           aria-current="true"
         >
-          <svg class="h-5 w-8 shrink-0 opacity-70" viewBox="0 0 60 30" aria-hidden="true">
-            <path fill="#012169" d="M0 0h60v30H0z" />
-            <path stroke="#fff" stroke-width="6" d="M0 0l60 30M60 0L0 30" />
-            <path stroke="#C8102E" stroke-width="4" d="M0 0l60 30M60 0L0 30" />
-            <path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60" />
-            <path stroke="#C8102E" stroke-width="6" d="M30 0v30M0 15h60" />
-          </svg>
+          <UsFlag class="h-5 w-8 shrink-0 opacity-70" />
           {t(locale, "lang.en")}
         </span>
       ) : (
@@ -87,13 +76,7 @@ const listId = `locale-flag-list-${Math.random().toString(36).slice(2, 9)}`;
           role="option"
           {...(closeMobileMenu ? ({ "data-mobile-menu-close": "" } as const) : {})}
         >
-          <svg class="h-5 w-8 shrink-0" viewBox="0 0 60 30" aria-hidden="true">
-            <path fill="#012169" d="M0 0h60v30H0z" />
-            <path stroke="#fff" stroke-width="6" d="M0 0l60 30M60 0L0 30" />
-            <path stroke="#C8102E" stroke-width="4" d="M0 0l60 30M60 0L0 30" />
-            <path stroke="#fff" stroke-width="10" d="M30 0v30M0 15h60" />
-            <path stroke="#C8102E" stroke-width="6" d="M30 0v30M0 15h60" />
-          </svg>
+          <UsFlag class="h-5 w-8 shrink-0" />
           {t(locale, "lang.en")}
         </a>
       )}
