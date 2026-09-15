@@ -2,6 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import CityPicker from "../CityPicker.astro";
 import EventRow from "../EventRow.astro";
+import OpenMicCallout from "../OpenMicCallout.astro";
 import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import { heroCityChoices } from "../../content/site";
@@ -80,6 +81,8 @@ const emptyMessage =
         value={citySlugFilter}
       />
     </div>
+
+    {!citySlugFilter || citySlugFilter === "playa-del-carmen" ? <OpenMicCallout locale={locale} class="mt-12" /> : null}
 
     {!hasCredentials ? (
       <div class="mt-16 rounded-3xl border border-amber-200 bg-amber-50 px-6 py-6 text-neutral-950">

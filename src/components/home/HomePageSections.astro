@@ -2,6 +2,7 @@
 import ComedianTile from "../ComedianTile.astro";
 import Cta from "../Cta.astro";
 import EventRow from "../EventRow.astro";
+import OpenMicCallout from "../OpenMicCallout.astro";
 import ExperienceStatsStrip from "../ExperienceStatsStrip.astro";
 import type { HomePageData } from "../../lib/home-page-data";
 import { mergeBrand } from "../../lib/merge-brand";
@@ -76,6 +77,8 @@ const storyBody = cityLabel
       {eventsLabel}
     </p>
   </div>
+
+  {!activeCitySlug || activeCitySlug === "playa-del-carmen" ? <OpenMicCallout locale={locale} class="mt-16" /> : null}
 
   {
     !apiConfigured ? (

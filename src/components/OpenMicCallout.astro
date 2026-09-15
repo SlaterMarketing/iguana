@@ -1,0 +1,76 @@
+---
+import type { Locale } from "../i18n/locale";
+
+interface Props {
+  locale: Locale;
+  class?: string;
+}
+
+const { locale, class: className } = Astro.props;
+
+const venueAddress = "Calle 6 Nte 189, Centro, 77710 Playa del Carmen, Q.R., Mexico";
+const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`Iguana Comedy, ${venueAddress}`)}`;
+
+const copy = {
+  en: {
+    kicker: "Every week",
+    headline: "Open mic nights",
+    free: "Free entry",
+    nights: [
+      { day: "Tuesday", show: "Open mic en Español" },
+      { day: "Wednesday", show: "Open mic in English" },
+    ],
+    venue: "At Iguana Comedy, Playa del Carmen",
+    maps: "Directions",
+  },
+  es: {
+    kicker: "Cada semana",
+    headline: "Noches de open mic",
+    free: "Entrada gratis",
+    nights: [
+      { day: "Martes", show: "Open mic en español" },
+      { day: "Miércoles", show: "Open mic en inglés" },
+    ],
+    venue: "En Iguana Comedy, Playa del Carmen",
+    maps: "Cómo llegar",
+  },
+}[locale];
+---
+
+<aside
+  class:list={["overflow-hidden rounded-[2rem] bg-neutral-950 text-white", className]}
+  aria-label={copy.headline}
+>
+  <div class="flex flex-col gap-8 px-8 py-10 sm:px-12 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
+    <div class="space-y-3">
+      <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white/60">{copy.kicker}</p>
+      <p
+        class="font-display leading-none"
+        style="font-family: var(--font-display); font-size: clamp(2.25rem, 3vw + 1.25rem, 3.25rem);"
+      >
+        {copy.headline}
+      </p>
+      <p class="inline-flex rounded-full bg-brand px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.2em]">
+        {copy.free}
+      </p>
+    </div>
+
+    <ul class="grid gap-4 sm:grid-cols-2 lg:min-w-[26rem]">
+      {
+        copy.nights.map((night) => (
+          <li class="rounded-2xl border border-white/15 px-6 py-5">
+            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">{night.day}</p>
+            <p class="mt-2 text-lg font-semibold">{night.show}</p>
+          </li>
+        ))
+      }
+    </ul>
+  </div>
+
+  <div class="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 px-8 py-5 text-sm text-white/75 sm:px-12">
+    <p>{copy.venue}</p>
+    <a class="font-semibold uppercase tracking-[0.3em] text-white hover:underline" href={mapsHref} rel="noopener" target="_blank">
+      {copy.maps}
+    </a>
+  </div>
+</aside>
