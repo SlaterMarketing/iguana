@@ -40,3 +40,8 @@ site_urls: "{{ ([site_url, 'https://www.' + site_domain] + (redirect_domains | m
 # Mail: hello@ and the DSN/role aliases deliver to the local `inbox` user; DMARC reports to local `dmarc`.
 mail_inbox_aliases: [hello, noreply, no-reply, postmaster, abuse, mailer-daemon]
 mail_test_recipient: someone-else@example.com
+
+# Clicky analytics through a first-party proxy (https://clicky.com/help/proxy). Paths are random per site.
+clicky_site_id: "101511754"
+clicky_js_path: /ce3c4461b3c804.js
+clicky_beacon_path: /d3459242368652

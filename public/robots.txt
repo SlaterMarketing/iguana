@@ -1,4 +1,7 @@
 User-agent: *
 Allow: /
+# Clicky first-party proxy: keep crawlers from fetching the loader or firing beacons.
+Disallow: /ce3c4461b3c804.js
+Disallow: /d3459242368652
 
 Sitemap: https://iguanacomedy.com/sitemap.xml

@@ -45,6 +45,10 @@ const defaultOgImage = site.heroImage;
 const { apiKey, baseUrl, trackerToken } = getKintanaEnv();
 const TRACK_BASE = baseUrl.replace(/\/$/, "");
 const TRACK_TOKEN = trackerToken || apiKey;
+// Clicky via the first-party nginx proxy; only set on hosts that run that proxy (see ansible/files/nginx.conf.j2).
+const clickySiteId = import.meta.env.PUBLIC_CLICKY_SITE_ID?.trim();
+const clickyScriptPath = import.meta.env.PUBLIC_CLICKY_SCRIPT_PATH?.trim();
+
 const trackerMarkup =
   TRACK_BASE && TRACK_TOKEN
     ? `<script async src="${escapeAttr(TRACK_BASE)}/_t/k.js" data-token="${escapeAttr(
@@ -102,6 +106,7 @@ const trackerMarkup =
       href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400..700;1,400..700&display=swap"
       rel="stylesheet"
     />
+    {clickySiteId && clickyScriptPath ? <script is:inline async data-id={clickySiteId} src={clickyScriptPath}></script> : null}
   </head>
   <body class="relative bg-white text-neutral-900 antialiased">
     <Header transparent={transparentHeader} pathname={Astro.url.pathname} locale={locale} />
