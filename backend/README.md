@@ -55,20 +55,29 @@ Tests: `.venv/bin/python manage.py test api`
 - Comedians, venue details, event posters and merch were not in the export and are recovered from Wayback
   Machine captures of the old Framer site and the Kintana-era site.
 
-## Production (iguanacomedy.mx, interim)
+## Production
 
 Single VPS on the VPS.org `free` account: `38.86.78.36` / `2001:550:2:dd::f9:68`, Ubuntu 24.04, user `iguana`
 (credentials in `~/.credentials/vpsorg/iguanacomedy/`). nginx fronts Astro (Node adapter, supervisor
-`iguana:iguana-web` on :3000) at `iguanacomedy.mx` and Django (gunicorn, `iguana:iguana-api` on :8001) at
-`api.iguanacomedy.mx`. Postgres `iguana`, Postfix send-only with OpenDKIM selector `mail`. DNS zone exists on
-VPS.org; the registrar (GoDaddy) currently delegates to Cloudflare.
+`iguana:iguana-web` on :3000) and Django (gunicorn, `iguana:iguana-api` on :8001). Postgres `iguana`.
 
-DNS is on VPS.org (ns1-3.vps.org, zone in the `free` account) and live since 2026-09-14.
+| Host | DNS | Serves |
+| --- | --- | --- |
+| `iguanacomedy.com` | Cloudflare, DNS-only (token `~/.credentials/cloudflare/iguanacomedy/`) | the site (canonical) |
+| `www.iguanacomedy.com` | Cloudflare | 301 to apex |
+| `api.iguanacomedy.com` | Cloudflare | Django API, admin, checkout, media |
+| `iguanacomedy.mx`, `www.` | VPS.org (ns1-3.vps.org) | 301 to the same path on `.com` |
+| `api.iguanacomedy.mx` | VPS.org | Django API (kept answering for old links) |
+| `mail.iguanacomedy.mx` | VPS.org | MX, SMTP STARTTLS cert; mail is sent as `no-reply@iguanacomedy.mx` |
+
+Cloudflare's `iguanacomedy.com` records must stay **DNS-only** (grey cloud): proxied records previously pointed at
+Cloudflare's own IPs, which is what produced Error 1000. A pre-change backup of the zone is in the credentials folder.
+Framer-era URLs (`/comedians/<slug>`, `/events/<slug>`, `/locations/<city>`, ...) 301 via `src/lib/legacy-paths.ts`.
 
 ```bash
 cd ansible
 ansible-playbook deploy.yml                    # sync code from this checkout, build, restart, apply mail.yml
-ansible-playbook deploy.yml --tags all,certs   # also issue any missing certificates (site, api, mail)
+ansible-playbook deploy.yml --tags all,certs   # also issue any missing certificates from cert_sets
 ansible-playbook mail.yml                      # Postfix + OpenDKIM only
 ansible-playbook email_check.yml               # end-to-end mail test (see below)
 ```
