@@ -1,7 +1,7 @@
 # Managed by ansible/deploy.yml (production). Secrets come from ~/.credentials on the deploy machine.
 DEBUG = False
 SECRET_KEY = '{{ django_secret_key }}'
-ALLOWED_HOSTS = ['{{ api_domain }}', '{{ server_ipv4 }}', '127.0.0.1']
+ALLOWED_HOSTS = {{ ([api_domain] + api_alias_domains + [server_ipv4, '127.0.0.1']) | to_json }}
 BACKEND_URL = '{{ backend_url }}'
 SITE_URLS = {{ site_urls | to_json }}
 DATABASE = {
@@ -13,7 +13,7 @@ SECRET_API_KEYS = ['{{ secret_api_key }}']
 STRIPE_PUBLISHABLE_KEY = ''
 STRIPE_SECRET_KEY = ''
 STRIPE_WEBHOOK_SECRET = ''
-DEFAULT_FROM_EMAIL = '"Iguana Comedy" <no-reply@{{ site_domain }}>'
+DEFAULT_FROM_EMAIL = '"Iguana Comedy" <no-reply@{{ mail_zone }}>'
 EMAIL_HOST = 'localhost'
 EMAIL_PORT = 25
 NOTIFY_EMAILS = {{ notify_emails | to_json }}

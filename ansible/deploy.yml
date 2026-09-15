@@ -184,36 +184,8 @@
       changed_when: true
 
     # ----------------------------------------------------------- nginx/procs
-    - name: Look for site certificate
-      become: true
-      stat: {path: "/etc/letsencrypt/live/{{ site_domain }}/fullchain.pem"}
-      register: site_cert
-
-    - name: Look for API certificate
-      become: true
-      stat: {path: "/etc/letsencrypt/live/{{ api_domain }}/fullchain.pem"}
-      register: api_cert
-
-    - name: nginx proxy params
-      become: true
-      copy: {src: files/iguana_proxy_params, dest: /etc/nginx/iguana_proxy_params, mode: "0644"}
-
-    - name: nginx site
-      become: true
-      template: {src: files/nginx.conf.j2, dest: "/etc/nginx/sites-available/{{ projectname }}.conf", mode: "0644"}
-
-    - name: Enable nginx site
-      become: true
-      file: {src: "/etc/nginx/sites-available/{{ projectname }}.conf", dest: "/etc/nginx/sites-enabled/{{ projectname }}.conf", state: link, force: true}
-
-    - name: Remove default nginx site
-      become: true
-      file: {path: /etc/nginx/sites-enabled/default, state: absent}
-
-    - name: nginx -t and reload
-      become: true
-      shell: nginx -t && systemctl reload nginx
-      changed_when: false
+    - name: nginx
+      include_tasks: tasks/nginx.yml
 
     - name: Supervisor programs
       become: true
@@ -236,11 +208,14 @@
         certbot certonly --webroot -w /var/www/letsencrypt -n --agree-tos -m {{ certbot_email }}
         --cert-name {{ item.name }} {{ item.domains | map('regex_replace', '^', '-d ') | join(' ') }}
       args: {creates: "/etc/letsencrypt/live/{{ item.name }}/fullchain.pem"}
-      loop:
-        - {name: "{{ site_domain }}", domains: ["{{ site_domain }}", "www.{{ site_domain }}"]}
-        - {name: "{{ api_domain }}", domains: ["{{ api_domain }}"]}
-        - {name: "{{ mail_domain }}", domains: ["{{ mail_domain }}"]}
+      loop: "{{ cert_sets }}"
       when: dns_live | bool
+      register: new_certs
+      tags: [certs, never]
+
+    - name: Re-render nginx with the new certificates
+      include_tasks: tasks/nginx.yml
+      when: new_certs is changed
       tags: [certs, never]
 
     - name: Reload nginx after certificate renewals

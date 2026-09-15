@@ -1,0 +1,31 @@
+# Render nginx from the certificates that exist right now, then test and reload.
+- name: Find issued certificates
+  become: true
+  stat: {path: "/etc/letsencrypt/live/{{ item.name }}/fullchain.pem"}
+  loop: "{{ cert_sets }}"
+  register: cert_stats
+
+- name: Certificates available to nginx
+  set_fact:
+    live_certs: "{{ cert_stats.results | selectattr('stat.exists') | map(attribute='item.name') | list }}"
+
+- name: nginx proxy params
+  become: true
+  copy: {src: files/iguana_proxy_params, dest: /etc/nginx/iguana_proxy_params, mode: "0644"}
+
+- name: nginx site
+  become: true
+  template: {src: files/nginx.conf.j2, dest: "/etc/nginx/sites-available/{{ projectname }}.conf", mode: "0644"}
+
+- name: Enable nginx site
+  become: true
+  file: {src: "/etc/nginx/sites-available/{{ projectname }}.conf", dest: "/etc/nginx/sites-enabled/{{ projectname }}.conf", state: link, force: true}
+
+- name: Remove default nginx site
+  become: true
+  file: {path: /etc/nginx/sites-enabled/default, state: absent}
+
+- name: nginx -t and reload
+  become: true
+  shell: nginx -t && systemctl reload nginx
+  changed_when: false

@@ -16,12 +16,12 @@
     - name: Look up public DNS
       command: dig +short {{ item.type }} {{ item.name }} @{{ resolver }}
       loop:
-        - {key: mx, type: MX, name: "{{ site_domain }}"}
+        - {key: mx, type: MX, name: "{{ mail_zone }}"}
         - {key: mail_a, type: A, name: "{{ mail_domain }}"}
         - {key: mail_aaaa, type: AAAA, name: "{{ mail_domain }}"}
-        - {key: spf, type: TXT, name: "{{ site_domain }}"}
-        - {key: dkim, type: TXT, name: "mail._domainkey.{{ site_domain }}"}
-        - {key: dmarc, type: TXT, name: "_dmarc.{{ site_domain }}"}
+        - {key: spf, type: TXT, name: "{{ mail_zone }}"}
+        - {key: dkim, type: TXT, name: "mail._domainkey.{{ mail_zone }}"}
+        - {key: dmarc, type: TXT, name: "_dmarc.{{ mail_zone }}"}
         - {key: ptr4, type: PTR, name: "{{ server_ipv4.split('.') | reverse | join('.') }}.in-addr.arpa"}
       register: dns
       changed_when: false
@@ -40,7 +40,7 @@
       become: false
 
     - name: Published DKIM key matches the private key on the server
-      command: opendkim-testkey -d {{ site_domain }} -s mail -k /etc/opendkim/keys/{{ site_domain }}/mail.private -vvv
+      command: opendkim-testkey -d {{ mail_zone }} -s mail -k /etc/opendkim/keys/{{ mail_zone }}/mail.private -vvv
       register: dkim_testkey
       changed_when: false
       failed_when: "'key OK' not in dkim_testkey.stderr + dkim_testkey.stdout"
@@ -64,7 +64,7 @@
       shell: systemctl is-active postfix opendkim && postfix check && postconf -h myhostname virtual_alias_domains mydestination
       register: svc
       changed_when: false
-      failed_when: svc.rc != 0 or site_domain in (svc.stdout_lines[-1] | replace(' ', '') | split(','))  # bare domain in mydestination = bounce loops
+      failed_when: svc.rc != 0 or mail_zone in (svc.stdout_lines[-1] | replace(' ', '') | split(','))  # bare domain in mydestination = bounce loops
 
     - name: STARTTLS on port 25 presents the mail certificate
       shell: echo QUIT | timeout 20 openssl s_client -starttls smtp -connect {{ mail_domain }}:25 -servername {{ mail_domain }} 2>/dev/null | openssl x509 -noout -subject -ext subjectAltName
@@ -87,8 +87,8 @@
         import smtplib
         from email.message import EmailMessage
         m = EmailMessage()
-        m['From'] = 'no-reply@{{ site_domain }}'
-        m['To'] = 'hello@{{ site_domain }}'
+        m['From'] = 'no-reply@{{ mail_zone }}'
+        m['To'] = 'hello@{{ mail_zone }}'
         m['Subject'] = 'inbound check {{ probe }}'
         m['Message-Id'] = '<{{ probe }}@{{ mail_domain }}>'
         m.set_content('inbound delivery check')

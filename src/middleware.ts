@@ -2,6 +2,7 @@ import { defineMiddleware } from "astro:middleware";
 
 import { fetchCachedBrandOverrides } from "./lib/kintana-files";
 import { getKintanaEnv } from "./lib/kintana-env";
+import { legacyRedirectTarget } from "./lib/legacy-paths";
 import { LOCALE_PREFERENCE_COOKIE, resolveRootLocale } from "./lib/locale-preference";
 
 export const onRequest = defineMiddleware(async (context, next) => {
@@ -16,6 +17,11 @@ export const onRequest = defineMiddleware(async (context, next) => {
 
   if (pathname === "/es") {
     return context.redirect("/es/", 302);
+  }
+
+  const legacyTarget = legacyRedirectTarget(pathname);
+  if (legacyTarget) {
+    return context.redirect(legacyTarget + context.url.search, 301);
   }
 
   const { locals } = context;

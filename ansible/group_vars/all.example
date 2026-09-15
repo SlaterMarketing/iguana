@@ -6,9 +6,21 @@ deploy_password: "{{ lookup('file', creds + '/password') }}"
 ansible_become_password: "{{ deploy_password }}"
 projectname: iguana
 app_dir: /home/www/iguana
-site_domain: iguanacomedy.mx
-api_domain: api.iguanacomedy.mx
+# Canonical site. iguanacomedy.com DNS is on Cloudflare (DNS-only records, token in ~/.credentials/cloudflare/iguanacomedy).
+site_domain: iguanacomedy.com
+api_domain: api.iguanacomedy.com
+# Interim domain from before .com was recovered: the site 301s to .com, the API keeps answering.
+redirect_domains: [iguanacomedy.mx]
+api_alias_domains: [api.iguanacomedy.mx]
+# Mail stays on the .mx zone (VPS.org DNS), where MX/SPF/DKIM/DMARC/PTR are set up and verified.
+mail_zone: iguanacomedy.mx
 mail_domain: mail.iguanacomedy.mx
+cert_sets:
+  - {name: iguanacomedy.com, domains: [iguanacomedy.com, www.iguanacomedy.com]}
+  - {name: api.iguanacomedy.com, domains: [api.iguanacomedy.com]}
+  - {name: iguanacomedy.mx, domains: [iguanacomedy.mx, www.iguanacomedy.mx]}
+  - {name: api.iguanacomedy.mx, domains: [api.iguanacomedy.mx]}
+  - {name: mail.iguanacomedy.mx, domains: [mail.iguanacomedy.mx]}
 server_ipv4: 38.86.78.36
 server_ipv6: "2001:550:2:dd::f9:68"
 certbot_email: hello@iguanacomedy.com
@@ -23,7 +35,7 @@ notify_emails: ["hello@iguanacomedy.com"]
 dns_live: true
 site_url: "{{ ('https://' + site_domain) if dns_live | bool else ('http://' + server_ipv4) }}"
 backend_url: "{{ ('https://' + api_domain) if dns_live | bool else ('http://' + server_ipv4 + ':8080') }}"
-site_urls: "{{ [site_url, 'https://www.' + site_domain] if dns_live | bool else [site_url] }}"
+site_urls: "{{ ([site_url, 'https://www.' + site_domain] + (redirect_domains | map('regex_replace', '^', 'https://') | list)) if dns_live | bool else [site_url] }}"
 
 # Mail: hello@ and the DSN/role aliases deliver to the local `inbox` user; DMARC reports to local `dmarc`.
 mail_inbox_aliases: [hello, noreply, no-reply, postmaster, abuse, mailer-daemon]

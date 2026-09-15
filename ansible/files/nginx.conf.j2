@@ -1,7 +1,6 @@
-# Managed by ansible/deploy.yml. TLS server blocks are part of this template (rendered once the certificates
-# exist), so re-running the deploy never strips HTTPS the way a certbot-edited conf would.
-{% set site_tls = site_cert.stat.exists %}
-{% set api_tls = api_cert.stat.exists %}
+# Managed by ansible (tasks/nginx.yml). TLS server blocks are rendered from the certificates that exist,
+# so re-running the deploy never strips HTTPS the way a certbot-edited conf would.
+{% set tls_ok = live_certs | default([]) %}
 
 upstream iguana_web { server 127.0.0.1:3000; keepalive 16; }
 upstream iguana_api { server 127.0.0.1:8001; }
@@ -37,64 +36,81 @@ upstream iguana_api { server 127.0.0.1:8001; }
 {% endmacro %}
 
 {% macro tls(name) %}
+    listen 443 ssl http2;
+    listen [::]:443 ssl http2;
     ssl_certificate /etc/letsencrypt/live/{{ name }}/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/{{ name }}/privkey.pem;
     ssl_protocols TLSv1.2 TLSv1.3;
     ssl_session_cache shared:iguana_ssl:10m;
 {% endmacro %}
 
-# ---- iguanacomedy.mx ----
+
+# ---- {{ site_domain }} (canonical) ----
 server {
     listen 80;
     listen [::]:80;
     server_name {{ site_domain }} www.{{ site_domain }};
     location ^~ /.well-known/acme-challenge/ { root /var/www/letsencrypt; }
-{% if site_tls %}
+{% if site_domain in tls_ok %}
     location / { return 301 https://{{ site_domain }}$request_uri; }
 {% else %}
 {{ site_locations() }}
 {% endif %}
 }
-{% if site_tls %}
+{% if site_domain in tls_ok %}
 server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
     server_name www.{{ site_domain }};
 {{ tls(site_domain) }}
     return 301 https://{{ site_domain }}$request_uri;
 }
 server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
     server_name {{ site_domain }};
 {{ tls(site_domain) }}
 {{ site_locations() }}
 }
 {% endif %}
 
-# ---- api.iguanacomedy.mx ----
+# ---- redirected domains -> {{ site_domain }} (path kept) ----
+{% for domain in redirect_domains %}
 server {
     listen 80;
     listen [::]:80;
-    server_name {{ api_domain }};
+    server_name {{ domain }} www.{{ domain }};
     location ^~ /.well-known/acme-challenge/ { root /var/www/letsencrypt; }
-{% if api_tls %}
-    location / { return 301 https://{{ api_domain }}$request_uri; }
+    location / { return 301 https://{{ site_domain }}$request_uri; }
+}
+{% if domain in tls_ok %}
+server {
+    server_name {{ domain }} www.{{ domain }};
+{{ tls(domain) }}
+    return 301 https://{{ site_domain }}$request_uri;
+}
+{% endif %}
+{% endfor %}
+
+# ---- API: {{ api_domain }}{% for a in api_alias_domains %}, {{ a }}{% endfor %} ----
+{% for host in [api_domain] + api_alias_domains %}
+server {
+    listen 80;
+    listen [::]:80;
+    server_name {{ host }};
+    location ^~ /.well-known/acme-challenge/ { root /var/www/letsencrypt; }
+{% if host in tls_ok %}
+    location / { return 301 https://{{ host }}$request_uri; }
 {% else %}
 {{ api_locations() }}
 {% endif %}
 }
-{% if api_tls %}
+{% if host in tls_ok %}
 server {
-    listen 443 ssl http2;
-    listen [::]:443 ssl http2;
-    server_name {{ api_domain }};
-{{ tls(api_domain) }}
+    server_name {{ host }};
+{{ tls(host) }}
 {{ api_locations() }}
 }
 {% endif %}
+{% endfor %}
 
-# ---- mail.iguanacomedy.mx (certificate only) ----
+# ---- {{ mail_domain }} (certificate for SMTP STARTTLS only) ----
 server {
     listen 80;
     listen [::]:80;
@@ -103,7 +119,7 @@ server {
     location / { return 301 https://{{ site_domain }}/; }
 }
 
-# ---- bare IP (pre-DNS smoke tests) ----
+# ---- bare IP ----
 server {
     listen 80 default_server;
     listen [::]:80 default_server;

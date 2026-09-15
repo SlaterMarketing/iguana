@@ -1,5 +1,5 @@
 # Managed by ansible/mail.yml. Every address delivers LOCALLY (fleet rule: never forward instead of delivering).
 {% for name in mail_inbox_aliases %}
-{{ name }}@{{ site_domain }} inbox
+{{ name }}@{{ mail_zone }} inbox
 {% endfor %}
-dmarc@{{ site_domain }} dmarc
+dmarc@{{ mail_zone }} dmarc

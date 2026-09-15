@@ -21,14 +21,14 @@
 
     # ------------------------------------------------------------- DKIM
     - name: DKIM key directory
-      file: {path: "/etc/opendkim/keys/{{ site_domain }}", state: directory, owner: opendkim, group: opendkim, mode: "0750"}
+      file: {path: "/etc/opendkim/keys/{{ mail_zone }}", state: directory, owner: opendkim, group: opendkim, mode: "0750"}
 
     - name: DKIM key (selector mail)
-      command: opendkim-genkey -b 2048 -d {{ site_domain }} -s mail -D /etc/opendkim/keys/{{ site_domain }}
-      args: {creates: "/etc/opendkim/keys/{{ site_domain }}/mail.private"}
+      command: opendkim-genkey -b 2048 -d {{ mail_zone }} -s mail -D /etc/opendkim/keys/{{ mail_zone }}
+      args: {creates: "/etc/opendkim/keys/{{ mail_zone }}/mail.private"}
 
     - name: DKIM key ownership
-      file: {path: "/etc/opendkim/keys/{{ site_domain }}/mail.private", owner: opendkim, group: opendkim, mode: "0600"}
+      file: {path: "/etc/opendkim/keys/{{ mail_zone }}/mail.private", owner: opendkim, group: opendkim, mode: "0600"}
 
     - name: OpenDKIM tables
       copy:
@@ -37,8 +37,8 @@
         owner: opendkim
         group: opendkim
       loop:
-        - {name: KeyTable, content: "mail._domainkey.{{ site_domain }} {{ site_domain }}:mail:/etc/opendkim/keys/{{ site_domain }}/mail.private\n"}
-        - {name: SigningTable, content: "*@{{ site_domain }} mail._domainkey.{{ site_domain }}\n"}
+        - {name: KeyTable, content: "mail._domainkey.{{ mail_zone }} {{ mail_zone }}:mail:/etc/opendkim/keys/{{ mail_zone }}/mail.private\n"}
+        - {name: SigningTable, content: "*@{{ mail_zone }} mail._domainkey.{{ mail_zone }}\n"}
         - {name: TrustedHosts, content: "127.0.0.1\nlocalhost\n::1\n"}
       notify: restart opendkim
 
@@ -74,7 +74,7 @@
         - "myhostname = {{ mail_domain }}"
         - "myorigin = /etc/mailname"
         - "mydestination = localhost, {{ mail_domain }}"
-        - "virtual_alias_domains = {{ site_domain }}"
+        - "virtual_alias_domains = {{ mail_zone }}"
         - "virtual_alias_maps = hash:/etc/postfix/virtual"
         - "relayhost ="
         - "inet_interfaces = all"
