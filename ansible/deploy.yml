@@ -108,6 +108,13 @@
           - "--exclude=backend/local_data.json"
           - "--exclude=__pycache__/"
           - "--exclude=.wrangler/"
+          - "--exclude=backend/media/"
+
+    - name: Sync media without deleting (admin uploads live only on the server)
+      ansible.posix.synchronize:
+        src: "{{ repo_root }}/backend/media/"
+        dest: "{{ app_dir }}/backend/media/"
+        delete: false
 
     - name: Site env (.env)
       template: {src: files/env.j2, dest: "{{ app_dir }}/.env", mode: "0600"}
