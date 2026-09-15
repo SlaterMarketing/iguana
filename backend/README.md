@@ -68,7 +68,7 @@ Single VPS on the VPS.org `free` account: `38.86.78.36` / `2001:550:2:dd::f9:68`
 | `api.iguanacomedy.com` | Cloudflare | Django API, admin, checkout, media |
 | `iguanacomedy.mx`, `www.` | VPS.org (ns1-3.vps.org) | 301 to the same path on `.com` |
 | `api.iguanacomedy.mx` | VPS.org | Django API (kept answering for old links) |
-| `mail.iguanacomedy.mx` | VPS.org | MX, SMTP STARTTLS cert; mail is sent as `no-reply@iguanacomedy.mx` |
+| `mail.iguanacomedy.mx` | VPS.org | the MX for **both** zones, SMTP STARTTLS cert; mail is sent as `no-reply@iguanacomedy.com` |
 
 Cloudflare's `iguanacomedy.com` records must stay **DNS-only** (grey cloud): proxied records previously pointed at
 Cloudflare's own IPs, which is what produced Error 1000. A pre-change backup of the zone is in the credentials folder.
@@ -86,14 +86,23 @@ ansible-playbook email_check.yml               # end-to-end mail test (see below
 
 `mail.yml` follows the fleet golden standard: direct delivery, DKIM selector `mail`, MX `mail.iguanacomedy.mx`
 with a Let's Encrypt cert for STARTTLS, SPF `-all`, DMARC `p=reject` with `rua` to the local `dmarc` mailbox.
-`hello@`, `noreply@`, `no-reply@`, `postmaster@`, `abuse@` and `mailer-daemon` deliver to the local `inbox`
-user (`sudo mail -f /var/mail/inbox`); nothing forwards offsite and there is no catch-all.
+It serves every zone in `mail_zones` from that one host: `iguanacomedy.mx` and `iguanacomedy.com`, each with
+its own DKIM key (`/etc/opendkim/keys/<zone>/`) and its own MX, SPF, DKIM and DMARC records. `.com` mail moved
+off Kintana on 2026-09-15; the Kintana MX records and the leftover leadconnector/mailgun SPF record were
+removed then (two SPF records on one name is a permerror, which fails DMARC on a `p=reject` domain).
 
-`email_check.yml` asserts on content: public DNS values and forward-confirmed PTR (v4 + v6), the published
-DKIM key against the key on disk, the STARTTLS certificate name, open-relay refusal, inbound delivery to
-`hello@`, per-message `status=sent` tracked by Message-ID, and SPF/DKIM `pass` from
-`check-auth@verifier.port25.com` (its report is read back from the local inbox). Send a one-off test with
-`venv/bin/python manage.py send_test_email you@example.com`.
+Addresses come from `mail_human_aliases` (`hello`, `info`, `bills`, `andrew`, `john`), which deliver to the
+local `inbox` user (`sudo mail -f /var/mail/inbox`) **and** forward to every address in `mail_forwards`.
+Role/DSN addresses (`noreply`, `no-reply`, `postmaster`, `abuse`, `mailer-daemon`) deliver locally only, so
+bounce noise stays off the forwards. Nothing forwards *instead* of delivering: the local copy is what survives
+if a forward is rejected. There is no catch-all, so any other address is rejected at RCPT with 550.
+
+`email_check.yml` asserts on content: public DNS values and forward-confirmed PTR (v4 + v6), per zone the MX,
+a **single** SPF record, the published DKIM key against the key on disk, and DMARC with `rua`; plus the
+STARTTLS certificate name, open-relay refusal, inbound delivery to `hello@` in every zone with `status=sent`
+on each forward leg tracked by queue ID, per-message `status=sent` outbound tracked by Message-ID, and
+SPF/DKIM `pass` from `check-auth@verifier.port25.com` (its report is read back from the local inbox). Send a
+one-off test with `venv/bin/python manage.py send_test_email you@example.com`.
 
 **IPv4 is on the Spamhaus PBL.** 38.86.78.0/24 returns `127.0.0.11` (ISP-maintained PBL), so Gmail answers
 `550-5.7.1 ... not authorized to send email directly`. Postfix therefore sets `smtp_address_preference = ipv6`;

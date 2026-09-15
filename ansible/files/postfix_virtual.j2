@@ -1,5 +1,11 @@
-# Managed by ansible/mail.yml. Every address delivers LOCALLY (fleet rule: never forward instead of delivering).
-{% for name in mail_inbox_aliases %}
-{{ name }}@{{ mail_zone }} inbox
+# Managed by ansible/mail.yml. People's addresses deliver LOCALLY and forward; role addresses deliver locally
+# only. Nothing forwards INSTEAD of delivering, so a rejected forward still leaves the message in /var/mail/inbox.
+{% for zone in mail_zones %}
+{% for name in mail_human_aliases %}
+{{ name }}@{{ zone }} {{ (['inbox'] + mail_forwards) | join(', ') }}
 {% endfor %}
-dmarc@{{ mail_zone }} dmarc
+{% for name in mail_role_aliases %}
+{{ name }}@{{ zone }} inbox
+{% endfor %}
+dmarc@{{ zone }} dmarc
+{% endfor %}

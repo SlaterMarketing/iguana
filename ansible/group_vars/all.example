@@ -14,6 +14,7 @@ redirect_domains: [iguanacomedy.mx]
 api_alias_domains: [api.iguanacomedy.mx]
 # Mail stays on the .mx zone (VPS.org DNS), where MX/SPF/DKIM/DMARC/PTR are set up and verified.
 mail_zone: iguanacomedy.mx
+mail_zones: [iguanacomedy.mx, iguanacomedy.com]
 mail_domain: mail.iguanacomedy.mx
 cert_sets:
   - {name: iguanacomedy.com, domains: [iguanacomedy.com, www.iguanacomedy.com]}
@@ -37,8 +38,12 @@ site_url: "{{ ('https://' + site_domain) if dns_live | bool else ('http://' + se
 backend_url: "{{ ('https://' + api_domain) if dns_live | bool else ('http://' + server_ipv4 + ':8080') }}"
 site_urls: "{{ ([site_url, 'https://www.' + site_domain] + (redirect_domains | map('regex_replace', '^', 'https://') | list)) if dns_live | bool else [site_url] }}"
 
-# Mail: hello@ and the DSN/role aliases deliver to the local `inbox` user; DMARC reports to local `dmarc`.
-mail_inbox_aliases: [hello, noreply, no-reply, postmaster, abuse, mailer-daemon]
+# Mail: people's addresses deliver to the local `inbox` user AND forward to mail_forwards; role/DSN addresses
+# deliver locally only, so bounce noise stays off the forwards. Nothing ever forwards INSTEAD of delivering:
+# the local copy is what survives if a forward is rejected. DMARC reports go to the local `dmarc` user.
+mail_human_aliases: [hello, info, bills, andrew, john]
+mail_role_aliases: [noreply, no-reply, postmaster, abuse, mailer-daemon]
+mail_forwards: [someone@example.com, someone-else@example.com]
 mail_test_recipient: someone-else@example.com
 
 # Clicky analytics through a first-party proxy (https://clicky.com/help/proxy). Paths are random per site.

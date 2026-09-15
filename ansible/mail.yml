@@ -1,7 +1,8 @@
 ---
-# Postfix + OpenDKIM for iguanacomedy.mx, following ~/.claude/docs/email-and-stripe.md "golden standard":
-# direct delivery, dual stack, DKIM selector `mail`, bare domain only in virtual_alias_domains, hello@ and the
-# DSN/role aliases delivered to a local `inbox` user, DMARC reports to a local `dmarc` user, no catch-all.
+# Postfix + OpenDKIM for every zone in mail_zones, following ~/.claude/docs/email-and-stripe.md "golden standard":
+# direct delivery, dual stack, a DKIM key per zone with selector `mail`, bare domains only in
+# virtual_alias_domains, people's addresses delivered to a local `inbox` user and forwarded to mail_forwards,
+# DSN/role addresses delivered locally only, DMARC reports to a local `dmarc` user, no catch-all.
 #
 #   ansible-playbook mail.yml           apply
 #   ansible-playbook email_check.yml    verify DNS, DKIM, TLS, queue, and send test mail
@@ -20,15 +21,18 @@
       loop: [inbox, dmarc]
 
     # ------------------------------------------------------------- DKIM
-    - name: DKIM key directory
-      file: {path: "/etc/opendkim/keys/{{ mail_zone }}", state: directory, owner: opendkim, group: opendkim, mode: "0750"}
+    - name: DKIM key directory per zone
+      file: {path: "/etc/opendkim/keys/{{ item }}", state: directory, owner: opendkim, group: opendkim, mode: "0750"}
+      loop: "{{ mail_zones }}"
 
-    - name: DKIM key (selector mail)
-      command: opendkim-genkey -b 2048 -d {{ mail_zone }} -s mail -D /etc/opendkim/keys/{{ mail_zone }}
-      args: {creates: "/etc/opendkim/keys/{{ mail_zone }}/mail.private"}
+    - name: DKIM key per zone (selector mail)
+      command: opendkim-genkey -b 2048 -d {{ item }} -s mail -D /etc/opendkim/keys/{{ item }}
+      args: {creates: "/etc/opendkim/keys/{{ item }}/mail.private"}
+      loop: "{{ mail_zones }}"
 
     - name: DKIM key ownership
-      file: {path: "/etc/opendkim/keys/{{ mail_zone }}/mail.private", owner: opendkim, group: opendkim, mode: "0600"}
+      file: {path: "/etc/opendkim/keys/{{ item }}/mail.private", owner: opendkim, group: opendkim, mode: "0600"}
+      loop: "{{ mail_zones }}"
 
     - name: OpenDKIM tables
       copy:
@@ -37,8 +41,8 @@
         owner: opendkim
         group: opendkim
       loop:
-        - {name: KeyTable, content: "mail._domainkey.{{ mail_zone }} {{ mail_zone }}:mail:/etc/opendkim/keys/{{ mail_zone }}/mail.private\n"}
-        - {name: SigningTable, content: "*@{{ mail_zone }} mail._domainkey.{{ mail_zone }}\n"}
+        - {name: KeyTable, content: "{% for z in mail_zones %}mail._domainkey.{{ z }} {{ z }}:mail:/etc/opendkim/keys/{{ z }}/mail.private\n{% endfor %}"}
+        - {name: SigningTable, content: "{% for z in mail_zones %}*@{{ z }} mail._domainkey.{{ z }}\n{% endfor %}"}
         - {name: TrustedHosts, content: "127.0.0.1\nlocalhost\n::1\n"}
       notify: restart opendkim
 
@@ -74,7 +78,7 @@
         - "myhostname = {{ mail_domain }}"
         - "myorigin = /etc/mailname"
         - "mydestination = localhost, {{ mail_domain }}"
-        - "virtual_alias_domains = {{ mail_zone }}"
+        - "virtual_alias_domains = {{ mail_zones | join(', ') }}"
         - "virtual_alias_maps = hash:/etc/postfix/virtual"
         - "relayhost ="
         - "inet_interfaces = all"

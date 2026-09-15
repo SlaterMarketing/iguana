@@ -1,5 +1,5 @@
 ---
-# End-to-end mail health check for iguanacomedy.mx. Read-only apart from the test messages it sends.
+# End-to-end mail health check for every zone in mail_zones. Read-only apart from the test messages it sends.
 #   ansible-playbook email_check.yml
 #   ansible-playbook email_check.yml -e mail_test_recipient=someone@example.com
 #
@@ -13,17 +13,25 @@
     resolver: 8.8.8.8
   tasks:
     # ------------------------------------------------------------------ DNS
-    - name: Look up public DNS
+    - name: Look up the mail host's own DNS
       command: dig +short {{ item.type }} {{ item.name }} @{{ resolver }}
       loop:
-        - {key: mx, type: MX, name: "{{ mail_zone }}"}
         - {key: mail_a, type: A, name: "{{ mail_domain }}"}
         - {key: mail_aaaa, type: AAAA, name: "{{ mail_domain }}"}
-        - {key: spf, type: TXT, name: "{{ mail_zone }}"}
-        - {key: dkim, type: TXT, name: "mail._domainkey.{{ mail_zone }}"}
-        - {key: dmarc, type: TXT, name: "_dmarc.{{ mail_zone }}"}
         - {key: ptr4, type: PTR, name: "{{ server_ipv4.split('.') | reverse | join('.') }}.in-addr.arpa"}
       register: dns
+      changed_when: false
+      delegate_to: localhost
+      become: false
+
+    - name: Look up per-zone mail DNS
+      command: dig +short {{ item.1.type }} {{ item.1.prefix }}{{ item.0 }} @{{ resolver }}
+      loop: "{{ mail_zones | product([{'key': 'mx', 'type': 'MX', 'prefix': ''},
+                                      {'key': 'spf', 'type': 'TXT', 'prefix': ''},
+                                      {'key': 'dkim', 'type': 'TXT', 'prefix': 'mail._domainkey.'},
+                                      {'key': 'dmarc', 'type': 'TXT', 'prefix': '_dmarc.'}]) | list }}"
+      loop_control: {label: "{{ item.1.key }} {{ item.1.prefix }}{{ item.0 }}"}
+      register: zone_dns
       changed_when: false
       delegate_to: localhost
       become: false
@@ -31,6 +39,10 @@
     - name: Facts from DNS
       set_fact:
         dns_map: "{{ dict(dns.results | map(attribute='item.key') | zip(dns.results | map(attribute='stdout'))) }}"
+        # Keyed "<record>@<zone>", e.g. zone_map['spf@iguanacomedy.com'].
+        zone_map: "{{ dict(zone_dns.results | map(attribute='item.1.key')
+                           | zip(zone_dns.results | map(attribute='item.0')) | map('join', '@')
+                           | zip(zone_dns.results | map(attribute='stdout'))) }}"
 
     - name: PTR v6
       command: dig +short -x {{ server_ipv6 }} @{{ resolver }}
@@ -39,32 +51,46 @@
       delegate_to: localhost
       become: false
 
-    - name: Published DKIM key matches the private key on the server
-      command: opendkim-testkey -d {{ mail_zone }} -s mail -k /etc/opendkim/keys/{{ mail_zone }}/mail.private -vvv
-      register: dkim_testkey
+    - name: Published DKIM key matches the private key on the server, in every zone
+      shell: |
+        for z in {{ mail_zones | join(' ') }}; do
+          out=$(opendkim-testkey -d "$z" -s mail -k "/etc/opendkim/keys/$z/mail.private" -vvv 2>&1)
+          echo "$z: $out"
+          echo "$out" | grep -q 'key OK' || exit 1
+        done
+      register: dkim_keys
       changed_when: false
-      failed_when: "'key OK' not in dkim_testkey.stderr + dkim_testkey.stdout"
 
-    - name: Assert DNS records
+    - name: Assert the mail host's own DNS
       assert:
         that:
-          - "('10 ' + mail_domain + '.') in dns_map.mx"
           - "dns_map.mail_a == server_ipv4"
           - "dns_map.mail_aaaa == server_ipv6"
-          - "('ip4:' + server_ipv4) in dns_map.spf and ('ip6:' + server_ipv6) in dns_map.spf"
-          - "'v=DKIM1' in dns_map.dkim"
-          - "'v=DMARC1' in dns_map.dmarc and 'rua=' in dns_map.dmarc"
           - "dns_map.ptr4 == mail_domain + '.'"
           - "ptr6.stdout == mail_domain + '.'"
         fail_msg: "{{ dns_map | combine({'ptr6': ptr6.stdout}) | to_json }}"
-        success_msg: "MX, mail A/AAAA, SPF, DKIM, DMARC(rua), PTR v4+v6 all correct"
+        success_msg: "mail A/AAAA and PTR v4+v6 all point at {{ mail_domain }}"
+
+    - name: Assert per-zone mail DNS
+      assert:
+        that:
+          - "('10 ' + mail_domain + '.') in zone_map['mx@' + item]"
+          # More than one SPF record is a permerror, which fails DMARC on a p=reject domain.
+          - "zone_map['spf@' + item].splitlines() | select('search', 'v=spf1') | list | length == 1"
+          - "('ip4:' + server_ipv4) in zone_map['spf@' + item] and ('ip6:' + server_ipv6) in zone_map['spf@' + item]"
+          - "'v=DKIM1' in zone_map['dkim@' + item]"
+          - "'v=DMARC1' in zone_map['dmarc@' + item] and 'rua=' in zone_map['dmarc@' + item]"
+        fail_msg: "{{ item }}: {{ {'mx': zone_map['mx@' + item], 'spf': zone_map['spf@' + item], 'dkim': zone_map['dkim@' + item][:40], 'dmarc': zone_map['dmarc@' + item]} | to_json }}"
+        success_msg: "{{ item }}: MX, single SPF, DKIM and DMARC(rua) all correct"
+      loop: "{{ mail_zones }}"
 
     # --------------------------------------------------------------- server
     - name: Postfix and OpenDKIM running, config valid
       shell: systemctl is-active postfix opendkim && postfix check && postconf -h myhostname virtual_alias_domains mydestination
       register: svc
       changed_when: false
-      failed_when: svc.rc != 0 or mail_zone in (svc.stdout_lines[-1] | replace(' ', '') | split(','))  # bare domain in mydestination = bounce loops
+      # A bare mail zone in mydestination as well as virtual_alias_domains causes bounce loops.
+      failed_when: svc.rc != 0 or (mail_zones | intersect(svc.stdout_lines[-1] | replace(' ', '') | split(','))) | length > 0
 
     - name: STARTTLS on port 25 presents the mail certificate
       shell: echo QUIT | timeout 20 openssl s_client -starttls smtp -connect {{ mail_domain }}:25 -servername {{ mail_domain }} 2>/dev/null | openssl x509 -noout -subject -ext subjectAltName
@@ -81,21 +107,22 @@
     - name: Inbound test message token
       set_fact: {probe: "inbound-{{ 999999 | random }}"}
 
-    - name: Deliver to hello@ over SMTP on the public address (as an outside client would)
+    - name: Deliver to hello@ in every zone over SMTP on the public address (as an outside client would)
       shell: |
         python3 - <<'PY'
         import smtplib
         from email.message import EmailMessage
         m = EmailMessage()
         m['From'] = 'no-reply@{{ mail_zone }}'
-        m['To'] = 'hello@{{ mail_zone }}'
-        m['Subject'] = 'inbound check {{ probe }}'
-        m['Message-Id'] = '<{{ probe }}@{{ mail_domain }}>'
+        m['To'] = 'hello@{{ item }}'
+        m['Subject'] = 'inbound check {{ probe }} {{ item }}'
+        m['Message-Id'] = '<{{ probe }}-{{ item }}@{{ mail_domain }}>'
         m.set_content('inbound delivery check')
         with smtplib.SMTP('{{ mail_domain }}', 25, timeout=30) as s:
             s.starttls()
             s.send_message(m)
         PY
+      loop: "{{ mail_zones }}"
       changed_when: true
 
     - name: Relay to an outside domain from an outside client is refused (not an open relay)
@@ -115,11 +142,39 @@
       register: relay
       changed_when: false
 
-    - name: hello@ landed in the local inbox
-      shell: grep -c "inbound check {{ probe }}" /var/mail/inbox
+    - name: hello@ kept a local copy and reached every forward, in every zone
+      shell: |
+        python3 - <<'PY'
+        import re, sys
+        zones = {{ mail_zones | to_json }}
+        forwards = {{ mail_forwards | to_json }}
+        log = open('/var/log/mail.log', errors='replace').read()
+        mbox = open('/var/mail/inbox', errors='replace').read()
+        bad = []
+        for z in zones:
+            if 'inbound check {{ probe }} %s' % z not in mbox:
+                bad.append('%s: no local copy in /var/mail/inbox' % z)
+            qids = re.findall(r' ([0-9A-F]{8,}): message-id=<{{ probe }}-%s@{{ mail_domain }}>' % re.escape(z), log)
+            if not qids:
+                bad.append('%s: never queued' % z)
+                continue
+            tail = log[log.index(qids[-1] + ': message-id'):]
+            for dest in forwards:
+                m = re.search(r' %s: to=<%s>.*?status=(\w+) \(([^)]{0,90})' % (qids[-1], re.escape(dest)), tail)
+                if not m:
+                    bad.append('%s -> %s: no delivery line yet' % (z, dest))
+                elif m.group(1) != 'sent':
+                    bad.append('%s -> %s: status=%s (%s)' % (z, dest, m.group(1), m.group(2)))
+                else:
+                    print('%s -> %s: sent (%s)' % (z, dest, m.group(2)[:60]))
+            print('%s: local copy in /var/mail/inbox' % z)
+        if bad:
+            print('FAILURES:', '; '.join(bad))
+            sys.exit(1)
+        PY
       register: inbound
-      retries: 10
-      delay: 3
+      retries: 20
+      delay: 6
       until: inbound.rc == 0
       changed_when: false
 
@@ -181,10 +236,12 @@
     - name: Summary
       debug:
         msg:
-          - "DNS: {{ dns_map }}"
+          - "Mail host DNS: {{ dns_map }}"
+          - "Per-zone DNS: {{ zone_map }}"
+          - "DKIM keys: {{ dkim_keys.stdout_lines }}"
           - "STARTTLS: {{ starttls.stdout_lines }}"
           - "Open relay refused: {{ relay.rc == 0 }}"
-          - "Inbound hello@ delivered locally: {{ inbound.stdout }} message(s)"
+          - "Inbound hello@ (local copy + forwards): {{ inbound.stdout_lines }}"
           - "Outbound: {{ outbound.stdout_lines }}"
           - "External verifier: {{ auth_report.stdout_lines }}"
           - "Read the inbox: sudo mail -f /var/mail/inbox   (DMARC reports: /var/mail/dmarc)"
