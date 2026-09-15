@@ -1,5 +1,6 @@
 ---
 import type { Locale } from "../i18n/locale";
+import { holidayNotice } from "../lib/holiday-notice";
 
 interface Props {
   locale: Locale;
@@ -7,6 +8,9 @@ interface Props {
 }
 
 const { locale, class: className } = Astro.props;
+
+// Null on any day outside a closure, so the banner takes itself down.
+const notice = holidayNotice(locale);
 
 const venueAddress = "Calle 6 Nte 189, Centro, 77710 Playa del Carmen, Q.R., Mexico";
 const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`Iguana Comedy, ${venueAddress}`)}`;
@@ -41,6 +45,15 @@ const copy = {
   class:list={["overflow-hidden rounded-[2rem] bg-neutral-950 text-white", className]}
   aria-label={copy.headline}
 >
+  {
+    notice && (
+      <div class="space-y-1 bg-amber-400 px-8 py-5 text-neutral-950 sm:px-12">
+        <p class="text-sm font-semibold uppercase tracking-[0.25em]">{notice.headline}</p>
+        <p class="text-sm leading-relaxed">{notice.detail}</p>
+      </div>
+    )
+  }
+
   <div class="flex flex-col gap-8 px-8 py-10 sm:px-12 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
     <div class="space-y-3">
       <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white/60">{copy.kicker}</p>
