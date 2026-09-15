@@ -111,6 +111,32 @@ pointing at Cloudflare IPs caused the old Error 1000); `iguanacomedy.mx` 301s to
   anything else is rejected at RCPT. 38.86.78.0/24 is on the Spamhaus PBL, so Postfix prefers IPv6 (Gmail
   rejects the v4 address).
 
+### Meta ads (Facebook/Instagram)
+
+`scripts/meta-ads.py` (`status`, `campaigns --days N`, `daily --days N`, `pixels`, `pause/resume <id>`) talks to
+the Marketing API. It is an operator tool run by hand, so it reads the never-expiring system-user token from
+`~/.credentials/meta/iguanacomedy/token`, not `config.py`; no deployed service calls Meta.
+
+| Asset | ID |
+| --- | --- |
+| Ad account `IGUANA` (MXN, business `IguanaComedy` 681571140696261) | `act_178760798664478` |
+| Page `Iguana Comedy Productions` (@iguanacomedy) | `122106930026005410` |
+| Instagram @iguanacomedy | `17841461594533193` |
+| App `Iguana 2026` / system user `newiguana 2026` | `1616667029816710` |
+| Pixel `Ticket Tracking` (used by the Kintana-era site) | `1167556798403907` |
+| Pixel `andrew new pixel` (created 2026-09-15, never fired) | `2122037578734069` |
+
+🚨 **A campaign or ad set reading `ACTIVE` is not evidence that it spends.** 31 ad sets report `ACTIVE` while
+their `end_time` passed months or years ago, so the UI looks busy and the account has in fact spent nothing
+since April 2026. Judge delivery by `end_time` in the future plus non-zero `insights.spend`, which is what
+`status` does. The same trap in reverse: `campaigns` only lists campaigns that actually spent in the window.
+
+**No Meta pixel is installed on this site.** `Ticket Tracking` last received an event on 2026-05-17, from the
+old Kintana-era site; the Astro site has no `fbq` and the checkout runs in an iframe from `api.iguanacomedy.com`,
+so a plain pixel snippet on the marketing pages would not see purchases anyway. Conversion campaigns
+(`OUTCOME_SALES`) cannot be optimised or measured until that is fixed, most robustly by sending the purchase
+server-side from the Stripe webhook in `api/embed_views.py` via the Conversions API.
+
 ### Data outside the repo
 
 `~/iguana-migration/` holds the Kintana CSV export (customer PII), the Wayback Machine mirror, and
