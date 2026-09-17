@@ -198,6 +198,41 @@ export function monthLabel(dateInput: string, locale: Locale = "en"): string {
   return new Intl.DateTimeFormat(locale === "es" ? "es-MX" : "en-US", { month: "long", year: "numeric" }).format(new Date(d));
 }
 
+/** "YYYY-MM" for an event date. The API sends the Cancun calendar day, so a plain date is read as written: parsing
+ * it as an instant would put it at UTC midnight, which is the day before in Cancun. */
+export function eventMonthKey(dateInput: string): string {
+  const raw = dateInput.trim();
+  if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 7);
+  const parsed = Date.parse(raw);
+  if (!Number.isFinite(parsed)) return "";
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Cancun", year: "numeric", month: "2-digit" })
+    .format(new Date(parsed))
+    .slice(0, 7);
+}
+
+/** The event's own calendar day as a local Date, safe to format with weekday/day. */
+export function eventCalendarDate(dateInput: string): Date | null {
+  const raw = dateInput.trim();
+  const parts = /^(\d{4})-(\d{2})-(\d{2})/.exec(raw);
+  if (parts) return new Date(Number(parts[1]), Number(parts[2]) - 1, Number(parts[3]));
+  const parsed = Date.parse(raw);
+  return Number.isFinite(parsed) ? new Date(parsed) : null;
+}
+
+export function currentMonthKey(now = new Date()): string {
+  return todayInCancun(now).slice(0, 7);
+}
+
+/** This month's shows first, everything later behind the expandable calendar. */
+export function splitByCurrentMonth(events: readonly KintanaPublicEvent[], now = new Date()) {
+  const key = currentMonthKey(now);
+  const sorted = sortEventsAscending([...events]);
+  return {
+    thisMonth: sorted.filter((event) => eventMonthKey(event.date) === key),
+    later: sorted.filter((event) => eventMonthKey(event.date) !== key),
+  };
+}
+
 export function groupEventsByMonth(
   events: KintanaPublicEvent[],
   order: "asc" | "desc" = "asc",

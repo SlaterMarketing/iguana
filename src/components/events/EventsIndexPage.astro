@@ -2,11 +2,12 @@
 import Base from "../../layouts/Base.astro";
 import CityPicker from "../CityPicker.astro";
 import EventRow from "../EventRow.astro";
+import EventCalendarRow from "./EventCalendarRow.astro";
 import OpenMicCallout from "../OpenMicCallout.astro";
 import NoEventsNearby from "../locations/NoEventsNearby.astro";
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import { heroCityChoices } from "../../content/site";
-import { eventCitySlug, groupEventsByMonth } from "../../lib/events";
+import { eventCitySlug, groupEventsByMonth, splitByCurrentMonth } from "../../lib/events";
 import { loadEventsForCalendarPages } from "../../lib/events-catalog";
 import { logKintanaError, logKintanaSuccess, kintanaHttpStatus } from "../../lib/kintana-error";
 import { createLocalizedKintanaClient, getKintanaEnv } from "../../lib/kintana-env";
@@ -61,9 +62,17 @@ if (citySlugFilter) {
 const nearbyCity =
   citySlugFilter && activeCityLabel && citySlugFilter !== "playa-del-carmen" ? { slug: citySlugFilter, label: activeCityLabel } : null;
 
-const upcomingGrouped = groupEventsByMonth(upcoming, "asc", locale);
+// The page leads with what is on this month; everything after that lives in the calendar you can open, so the
+// weekly open mics do not bury the rest of the year.
+const { thisMonth, later } = splitByCurrentMonth(upcoming);
+const featured = thisMonth.length > 0 ? thisMonth : later.slice(0, 4);
+const calendar = thisMonth.length > 0 ? later : later.slice(4);
+const calendarGrouped = groupEventsByMonth(calendar, "asc", locale);
 const pastGrouped = groupEventsByMonth(past, "desc", locale);
-const hasAnyShows = upcomingGrouped.size > 0 || pastGrouped.size > 0;
+const hasAnyShows = upcoming.length > 0 || pastGrouped.size > 0;
+const calendarCount = calendar.length;
+const calendarCountLabel = t(locale, calendarCount === 1 ? "events.calendarCountOne" : "events.calendarCountOther")
+  .replace("{count}", String(calendarCount));
 
 const emptyMessage =
   citySlugFilter && activeCityLabel
@@ -121,52 +130,79 @@ const emptyMessage =
         </div>
       )
     ) : (
-      <div class="mt-20 space-y-28">
+      <div class="mt-20 space-y-20">
         <div>
           <h2 class="font-display text-3xl text-neutral-950" style="font-family: var(--font-display);">
             {citySlugFilter && activeCityLabel
               ? t(locale, "home.upcomingIn").replace("{city}", activeCityLabel)
-              : t(locale, "ui.upcomingShows")}
+              : t(locale, "events.thisMonth")}
           </h2>
-          {upcomingGrouped.size === 0 ? (
+          {featured.length === 0 ? (
             nearbyCity ? (
               <NoEventsNearby locale={locale} city={nearbyCity} />
             ) : (
               <p class="mt-8 text-neutral-600">{t(locale, "events.noUpcoming")}</p>
             )
           ) : (
-            <div class="mt-14 space-y-24">
-              {Array.from(upcomingGrouped.entries()).map(([month, rows]) => (
-                <div>
-                  <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{month}</p>
-                  <div class="mt-10 grid gap-12 lg:gap-14">
-                    {rows.map((evt) => (
-                      <EventRow evt={evt} highlightCity={citySlugFilter} locale={locale} />
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+            <>
+              {thisMonth.length === 0 ? <p class="mt-6 text-neutral-600">{t(locale, "events.noneThisMonth")}</p> : null}
+              <div class="mt-12 grid gap-12 lg:grid-cols-2 lg:gap-14">
+                {featured.map((evt) => (
+                  <EventRow evt={evt} highlightCity={citySlugFilter} locale={locale} />
+                ))}
+              </div>
+            </>
           )}
         </div>
 
-        {pastGrouped.size > 0 ? (
-          <div class="border-t border-neutral-200 pt-28">
-            <h2 class="font-display text-3xl text-neutral-950" style="font-family: var(--font-display);">{t(locale, "ui.pastShows")}</h2>
-            <p class="mt-6 max-w-2xl text-neutral-600">{t(locale, "events.pastDescription")}</p>
-            <div class="mt-14 space-y-24">
-              {Array.from(pastGrouped.entries()).map(([month, rows]) => (
+        {calendarCount > 0 ? (
+          <details class="group border-t border-neutral-200 pt-10" data-events-calendar>
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-6">
+              <span class="font-display text-2xl text-neutral-950 sm:text-3xl" style="font-family: var(--font-display);">
+                {t(locale, "events.calendarToggle")}
+              </span>
+              <span class="flex items-center gap-4">
+                <span class="hidden text-sm text-neutral-600 sm:block">{calendarCountLabel}</span>
+                <span class="text-3xl leading-none text-brand transition group-open:rotate-45" aria-hidden="true">+</span>
+              </span>
+            </summary>
+            <div class="mt-10 space-y-12">
+              {Array.from(calendarGrouped.entries()).map(([month, rows]) => (
                 <div>
                   <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{month}</p>
-                  <div class="mt-10 grid gap-12 lg:gap-14">
+                  <div class="mt-4 border-t border-black/10">
                     {rows.map((evt) => (
-                      <EventRow evt={evt} highlightCity={citySlugFilter} past locale={locale} />
+                      <EventCalendarRow evt={evt} locale={locale} />
                     ))}
                   </div>
                 </div>
               ))}
             </div>
-          </div>
+          </details>
+        ) : null}
+
+        {pastGrouped.size > 0 ? (
+          <details class="group border-t border-neutral-200 pt-10">
+            <summary class="flex cursor-pointer list-none items-center justify-between gap-6">
+              <span class="font-display text-2xl text-neutral-950 sm:text-3xl" style="font-family: var(--font-display);">
+                {t(locale, "events.pastToggle")}
+              </span>
+              <span class="text-3xl leading-none text-brand transition group-open:rotate-45" aria-hidden="true">+</span>
+            </summary>
+            <p class="mt-6 max-w-2xl text-neutral-600">{t(locale, "events.pastDescription")}</p>
+            <div class="mt-10 space-y-12">
+              {Array.from(pastGrouped.entries()).map(([month, rows]) => (
+                <div>
+                  <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{month}</p>
+                  <div class="mt-4 border-t border-black/10">
+                    {rows.map((evt) => (
+                      <EventCalendarRow evt={evt} locale={locale} />
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </details>
         ) : null}
       </div>
     )}

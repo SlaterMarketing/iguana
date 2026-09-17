@@ -1,0 +1,46 @@
+---
+import type { KintanaPublicEvent } from "@kintana/sdk";
+
+import type { Locale } from "../../i18n/locale";
+import { localizePath } from "../../i18n/routes";
+import { t } from "../../i18n/ui";
+import { eventCalendarDate, eventLanguageLabel, formatEventTime, formatMinorUnitsPrice } from "../../lib/events";
+import { isOpenMic } from "../../lib/open-mics";
+
+interface Props {
+  evt: KintanaPublicEvent;
+  locale: Locale;
+}
+
+const { evt, locale } = Astro.props;
+
+const href = localizePath(locale, "eventDetail", { slug: evt.slug });
+const date = eventCalendarDate(evt.date);
+const weekday = date ? new Intl.DateTimeFormat(locale === "es" ? "es-MX" : "en-US", { weekday: "short" }).format(date) : "";
+const day = date ? String(date.getDate()) : "";
+
+const price = formatMinorUnitsPrice(evt, locale);
+const showTime = formatEventTime(evt.showTime, locale);
+const meta = [eventLanguageLabel(evt, locale), evt.venue?.name || evt.city, showTime].filter(Boolean).join(" · ");
+const action = isOpenMic(evt) ? t(locale, "ui.reserveSeat") : t(locale, "ui.getTickets");
+---
+
+<a
+  href={href}
+  class="group flex items-center gap-4 border-b border-black/10 py-4 transition last:border-b-0 hover:bg-neutral-50 sm:gap-6"
+>
+  <span class="flex w-12 shrink-0 flex-col items-center leading-none sm:w-14">
+    <span class="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-neutral-500">{weekday}</span>
+    <span class="mt-1 font-display text-2xl text-neutral-950 sm:text-3xl" style="font-family: var(--font-display);">{day}</span>
+  </span>
+  <span class="min-w-0 flex-1">
+    <span class="block font-display text-lg leading-tight text-neutral-950 sm:text-xl" style="font-family: var(--font-display);">
+      {evt.name}
+    </span>
+    <span class="mt-1 block text-sm leading-snug text-neutral-600">{meta}</span>
+  </span>
+  {price ? <span class="hidden shrink-0 text-sm text-neutral-600 md:block">{price}</span> : null}
+  <span class="shrink-0 text-[0.62rem] font-semibold uppercase tracking-[0.25em] text-brand group-hover:underline">
+    <span class="hidden sm:inline">{action} </span><span aria-hidden="true">→</span>
+  </span>
+</a>
