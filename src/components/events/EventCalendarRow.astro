@@ -25,22 +25,24 @@ const meta = [eventLanguageLabel(evt, locale), evt.venue?.name || evt.city, show
 const action = isOpenMic(evt) ? t(locale, "ui.reserveSeat") : t(locale, "ui.getTickets");
 ---
 
+<!-- A grid, not a flex row: with the title on `flex-1` it stretched between a left date and a right button, so
+     the gaps were uneven and nothing lined up down the list. Fixed columns keep every row aligned. -->
 <a
   href={href}
-  class="group flex items-center gap-4 border-b border-black/10 py-4 transition last:border-b-0 hover:bg-neutral-50 sm:gap-6"
+  class="group grid grid-cols-[3rem_minmax(0,1fr)] items-center gap-x-4 gap-y-1 border-b border-black/10 py-4 transition last:border-b-0 hover:bg-neutral-50 sm:grid-cols-[4rem_minmax(0,1fr)_6rem_9rem] sm:gap-x-6"
 >
-  <span class="flex w-12 shrink-0 flex-col items-center leading-none sm:w-14">
+  <span class="flex flex-col items-center leading-none">
     <span class="text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-neutral-500">{weekday}</span>
     <span class="mt-1 font-display text-2xl text-neutral-950 sm:text-3xl" style="font-family: var(--font-display);">{day}</span>
   </span>
-  <span class="min-w-0 flex-1">
+  <span class="min-w-0">
     <span class="block font-display text-lg leading-tight text-neutral-950 sm:text-xl" style="font-family: var(--font-display);">
       {evt.name}
     </span>
     <span class="mt-1 block text-sm leading-snug text-neutral-600">{meta}</span>
   </span>
-  {price ? <span class="hidden shrink-0 text-sm text-neutral-600 md:block">{price}</span> : null}
-  <span class="shrink-0 text-[0.62rem] font-semibold uppercase tracking-[0.25em] text-brand group-hover:underline">
-    <span class="hidden sm:inline">{action} </span><span aria-hidden="true">→</span>
+  <span class="hidden text-sm text-neutral-600 sm:block">{price ?? ""}</span>
+  <span class="col-start-2 justify-self-center text-[0.62rem] font-semibold uppercase tracking-[0.25em] text-brand group-hover:underline sm:col-start-4">
+    <span class="hidden sm:inline">{action} </span><span class="sm:hidden">{action}</span> <span aria-hidden="true">→</span>
   </span>
 </a>
