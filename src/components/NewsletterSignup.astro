@@ -25,7 +25,7 @@ const inputId = `newsletter-email-${city?.slug ?? "all"}`;
 {
   hasCredentials && (
     <form
-      class:list={["text-left", className]}
+      class:list={["relative text-left", className]}
       novalidate
       data-newsletter
       data-endpoint={`${baseUrl}/api/public/v1/endpoints/newsletter/submit`}
@@ -74,7 +74,13 @@ const inputId = `newsletter-email-${city?.slug ?? "all"}`;
         </button>
       </div>
       <p
-        class:list={["mt-2 text-sm sm:min-h-[1.25rem]", dark ? "text-white/90" : "text-neutral-700"]}
+        class:list={[
+          "mt-2 text-sm sm:min-h-[1.25rem]",
+          // In a row next to other buttons (the hero on desktop), the message floats under the input instead of taking
+          // a line, so the input lines up with the buttons beside it.
+          "lg:absolute lg:left-4 lg:top-full lg:min-h-0",
+          dark ? "text-white/90" : "text-neutral-700",
+        ]}
         role="status"
         aria-live="polite"
         data-newsletter-status
