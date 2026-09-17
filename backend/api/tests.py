@@ -177,3 +177,120 @@ class CheckoutTests(ApiTestCase):
         res = self.client.get('/_t/k.js')
         self.assertEqual(res.status_code, 200)
         self.assertIn('data-kintana-widget', res.content.decode())
+
+
+class ReservationTests(ApiTestCase):
+    """Open mic seat reservations: 60 of 80 seats, one free drink each, paid online or (stopgap) at the door."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.mic = Event.objects.create(name='Open Mic Night - English!', slug='open-mic-english', status=Event.ACTIVE,
+                                       venue=cls.venue, currency='usd', members_eligible=False,
+                                       date=timezone.now() + timedelta(days=5), show_time='20:00')
+        cls.seat = TicketType.objects.create(event=cls.mic, name='Reserved seat + 1 free drink', price_cents=500,
+                                             description='Entry is free. Pay at the door.', capacity=3,
+                                             max_per_order=2, pay_at_door=True)
+        cls.paid = TicketType.objects.create(event=cls.mic, name='Front row', price_cents=1500)
+
+    def post(self, path, body):
+        return self.client.post(path, data=json.dumps(body), content_type='application/json')
+
+    def reserve(self, qty, email, extra=None):
+        items = {self.seat.id: qty, **(extra or {})}
+        return self.post(f'/api/checkout/{self.mic.id}/start', {'items': items, 'name': 'Fan', 'email': email})
+
+    def test_reservation_completes_without_payment_and_records_what_the_door_collects(self):
+        quote = self.post(f'/api/checkout/{self.mic.id}/quote', {'items': {self.seat.id: 2}}).json()
+        self.assertTrue(quote['payAtDoor'])
+        with self.captureOnCommitCallbacks(execute=True):
+            res = self.reserve(2, 'Fan@Example.com').json()
+        # With DEBUG and no Stripe keys a paid order answers devPayment; a reservation must never reach payment.
+        self.assertTrue(res['complete'])
+        order = Order.objects.get(pk=res['orderId'])
+        self.assertEqual((order.status, order.total_amount_cents, order.pay_at_door_cents), (Order.COMPLETED, 1000, 1000))
+        self.assertEqual(order.stripe_payment_intent_id, '')
+        self.assertEqual(order.tickets.count(), 2)
+        message = mail.outbox[-1]
+        self.assertEqual(message.subject, 'Your reservation: Open Mic Night - English!')
+        self.assertIn('Pay 10 USD at the door for your 2 seats. Nothing was charged online.', message.body)
+        self.assertIn('Entry is free. Pay at the door.', message.body)
+        self.assertIn('Pay 10 USD at the door.', self.client.get(f'/orders/{order.public_view_token}/').content.decode())
+
+    def test_max_per_order_then_capacity(self):
+        self.assertIn('up to 2', self.reserve(3, 'a@example.com').json()['error'])
+        self.assertEqual(self.reserve(2, 'a@example.com').status_code, 200)
+        self.assertIn('Only 1', self.reserve(2, 'b@example.com').json()['error'])
+        self.assertEqual(self.reserve(1, 'b@example.com').status_code, 200)
+        self.assertIn('sold out', self.reserve(1, 'c@example.com').json()['error'])
+
+    def test_one_reservation_per_email_per_night(self):
+        self.assertEqual(self.reserve(1, 'fan@example.com').status_code, 200)
+        self.assertIn('already have a reservation', self.reserve(1, 'FAN@example.com').json()['error'])
+        self.assertEqual(Order.objects.filter(customer_email='fan@example.com').count(), 1)
+
+    def test_reservation_cannot_be_mixed_with_paid_tickets(self):
+        self.assertEqual(self.reserve(1, 'mix@example.com', {self.paid.id: 1}).status_code, 400)
+        self.assertFalse(Order.objects.filter(customer_email='mix@example.com').exists())
+
+    def test_door_checkin_says_what_to_collect(self):
+        from django.contrib.auth.models import User
+
+        order = Order.objects.get(pk=self.reserve(1, 'door@example.com').json()['orderId'])
+        ticket = order.tickets.get()
+        self.client.force_login(User.objects.create_user('door', is_staff=True))
+        self.assertIn('collect 5 USD for this seat', self.client.get(f'/checkin/{ticket.checkin_token}/').content.decode())
+        self.client.post(f'/checkin/{ticket.checkin_token}/')
+        ticket.refresh_from_db()
+        self.assertIsNotNone(ticket.checked_in_at)
+
+    def test_online_reservation_goes_through_payment_and_email_says_what_it_includes(self):
+        online = TicketType.objects.create(event=self.mic, name='Reserved seat + 1 free drink (online)', price_cents=500,
+                                           description='Includes a free drink. Arrive when doors open.', capacity=60)
+        start = self.post(f'/api/checkout/{self.mic.id}/start',
+                          {'items': {online.id: 1}, 'name': 'Fan', 'email': 'online@example.com'}).json()
+        # Charged when booked: the order waits for payment instead of completing like a pay-at-the-door booking.
+        self.assertFalse(start['complete'])
+        self.assertTrue(start['devPayment'])
+        with self.captureOnCommitCallbacks(execute=True):
+            self.post(f'/api/checkout/orders/{start["orderId"]}/confirm', {})
+        order = Order.objects.get(pk=start['orderId'])
+        self.assertEqual((order.status, order.pay_at_door_cents), (Order.COMPLETED, 0))
+        self.assertIn('Includes a free drink. Arrive when doors open.', mail.outbox[-1].body)
+
+    def spanish_night(self):
+        return Event.objects.create(name='Noche de Open Mic - Espanol!', slug='noche-open-mic', venue=self.venue,
+                                    date=timezone.now() + timedelta(days=6))
+
+    def test_setup_refuses_paid_reservations_without_stripe(self):
+        from io import StringIO
+
+        from django.core.management import CommandError, call_command
+
+        spanish = self.spanish_night()
+        with self.assertRaisesMessage(CommandError, 'Stripe is not configured'):
+            call_command('setup_open_mics', stdout=StringIO())
+        spanish.refresh_from_db()
+        self.assertEqual(spanish.status, Event.DRAFT)
+
+        call_command('setup_open_mics', '--pay-at-door', stdout=StringIO())
+        seat = spanish.ticket_types.get()
+        self.assertTrue(seat.pay_at_door)
+        self.assertTrue(seat.description.endswith('Pagas en la puerta.'))
+
+    @override_settings(STRIPE_SECRET_KEY='sk_test_x', STRIPE_PUBLISHABLE_KEY='pk_test_x')
+    def test_setup_publishes_paid_online_reservations_idempotently(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        spanish = self.spanish_night()
+        for _ in range(2):
+            call_command('setup_open_mics', stdout=StringIO())
+        spanish.refresh_from_db()
+        self.assertEqual((spanish.status, spanish.currency, spanish.language, spanish.members_eligible),
+                         (Event.ACTIVE, 'mxn', 'es', False))
+        self.assertIn('open-mic', spanish.tags)
+        seat = spanish.ticket_types.get()
+        self.assertEqual((seat.name, seat.price_cents, seat.capacity, seat.max_per_order, seat.pay_at_door),
+                         ('Lugar reservado + 1 bebida gratis', 5000, 60, 6, False))

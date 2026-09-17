@@ -1,6 +1,14 @@
 from django import template
 
+from sales.services import format_money
+
 register = template.Library()
+
+
+@register.filter
+def money(cents, currency):
+    """`5000|money:"mxn"` -> `50 MXN`."""
+    return format_money(int(cents or 0), currency or '')
 
 
 @register.filter

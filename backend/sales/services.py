@@ -7,12 +7,21 @@ from django.db import transaction
 from django.utils import timezone
 
 from api.serializers import remaining
+from catalog.models import TicketType
 from crm.models import Contact
 from sales.models import Membership, Order, OrderItem, Ticket
 
 
 class CheckoutError(Exception):
     pass
+
+
+def format_money(cents, currency):
+    """5000, 'mxn' -> '50 MXN'; 550, 'usd' -> '5.50 USD'."""
+    amount = f'{cents / 100:,.2f}'
+    if amount.endswith('.00'):
+        amount = amount[:-3]
+    return f'{amount} {currency.upper()}'
 
 
 def stripe_enabled():
@@ -80,13 +89,16 @@ def price_cart(event, requested, contact):
             raise CheckoutError('Choose between 0 and 20 tickets.')
         if qty == 0:
             continue
+        limit = ticket_type.max_per_order or 20
+        if qty > limit:
+            raise CheckoutError(f'You can book up to {limit} {ticket_type.name} per order.')
         if ticket_type.member_access == 'MEMBERS_ONLY' and not membership:
             raise CheckoutError(f'{ticket_type.name} is for members only.')
         if ticket_type.member_access == 'NON_MEMBERS' and membership:
             raise CheckoutError(f'{ticket_type.name} is not available to members.')
         left = remaining(ticket_type)
         if left is not None and qty > left:
-            raise CheckoutError(f'Only {left} {ticket_type.name} tickets left.')
+            raise CheckoutError(f'Only {left} {ticket_type.name} tickets left.' if left else f'{ticket_type.name} is sold out.')
         cart.lines.append((ticket_type, qty, member_unit_price(ticket_type, membership)))
     if not cart.lines:
         raise CheckoutError('Choose at least one ticket.')
@@ -125,6 +137,30 @@ def create_order(event, cart, *, name, email, phone, contact, attribution=None):
 
 
 @transaction.atomic
+def reserve_at_door(event, cart, *, name, email, phone, contact, attribution=None):
+    """Book pay-at-the-door seats. The order completes now, nothing is charged, and the door collects the total."""
+    if not all(ticket_type.pay_at_door for ticket_type, _, _ in cart.lines):
+        raise CheckoutError('Reserve pay-at-the-door seats in their own order.')
+    # price_cart already checked capacity, but without a lock two people booking at once could both take the last
+    # seat. Re-check under a row lock on the ticket types.
+    locked = {t.id: t for t in TicketType.objects.select_for_update().filter(pk__in=[t.id for t, _, _ in cart.lines])}
+    for ticket_type, qty, _ in cart.lines:
+        left = remaining(locked[ticket_type.id])
+        if left is not None and qty > left:
+            raise CheckoutError(f'Only {left} {ticket_type.name} left.' if left else f'{ticket_type.name} is fully booked.')
+    email = email.strip().lower()
+    # Nothing is paid up front, so one reservation per email per night stops one person holding every seat.
+    if Order.objects.filter(event=event, customer_email=email, status=Order.COMPLETED,
+                            items__ticket_type__pay_at_door=True).exists():
+        raise CheckoutError('You already have a reservation for this night. Check your email for your seats.')
+    order = create_order(event, cart, name=name, email=email, phone=phone, contact=contact, attribution=attribution)
+    order.pay_at_door_cents = cart.total_cents
+    order.save(update_fields=['pay_at_door_cents'])
+    order, _ = complete_order(order)
+    return order
+
+
+@transaction.atomic
 def complete_order(order, charge_id=''):
     order = Order.objects.select_for_update().get(pk=order.pk)
     if order.status == Order.COMPLETED:
@@ -154,5 +190,17 @@ def send_order_confirmation(order):
         lines.append(f'Doors {event.doors_open or ""} · Show {event.show_time}'.replace('Doors  · ', ''))
     if event and (event.venue or event.venue_label):
         lines.append(f'Venue: {event.venue.name if event.venue else event.venue_label}')
-    lines += ['', f'Your tickets (show this at the door): {link}', '', 'See you there,', 'Iguana Comedy', 'iguanacomedy.com']
-    send_mail(f'Your tickets: {order.event_name}', '\n'.join(lines), settings.DEFAULT_FROM_EMAIL, [order.customer_email])
+    items = list(order.items.select_related('ticket_type'))
+    # What the ticket includes and any house rules (a free drink, arrive by doors) live on the ticket type.
+    descriptions = sorted({i.ticket_type.description for i in items if i.ticket_type and i.ticket_type.description})
+    if descriptions:
+        lines += [''] + descriptions
+    if order.pay_at_door_cents:
+        seats = sum(i.quantity for i in items)
+        lines += ['', f'Pay {format_money(order.pay_at_door_cents, order.currency)} at the door for your '
+                      f'{seats} seat{"s" if seats != 1 else ""}. Nothing was charged online.']
+        label, subject = 'Your seats', f'Your reservation: {order.event_name}'
+    else:
+        label, subject = 'Your tickets', f'Your tickets: {order.event_name}'
+    lines += ['', f'{label} (show this at the door): {link}', '', 'See you there,', 'Iguana Comedy', 'iguanacomedy.com']
+    send_mail(subject, '\n'.join(lines), settings.DEFAULT_FROM_EMAIL, [order.customer_email])

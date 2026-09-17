@@ -13,7 +13,8 @@ from django.views.decorators.http import require_POST
 from catalog.models import Event
 from crm.models import TrackedEvent
 from sales.models import Membership, MembershipPlan, Order, Ticket
-from sales.services import CheckoutError, complete_order, create_order, current_membership, price_cart, stripe_client, stripe_enabled
+from sales.services import (CheckoutError, complete_order, create_order, current_membership, price_cart, reserve_at_door,
+                            stripe_client, stripe_enabled)
 
 from .auth import contact_from_fan_token, error, json_body
 from .fan_views import fan_event_json
@@ -63,7 +64,8 @@ def checkout_quote(request, event_id):
         return error(str(exc))
     return JsonResponse({'subtotalCents': cart.subtotal_cents, 'discountCents': cart.discount_cents,
                          'freeTickets': cart.free_tickets, 'totalCents': cart.total_cents, 'currency': event.currency,
-                         'isMember': current_membership(contact) is not None})
+                         'isMember': current_membership(contact) is not None,
+                         'payAtDoor': any(ticket_type.pay_at_door for ticket_type, _, _ in cart.lines)})
 
 
 @csrf_exempt
@@ -84,8 +86,18 @@ def checkout_start(request, event_id):
         return error(str(exc))
 
     attribution = body.get('attribution') if isinstance(body.get('attribution'), dict) else {}
-    order = create_order(event, cart, name=name, email=email, phone=phone, contact=contact,
-                         attribution={k: str(v)[:200] for k, v in attribution.items()})
+    attribution = {k: str(v)[:200] for k, v in attribution.items()}
+
+    if any(ticket_type.pay_at_door for ticket_type, _, _ in cart.lines):
+        try:
+            order = reserve_at_door(event, cart, name=name, email=email, phone=phone, contact=contact,
+                                    attribution=attribution)
+        except CheckoutError as exc:
+            return error(str(exc))
+        return JsonResponse({'orderId': order.id, 'complete': True,
+                             'successUrl': f'{settings.BACKEND_URL}/orders/{order.public_view_token}/'})
+
+    order = create_order(event, cart, name=name, email=email, phone=phone, contact=contact, attribution=attribution)
     success_url = f'{settings.BACKEND_URL}/orders/{order.public_view_token}/'
 
     if cart.total_cents == 0:

@@ -18,6 +18,9 @@ class Order(models.Model):
     total_amount_cents = models.PositiveIntegerField(default=0)
     discount_amount_cents = models.PositiveIntegerField(default=0)
     credits_applied_cents = models.PositiveIntegerField(default=0)
+    # Reservations of pay-at-the-door ticket types: nothing is charged online and the door collects this amount,
+    # so revenue actually received online is total_amount_cents - pay_at_door_cents.
+    pay_at_door_cents = models.PositiveIntegerField(default=0)
     contact = models.ForeignKey(Contact, null=True, blank=True, on_delete=models.SET_NULL, related_name='orders')
     customer_name = models.CharField(max_length=200, blank=True)
     customer_email = models.EmailField()
@@ -54,6 +57,14 @@ class Ticket(models.Model):
     ticket_type_name = models.CharField(max_length=120)
     checkin_token = models.CharField(max_length=80, default=new_token, unique=True)
     checked_in_at = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def door_price_cents(self):
+        """What the door collects for this seat: 0 unless the order was reserved to pay at the door."""
+        if not self.order.pay_at_door_cents:
+            return 0
+        item = next((i for i in self.order.items.all() if i.name == self.ticket_type_name), None)
+        return item.unit_price_cents if item else 0
 
 
 class MembershipPlan(models.Model):

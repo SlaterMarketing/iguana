@@ -82,7 +82,7 @@ const emptyMessage =
       />
     </div>
 
-    {!citySlugFilter || citySlugFilter === "playa-del-carmen" ? <OpenMicCallout locale={locale} class="mt-12" /> : null}
+    {!citySlugFilter || citySlugFilter === "playa-del-carmen" ? <OpenMicCallout locale={locale} events={upcoming} class="mt-12" /> : null}
 
     {!hasCredentials ? (
       <div class="mt-16 rounded-3xl border border-amber-200 bg-amber-50 px-6 py-6 text-neutral-950">

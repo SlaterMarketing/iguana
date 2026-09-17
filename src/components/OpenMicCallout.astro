@@ -1,16 +1,31 @@
 ---
+import type { KintanaPublicEvent } from "@kintana/sdk";
+
 import type { Locale } from "../i18n/locale";
+import { localizePath } from "../i18n/routes";
+import { formatEventDate } from "../lib/events";
 import { holidayNotice } from "../lib/holiday-notice";
+import { nextBookableOpenMics } from "../lib/open-mics";
 
 interface Props {
   locale: Locale;
   class?: string;
+  /** Upcoming events already loaded by the page; used to link each night to its next bookable date. */
+  events?: KintanaPublicEvent[];
 }
 
-const { locale, class: className } = Astro.props;
+const { locale, class: className, events = [] } = Astro.props;
 
 // Null on any day outside a closure, so the banner takes itself down.
 const notice = holidayNotice(locale);
+const next = nextBookableOpenMics(events);
+
+/** 5000 MXN -> "50 MXN". The shared formatMinorUnitsPrice prints the currency twice ("MX$50MXN"). */
+function seatPrice(evt: KintanaPublicEvent): string {
+  if (evt.priceFrom == null) return "";
+  const amount = new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", { maximumFractionDigits: 2 }).format(evt.priceFrom / 100);
+  return `${amount} ${(evt.priceCurrency ?? "").toUpperCase()}`.trim();
+}
 
 const venueAddress = "Calle 6 Nte 189, Centro, 77710 Playa del Carmen, Q.R., Mexico";
 const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`Iguana Comedy, ${venueAddress}`)}`;
@@ -21,9 +36,14 @@ const copy = {
     headline: "Open mic nights",
     free: "Free entry",
     nights: [
-      { day: "Tuesday", show: "Open mic en Español" },
-      { day: "Wednesday", show: "Open mic in English" },
+      { day: "Tuesday", show: "Open mic en Español", event: next.es },
+      { day: "Wednesday", show: "Open mic in English", event: next.en },
     ],
+    reserve: "Reserve",
+    perSeat: "per seat, includes a free drink",
+    nextNight: "Next",
+    reserveNote:
+      "Entry is always free, but walk-ins may be turned away when we are full. A reservation guarantees your seat and includes a free drink. Arrive when doors open.",
     venue: "At Iguana Comedy, Playa del Carmen",
     maps: "Directions",
   },
@@ -32,13 +52,20 @@ const copy = {
     headline: "Noches de open mic",
     free: "Entrada gratis",
     nights: [
-      { day: "Martes", show: "Open mic en español" },
-      { day: "Miércoles", show: "Open mic en inglés" },
+      { day: "Martes", show: "Open mic en español", event: next.es },
+      { day: "Miércoles", show: "Open mic en inglés", event: next.en },
     ],
+    reserve: "Reservar",
+    perSeat: "por lugar, incluye una bebida gratis",
+    nextNight: "Próximo",
+    reserveNote:
+      "La entrada siempre es gratis, pero sin reservación podemos negarte el paso si se llena. Tu reservación te garantiza un lugar e incluye una bebida gratis. Llega a la hora de apertura de puertas.",
     venue: "En Iguana Comedy, Playa del Carmen",
     maps: "Cómo llegar",
   },
 }[locale];
+
+const canReserve = copy.nights.some((night) => night.event);
 ---
 
 <aside
@@ -71,14 +98,31 @@ const copy = {
     <ul class="grid gap-4 sm:grid-cols-2 lg:min-w-[26rem]">
       {
         copy.nights.map((night) => (
-          <li class="rounded-2xl border border-white/15 px-6 py-5">
+          <li class="flex flex-col rounded-2xl border border-white/15 px-6 py-5">
             <p class="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">{night.day}</p>
             <p class="mt-2 text-lg font-semibold">{night.show}</p>
+            {night.event && (
+              <div class="mt-4 space-y-3">
+                <p class="text-sm text-white/70">
+                  {copy.nextNight}: {formatEventDate(night.event.date, locale)}
+                  <br />
+                  {seatPrice(night.event)} {copy.perSeat}
+                </p>
+                <a
+                  class="inline-flex rounded-full bg-white px-5 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-neutral-950 hover:bg-white/85"
+                  href={localizePath(locale, "eventDetail", { slug: night.event.slug })}
+                >
+                  {copy.reserve}
+                </a>
+              </div>
+            )}
           </li>
         ))
       }
     </ul>
   </div>
+
+  {canReserve && <p class="px-8 pb-8 text-sm leading-relaxed text-white/70 sm:px-12">{copy.reserveNote}</p>}
 
   <div class="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 px-8 py-5 text-sm text-white/75 sm:px-12">
     <p>{copy.venue}</p>

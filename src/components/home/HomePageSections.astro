@@ -30,6 +30,7 @@ const {
   eventsHeading,
   emptyEventsMessage,
   apiConfigured,
+  eventsPool,
   trimmedEvents,
   wallArtists,
   eventsCatalogFailed,
@@ -78,7 +79,7 @@ const storyBody = cityLabel
     </p>
   </div>
 
-  {!activeCitySlug || activeCitySlug === "playa-del-carmen" ? <OpenMicCallout locale={locale} class="mt-16" /> : null}
+  {!activeCitySlug || activeCitySlug === "playa-del-carmen" ? <OpenMicCallout locale={locale} events={eventsPool} class="mt-16" /> : null}
 
   {
     !apiConfigured ? (

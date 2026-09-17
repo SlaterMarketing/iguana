@@ -24,6 +24,12 @@
     <p class="ok">This order is {{ order.get_status_display|lower }}. Tickets appear here once payment completes.</p>
   {% else %}
     <p class="muted">Booked by {{ order.customer_name|default:order.customer_email }}. Show the code for each ticket at the door.</p>
+    {% if order.pay_at_door_cents %}
+      <section class="card">
+        <p><strong>Pay {{ order.pay_at_door_cents|money:order.currency }} at the door.</strong></p>
+        <p class="muted">Your seats are reserved. Nothing was charged online.</p>
+      </section>
+    {% endif %}
     {% for ticket in order.tickets.all %}
       <section class="card ticket">
         <div>

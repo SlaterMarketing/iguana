@@ -110,7 +110,8 @@
       var name = document.createElement("div"); name.className = "type-name"; name.textContent = t.name;
       var meta = document.createElement("div"); meta.className = "type-meta muted";
       var price = t.yourPriceCents != null ? t.yourPriceCents : t.priceCents;
-      meta.textContent = t.soldOut ? "Sold out" : money(price) + (t.memberAccess === "MEMBERS_ONLY" ? " · members only" : "") +
+      meta.textContent = t.soldOut ? "Sold out" : money(price) + (t.payAtDoor ? " · pay at the door" : "") +
+        (t.memberAccess === "MEMBERS_ONLY" ? " · members only" : "") +
         (t.remaining != null && t.remaining <= 20 ? " · " + t.remaining + " left" : "");
       info.appendChild(name); info.appendChild(meta);
       if (t.description) { var d = document.createElement("div"); d.className = "type-meta muted"; d.textContent = t.description; info.appendChild(d); }
@@ -121,7 +122,7 @@
       function sync() {
         out.textContent = qty[t.id];
         minus.disabled = qty[t.id] === 0 || !!order;
-        plus.disabled = t.soldOut || !!order || (t.remaining != null && qty[t.id] >= t.remaining) || qty[t.id] >= 20;
+        plus.disabled = t.soldOut || !!order || (t.remaining != null && qty[t.id] >= t.remaining) || qty[t.id] >= (t.maxPerOrder || 20);
       }
       minus.onclick = function () { qty[t.id] = Math.max(0, qty[t.id] - 1); sync(); quote(); };
       plus.onclick = function () { qty[t.id] += 1; sync(); quote(); };
@@ -147,7 +148,8 @@
         }
         line("Subtotal", money(q.subtotalCents));
         if (q.discountCents) line(q.freeTickets ? "Member benefit (" + q.freeTickets + " free)" : "Member discount", "−" + money(q.discountCents));
-        line("Total", money(q.totalCents), "total");
+        line(q.payAtDoor ? "Pay at the door" : "Total", money(q.totalCents), "total");
+        $("continue").textContent = q.payAtDoor ? "Reserve" : "Continue";
         show(s, true); show($("details"), true);
         show($("member-note"), q.isMember);
         setError($("details-error"), "");

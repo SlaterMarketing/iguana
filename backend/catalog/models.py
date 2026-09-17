@@ -143,6 +143,9 @@ class TicketType(models.Model):
     member_price_cents = models.PositiveIntegerField(null=True, blank=True)
     member_access = models.CharField(max_length=14, choices=MEMBER_ACCESS_CHOICES, default='ALL')
     capacity = models.PositiveIntegerField(null=True, blank=True, help_text='Blank = unlimited')
+    max_per_order = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Blank = 20')
+    pay_at_door = models.BooleanField(
+        default=False, help_text='Reserve online, pay at the door. No online payment is taken for this type.')
     active = models.BooleanField(default=True)
     sort_order = models.IntegerField(default=0)
 

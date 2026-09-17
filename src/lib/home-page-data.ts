@@ -4,6 +4,7 @@ import type { KintanaPublicArtistEmbed, KintanaPublicEvent } from "@kintana/sdk"
 import { eventCitySlug, sortEventsAscending } from "./events";
 import { getKintanaEnv } from "./kintana-env";
 import { logKintanaError, logKintanaSuccess } from "./kintana-error";
+import { isOpenMic } from "./open-mics";
 
 export type HomePageData = {
   hasCredentials: boolean;
@@ -52,8 +53,9 @@ export async function loadHomePageData(citySlug?: string): Promise<HomePageData>
 
   const slug = citySlug?.trim() ?? "";
   // The API marks a show "past" once its day has ended in Cancún, so this holds whatever timezone the server runs in.
+  // Weekly open mics would fill most of the six home slots; the open mic callout links to them instead.
   let cityFiltered = sortEventsAscending(
-    eventsPool.filter((evt) => evt.status !== "cancelled" && evt.status !== "past"),
+    eventsPool.filter((evt) => evt.status !== "cancelled" && evt.status !== "past" && !isOpenMic(evt)),
   );
   if (slug.length) {
     cityFiltered = cityFiltered.filter((evt) => eventCitySlug(evt) === slug);

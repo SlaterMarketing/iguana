@@ -111,6 +111,29 @@ pointing at Cloudflare IPs caused the old Error 1000); `iguanacomedy.mx` 301s to
   anything else is rejected at RCPT. 38.86.78.0/24 is on the Spamhaus PBL, so Postfix prefers IPv6 (Gmail
   rejects the v4 address).
 
+### Open mic reservations
+
+Open mics are always free to walk into, but walk-ins can be turned away when full. The room holds 80: 60 seats are
+sold as reservations (50 MXN Tuesday en español, 5 USD Wednesday in English), each including one free drink, and 20
+stay for walk-ins. A reservation is an ordinary ticket type, so it uses the normal checkout, the per-seat QR codes,
+the confirmation email and `/checkin/`; the drink and "arrive when doors open" live in the ticket type description,
+which the confirmation email now prints.
+
+`manage.py setup_open_mics [--show-time 20:00 --doors 19:30] [--dry-run]` publishes every upcoming night of the two
+series (`Noche de Open Mic - Espanol!`, `Open Mic Night - English!`), sets currency/language, turns off member
+benefits, tags them `open-mic`, and creates or updates the reservation type. It is re-runnable and never drops
+capacity below seats already booked.
+
+🚨 **Reservations are charged online, so they need Iguana's own Stripe keys, which production does not have yet.**
+Kintana charged on its own Stripe account, and without keys checkout answers "Online payment is not available yet".
+The command therefore refuses to publish while `stripe_enabled()` is false rather than put up nights nobody can pay
+for. `--pay-at-door` is the stopgap: `TicketType.pay_at_door` completes the booking with no charge, records
+`Order.pay_at_door_cents`, and the check-in page tells the door what to collect. It is limited to one booking per
+email per night and locks the ticket types while booking, because nothing paid up front stops seat hoarding.
+
+The site finds the next bookable night per language by the `open-mic` tag (`src/lib/open-mics.ts`), skipping sold-out
+nights, and the home page keeps open mics out of its six event slots.
+
 ### Meta ads (Facebook/Instagram)
 
 `scripts/meta-ads.py` (`status`, `campaigns --days N`, `daily --days N`, `pixels`, `pause/resume <id>`) talks to

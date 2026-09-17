@@ -1,4 +1,5 @@
 {% extends "embed/base.html" %}
+{% load showtime %}
 {% block title %}Check-in{% endblock %}
 {% block content %}
 <div class="stack">
@@ -13,6 +14,9 @@
     {% elif ticket.checked_in_at %}
       <p class="error">Already checked in at {{ ticket.checked_in_at|date:"H:i, j M" }}.</p>
     {% else %}
+      {% if ticket.door_price_cents %}
+        <p class="error">Reserved, not paid: collect {{ ticket.door_price_cents|money:ticket.order.currency }} for this seat, then check in.</p>
+      {% endif %}
       <form method="post">{% csrf_token %}<button class="btn" type="submit">Check in</button></form>
     {% endif %}
   </section>
