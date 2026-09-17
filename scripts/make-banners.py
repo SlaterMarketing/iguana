@@ -97,7 +97,7 @@ def logo(height):
 def render(base, size, focus_x, texts, fonts, layout, share=False):
     kicker, big, line2, pill, footer = texts
     width, height = size
-    image = shade(crop_to(base, width, height, focus_x), 'left' if layout == 'left' else 'bottom')
+    image = shade(crop_to(base, width, height, focus_x), 'bottom')
     draw = ImageDraw.Draw(image)
     scale = width / 1600 if layout == 'left' else width / 1080
     bebas = lambda px: ImageFont.truetype(str(fonts / 'BebasNeue-Regular.ttf'), round(px * scale))
@@ -109,7 +109,7 @@ def render(base, size, focus_x, texts, fonts, layout, share=False):
 
     pad = round(90 * scale)
     mark = logo(round(64 * scale))
-    image.paste(mark, (pad, pad), mark)
+    image.paste(mark, ((width - mark.width) // 2, pad), mark)
 
     # Share images carry longer lines on a smaller canvas, so their type is set smaller.
     k = 0.72 if share else 1.0
@@ -126,17 +126,18 @@ def render(base, size, focus_x, texts, fonts, layout, share=False):
         top, bottom = font.getbbox(text)[1], font.getbbox(text)[3]
         heights.append((bottom - top) + (round(46 * scale) if kind == 'pill' else 0))
     total = sum(heights) + sum(round(gaps[k] * scale) for k, *_ in blocks[:-1])
-    y = height - pad - total if layout == 'bottom' else (height - total) // 2 + round(40 * scale)
+    # Both shapes now stack the type in a centred column; the wide one sits lower so the logo has room above it.
+    y = height - pad - total if layout == 'bottom' else (height + round(96 * scale) - total) // 2
 
     for (kind, text, font, fill, spacing), block_h in zip(blocks, heights):
         text_w = spaced_width(draw, text, font, spacing)
         if kind == 'pill':
             box_w = text_w + round(56 * scale)
-            x = pad if layout == 'left' else (width - box_w) // 2
+            x = (width - box_w) // 2
             draw.rounded_rectangle([x, y, x + box_w, y + block_h], radius=round(16 * scale), fill=AMBER)
             spaced(draw, (x + round(28 * scale), y + round(23 * scale) - font.getbbox(text)[1]), text, font, fill, spacing)
         else:
-            x = pad if layout == 'left' else (width - text_w) // 2
+            x = (width - text_w) // 2
             spaced(draw, (x, y - font.getbbox(text)[1]), text, font, fill, spacing)
         y += block_h + round(gaps[kind] * scale)
     return image

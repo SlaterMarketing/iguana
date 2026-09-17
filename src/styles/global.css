@@ -23,6 +23,21 @@
   --color-navy-deep: var(--color-ink);
 }
 
+/* The whole site reads as a centred layout, so text is centred by default and only the things that would become
+   unreadable or unusable opt out: form controls and their labels, and anything marked `text-left`. */
+main {
+  text-align: center;
+}
+
+main input,
+main textarea,
+main select,
+main option,
+main label,
+main [class*="text-left"] {
+  text-align: left;
+}
+
 html {
   scroll-behavior: smooth;
 }
@@ -726,12 +741,12 @@ body {
   margin-inline: auto;
 }
 
-/* Headings and intros are centred; the benefit rows, the FAQ answers and the sign-up panel are prose and a form,
-   so their own text stays left aligned inside the centred column. */
-.membership-benefit-list,
-.membership-faq,
-.membership-join-panel {
-  text-align: left;
+/* The sign-up panel is centred like the rest of the page; only its actual inputs and labels opt out, through the
+   site-wide rule at the top of this file. */
+
+.membership-benefit-body,
+.membership-faq dd {
+  margin-inline: auto;
 }
 
 .membership-section-title {
@@ -781,6 +796,7 @@ body {
 .membership-benefit-body {
   margin-top: 0.4rem;
   max-width: 36rem;
+  margin-inline: auto;
   font-size: 0.98rem;
   line-height: 1.55;
   color: var(--color-muted);
@@ -1056,6 +1072,5 @@ body {
 }
 
 .membership-closing {
-  text-align: left;
   border-top: 4px solid var(--color-brand);
 }

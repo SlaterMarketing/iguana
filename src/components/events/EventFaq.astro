@@ -15,7 +15,7 @@ const { faq, title } = Astro.props;
     {
       faq.map((item) => (
         <details class="group py-6" open={item.open ? true : undefined}>
-          <summary class="flex cursor-pointer list-none items-center justify-between gap-4 text-left text-base font-semibold text-neutral-950 sm:text-lg">
+          <summary class="flex cursor-pointer list-none items-center justify-center gap-3 text-base font-semibold text-neutral-950 sm:text-lg">
             <span>{item.question}</span>
             <span class="shrink-0 text-xl text-brand transition group-open:rotate-45" aria-hidden="true">+</span>
           </summary>

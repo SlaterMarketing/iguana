@@ -90,7 +90,7 @@ const emphasized =
 
     <div
       class:list={[
-        "flex flex-col justify-between px-8 py-10",
+        "flex flex-col justify-between px-8 py-10 text-center",
         featured && "lg:px-14 lg:py-16",
         past
           ? "bg-neutral-100 text-neutral-950"
@@ -140,7 +140,7 @@ const emphasized =
         {priceLabel ? <p class="text-sm font-medium opacity-[0.9]">{priceLabel}</p> : null}
       </div>
 
-      <div class="relative z-10 mt-12 flex flex-wrap gap-6">
+      <div class="relative z-10 mt-12 flex flex-wrap justify-center gap-6">
         {
           past ? (
             <a
