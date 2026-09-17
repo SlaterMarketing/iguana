@@ -15,6 +15,8 @@
 - hosts: web
   vars:
     repo_root: "{{ playbook_dir }}/.."
+    # Where media is uploaded from (add-only). Override when deploying from a clean git worktree, which has no media.
+    media_src: "{{ repo_root }}/backend/media"
     fixture_local: "{{ playbook_dir }}/../backend/local_data.json"
   tasks:
     # ---------------------------------------------------------------- system
@@ -87,6 +89,30 @@
       file: {path: "{{ item }}", state: directory, owner: "{{ deploy_user }}", group: "{{ deploy_user }}", mode: "0755"}
       loop: ["/home/www", "{{ app_dir }}", "/var/log/{{ projectname }}", "/var/www/letsencrypt"]
 
+    # backend/media holds admin uploads that exist only on the server. On 2026-09-17 a deploy from a worktree whose
+    # backend/media was a symlink slipped past the old "backend/media/" exclude (a trailing slash matches directories
+    # only), replaced the server folder with a dangling symlink and took every event image offline. Refuse to sync
+    # unless it is a real directory, and exclude the path whatever its type.
+    - name: Server media folder is a real directory
+      stat: {path: "{{ app_dir }}/backend/media"}
+      register: server_media
+
+    - name: Refuse to deploy over a media path that is not a directory
+      assert:
+        that: not server_media.stat.exists or (server_media.stat.isdir and not server_media.stat.islnk)
+        fail_msg: "{{ app_dir }}/backend/media is not a real directory; fix it on the server before deploying"
+
+    - name: Local media source is a real directory
+      delegate_to: localhost
+      become: false
+      stat: {path: "{{ media_src }}", follow: false}
+      register: local_media
+
+    - name: Refuse to sync media from a symlink or missing folder
+      assert:
+        that: local_media.stat.exists and local_media.stat.isdir and not local_media.stat.islnk
+        fail_msg: "media_src {{ media_src }} must be a real directory (pass -e media_src=/path/to/backend/media)"
+
     - name: Sync code and archive media
       ansible.posix.synchronize:
         src: "{{ repo_root }}/"
@@ -108,11 +134,11 @@
           - "--exclude=backend/local_data.json"
           - "--exclude=__pycache__/"
           - "--exclude=.wrangler/"
-          - "--exclude=backend/media/"
+          - "--exclude=/backend/media"
 
     - name: Sync media without deleting (admin uploads live only on the server)
       ansible.posix.synchronize:
-        src: "{{ repo_root }}/backend/media/"
+        src: "{{ media_src }}/"
         dest: "{{ app_dir }}/backend/media/"
         delete: false
 

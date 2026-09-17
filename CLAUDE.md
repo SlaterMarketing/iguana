@@ -104,6 +104,13 @@ pointing at Cloudflare IPs caused the old Error 1000); `iguanacomedy.mx` 301s to
 - `ansible/files/nginx.conf.j2` renders TLS blocks only for certificates that exist (`cert_sets`), so redeploys
   never strip HTTPS. nginx is 1.24: use `listen 443 ssl http2`, not `http2 on`.
 - Code is rsynced from the local checkout (not git-pulled). `backend/media/` syncs add-only so server uploads survive.
+  To deploy exactly a commit while the working tree has other changes, deploy from a clean worktree:
+  `git worktree add --detach /tmp/x HEAD && ansible-playbook deploy.yml -e repo_root=/tmp/x -e media_src=$PWD/../backend/media`.
+  🚨 Never make `backend/media` a symlink in the source tree. On 2026-09-17 that slipped past the old
+  `--exclude=backend/media/` (a trailing slash matches directories only), rsync `--delete` replaced the server's media
+  folder with a dangling symlink, and every event image returned 404 for about 4 minutes until it was restored from
+  the local copy. The exclude is now anchored and type-agnostic (`/backend/media`), and deploy.yml asserts both the
+  server path and `media_src` are real directories before syncing.
 - Mail (`ansible/mail.yml`): Postfix + OpenDKIM for every zone in `mail_zones` (`iguanacomedy.mx` and
   `iguanacomedy.com`, each with its own DKIM key under selector `mail`), one mail host `mail.iguanacomedy.mx`
   because the PTR points there. `mail_human_aliases` (hello, info, bills, andrew, john, will, will.slater) deliver to the local
@@ -200,6 +207,18 @@ old Kintana-era site; the Astro site has no `fbq` and the checkout runs in an if
 so a plain pixel snippet on the marketing pages would not see purchases anyway. Conversion campaigns
 (`OUTCOME_SALES`) cannot be optimised or measured until that is fixed, most robustly by sending the purchase
 server-side from the Stripe webhook in `api/embed_views.py` via the Conversions API.
+
+**Posting to Facebook and Instagram.** `scripts/meta-social.py` (same token, stdlib only) has `whoami` (scopes,
+Page and IG visibility, Page tasks, IG publishing quota), `recent` (last 5 Page posts and IG media),
+`draft <slug> [--lang en|es|both] [--image URL]` and `post <slug> --to facebook|instagram|both --confirm`. It pulls
+the event from the public API (key from `--api-key`, `IGUANA_PUBLIC_API_KEY`, else over ssh from prod `config.py`),
+builds brand-voice captions (Spanish block first for `language: es`, no dashes, Instagram says "link in bio"
+because the IG bio links to `/events`), and blocks on: no image, image not a public https JPEG/PNG, aspect ratio
+outside 4:5 to 1.91:1, event page not 200, event past or cancelled. Without `--confirm`, `post` only drafts and
+exits 2. Facebook posts go through `/{page}/photos` with a Page token derived at run time (never printed);
+Instagram through `/media`, a `status_code` poll, then `/media_publish`. Weekly open mics have no image and no
+`showTime` in the data, so they cannot be posted until one is set (or `--image` is passed); WebP is refused.
+Tests: `python3 -m unittest discover -s scripts/tests`.
 
 ### Data outside the repo
 
