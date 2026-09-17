@@ -62,6 +62,7 @@ const reviews = event ? eventReviews(event) : [];
 ---
 
 <Base
+  noindex={!event}
   title={event ? `${event.name} · ${t(locale, "events.title")}` : `${t(locale, "events.title")} · Iguana Comedy`}
   description={socialDescription}
   ogImage={socialImage}

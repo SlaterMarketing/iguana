@@ -33,12 +33,13 @@ export function getAlternateUrls(
   const currentLocale = getLocale(astro);
   const currentPath = astro.url.pathname;
 
-  return locales.map((locale) => {
+  return locales.flatMap((locale) => {
     if (locale === currentLocale) {
-      return { locale, url: `${site}${currentPath}` };
+      return [{ locale, url: `${site}${currentPath}` }];
     }
     const altPath = getAlternatePath(currentLocale, currentPath);
-    return { locale, url: altPath ? `${site}${altPath}` : `${site}${localizePath(locale, "home")}` };
+    // No equivalent page in the other language: emit no alternate rather than claim its homepage is a translation.
+    return altPath ? [{ locale, url: `${site}${altPath}` }] : [];
   });
 }
 

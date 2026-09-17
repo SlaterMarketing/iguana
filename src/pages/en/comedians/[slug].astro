@@ -4,6 +4,7 @@ import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicArtistDetail } from "@kintana/sdk";
 import { formatEventDate } from "../../../lib/events";
 import { getKintanaEnv } from "../../../lib/kintana-env";
+import { detailPageStatus } from "../../../lib/detail-page-status";
 import { getLocale } from "../../../i18n/locale";
 import { t } from "../../../i18n/ui";
 import { localizePath } from "../../../i18n/routes";
@@ -15,16 +16,20 @@ const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
 
 let artist: KintanaPublicArtistDetail | null = null;
 
+let lookupError: unknown = null;
 if (hasCredentials && slug) {
   try {
     artist = await createKintanaClient({ apiKey, baseUrl }).getArtist(slug);
-  } catch {
+  } catch (err) {
+    lookupError = err;
     artist = null;
   }
 }
+// Unknown slug: 404, API trouble: 503 (never a 200 "not found" page that search engines index).
+if (!artist) Astro.response.status = detailPageStatus(lookupError, hasCredentials && Boolean(slug));
 ---
 
-<Base narrow={false} transparentHeader={false} title={artist ? `${artist.stageName ?? artist.name} · ${t(locale, "nav.comedians")}` : `${t(locale, "nav.comedians")} · Iguana Comedy`}>
+<Base noindex={!artist} narrow={false} transparentHeader={false} title={artist ? `${artist.stageName ?? artist.name} · ${t(locale, "nav.comedians")}` : `${t(locale, "nav.comedians")} · Iguana Comedy`}>
   <section class="mx-auto max-w-5xl px-6 pb-32 pt-20">
     <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.5rem] hover:underline" href={localizePath(locale, "comedians")}>
       {t(locale, "comedians.backToWall")}

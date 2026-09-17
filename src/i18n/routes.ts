@@ -87,12 +87,14 @@ function stripLocalePrefix(pathname: string): string {
 
 /** Reverse-lookup: given a locale and an actual pathname, find the route key. */
 export function resolveRouteKey(locale: Locale, pathname: string): RouteKey | null {
-  const withoutPrefix = stripLocalePrefix(pathname);
-  const normalized = withoutPrefix.replace(/\/$/, "") || "/";
+  // Templates end in "/" ("/events/"), so trim the trailing slash on BOTH sides. Trimming only the path meant nothing
+  // but home ever matched, and every inner page's hreflang and language switcher pointed at the other homepage.
+  const trimSlash = (p: string) => p.replace(/\/$/, "") || "/";
+  const normalized = trimSlash(stripLocalePrefix(pathname));
   const entries = Object.entries(routeMap[locale]) as [RouteKey, string][];
 
   for (const [key, template] of entries) {
-    const pattern = template.replace(/:([^/]+)/g, "[^/]+");
+    const pattern = trimSlash(template).replace(/:([^/]+)/g, "[^/]+");
     const regex = new RegExp(`^${pattern.replace(/\//g, "\\/")}$`);
     if (regex.test(normalized)) return key;
   }

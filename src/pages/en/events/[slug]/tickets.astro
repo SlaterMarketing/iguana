@@ -44,6 +44,7 @@ const socialImage = heroImage ? absoluteMediaUrl(heroImage, siteOrigin) : undefi
 ---
 
 <Base
+  noindex
   title={event ? `${t(locale, "ui.getTickets")} · ${event.name}` : `${t(locale, "ui.getTickets")} · Iguana Comedy`}
   description={socialDescription}
   ogImage={socialImage}
