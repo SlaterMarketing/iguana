@@ -1,20 +1,18 @@
 import { createKintanaClient } from "@kintana/sdk";
-import legacySitemapXml from "../../sitemap.xml?raw";
+import type { KintanaClient, KintanaPublicEvent } from "@kintana/sdk";
 import { groupVenuesByCity } from "@kintana/sdk/locations";
 
 import { getCityBlurb } from "../content/city-blurbs";
+import { eventCitySlug, todayInCancun } from "./events";
 import { getKintanaEnv } from "./kintana-env";
-import { mapLegacyPath } from "./legacy-paths";
+import { isOpenMic } from "./open-mics";
 import { slugify } from "./slug";
-import { localizePath, resolveRouteKey, type RouteKey } from "../i18n/routes";
-import type { Locale } from "../i18n/locale";
+import { localizePath, type RouteKey } from "../i18n/routes";
 
-export type SitemapEntry = {
-  path: string;
-  priority: number;
-  lastmod?: string;
-};
-
+/**
+ * One `<url>` per language. Every entry lists both languages plus `x-default` (the English URL) as alternates.
+ * `lastmod` is only set from a real modification time; the public API exposes none today, so it is omitted.
+ */
 export type LocalizedSitemapEntry = {
   path: string;
   priority: number;
@@ -24,11 +22,14 @@ export type LocalizedSitemapEntry = {
 
 const DEFAULT_SITE = "https://iguanacomedy.com";
 
+/** Playa del Carmen always has the club, so its city page is listed even with no dated shows. */
+const ALWAYS_LISTED_CITY = "playa-del-carmen";
+
+/** Weekly open mics are generated months ahead; only advertise the next few weeks of them. */
+const OPEN_MIC_WINDOW_DAYS = 21;
+
 export function siteOrigin(): string {
-  const raw =
-    import.meta.env.PUBLIC_SITE_URL?.trim() ||
-    import.meta.env.SITE?.trim() ||
-    DEFAULT_SITE;
+  const raw = import.meta.env.PUBLIC_SITE_URL?.trim() || import.meta.env.SITE?.trim() || DEFAULT_SITE;
   return raw.replace(/\/$/, "");
 }
 
@@ -39,415 +40,147 @@ function normalizePath(path: string): string {
   return p;
 }
 
-function upsert(map: Map<string, SitemapEntry>, entry: SitemapEntry) {
-  const path = normalizePath(entry.path);
-  const existing = map.get(path);
-  if (!existing || entry.priority > existing.priority) {
-    map.set(path, { ...entry, path });
-  }
-}
-
-function upsertLocalized(
+/** Adds the English and Spanish URL for one route, each carrying en, es and x-default alternates. */
+function addRoute(
   map: Map<string, LocalizedSitemapEntry>,
-  entry: LocalizedSitemapEntry
+  key: RouteKey,
+  priority: number,
+  params?: Record<string, string>,
 ) {
-  const path = normalizePath(entry.path);
-  const existing = map.get(path);
-  if (!existing || entry.priority > existing.priority) {
-    map.set(path, { ...entry, path });
+  const enPath = normalizePath(localizePath("en", key, params));
+  const esPath = normalizePath(localizePath("es", key, params));
+  const alternates = [
+    { locale: "en", path: enPath },
+    { locale: "es", path: esPath },
+    { locale: "x-default", path: enPath },
+  ];
+  for (const path of [enPath, esPath]) {
+    const existing = map.get(path);
+    if (!existing || priority > existing.priority) map.set(path, { path, priority, alternates });
   }
 }
 
-function prefixLocale(locale: Locale, path: string): string {
-  if (path === "/") return `/${locale}/`;
-  return `/${locale}${path}`;
+const CORE_PAGES: Array<{ key: RouteKey; priority: number }> = [
+  { key: "home", priority: 1 },
+  { key: "events", priority: 0.8 },
+  { key: "locations", priority: 0.8 },
+  { key: "comedians", priority: 0.8 },
+  { key: "membership", priority: 0.8 },
+  { key: "contact", priority: 0.8 },
+  { key: "about", priority: 0.8 },
+  { key: "workWithUs", priority: 0.8 },
+  { key: "performWithUs", priority: 0.85 },
+  { key: "hotelsAndResorts", priority: 0.85 },
+  { key: "privacyPolicy", priority: 0.8 },
+  { key: "termsAndConditions", priority: 0.8 },
+];
+
+/** `YYYY-MM-DD` plus `days`, computed on the calendar date so no timezone shifts it. */
+function addDays(isoDay: string, days: number): string {
+  const [y, m, d] = isoDay.split("-").map(Number);
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
 }
 
-function parseLegacySitemapFile(): SitemapEntry[] {
-  const xml = legacySitemapXml.trim();
-  if (!xml) return [];
+/** Upcoming, not cancelled, and for open mics only within the next few weeks. */
+function listableEvents(events: KintanaPublicEvent[], today: string): KintanaPublicEvent[] {
+  const openMicCutoff = addDays(today, OPEN_MIC_WINDOW_DAYS);
+  return events.filter((evt) => {
+    if (evt.status === "past" || evt.status === "cancelled") return false;
+    const day = evt.date?.slice(0, 10) ?? "";
+    if (day && day < today) return false;
+    if (isOpenMic(evt) && (!day || day > openMicCutoff)) return false;
+    return true;
+  });
+}
 
-  const entries: SitemapEntry[] = [];
-  for (const block of xml.matchAll(/<url>([\s\S]*?)<\/url>/g)) {
-    const chunk = block[1];
-    const loc = chunk.match(/<loc>([^<]+)<\/loc>/)?.[1]?.trim();
-    if (!loc) continue;
+async function addApiPages(map: Map<string, LocalizedSitemapEntry>, client: KintanaClient) {
+  const today = todayInCancun();
 
-    let pathname: string;
-    try {
-      pathname = new URL(loc).pathname;
-    } catch {
-      continue;
-    }
-
-    const mapped = mapLegacyPath(pathname);
-    if (!mapped) continue;
-
-    const priority = Number.parseFloat(
-      chunk.match(/<priority>([^<]+)<\/priority>/)?.[1] ?? "0.5"
+  // Events from today onward: the unfiltered list starts at the oldest shows and would crowd out upcoming ones.
+  let upcoming: KintanaPublicEvent[] = [];
+  try {
+    upcoming = (await client.listEvents({ limit: 200, from: today })).filter(
+      (evt) => evt.status !== "past" && evt.status !== "cancelled",
     );
-    const lastmod = chunk.match(/<lastmod>([^<]+)<\/lastmod>/)?.[1]?.trim();
-
-    entries.push({
-      path: mapped,
-      priority: Number.isFinite(priority) ? priority : 0.5,
-      lastmod,
-    });
+    for (const evt of listableEvents(upcoming, today)) {
+      const slug = evt.slug?.trim() || evt.id?.trim();
+      if (slug) addRoute(map, "eventDetail", 0.64, { slug });
+    }
+  } catch {
+    /* sitemap still lists the static pages */
   }
 
-  return entries;
-}
+  try {
+    for (const artist of await client.listArtists({ limit: 200 })) {
+      const slug = artist.slug?.trim();
+      if (slug) addRoute(map, "comedianDetail", 0.64, { slug });
+    }
+  } catch {
+    /* noop */
+  }
 
-function addCoreLocalizedPages(map: Map<string, LocalizedSitemapEntry>) {
-  const core: Array<{
-    key: RouteKey;
-    priority: number;
-    params?: Record<string, string>;
-  }> = [
-    { key: "home", priority: 1 },
-    { key: "events", priority: 0.8 },
-    { key: "locations", priority: 0.8 },
-    { key: "comedians", priority: 0.8 },
-    { key: "store", priority: 0.8 },
-    { key: "contact", priority: 0.8 },
-    { key: "about", priority: 0.8 },
-    { key: "workWithUs", priority: 0.8 },
-    { key: "performWithUs", priority: 0.85 },
-    { key: "hotelsAndResorts", priority: 0.85 },
-    { key: "privacyPolicy", priority: 0.8 },
-    { key: "termsAndConditions", priority: 0.8 },
-  ];
+  try {
+    const citiesWithShows = new Set(upcoming.map(eventCitySlug));
+    for (const city of groupVenuesByCity(await client.listVenues())) {
+      const slug = slugify(city.city);
+      if (slug === "unknown" || !getCityBlurb("en", slug)) continue;
+      if (slug !== ALWAYS_LISTED_CITY && !citiesWithShows.has(slug)) continue;
+      addRoute(map, "cityDetail", 0.64, { city: slug });
+    }
+  } catch {
+    /* noop */
+  }
 
-  const now = new Date().toISOString();
-  for (const page of core) {
-    const enPath = localizePath("en", page.key, page.params);
-    const esPath = localizePath("es", page.key, page.params);
-    const alternates = [
-      { locale: "en", path: enPath },
-      { locale: "es", path: esPath },
-    ];
-
-    upsertLocalized(map, {
-      path: enPath,
-      priority: page.priority,
-      lastmod: now,
-      alternates,
-    });
-    upsertLocalized(map, {
-      path: esPath,
-      priority: page.priority,
-      lastmod: now,
-      alternates,
-    });
+  try {
+    const products = await client.listStoreProducts({ limit: 100 });
+    const slugs = products.map((product) => product.slug?.trim()).filter((slug): slug is string => Boolean(slug));
+    if (slugs.length) addRoute(map, "store", 0.8);
+    for (const slug of slugs) addRoute(map, "productDetail", 0.5, { slug });
+  } catch {
+    /* noop */
   }
 }
 
-async function addKintanaLocalizedPages(
-  map: Map<string, LocalizedSitemapEntry>
-) {
+export async function buildLocalizedSitemapEntries(): Promise<LocalizedSitemapEntry[]> {
+  const map = new Map<string, LocalizedSitemapEntry>();
+  for (const page of CORE_PAGES) addRoute(map, page.key, page.priority);
+
   const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
-  if (!hasCredentials) return;
+  if (hasCredentials) await addApiPages(map, createKintanaClient({ apiKey, baseUrl }));
 
-  const now = new Date().toISOString();
-  const client = createKintanaClient({ apiKey, baseUrl });
-
-  try {
-    const events = await client.listEvents({ limit: 200 });
-    for (const evt of events) {
-      const key = evt.slug?.trim() || evt.id?.trim();
-      if (!key) continue;
-      const enPath = localizePath("en", "eventDetail", { slug: key });
-      const esPath = localizePath("es", "eventDetail", { slug: key });
-      const alternates = [
-        { locale: "en", path: enPath },
-        { locale: "es", path: esPath },
-      ];
-      upsertLocalized(map, {
-        path: enPath,
-        priority: 0.64,
-        lastmod: now,
-        alternates,
-      });
-      upsertLocalized(map, {
-        path: esPath,
-        priority: 0.64,
-        lastmod: now,
-        alternates,
-      });
-    }
-  } catch {
-    /* build continues with legacy + static URLs */
-  }
-
-  try {
-    const artists = await client.listArtists({ limit: 200 });
-    for (const artist of artists) {
-      const key = artist.slug?.trim();
-      if (!key) continue;
-      const enPath = localizePath("en", "comedianDetail", { slug: key });
-      const esPath = localizePath("es", "comedianDetail", { slug: key });
-      const alternates = [
-        { locale: "en", path: enPath },
-        { locale: "es", path: esPath },
-      ];
-      upsertLocalized(map, {
-        path: enPath,
-        priority: 0.64,
-        lastmod: now,
-        alternates,
-      });
-      upsertLocalized(map, {
-        path: esPath,
-        priority: 0.64,
-        lastmod: now,
-        alternates,
-      });
-    }
-  } catch {
-    /* noop */
-  }
-
-  try {
-    const venues = await client.listVenues();
-    const cities = groupVenuesByCity(venues);
-    for (const city of cities) {
-      const slug = slugify(city.city ?? "");
-      if (!slug || !getCityBlurb("en", slug)) continue;
-      const enPath = localizePath("en", "cityDetail", { city: slug });
-      const esPath = localizePath("es", "cityDetail", { city: slug });
-      const alternates = [
-        { locale: "en", path: enPath },
-        { locale: "es", path: esPath },
-      ];
-      upsertLocalized(map, {
-        path: enPath,
-        priority: 0.64,
-        lastmod: now,
-        alternates,
-      });
-      upsertLocalized(map, {
-        path: esPath,
-        priority: 0.64,
-        lastmod: now,
-        alternates,
-      });
-    }
-  } catch {
-    /* noop */
-  }
+  return [...map.values()].sort((a, b) => a.path.localeCompare(b.path));
 }
 
-function addLegacyLocalizedPages(map: Map<string, LocalizedSitemapEntry>) {
-  for (const entry of parseLegacySitemapFile()) {
-    const enPath = prefixLocale("en", entry.path);
-    const key = resolveRouteKey("en", entry.path);
-    if (key) {
-      const esPath = localizePath("es", key);
-      const alternates = [
-        { locale: "en", path: enPath },
-        { locale: "es", path: esPath },
-      ];
-      upsertLocalized(map, {
-        path: enPath,
-        priority: entry.priority,
-        lastmod: entry.lastmod,
-        alternates,
-      });
-      upsertLocalized(map, {
-        path: esPath,
-        priority: entry.priority,
-        lastmod: entry.lastmod,
-        alternates,
-      });
-    } else {
-      upsertLocalized(map, {
-        path: enPath,
-        priority: entry.priority,
-        lastmod: entry.lastmod,
-        alternates: [{ locale: "en", path: enPath }],
-      });
-    }
-  }
-}
-
-export function legacyEventSlugs(): string[] {
-  return [
-    ...new Set(
-      parseLegacySitemapFile()
-        .map((e) => e.path)
-        .filter((p) => p.startsWith("/events/"))
-        .map((p) => p.replace(/^\/events\/|\/$/g, ""))
-        .filter(Boolean)
-    ),
-  ];
-}
-
-/** @deprecated Use legacyEventSlugs */
-export const legacyShowSlugs = legacyEventSlugs;
-
-export function legacyComedianSlugs(): string[] {
-  return [
-    ...new Set(
-      parseLegacySitemapFile()
-        .map((e) => e.path)
-        .filter((p) => p.startsWith("/comedians/"))
-        .map((p) => p.replace(/^\/comedians\/|\/$/g, ""))
-        .filter(Boolean)
-    ),
-  ];
-}
-
-export function legacyCitySlugs(): string[] {
-  return [
-    ...new Set(
-      parseLegacySitemapFile()
-        .map((e) => e.path)
-        .filter((p) => p.startsWith("/locations/"))
-        .map((p) => p.replace(/^\/locations\/|\/$/g, ""))
-        .filter(Boolean)
-    ),
-  ];
-}
-
+/**
+ * Venue slugs from the retired Framer site. Only `src/pages/en/venues/[...slug].astro` uses this, and it redirects
+ * every venue URL to the locations page either way, so a fixed list is enough.
+ */
 export function legacyVenueSlugs(): string[] {
   return [
-    ...new Set(
-      parseLegacySitemapFile()
-        .map((e) => e.path)
-        .filter((p) => p.startsWith("/venues/"))
-        .map((p) => p.replace(/^\/venues\/|\/$/g, ""))
-        .filter(Boolean)
-    ),
+    "aqui-ahora",
+    "bipolar",
+    "los-chilacos-de-playa",
+    "live-music-hall",
+    "batey",
+    "harvest-comedy",
+    "ophelia-speakeasy",
+    "shhhh",
+    "civil-sin-project",
+    "casa-iguana",
+    "beplaya",
+    "buzos",
   ];
 }
 
-export async function buildSitemapEntries(): Promise<SitemapEntry[]> {
-  const map = new Map<string, SitemapEntry>();
-
-  for (const entry of parseLegacySitemapFile()) {
-    upsert(map, entry);
-  }
-
-  addCorePages(map);
-  await addKintanaPages(map);
-
-  return [...map.values()].sort((a, b) => a.path.localeCompare(b.path));
-}
-
-function addCorePages(map: Map<string, SitemapEntry>) {
-  const core: Array<{ path: string; priority: number }> = [
-    { path: "/en/", priority: 1 },
-    { path: "/en/events/", priority: 0.8 },
-    { path: "/en/locations/", priority: 0.8 },
-    { path: "/en/comedians/", priority: 0.8 },
-    { path: "/en/store/", priority: 0.8 },
-    { path: "/en/contact/", priority: 0.8 },
-    { path: "/en/about/", priority: 0.8 },
-    { path: "/en/work-with-us/", priority: 0.8 },
-    { path: "/en/perform-with-us/", priority: 0.85 },
-    { path: "/en/hotels-and-resorts/", priority: 0.85 },
-    { path: "/en/legal/privacy-policy/", priority: 0.8 },
-    { path: "/en/legal/terms-and-conditions/", priority: 0.8 },
-  ];
-
-  const now = new Date().toISOString();
-  for (const page of core) {
-    upsert(map, { path: page.path, priority: page.priority, lastmod: now });
-  }
-}
-
-async function addKintanaPages(map: Map<string, SitemapEntry>) {
-  const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
-  if (!hasCredentials) return;
-
-  const now = new Date().toISOString();
-  const client = createKintanaClient({ apiKey, baseUrl });
-
-  try {
-    const events = await client.listEvents({ limit: 200 });
-    for (const evt of events) {
-      const key = evt.slug?.trim() || evt.id?.trim();
-      if (!key) continue;
-      upsert(map, { path: `/en/events/${key}/`, priority: 0.64, lastmod: now });
-    }
-  } catch {
-    /* build continues with legacy + static URLs */
-  }
-
-  try {
-    const artists = await client.listArtists({ limit: 200 });
-    for (const artist of artists) {
-      const key = artist.slug?.trim();
-      if (!key) continue;
-      upsert(map, { path: `/en/comedians/${key}/`, priority: 0.64, lastmod: now });
-    }
-  } catch {
-    /* noop */
-  }
-
-  try {
-    const venues = await client.listVenues();
-    const cities = groupVenuesByCity(venues);
-    for (const city of cities) {
-      const slug = slugify(city.city ?? "");
-      if (!slug || !getCityBlurb("en", slug)) continue;
-      upsert(map, { path: `/en/locations/${slug}/`, priority: 0.64, lastmod: now });
-    }
-  } catch {
-    /* noop */
-  }
-}
-
-export async function buildLocalizedSitemapEntries(): Promise<
-  LocalizedSitemapEntry[]
-> {
-  const map = new Map<string, LocalizedSitemapEntry>();
-
-  addLegacyLocalizedPages(map);
-  addCoreLocalizedPages(map);
-  await addKintanaLocalizedPages(map);
-
-  return [...map.values()].sort((a, b) => a.path.localeCompare(b.path));
-}
-
-export function renderSitemapXml(
-  entries: SitemapEntry[],
-  origin = siteOrigin()
-): string {
+export function renderSitemapXmlWithAlternates(entries: LocalizedSitemapEntry[], origin = siteOrigin()): string {
+  const abs = (path: string) => escapeXml(`${origin}${path}`);
   const urls = entries
     .map((entry) => {
-      const loc = `${origin}${entry.path === "/" ? "/" : entry.path}`;
-      const lastmod = entry.lastmod
-        ? `\n    <lastmod>${escapeXml(entry.lastmod)}</lastmod>`
-        : "";
-      return `  <url>\n    <loc>${escapeXml(loc)}</loc>${lastmod}\n    <priority>${entry.priority.toFixed(2)}</priority>\n  </url>`;
-    })
-    .join("\n");
-
-  return `<?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-${urls}
-</urlset>
-`;
-}
-
-export function renderSitemapXmlWithAlternates(
-  entries: LocalizedSitemapEntry[],
-  origin = siteOrigin()
-): string {
-  const urls = entries
-    .map((entry) => {
-      const loc = `${origin}${entry.path === "/" ? "/" : entry.path}`;
-      const lastmod = entry.lastmod
-        ? `\n    <lastmod>${escapeXml(entry.lastmod)}</lastmod>`
-        : "";
+      const lastmod = entry.lastmod ? `\n    <lastmod>${escapeXml(entry.lastmod)}</lastmod>` : "";
       const alternates = entry.alternates
-        .map(
-          (alt) =>
-            `    <xhtml:link rel="alternate" hreflang="${alt.locale}" href="${escapeXml(`${origin}${alt.path === "/" ? "/" : alt.path}`)}" />`
-        )
+        .map((alt) => `    <xhtml:link rel="alternate" hreflang="${alt.locale}" href="${abs(alt.path)}" />`)
         .join("\n");
-      return `  <url>\n    <loc>${escapeXml(loc)}</loc>${lastmod}\n${alternates}\n    <priority>${entry.priority.toFixed(2)}</priority>\n  </url>`;
+      return `  <url>\n    <loc>${abs(entry.path)}</loc>${lastmod}\n${alternates}\n    <priority>${entry.priority.toFixed(2)}</priority>\n  </url>`;
     })
     .join("\n");
 
@@ -459,9 +192,5 @@ ${urls}
 }
 
 function escapeXml(value: string): string {
-  return value
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;");
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
