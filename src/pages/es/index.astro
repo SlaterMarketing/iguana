@@ -2,7 +2,7 @@
 import Base from "../../layouts/Base.astro";
 import HomeHero from "../../components/home/HomeHero.astro";
 import HomePageSections from "../../components/home/HomePageSections.astro";
-import OpenMicReserveStrip from "../../components/home/OpenMicReserveStrip.astro";
+import OpenMicHeroBadge from "../../components/home/OpenMicHeroBadge.astro";
 import { heroCityChoices, siteMessages } from "../../content/site";
 import { loadHomePageData } from "../../lib/home-page-data";
 import { localizePath } from "../../i18n/routes";
@@ -39,10 +39,10 @@ const cityPickerChoices = [
     headlineLine1="Stand-up internacional"
     headlineLine2Prefix="comedia en "
     headlineLine2Static="Playa del Carmen"
-    announcement={{ label: t(locale, "openMic.hero"), href: "#open-mic-reserve" }}
     ctaLabel="Comprar boleto"
     spotlightLabel="Ciudad destacada"
-  />
-  <OpenMicReserveStrip locale={locale} events={pageData.eventsPool} />
+  >
+    <OpenMicHeroBadge slot="announcement" locale={locale} events={pageData.eventsPool} />
+  </HomeHero>
   <HomePageSections {...pageData} apiConfigured={pageData.hasCredentials} locale={locale} />
 </Base>

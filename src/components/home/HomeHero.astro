@@ -31,8 +31,6 @@ interface Props {
   spotlightLabel?: string;
   /** Region label when rotating cities (e.g. "the Riviera Maya" / "la Riviera Maya"). */
   rotatorFallback?: string;
-  /** Optional pill link above the headline, e.g. the weekly open mic reservation. */
-  announcement?: { label: string; href: string };
   locale?: Locale;
 }
 
@@ -55,7 +53,6 @@ const {
   ctaLabel = t(locale, "locations.cta.buyTicket"),
   spotlightLabel = t(locale, "home.hero.spotlightLabel"),
   rotatorFallback = t(locale, "home.heroFallbackRegion"),
-  announcement,
 } = Astro.props;
 const cityHomeHref = localizePath(locale, "home");
 const cityLocationsBaseHref = localizePath(locale, "locations");
@@ -70,6 +67,8 @@ const staticHeadlineCity =
   (activeCitySlug ? heroCityChoices.find((entry) => entry.slug === activeCitySlug)?.label : undefined);
 const useRotator = !headlineLine2Static && !staticHeadlineCity;
 const useImageHero = Boolean(heroImageUrl?.trim());
+// With an announcement above the headline, phones need the room: drop the small eyebrow line and the upward nudge.
+const hasAnnouncement = Astro.slots.has("announcement");
 ---
 
 <section
@@ -103,21 +102,17 @@ const useImageHero = Boolean(heroImageUrl?.trim());
   <div class:list={["absolute inset-0", useImageHero ? "bg-black/55" : "bg-black/50"]} />
   <div class="relative z-10 mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col px-6 pb-10 pt-28 text-white sm:pb-12 lg:pt-32">
     <div class="flex flex-1 flex-col justify-center">
-      <div class="text-center -translate-y-[50px]">
-        {
-          announcement && (
-            <a
-              href={announcement.href}
-              class="mb-8 inline-flex items-center gap-2 rounded-full bg-white/15 px-5 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-white backdrop-blur hover:bg-white/25"
-            >
-              {announcement.label}
-              <span aria-hidden="true">→</span>
-            </a>
-          )
-        }
-        <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white/75">{eyebrow}</p>
+      <div class:list={["text-center", hasAnnouncement ? "sm:-translate-y-[50px]" : "-translate-y-[50px]"]}>
+        {/* Above-the-fold announcement from the page, e.g. the free open mics (OpenMicHeroBadge). */}
+        <slot name="announcement" />
+        <p class:list={["text-xs font-semibold uppercase tracking-[0.45em] text-white/75", hasAnnouncement && "hidden sm:block"]}>
+          {eyebrow}
+        </p>
         <h1
-          class="mt-10 font-display font-semibold leading-[0.92] tracking-wide text-[clamp(3.1rem,7.5vw,6.5rem)]"
+          class:list={[
+            "font-display font-semibold leading-[0.92] tracking-wide text-[clamp(3.1rem,7.5vw,6.5rem)]",
+            hasAnnouncement ? "sm:mt-10" : "mt-10",
+          ]}
           style="font-family: var(--font-display);"
         >
           <span class="block">{headlineLine1}</span>

@@ -1,0 +1,73 @@
+---
+import type { KintanaPublicEvent } from "@kintana/sdk";
+
+import type { Locale } from "../../i18n/locale";
+import { localizePath } from "../../i18n/routes";
+import { t } from "../../i18n/ui";
+import { formatSeatPrice, nextBookableOpenMics } from "../../lib/open-mics";
+
+interface Props {
+  locale: Locale;
+  /** Upcoming events the home page already loaded. */
+  events: KintanaPublicEvent[];
+}
+
+const { locale, events } = Astro.props;
+const next = nextBookableOpenMics(events);
+// Buttons say just the night and price (short day names on phones) so both fit on one row; the caption above explains
+// they reserve a seat, and aria-label keeps the full "Reserve Tuesday · 50 MXN" for screen readers.
+const nights = [
+  {
+    day: t(locale, "openMic.hero.tuesday"),
+    dayShort: t(locale, "openMic.hero.tuesdayShort"),
+    label: t(locale, "openMic.hero.reserveTuesday"),
+    event: next.es,
+  },
+  {
+    day: t(locale, "openMic.hero.wednesday"),
+    dayShort: t(locale, "openMic.hero.wednesdayShort"),
+    label: t(locale, "openMic.hero.reserveWednesday"),
+    event: next.en,
+  },
+].flatMap((night) => (night.event ? [{ ...night, event: night.event, price: formatSeatPrice(night.event, locale) }] : []));
+const buttonClass =
+  "inline-flex items-center gap-2 whitespace-nowrap rounded-full border border-white/40 bg-black/30 px-3.5 py-2 text-[0.62rem] font-semibold uppercase tracking-[0.14em] text-white backdrop-blur transition hover:bg-white hover:text-neutral-950 sm:px-5 sm:text-[0.7rem] sm:tracking-[0.2em]";
+
+// "{free}" marks where the highlighted word goes, so each language keeps its own word order.
+const [beforeFree, afterFree = ""] = t(locale, "openMic.hero.title").split("{free}");
+---
+
+<div class="mb-5 flex flex-col items-center gap-3 sm:mb-10 sm:gap-4" data-open-mic-hero>
+  <p
+    class="whitespace-nowrap font-display leading-none tracking-wide text-white text-[clamp(1.1rem,5.3vw,2.75rem)]"
+    style="font-family: var(--font-display);"
+  >
+    {beforeFree}<span class="inline-block rounded-lg bg-amber-400 px-3 pt-[0.12em] text-neutral-950 shadow-lg shadow-black/30"
+      >{t(locale, "openMic.hero.free")}</span
+    >{afterFree}
+  </p>
+  {nights.length > 0 && <p class="text-[0.62rem] font-semibold uppercase tracking-[0.25em] text-white/80 sm:text-xs">{t(locale, "openMic.hero.caption")}</p>}
+  <div class="flex flex-wrap justify-center gap-2 sm:gap-3">
+    {
+      nights.length ? (
+        nights.map((night) => (
+          <a
+            class={buttonClass}
+            aria-label={`${night.label} · ${night.price}`}
+            href={localizePath(locale, "eventDetail", { slug: night.event.slug })}
+          >
+            <span>
+              <span class="sm:hidden">{night.dayShort}</span><span class="hidden sm:inline">{night.day}</span> · {night.price}
+            </span>
+            <span aria-hidden="true">→</span>
+          </a>
+        ))
+      ) : (
+        <a class={buttonClass} href={localizePath(locale, "events")}>
+          {t(locale, "openMic.hero.seeDates")}
+          <span aria-hidden="true">→</span>
+        </a>
+      )
+    }
+  </div>
+</div>
