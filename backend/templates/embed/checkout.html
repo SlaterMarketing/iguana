@@ -3,64 +3,83 @@
 {% block title %}{% t lang "Tickets · {0}" event.name %}{% endblock %}
 {% block head %}
 <style>
-  .types { display: grid; gap: 12px; }
-  .type { display: flex; gap: 16px; align-items: center; justify-content: space-between; }
-  .type-name { font-weight: 600; }
-  .type-meta { font-size: .85rem; }
-  .qty { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-  .qty button { width: 36px; height: 36px; border-radius: 50%; border: 1px solid rgba(0,0,0,.2); background: #fff; font-size: 1.1rem; cursor: pointer; }
-  .qty button[disabled] { opacity: .35; cursor: not-allowed; }
-  .qty output { min-width: 1.5ch; text-align: center; font-variant-numeric: tabular-nums; font-weight: 600; }
-  .summary div { display: flex; justify-content: space-between; font-size: .95rem; padding: 4px 0; }
-  .summary .total { font-weight: 700; font-size: 1.05rem; border-top: 1px solid var(--line); margin-top: 6px; padding-top: 10px; }
+  /* One card, one button: pick seats, fill in who you are, press the button that says what happens and what it costs. */
+  [hidden] { display: none !important; }
+  .checkout { display: grid; gap: 18px; }
+  {% if embedded %}.checkout.card { border: 0; border-radius: 0; padding: 0; background: transparent; }{% endif %}
+  .types { display: grid; gap: 14px; }
+  .type + .type { border-top: 1px solid var(--line); padding-top: 14px; }
+  .type-top { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
+  .type-name { font-weight: 600; line-height: 1.25; }
+  .type-meta { font-size: .85rem; margin-top: 2px; }
+  .type-desc { font-size: .85rem; margin-top: 8px; line-height: 1.4; }
+  .type-limit { font-size: .8rem; margin-top: 6px; color: var(--brand-hover); font-weight: 600; }
+  .qty { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+  .qty button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(0,0,0,.25); background: #fff; color: var(--ink);
+                font-size: 1.4rem; line-height: 1; cursor: pointer; touch-action: manipulation; }
+  .qty button.plus { background: var(--ink); border-color: var(--ink); color: #fff; }
+  .qty button[disabled] { opacity: .3; cursor: not-allowed; }
+  .qty output { min-width: 2.2ch; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.15rem; }
+  .fields { display: grid; gap: 12px; }
   .grid2 { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
   @media (max-width: 480px) { .grid2 { grid-template-columns: 1fr; } }
-  .dev { border: 1px dashed #b7791f; background: #fffaf0; border-radius: 14px; padding: 12px 16px; font-size: .85rem; }
+  input { min-height: 48px; font-size: 16px; }
+  .hint { font-size: .9rem; text-align: center; margin: 0; }
+  .note { font-size: .85rem; margin: 0; }
+  .action { display: grid; gap: 10px; }
+  .action .error { margin: 0; }
+  #submit { flex-direction: column; gap: 4px; min-height: 60px; padding: 12px 20px; letter-spacing: 0; text-transform: none; font-size: 1.05rem; line-height: 1.2; background: var(--brand); }
+  #submit:hover { background: var(--brand-hover); }
+  #submit .sub { font-size: .85rem; font-weight: 500; opacity: .9; }
+  .dev { border: 1px dashed #b7791f; background: #fffaf0; border-radius: 12px; padding: 8px 12px; font-size: .8rem; margin: 0; }
 </style>
 {% endblock %}
 {% block content %}
-<div class="stack" id="checkout">
+<div class="stack">
   {% if not embedded %}
     <p class="eyebrow">{% t lang "Tickets" %}</p>
     <h1>{{ event.name }}</h1>
   {% endif %}
   <noscript><p class="error">{% t lang "Checkout needs JavaScript enabled." %}</p></noscript>
-  <p id="member-note" class="ok" hidden>{% t lang "Member pricing applied." %}</p>
-  <section class="card"><div class="types" id="types"></div></section>
-  <section class="card summary" id="summary" hidden></section>
-  <form class="card stack" id="details" hidden novalidate>
-    <h2>{% t lang "Your details" %}</h2>
-    <label>{% t lang "Full name" %}<input name="name" autocomplete="name" required></label>
-    <div class="grid2">
-      <label>{% t lang "Email" %}<input name="email" type="email" autocomplete="email" required></label>
-      <label>{% t lang "Phone (optional)" %}<input name="phone" type="tel" autocomplete="tel"></label>
+  <form class="card checkout" id="checkout" novalidate>
+    <div class="types" id="types"></div>
+    <p class="hint muted" id="pick-hint" hidden>{% t lang "Choose how many with +" %}</p>
+    <div class="fields" id="details" hidden>
+      <label>{% t lang "Full name" %}<input name="name" autocomplete="name" required></label>
+      <div class="grid2">
+        <label>{% t lang "Email" %}<input name="email" type="email" autocomplete="email" inputmode="email" required></label>
+        <label>{% t lang "Phone (optional)" %}<input name="phone" type="tel" autocomplete="tel"></label>
+      </div>
+      <div id="payment-element" hidden></div>
     </div>
-    <p class="error" id="details-error" hidden></p>
-    <button class="btn" type="submit" id="continue">{% t lang "Continue" %}</button>
+    <div class="action" id="action" hidden>
+      <p class="note ok" id="member-note" hidden>{% t lang "Member pricing applied." %}</p>
+      <p class="note muted" id="discount-note" hidden></p>
+      <p class="error" id="error" role="alert" hidden></p>
+      <button class="btn" type="submit" id="submit"><span class="main"></span><span class="sub"></span></button>
+      <p class="dev" id="dev-note" hidden>{% t lang "Local development: Stripe keys are not configured, so this button simulates a successful payment." %}</p>
+    </div>
   </form>
-  <section class="card stack" id="payment" hidden>
-    <h2>{% t lang "Payment" %}</h2>
-    <div id="payment-element"></div>
-    <p class="dev" id="dev-note" hidden>{% t lang "Local development: Stripe keys are not configured, so this button simulates a successful payment." %}</p>
-    <p class="error" id="payment-error" hidden></p>
-    <button class="btn" type="button" id="pay">{% t lang "Pay" %}</button>
-  </section>
   <p class="muted" id="unavailable" hidden>{% t lang "Tickets are not on sale for this show." %}</p>
 </div>
 {{ bootstrap|json_script:"bootstrap" }}
 {% endblock %}
 {% block scripts %}
-<script src="https://js.stripe.com/v3/" defer></script>
+{% if bootstrap.stripeKey %}<script src="https://js.stripe.com/v3/" defer></script>{% endif %}
 <script>
 (function () {
   var B = JSON.parse(document.getElementById("bootstrap").textContent);
   var ev = B.event;
   var qty = {};
+  var syncers = [];
   var fanToken = "";
   var attribution = {};
-  var order = null;
+  var quoted = null;     // last server quote for the current selection
+  var order = null;      // set once /start created an order; the selection is locked from then on
+  var busy = false;
   var stripe = null, elements = null;
   var $ = function (id) { return document.getElementById(id); };
+  var form = $("checkout");
   // Translated on the server (CHECKOUT_JS_STRINGS); {0} slots are filled here.
   function T(key) {
     var args = Array.prototype.slice.call(arguments, 1);
@@ -74,11 +93,14 @@
   }
   function postJSON(url, body) {
     return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
-      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || T("Something went wrong.")); return j; }); });
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || T("Something went wrong.")); return j; }); },
+            function () { throw new Error(T("Something went wrong.")); });
   }
   function show(el, on) { el.hidden = !on; }
-  function setError(el, msg) { el.textContent = msg || ""; show(el, !!msg); }
+  function setError(msg) { $("error").textContent = msg || ""; show($("error"), !!msg); reportHeight(); }
   function totalQty() { return Object.keys(qty).reduce(function (n, k) { return n + qty[k]; }, 0); }
+  function typeById(id) { return ev.ticketTypes.filter(function (t) { return t.id === id; })[0]; }
+  function selectionAtDoor() { return Object.keys(qty).some(function (k) { return qty[k] > 0 && typeById(k).payAtDoor; }); }
 
   function reportHeight() {
     if (window.parent === window) return;
@@ -102,16 +124,17 @@
 
   function renderTypes() {
     var box = $("types");
-    box.innerHTML = "";
     var onSale = ev.ticketingType === "INTERNAL" && ["CANCELLED", "POSTPONED", "SOLD_OUT"].indexOf(ev.status) === -1;
     if (!onSale || !ev.ticketTypes.length) {
       show($("unavailable"), true);
-      box.parentNode.hidden = true;
+      form.hidden = true;
       return;
     }
     ev.ticketTypes.forEach(function (t) {
-      qty[t.id] = qty[t.id] || 0;
+      qty[t.id] = 0;
+      var limit = Math.min(t.maxPerOrder || 20, t.remaining != null ? t.remaining : Infinity);
       var row = document.createElement("div"); row.className = "type";
+      var top = document.createElement("div"); top.className = "type-top";
       var info = document.createElement("div");
       var name = document.createElement("div"); name.className = "type-name"; name.textContent = t.name;
       var meta = document.createElement("div"); meta.className = "type-meta muted";
@@ -120,48 +143,98 @@
         (t.memberAccess === "MEMBERS_ONLY" ? " · " + T("members only") : "") +
         (t.remaining != null && t.remaining <= 20 ? " · " + T("{0} left", t.remaining) : "");
       info.appendChild(name); info.appendChild(meta);
-      if (t.description) { var d = document.createElement("div"); d.className = "type-meta muted"; d.textContent = t.description; info.appendChild(d); }
       var ctl = document.createElement("div"); ctl.className = "qty";
-      var minus = document.createElement("button"); minus.type = "button"; minus.textContent = "−"; minus.setAttribute("aria-label", T("Remove one {0}", t.name));
-      var out = document.createElement("output"); out.textContent = qty[t.id];
-      var plus = document.createElement("button"); plus.type = "button"; plus.textContent = "+"; plus.setAttribute("aria-label", T("Add one {0}", t.name));
+      var minus = document.createElement("button"); minus.type = "button"; minus.className = "minus"; minus.textContent = "−"; minus.setAttribute("aria-label", T("Remove one {0}", t.name));
+      var out = document.createElement("output"); out.setAttribute("aria-live", "polite");
+      var plus = document.createElement("button"); plus.type = "button"; plus.className = "plus"; plus.textContent = "+"; plus.setAttribute("aria-label", T("Add one {0}", t.name));
+      ctl.appendChild(minus); ctl.appendChild(out); ctl.appendChild(plus);
+      top.appendChild(info); top.appendChild(ctl); row.appendChild(top);
+      if (t.description) { var d = document.createElement("div"); d.className = "type-desc muted"; d.textContent = t.description; row.appendChild(d); }
+      var cap = document.createElement("div"); cap.className = "type-limit"; cap.hidden = true;
+      var capByOrder = limit === (t.maxPerOrder || 20);  // when stock is the limit, "{0} left" above already says so
+      cap.textContent = T("Up to {0} per order", t.maxPerOrder || 20);
+      row.appendChild(cap);
       function sync() {
         out.textContent = qty[t.id];
         minus.disabled = qty[t.id] === 0 || !!order;
-        plus.disabled = t.soldOut || !!order || (t.remaining != null && qty[t.id] >= t.remaining) || qty[t.id] >= (t.maxPerOrder || 20);
+        plus.disabled = t.soldOut || !!order || qty[t.id] >= limit;
+        cap.hidden = !capByOrder || qty[t.id] < limit;
       }
-      minus.onclick = function () { qty[t.id] = Math.max(0, qty[t.id] - 1); sync(); quote(); };
-      plus.onclick = function () { qty[t.id] += 1; sync(); quote(); };
+      syncers.push(sync);
+      minus.onclick = function () { qty[t.id] = Math.max(0, qty[t.id] - 1); changed(); };
+      plus.onclick = function () { if (qty[t.id] < limit) qty[t.id] += 1; changed(); };
       sync();
-      ctl.appendChild(minus); ctl.appendChild(out); ctl.appendChild(plus);
-      row.appendChild(info); row.appendChild(ctl); box.appendChild(row);
+      box.appendChild(row);
     });
+    changed();
+  }
+
+  // The button says what happens and what it costs, so there is no separate summary or total to read.
+  function label() {
+    var n = totalQty();
+    var main = "", sub = "";
+    if (quoted && quoted.payAtDoor) {
+      main = n === 1 ? T("Reserve 1 seat") : T("Reserve {0} seats", n);
+      sub = quoted.totalCents ? T("Pay {0} at the door", money(quoted.totalCents)) : T("Free");
+    } else if (quoted && quoted.totalCents === 0) {
+      main = n === 1 ? T("Get 1 ticket") : T("Get {0} tickets", n);
+      sub = T("Free");
+    } else {
+      var total = quoted ? quoted.totalCents : 0;
+      main = T("Pay {0}", money(total));
+      sub = n === 1 ? T("1 ticket") : T("{0} tickets", n);
+    }
+    if (busy) { main = selectionAtDoor() ? T("Reserving...") : T("Processing..."); }
+    $("submit").querySelector(".main").textContent = main;
+    $("submit").querySelector(".sub").textContent = sub;
+  }
+
+  function refresh() {
+    var n = totalQty();
+    show($("pick-hint"), n === 0);
+    show($("details"), n > 0);
+    show($("action"), n > 0);
+    $("submit").disabled = busy || !quoted;
+    show($("dev-note"), !!B.devPayments && !!quoted && !quoted.payAtDoor && quoted.totalCents > 0);
+    label();
+    reportHeight();
   }
 
   var quoteSeq = 0;
-  function quote() {
+  function changed() {
+    syncers.forEach(function (s) { s(); });
+    setError("");
+    quoted = null;
     var seq = ++quoteSeq;
-    if (!totalQty()) { show($("summary"), false); show($("details"), false); reportHeight(); return; }
+    refresh();
+    if (!totalQty()) return;
     postJSON(B.apiBase + "/api/checkout/" + ev.id + "/quote", { items: qty, fanToken: fanToken, lang: B.lang })
       .then(function (q) {
         if (seq !== quoteSeq) return;
-        var s = $("summary"); s.innerHTML = "";
-        function line(label, value, cls) {
-          var d = document.createElement("div"); if (cls) d.className = cls;
-          var a = document.createElement("span"); a.textContent = label;
-          var b = document.createElement("span"); b.textContent = value;
-          d.appendChild(a); d.appendChild(b); s.appendChild(d);
-        }
-        line(T("Subtotal"), money(q.subtotalCents));
-        if (q.discountCents) line(q.freeTickets ? T("Member benefit ({0} free)", q.freeTickets) : T("Member discount"), "−" + money(q.discountCents));
-        line(q.payAtDoor ? T("Pay at the door") : T("Total"), money(q.totalCents), "total");
-        $("continue").textContent = q.payAtDoor ? T("Reserve") : T("Continue");
-        show(s, true); show($("details"), true);
+        quoted = q;
         show($("member-note"), q.isMember);
-        setError($("details-error"), "");
-        reportHeight();
+        var disc = $("discount-note");
+        disc.textContent = q.discountCents ? (q.freeTickets ? T("Member benefit ({0} free)", q.freeTickets) : T("Member discount")) + ": −" + money(q.discountCents) : "";
+        show(disc, !!q.discountCents);
+        paymentElement(q);
+        refresh();
       })
-      .catch(function (err) { if (seq === quoteSeq) { show($("details"), true); setError($("details-error"), err.message); reportHeight(); } });
+      .catch(function (err) { if (seq === quoteSeq) { refresh(); setError(err.message); } });
+  }
+
+  // Card details live in the same card, under name and email, and the same button pays.
+  function paymentElement(q) {
+    var needed = !!B.stripeKey && !q.payAtDoor && q.totalCents > 0;
+    show($("payment-element"), needed);
+    if (!needed || !window.Stripe) return;
+    var opts = { mode: "payment", amount: q.totalCents, currency: ev.currency.toLowerCase() };
+    if (!elements) {
+      stripe = window.Stripe(B.stripeKey);
+      elements = stripe.elements(Object.assign({ locale: B.lang, appearance: { variables: { colorPrimary: "#3f7d3e", borderRadius: "12px" } } }, opts));
+      elements.create("payment").mount("#payment-element");
+    } else {
+      elements.update({ amount: q.totalCents });
+    }
   }
 
   window.addEventListener("message", function (e) {
@@ -170,42 +243,61 @@
     parentOrigin = e.origin;
     fanToken = typeof d.token === "string" ? d.token : "";
     attribution = d.attribution && typeof d.attribution === "object" ? d.attribution : {};
-    quote();
+    if (!order && totalQty()) changed();
   });
 
-  $("details").addEventListener("submit", function (e) {
+  function lockDetails() {
+    ["name", "email", "phone"].forEach(function (k) { form.elements[k].readOnly = true; });
+    syncers.forEach(function (s) { s(); });
+  }
+
+  function finish(chain) {
+    busy = true; setError(""); refresh();
+    chain.then(function (url) { if (url) success(url); })
+      .catch(function (err) { busy = false; refresh(); setError(err.message); });
+  }
+
+  form.addEventListener("input", function () { if (!busy && !$("error").hidden) setError(""); });
+
+  form.addEventListener("submit", function (e) {
     e.preventDefault();
-    var f = e.currentTarget;
-    var body = { lang: B.lang, client: { browserLanguage: navigator.language, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }, items: qty, fanToken: fanToken, attribution: attribution, name: f.name.value, email: f.email.value, phone: f.phone.value };
-    $("continue").disabled = true;
-    setError($("details-error"), "");
-    postJSON(B.apiBase + "/api/checkout/" + ev.id + "/start", body)
-      .then(function (res) {
-        order = res;
-        renderTypes();
-        Array.prototype.forEach.call(f.elements, function (el) { el.disabled = true; });
-        if (res.complete) return success(res.successUrl);
-        show($("payment"), true);
-        $("pay").textContent = T("Pay {0}", money(res.totalCents));
-        if (res.devPayment) { show($("dev-note"), true); reportHeight(); return; }
-        stripe = window.Stripe(B.stripeKey);
-        elements = stripe.elements({ clientSecret: res.clientSecret, locale: B.lang, appearance: { variables: { colorPrimary: "#3f7d3e", borderRadius: "12px" } } });
-        elements.create("payment").mount("#payment-element");
-        reportHeight();
-      })
-      .catch(function (err) { $("continue").disabled = false; setError($("details-error"), err.message); reportHeight(); });
-  });
+    if (busy || !quoted) return;
+    var name = form.elements.name, email = form.elements.email;
+    if (!name.value.trim() || email.value.indexOf("@") < 1) {
+      setError(T("Enter your name and email."));
+      (name.value.trim() ? email : name).focus();
+      return;
+    }
+    var online = !!B.stripeKey && !quoted.payAtDoor && quoted.totalCents > 0;
+    var quotedTotal = quoted.totalCents;
 
-  $("pay").addEventListener("click", function () {
-    var btn = $("pay"); btn.disabled = true; setError($("payment-error"), "");
-    var confirm = order.devPayment ? Promise.resolve({}) : stripe.confirmPayment({ elements: elements, redirect: "if_required", confirmParams: { return_url: order.successUrl } });
-    confirm
-      .then(function (r) {
+    // Stripe checks the card fields before every attempt, so a typo never creates an order.
+    var ready = online && elements ? elements.submit().then(function (r) { if (r.error) throw new Error(r.error.message); }) : Promise.resolve();
+
+    finish(ready.then(function () {
+      if (order) return order;
+      var body = { lang: B.lang, client: { browserLanguage: navigator.language, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }, items: qty, fanToken: fanToken, attribution: attribution, name: name.value, email: email.value, phone: form.elements.phone.value };
+      return postJSON(B.apiBase + "/api/checkout/" + ev.id + "/start", body).then(function (res) {
+        order = res;
+        lockDetails();
+        return res;
+      });
+    }).then(function (res) {
+      if (res.complete) return res.successUrl;
+      if (res.totalCents != null && res.totalCents !== quotedTotal) {
+        // Member pricing only applies to the member's own email, so the price can change here. Never charge a total
+        // the button did not show.
+        quoted = Object.assign({}, quoted, { totalCents: res.totalCents, discountCents: 0 });
+        show($("discount-note"), false); show($("member-note"), false);
+        if (elements) elements.update({ amount: res.totalCents });
+        throw new Error(T("The total is now {0}. Press the button again to pay it.", money(res.totalCents)));
+      }
+      var paid = res.devPayment ? Promise.resolve({}) : stripe.confirmPayment({ elements: elements, clientSecret: res.clientSecret, redirect: "if_required", confirmParams: { return_url: res.successUrl } });
+      return paid.then(function (r) {
         if (r.error) throw new Error(r.error.message);
-        return postJSON(B.apiBase + "/api/checkout/orders/" + order.orderId + "/confirm", { lang: B.lang });
-      })
-      .then(function (res) { success(res.successUrl); })
-      .catch(function (err) { btn.disabled = false; setError($("payment-error"), err.message); reportHeight(); });
+        return postJSON(B.apiBase + "/api/checkout/orders/" + res.orderId + "/confirm", { lang: B.lang });
+      }).then(function (c) { return c.successUrl; });
+    }));
   });
 
   renderTypes();

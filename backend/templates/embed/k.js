@@ -77,7 +77,7 @@
       iframe.src = A + "/embed/event/" + encodeURIComponent(id) + "?embedded=1&lang=" + encodeURIComponent(lang);
       iframe.title = el.getAttribute("aria-label") || "Ticket checkout";
       iframe.setAttribute("allow", "payment *");
-      iframe.style.cssText = "width:100%;border:0;display:block;min-height:420px;background:transparent";
+      iframe.style.cssText = "width:100%;border:0;display:block;min-height:200px;background:transparent";
       el.innerHTML = "";
       el.appendChild(iframe);
       window.addEventListener("message", function (e) {

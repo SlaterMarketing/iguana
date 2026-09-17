@@ -31,8 +31,11 @@ def tracker_js(request):
 
 # Strings the checkout script builds in the browser. The page gets them already translated.
 CHECKOUT_JS_STRINGS = ('Sold out', 'pay at the door', 'members only', '{0} left', 'Add one {0}', 'Remove one {0}',
-                       'Subtotal', 'Total', 'Pay at the door', 'Member benefit ({0} free)', 'Member discount',
-                       'Continue', 'Reserve', 'Pay {0}', 'Something went wrong.')
+                       'Up to {0} per order', 'Member benefit ({0} free)', 'Member discount',
+                       'Reserve 1 seat', 'Reserve {0} seats', 'Pay {0} at the door', 'Free', 'Get 1 ticket',
+                       'Get {0} tickets', 'Pay {0}', '1 ticket', '{0} tickets', 'Reserving...', 'Processing...',
+                       'Enter your name and email.', 'The total is now {0}. Press the button again to pay it.',
+                       'Something went wrong.')
 
 
 @xframe_options_exempt

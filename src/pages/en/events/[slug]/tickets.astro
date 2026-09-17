@@ -78,7 +78,7 @@ const socialImage = heroImage ? absoluteMediaUrl(heroImage, siteOrigin) : undefi
             ticketingBlocked ? (
               <p class="text-neutral-700">{t(locale, "events.ticketsUnavailable")}</p>
             ) : (
-              <EventCheckoutWidget eventId={event.id} locale={locale} />
+              <EventCheckoutWidget eventId={event.id} locale={locale} class="p-4 sm:p-6" />
             )
           }
         </article>

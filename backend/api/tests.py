@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import timedelta
 
 from django.core import mail
@@ -227,6 +228,15 @@ class CheckoutTests(ApiTestCase):
         self.assertEqual(order.tickets.count(), 2)
         self.assertIn('Your tickets', mail.outbox[-1].subject)
         self.assertEqual(self.client.get(f'/orders/{order.public_view_token}/').status_code, 200)
+
+    def test_checkout_page_has_one_button_and_no_separate_payment_step(self):
+        page = self.client.get(f'/embed/event/{self.event.id}?embedded=1&lang=en').content.decode()
+        self.assertEqual(page.count('<button'), 1)
+        self.assertEqual(len(re.findall(r'<form\b', page)), 1)
+        for gone in ('Your details', '>Continue<', 'id="payment"', 'id="pay"'):
+            self.assertNotIn(gone, page)
+        for label in ('Reserve {0} seats', 'Pay {0} at the door', 'Up to {0} per order'):
+            self.assertIn(label, page)
 
     def test_capacity_and_members_only_enforced(self):
         self.assertEqual(self.post(f'/api/checkout/{self.event.id}/quote', {'items': {self.ga.id: 4}}).status_code, 400)
@@ -465,9 +475,10 @@ class SpanishCustomerTests(ApiTestCase):
 
         page = self.client.get(f'/embed/event/{self.mic.id}?embedded=1&lang=es').content.decode()
         self.assertIn('<html lang="es">', page)
-        for text in ('Tus datos', 'Nombre completo', 'Continuar', 'Lugar reservado + 1 bebida gratis', 'Incluye una bebida gratis.'):
+        for text in ('Nombre completo', 'Reservar {0} lugares', 'Pagas {0} en la puerta', 'Lugar reservado + 1 bebida gratis',
+                     'Incluye una bebida gratis.'):
             self.assertIn(text, page)
-        self.assertNotIn('Your details', page)
+        self.assertNotIn('Full name', page)
 
         start = self.post(f'/api/checkout/{self.mic.id}/start', {'lang': 'es', 'items': {self.seat.id: 1},
                                                                   'name': 'Ana', 'email': 'ana@example.com'}).json()
