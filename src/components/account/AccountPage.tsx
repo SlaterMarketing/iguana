@@ -74,6 +74,14 @@ const copy = {
     saving: "Saving…",
     fromDate: "from",
     until: "until",
+    statuses: {
+      ACTIVE: "Active",
+      PENDING: "Pending",
+      CANCELED: "Canceled",
+      CANCELLED: "Canceled",
+      EXPIRED: "Expired",
+      PAST_DUE: "Past due",
+    } as Record<string, string>,
   },
   es: {
     nav: { membership: "Membresía", tickets: "Boletos", profile: "Perfil" },
@@ -123,6 +131,14 @@ const copy = {
     saving: "Guardando…",
     fromDate: "desde",
     until: "hasta",
+    statuses: {
+      ACTIVE: "Activa",
+      PENDING: "Pendiente",
+      CANCELED: "Cancelada",
+      CANCELLED: "Cancelada",
+      EXPIRED: "Vencida",
+      PAST_DUE: "Pago vencido",
+    } as Record<string, string>,
   },
 } as const;
 
@@ -194,7 +210,9 @@ function fanErrorMessage(err: unknown, fallback: string) {
   return err.message || fallback;
 }
 
-function formatStatus(status: string) {
+function formatStatus(status: string, locale: Locale) {
+  const translated = copy[locale].statuses[status.trim().toUpperCase()];
+  if (translated) return translated;
   const cleaned = status.replace(/_/g, " ").trim();
   if (!cleaned) return status;
   return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
@@ -380,7 +398,7 @@ function MembershipView({ locale, returnUrl }: { locale: Locale; returnUrl: stri
             <li key={m.id} className="account-plan">
               <p className="account-plan-name">{m.plan.name}</p>
               <p className="account-plan-meta">
-                {formatStatus(m.status)} · {t.fromDate} {formatDate(m.startsAt, locale)}
+                {formatStatus(m.status, locale)} · {t.fromDate} {formatDate(m.startsAt, locale)}
                 {m.endsAt ? ` · ${t.until} ${formatDate(m.endsAt, locale)}` : ""}
               </p>
             </li>

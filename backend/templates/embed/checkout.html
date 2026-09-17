@@ -1,5 +1,6 @@
 {% extends "embed/base.html" %}
-{% block title %}Tickets · {{ event.name }}{% endblock %}
+{% load showtime %}
+{% block title %}{% t lang "Tickets · {0}" event.name %}{% endblock %}
 {% block head %}
 <style>
   .types { display: grid; gap: 12px; }
@@ -20,31 +21,31 @@
 {% block content %}
 <div class="stack" id="checkout">
   {% if not embedded %}
-    <p class="eyebrow">Tickets</p>
+    <p class="eyebrow">{% t lang "Tickets" %}</p>
     <h1>{{ event.name }}</h1>
   {% endif %}
-  <noscript><p class="error">Checkout needs JavaScript enabled.</p></noscript>
-  <p id="member-note" class="ok" hidden>Member pricing applied.</p>
+  <noscript><p class="error">{% t lang "Checkout needs JavaScript enabled." %}</p></noscript>
+  <p id="member-note" class="ok" hidden>{% t lang "Member pricing applied." %}</p>
   <section class="card"><div class="types" id="types"></div></section>
   <section class="card summary" id="summary" hidden></section>
   <form class="card stack" id="details" hidden novalidate>
-    <h2>Your details</h2>
-    <label>Full name<input name="name" autocomplete="name" required></label>
+    <h2>{% t lang "Your details" %}</h2>
+    <label>{% t lang "Full name" %}<input name="name" autocomplete="name" required></label>
     <div class="grid2">
-      <label>Email<input name="email" type="email" autocomplete="email" required></label>
-      <label>Phone (optional)<input name="phone" type="tel" autocomplete="tel"></label>
+      <label>{% t lang "Email" %}<input name="email" type="email" autocomplete="email" required></label>
+      <label>{% t lang "Phone (optional)" %}<input name="phone" type="tel" autocomplete="tel"></label>
     </div>
     <p class="error" id="details-error" hidden></p>
-    <button class="btn" type="submit" id="continue">Continue</button>
+    <button class="btn" type="submit" id="continue">{% t lang "Continue" %}</button>
   </form>
   <section class="card stack" id="payment" hidden>
-    <h2>Payment</h2>
+    <h2>{% t lang "Payment" %}</h2>
     <div id="payment-element"></div>
-    <p class="dev" id="dev-note" hidden>Local development: Stripe keys are not configured, so this button simulates a successful payment.</p>
+    <p class="dev" id="dev-note" hidden>{% t lang "Local development: Stripe keys are not configured, so this button simulates a successful payment." %}</p>
     <p class="error" id="payment-error" hidden></p>
-    <button class="btn" type="button" id="pay">Pay</button>
+    <button class="btn" type="button" id="pay">{% t lang "Pay" %}</button>
   </section>
-  <p class="muted" id="unavailable" hidden>Tickets are not on sale for this show.</p>
+  <p class="muted" id="unavailable" hidden>{% t lang "Tickets are not on sale for this show." %}</p>
 </div>
 {{ bootstrap|json_script:"bootstrap" }}
 {% endblock %}
@@ -60,15 +61,20 @@
   var order = null;
   var stripe = null, elements = null;
   var $ = function (id) { return document.getElementById(id); };
+  // Translated on the server (CHECKOUT_JS_STRINGS); {0} slots are filled here.
+  function T(key) {
+    var args = Array.prototype.slice.call(arguments, 1);
+    return ((B.strings && B.strings[key]) || key).replace(/\{(\d+)\}/g, function (m, i) { return args[i] != null ? args[i] : m; });
+  }
 
   function money(cents) {
     try {
-      return new Intl.NumberFormat("en-US", { style: "currency", currency: ev.currency.toUpperCase() }).format(cents / 100);
+      return new Intl.NumberFormat(B.lang === "es" ? "es-MX" : "en-US", { style: "currency", currency: ev.currency.toUpperCase() }).format(cents / 100);
     } catch (e) { return (cents / 100).toFixed(2) + " " + ev.currency.toUpperCase(); }
   }
   function postJSON(url, body) {
     return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })
-      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || "Something went wrong."); return j; }); });
+      .then(function (r) { return r.json().then(function (j) { if (!r.ok) throw new Error(j.error || T("Something went wrong.")); return j; }); });
   }
   function show(el, on) { el.hidden = !on; }
   function setError(el, msg) { el.textContent = msg || ""; show(el, !!msg); }
@@ -110,15 +116,15 @@
       var name = document.createElement("div"); name.className = "type-name"; name.textContent = t.name;
       var meta = document.createElement("div"); meta.className = "type-meta muted";
       var price = t.yourPriceCents != null ? t.yourPriceCents : t.priceCents;
-      meta.textContent = t.soldOut ? "Sold out" : money(price) + (t.payAtDoor ? " · pay at the door" : "") +
-        (t.memberAccess === "MEMBERS_ONLY" ? " · members only" : "") +
-        (t.remaining != null && t.remaining <= 20 ? " · " + t.remaining + " left" : "");
+      meta.textContent = t.soldOut ? T("Sold out") : money(price) + (t.payAtDoor ? " · " + T("pay at the door") : "") +
+        (t.memberAccess === "MEMBERS_ONLY" ? " · " + T("members only") : "") +
+        (t.remaining != null && t.remaining <= 20 ? " · " + T("{0} left", t.remaining) : "");
       info.appendChild(name); info.appendChild(meta);
       if (t.description) { var d = document.createElement("div"); d.className = "type-meta muted"; d.textContent = t.description; info.appendChild(d); }
       var ctl = document.createElement("div"); ctl.className = "qty";
-      var minus = document.createElement("button"); minus.type = "button"; minus.textContent = "−"; minus.setAttribute("aria-label", "Remove one " + t.name);
+      var minus = document.createElement("button"); minus.type = "button"; minus.textContent = "−"; minus.setAttribute("aria-label", T("Remove one {0}", t.name));
       var out = document.createElement("output"); out.textContent = qty[t.id];
-      var plus = document.createElement("button"); plus.type = "button"; plus.textContent = "+"; plus.setAttribute("aria-label", "Add one " + t.name);
+      var plus = document.createElement("button"); plus.type = "button"; plus.textContent = "+"; plus.setAttribute("aria-label", T("Add one {0}", t.name));
       function sync() {
         out.textContent = qty[t.id];
         minus.disabled = qty[t.id] === 0 || !!order;
@@ -136,7 +142,7 @@
   function quote() {
     var seq = ++quoteSeq;
     if (!totalQty()) { show($("summary"), false); show($("details"), false); reportHeight(); return; }
-    postJSON(B.apiBase + "/api/checkout/" + ev.id + "/quote", { items: qty, fanToken: fanToken })
+    postJSON(B.apiBase + "/api/checkout/" + ev.id + "/quote", { items: qty, fanToken: fanToken, lang: B.lang })
       .then(function (q) {
         if (seq !== quoteSeq) return;
         var s = $("summary"); s.innerHTML = "";
@@ -146,10 +152,10 @@
           var b = document.createElement("span"); b.textContent = value;
           d.appendChild(a); d.appendChild(b); s.appendChild(d);
         }
-        line("Subtotal", money(q.subtotalCents));
-        if (q.discountCents) line(q.freeTickets ? "Member benefit (" + q.freeTickets + " free)" : "Member discount", "−" + money(q.discountCents));
-        line(q.payAtDoor ? "Pay at the door" : "Total", money(q.totalCents), "total");
-        $("continue").textContent = q.payAtDoor ? "Reserve" : "Continue";
+        line(T("Subtotal"), money(q.subtotalCents));
+        if (q.discountCents) line(q.freeTickets ? T("Member benefit ({0} free)", q.freeTickets) : T("Member discount"), "−" + money(q.discountCents));
+        line(q.payAtDoor ? T("Pay at the door") : T("Total"), money(q.totalCents), "total");
+        $("continue").textContent = q.payAtDoor ? T("Reserve") : T("Continue");
         show(s, true); show($("details"), true);
         show($("member-note"), q.isMember);
         setError($("details-error"), "");
@@ -170,7 +176,7 @@
   $("details").addEventListener("submit", function (e) {
     e.preventDefault();
     var f = e.currentTarget;
-    var body = { items: qty, fanToken: fanToken, attribution: attribution, name: f.name.value, email: f.email.value, phone: f.phone.value };
+    var body = { lang: B.lang, items: qty, fanToken: fanToken, attribution: attribution, name: f.name.value, email: f.email.value, phone: f.phone.value };
     $("continue").disabled = true;
     setError($("details-error"), "");
     postJSON(B.apiBase + "/api/checkout/" + ev.id + "/start", body)
@@ -180,10 +186,10 @@
         Array.prototype.forEach.call(f.elements, function (el) { el.disabled = true; });
         if (res.complete) return success(res.successUrl);
         show($("payment"), true);
-        $("pay").textContent = "Pay " + money(res.totalCents);
+        $("pay").textContent = T("Pay {0}", money(res.totalCents));
         if (res.devPayment) { show($("dev-note"), true); reportHeight(); return; }
         stripe = window.Stripe(B.stripeKey);
-        elements = stripe.elements({ clientSecret: res.clientSecret, appearance: { variables: { colorPrimary: "#3f7d3e", borderRadius: "12px" } } });
+        elements = stripe.elements({ clientSecret: res.clientSecret, locale: B.lang, appearance: { variables: { colorPrimary: "#3f7d3e", borderRadius: "12px" } } });
         elements.create("payment").mount("#payment-element");
         reportHeight();
       })
@@ -196,7 +202,7 @@
     confirm
       .then(function (r) {
         if (r.error) throw new Error(r.error.message);
-        return postJSON(B.apiBase + "/api/checkout/orders/" + order.orderId + "/confirm", {});
+        return postJSON(B.apiBase + "/api/checkout/orders/" + order.orderId + "/confirm", { lang: B.lang });
       })
       .then(function (res) { success(res.successUrl); })
       .catch(function (err) { btn.disabled = false; setError($("payment-error"), err.message); reportHeight(); });

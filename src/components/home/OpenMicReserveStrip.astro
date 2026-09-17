@@ -1,0 +1,54 @@
+---
+import type { KintanaPublicEvent } from "@kintana/sdk";
+
+import type { Locale } from "../../i18n/locale";
+import { localizePath } from "../../i18n/routes";
+import { t } from "../../i18n/ui";
+import { formatSeatPrice, nextBookableOpenMics } from "../../lib/open-mics";
+
+interface Props {
+  locale: Locale;
+  /** Upcoming events the home page already loaded. */
+  events: KintanaPublicEvent[];
+}
+
+const { locale, events } = Astro.props;
+const next = nextBookableOpenMics(events);
+const nights = [
+  { label: t(locale, "openMic.strip.reserveTuesday"), event: next.es },
+  { label: t(locale, "openMic.strip.reserveWednesday"), event: next.en },
+].flatMap((night) => (night.event ? [{ label: night.label, event: night.event }] : []));
+---
+
+<section id="open-mic-reserve" class="scroll-mt-24 bg-brand text-white" aria-label={t(locale, "openMic.strip.kicker")}>
+  <div class="mx-auto flex max-w-[118rem] flex-col gap-6 px-6 py-8 lg:flex-row lg:items-center lg:justify-between">
+    <div class="space-y-2">
+      <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white/80">{t(locale, "openMic.strip.kicker")}</p>
+      <p class="font-display text-3xl leading-none sm:text-4xl" style="font-family: var(--font-display);">
+        {t(locale, "openMic.strip.title")}
+      </p>
+      <p class="max-w-2xl text-sm leading-relaxed text-white/90">{t(locale, "openMic.strip.body")}</p>
+    </div>
+    <div class="flex flex-wrap gap-3">
+      {
+        nights.length ? (
+          nights.map((night) => (
+            <a
+              class="btn-pill inline-flex items-center rounded-full bg-white px-6 py-3 text-[0.68rem] font-semibold uppercase tracking-[0.3em] text-neutral-950"
+              href={localizePath(locale, "eventDetail", { slug: night.event.slug })}
+            >
+              {night.label} · {formatSeatPrice(night.event, locale)}
+            </a>
+          ))
+        ) : (
+          <a
+            class="btn-pill inline-flex items-center rounded-full bg-white px-6 py-3 text-[0.68rem] font-semibold uppercase tracking-[0.3em] text-neutral-950"
+            href={localizePath(locale, "events")}
+          >
+            {t(locale, "openMic.strip.seeDates")}
+          </a>
+        )
+      }
+    </div>
+  </div>
+</section>

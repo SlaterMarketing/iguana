@@ -1,4 +1,7 @@
 ---
+import type { Locale } from "../i18n/locale";
+import { t } from "../i18n/ui";
+
 interface Choice {
   slug: string;
   label: string;
@@ -16,6 +19,7 @@ interface Props {
   /** Base path for events calendar (e.g. `/en/events/`). */
   eventsBaseHref?: string;
   variant?: "dark" | "light";
+  locale?: Locale;
 }
 
 const {
@@ -26,6 +30,7 @@ const {
   locationsBaseHref = "/en/locations/",
   eventsBaseHref = "/en/events/",
   variant = "dark",
+  locale = "en",
 } = Astro.props;
 
 const selected = choices.find((entry) => entry.slug === value) ?? choices[0];
@@ -47,7 +52,7 @@ const isLight = variant === "light";
     aria-controls={listId}
     data-city-picker-trigger
   >
-    <span class="truncate font-medium tracking-wide" data-city-picker-label>{selected?.label ?? "Whole coastline"}</span>
+    <span class="truncate font-medium tracking-wide" data-city-picker-label>{selected?.label ?? t(locale, "ui.cityPicker.wholeCoastline")}</span>
     <svg
       class:list={[
         "city-picker-chevron size-4 shrink-0 transition-transform",

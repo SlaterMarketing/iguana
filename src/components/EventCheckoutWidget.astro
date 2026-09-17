@@ -23,6 +23,7 @@ const { eventId, locale = "en", blocked = false, class: className } = Astro.prop
         className,
       ]}
       data-kintana-widget={`event:${eventId}`}
+      data-kintana-locale={locale}
       aria-label={t(locale, "aria.ticketCheckout")}
     >
       <p class="px-8 py-10 text-center text-sm text-neutral-500">{t(locale, "tickets.loading")}</p>

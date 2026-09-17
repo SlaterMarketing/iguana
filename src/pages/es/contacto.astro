@@ -41,7 +41,7 @@ const subjectSummary: Record<string, string> = {
       </p>
       <details class="mt-8 rounded-3xl border border-neutral-300 bg-neutral-50 px-6 py-4 text-neutral-900">
         <summary class="cursor-pointer text-xs font-semibold uppercase tracking-[0.4em]">Prellenar tipo de consulta</summary>
-        <nav class="mt-5 flex flex-wrap gap-x-10 gap-y-5 text-[0.7rem] uppercase tracking-[0.4em]" aria-label="Common enquiry intents">
+        <nav class="mt-5 flex flex-wrap gap-x-10 gap-y-5 text-[0.7rem] uppercase tracking-[0.4em]" aria-label="Tipos de consulta frecuentes">
           {
             Object.entries(subjectSummary).map(([slug, summary]) => (
               <a class="underline-offset-[0.5rem] hover:underline hover:text-brand" href={`${localizePath(locale, "contact")}?subject=${encodeURIComponent(slug)}`}>
@@ -58,7 +58,7 @@ const subjectSummary: Record<string, string> = {
         El formulario de consulta se conecta automáticamente una vez que lleguen las credenciales de ticketing.
       </p>
     ) : (
-      <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} endpointSlug={endpointSlug} prefills={prefills} />
+      <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} endpointSlug={endpointSlug} prefills={prefills} locale={locale} />
     )}
   </section>
 </Base>

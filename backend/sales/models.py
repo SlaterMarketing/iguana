@@ -21,6 +21,8 @@ class Order(models.Model):
     # Reservations of pay-at-the-door ticket types: nothing is charged online and the door collects this amount,
     # so revenue actually received online is total_amount_cents - pay_at_door_cents.
     pay_at_door_cents = models.PositiveIntegerField(default=0)
+    # The language the customer booked in; the order page and confirmation email follow it.
+    locale = models.CharField(max_length=5, default='en')
     contact = models.ForeignKey(Contact, null=True, blank=True, on_delete=models.SET_NULL, related_name='orders')
     customer_name = models.CharField(max_length=200, blank=True)
     customer_email = models.EmailField()

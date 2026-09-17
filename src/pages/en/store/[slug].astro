@@ -22,7 +22,7 @@ if (hasCredentials && slug) {
 }
 
 const heroImage = product?.images[0];
-const price = product ? storePriceLabel(product.priceFromCents, product.compareAtCents, product.currency) : null;
+const price = product ? storePriceLabel(product.priceFromCents, product.compareAtCents, product.currency, locale) : null;
 ---
 
 <Base
@@ -68,7 +68,7 @@ const price = product ? storePriceLabel(product.priceFromCents, product.compareA
                       <li class="flex flex-wrap items-center justify-between gap-4 text-sm">
                         <span class="font-medium text-neutral-950">{variant.name}</span>
                         <span class="text-neutral-600">
-                          {formatStorePrice(variant.priceCents, product.currency)}
+                          {formatStorePrice(variant.priceCents, product.currency, locale)}
                           {variant.inStock ? "" : ` · ${t(locale, "store.soldOut")}`}
                         </span>
                       </li>

@@ -29,26 +29,22 @@ from sales.services import stripe_enabled
 CANCUN = ZoneInfo('America/Cancun')
 OPEN_MIC_TAG = 'open-mic'
 
+# One reservation type, in both languages, for both nights: an English speaker can book the Spanish night too.
+RESERVATION = {
+    'name': 'Reserved seat + 1 free drink',
+    'name_es': 'Lugar reservado + 1 bebida gratis',
+    'description': ('Entry is always free, but without a reservation we may have to turn you away when it is full. '
+                    'A reservation guarantees your seat and includes a free drink. Arrive when doors open.'),
+    'description_es': ('La entrada siempre es gratis, pero sin reservación podemos negarte el paso si se llena. '
+                       'Tu reservación te garantiza un lugar e incluye una bebida gratis. '
+                       'Llega a la hora de apertura de puertas.'),
+    'door_note': ' Pay at the door.',
+    'door_note_es': ' Pagas en la puerta.',
+}
+
 SERIES = {
-    'Noche de Open Mic - Espanol!': {
-        'language': 'es',
-        'currency': 'mxn',
-        'price_cents': 5000,
-        'name': 'Lugar reservado + 1 bebida gratis',
-        'description': ('La entrada siempre es gratis, pero sin reservación podemos negarte el paso si se llena. '
-                        'Tu reservación te garantiza un lugar e incluye una bebida gratis. '
-                        'Llega a la hora de apertura de puertas.'),
-        'door_note': ' Pagas en la puerta.',
-    },
-    'Open Mic Night - English!': {
-        'language': 'en',
-        'currency': 'usd',
-        'price_cents': 500,
-        'name': 'Reserved seat + 1 free drink',
-        'description': ('Entry is always free, but without a reservation we may have to turn you away when it is full. '
-                        'A reservation guarantees your seat and includes a free drink. Arrive when doors open.'),
-        'door_note': ' Pay at the door.',
-    },
+    'Noche de Open Mic - Espanol!': {'language': 'es', 'currency': 'mxn', 'price_cents': 5000},
+    'Open Mic Night - English!': {'language': 'en', 'currency': 'usd', 'price_cents': 500},
 }
 
 
@@ -105,14 +101,19 @@ class Command(BaseCommand):
             event.doors_open = opts['doors']
         event.save()
 
-        reservation = event.ticket_types.filter(name=series['name']).first() or TicketType(event=event)
+        # Before names were bilingual the Spanish night's type was named in Spanish; match either so it is updated.
+        reservation = (event.ticket_types.filter(name__in=[RESERVATION['name'], RESERVATION['name_es']]).first()
+                       or TicketType(event=event))
         booked = sold_quantity(reservation) if reservation.pk else 0
-        reservation.name = series['name']
-        reservation.description = series['description'] + (series['door_note'] if opts['pay_at_door'] else '')
+        door = opts['pay_at_door']
+        reservation.name = RESERVATION['name']
+        reservation.name_es = RESERVATION['name_es']
+        reservation.description = RESERVATION['description'] + (RESERVATION['door_note'] if door else '')
+        reservation.description_es = RESERVATION['description_es'] + (RESERVATION['door_note_es'] if door else '')
         reservation.price_cents = series['price_cents']
         reservation.capacity = max(opts['capacity'], booked)
         reservation.max_per_order = opts['max_per_order']
-        reservation.pay_at_door = opts['pay_at_door']
+        reservation.pay_at_door = door
         reservation.active = True
         reservation.save()
 

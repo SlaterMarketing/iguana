@@ -131,6 +131,8 @@ const esPath =
           aria-expanded="false"
           aria-controls="site-mobile-menu"
           data-mobile-menu-toggle=""
+          data-label-open={t(locale, "nav.openMenu")}
+          data-label-close={t(locale, "nav.closeMenu")}
         >
           <span class="sr-only">{t(locale, "nav.openMenu")}</span>
           <svg class="mobile-menu-icon-open size-5" viewBox="0 0 24 24" fill="none" aria-hidden="true">
@@ -287,7 +289,7 @@ const esPath =
       panel.toggleAttribute("data-open", open);
       panel.setAttribute("aria-hidden", open ? "false" : "true");
       toggle.setAttribute("aria-expanded", open ? "true" : "false");
-      toggle.querySelector(".sr-only").textContent = open ? "Close menu" : "Open menu";
+      toggle.querySelector(".sr-only").textContent = open ? toggle.dataset.labelClose : toggle.dataset.labelOpen;
 
       if (open) {
         panel.removeAttribute("inert");

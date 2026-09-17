@@ -1,7 +1,39 @@
+import json
+
 from django.conf import settings
 from django.http import HttpResponse
 
-CORS_HEADERS = 'Authorization, X-Customer-Authorization, X-Kintana-Channel, Content-Type, Accept'
+from sales.i18n import normalize, tr
+
+CORS_HEADERS = 'Authorization, X-Customer-Authorization, X-Kintana-Channel, X-Iguana-Locale, Content-Type, Accept'
+
+
+class TranslateErrorsMiddleware:
+    """API errors are written in English, and the site's account and membership screens show them as they arrive.
+
+    The site sends the page language as `X-Iguana-Locale`, so a JSON `{"error": ...}` answer is translated here, in
+    one place, instead of in every view. Unknown messages pass through unchanged.
+    """
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        response = self.get_response(request)
+        lang = normalize(request.headers.get('X-Iguana-Locale'))
+        if lang == 'en' or response.status_code < 400 or not response.get('Content-Type', '').startswith('application/json'):
+            return response
+        try:
+            data = json.loads(response.content)
+        except ValueError:
+            return response
+        if isinstance(data, dict) and isinstance(data.get('error'), str):
+            translated = tr(lang, data['error'])
+            if translated != data['error']:
+                data['error'] = translated
+                response.content = json.dumps(data)
+                response['Content-Length'] = str(len(response.content))
+        return response
 
 
 class CorsMiddleware:

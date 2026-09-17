@@ -4,16 +4,19 @@ import React from "react";
 import type { KintanaFormField } from "@kintana/sdk";
 import { KintanaProvider, useKintanaSubmit } from "@kintana/sdk/react";
 
+import { t, type Locale } from "../i18n/ui";
 import { EmbedFormField } from "./form/EmbedFormField";
 
-const CONTACT_FORM_FIELDS: KintanaFormField[] = [
-  { id: "firstName", type: "text", label: "First name", required: true },
-  { id: "lastName", type: "text", label: "Last name", required: true },
-  { id: "email", type: "email", label: "Email", required: true },
-  { id: "phone", type: "phone", label: "Phone", required: false },
-  { id: "subject", type: "text", label: "Subject", required: false },
-  { id: "message", type: "textarea", label: "Message", required: true },
-];
+function contactFormFields(locale: Locale): KintanaFormField[] {
+  return [
+    { id: "firstName", type: "text", label: t(locale, "ui.contactForm.firstName"), required: true },
+    { id: "lastName", type: "text", label: t(locale, "ui.contactForm.lastName"), required: true },
+    { id: "email", type: "email", label: t(locale, "ui.contactForm.email"), required: true },
+    { id: "phone", type: "phone", label: t(locale, "ui.contactForm.phone"), required: false },
+    { id: "subject", type: "text", label: t(locale, "ui.contactForm.subject"), required: false },
+    { id: "message", type: "textarea", label: t(locale, "ui.contactForm.message"), required: true },
+  ];
+}
 
 function collectFormValues(form: HTMLFormElement, fields: KintanaFormField[]): Record<string, string> {
   const fd = new FormData(form);
@@ -60,19 +63,22 @@ function StyledFormInner({
   endpointSlug,
   prefills,
   hideHeading = false,
-  title = "Get in touch",
+  title,
+  locale,
 }: {
   endpointSlug: string;
   prefills: Record<string, string>;
   hideHeading?: boolean;
   title?: string;
+  locale: Locale;
 }) {
   const { submit, submitting, message, error } = useKintanaSubmit(endpointSlug);
+  const fieldsForLocale = React.useMemo(() => contactFormFields(locale), [locale]);
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = e.currentTarget;
-    const values = collectFormValues(form, CONTACT_FORM_FIELDS);
+    const values = collectFormValues(form, fieldsForLocale);
     const email = values.email?.trim();
     if (!email) return;
 
@@ -85,7 +91,7 @@ function StyledFormInner({
     });
 
     form.reset();
-    applyPrefills(form, CONTACT_FORM_FIELDS, prefills);
+    applyPrefills(form, fieldsForLocale, prefills);
   }
 
   const defaults = prefills ?? {};
@@ -97,12 +103,12 @@ function StyledFormInner({
           className="font-display text-2xl tracking-tight text-neutral-950"
           style={{ fontFamily: "var(--font-display)" }}
         >
-          {title}
+          {title ?? t(locale, "ui.contactForm.title")}
         </h2>
       )}
 
       <form className={hideHeading ? "grid gap-5" : "mt-8 grid gap-5"} onSubmit={(e) => void handleSubmit(e)}>
-        {CONTACT_FORM_FIELDS.map((field) => (
+        {fieldsForLocale.map((field) => (
           <div key={field.id} className="grid gap-2 text-sm font-medium text-neutral-900">
             {field.type === "boolean" ? (
               <span>
@@ -115,7 +121,7 @@ function StyledFormInner({
                 {field.required ? " *" : null}
               </label>
             )}
-            <EmbedFormField field={field} defaults={defaults} disabled={submitting} />
+            <EmbedFormField field={field} defaults={defaults} disabled={submitting} locale={locale} />
           </div>
         ))}
         <button
@@ -123,11 +129,13 @@ function StyledFormInner({
           type="submit"
           className="rounded-full bg-neutral-950 px-12 py-[0.9rem] text-xs font-semibold uppercase tracking-[0.35em] text-white shadow-lg shadow-neutral-900/35 transition hover:opacity-[0.95] disabled:bg-neutral-500"
         >
-          {submitting ? "Sending…" : "Send message"}
+          {submitting ? t(locale, "ui.contactForm.sending") : t(locale, "ui.contactForm.sendMessage")}
         </button>
       </form>
-      {error ? <p className="mt-6 text-red-700">{error}</p> : null}
-      {message ? <p className="mt-6 text-neutral-700">{message}</p> : null}
+      {/* The SDK returns the endpoint's stored success message and its own error text, both English, so show the
+          site's translated copy instead. */}
+      {error ? <p className="mt-6 text-red-700">{t(locale, "ui.contactForm.failed")}</p> : null}
+      {message ? <p className="mt-6 text-neutral-700">{t(locale, "ui.contactForm.sent")}</p> : null}
     </div>
   );
 }
@@ -139,6 +147,7 @@ export function ContactFormIsland({
   prefills,
   hideHeading = false,
   title,
+  locale = "en",
 }: {
   apiKey: string;
   baseUrl: string;
@@ -146,6 +155,7 @@ export function ContactFormIsland({
   prefills?: Record<string, string>;
   hideHeading?: boolean;
   title?: string;
+  locale?: Locale;
 }) {
   const merged = React.useMemo(() => prefills ?? {}, [prefills]);
 
@@ -156,6 +166,7 @@ export function ContactFormIsland({
         prefills={merged}
         hideHeading={hideHeading}
         title={title}
+        locale={locale}
       />
     </KintanaProvider>
   );

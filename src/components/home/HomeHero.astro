@@ -5,6 +5,7 @@ import { heroCityChoices, site } from "../../content/site";
 import { mergeBrand } from "../../lib/merge-brand";
 import type { Locale } from "../../i18n/locale";
 import { localizePath } from "../../i18n/routes";
+import { t } from "../../i18n/ui";
 
 interface PickerChoice {
   slug: string;
@@ -30,15 +31,19 @@ interface Props {
   spotlightLabel?: string;
   /** Region label when rotating cities (e.g. "the Riviera Maya" / "la Riviera Maya"). */
   rotatorFallback?: string;
+  /** Optional pill link above the headline, e.g. the weekly open mic reservation. */
+  announcement?: { label: string; href: string };
   locale?: Locale;
 }
+
+const locale: Locale = Astro.props.locale ?? "en";
 
 const {
   activeCitySlug = "",
   cityLabel,
-  eyebrow = "Live English comedy nights",
-  headlineLine1 = "International stand-up",
-  headlineLine2Prefix = "comedy in ",
+  eyebrow = t(locale, "home.hero.eyebrow"),
+  headlineLine1 = t(locale, "home.hero.headlineLine1"),
+  headlineLine2Prefix = t(locale, "home.hero.headlineLine2Prefix"),
   headlineLine2Static,
   heroVideoUrl: heroVideoUrlProp,
   heroPosterUrl: heroPosterUrlProp,
@@ -47,13 +52,11 @@ const {
   pickerChoices,
   rotatorCities = heroCityChoices.filter((entry) => entry.slug !== "").map((entry) => entry.label),
   pickerNavigateTo = "home",
-  ctaLabel = "Buy ticket",
-  spotlightLabel = "Spotlight city",
-  rotatorFallback = "the Riviera Maya",
-  locale: localeProp,
+  ctaLabel = t(locale, "locations.cta.buyTicket"),
+  spotlightLabel = t(locale, "home.hero.spotlightLabel"),
+  rotatorFallback = t(locale, "home.heroFallbackRegion"),
+  announcement,
 } = Astro.props;
-
-const locale = localeProp ?? "en";
 const cityHomeHref = localizePath(locale, "home");
 const cityLocationsBaseHref = localizePath(locale, "locations");
 
@@ -101,6 +104,17 @@ const useImageHero = Boolean(heroImageUrl?.trim());
   <div class="relative z-10 mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col px-6 pb-10 pt-28 text-white sm:pb-12 lg:pt-32">
     <div class="flex flex-1 flex-col justify-center">
       <div class="text-center -translate-y-[50px]">
+        {
+          announcement && (
+            <a
+              href={announcement.href}
+              class="mb-8 inline-flex items-center gap-2 rounded-full bg-white/15 px-5 py-2 text-[0.7rem] font-semibold uppercase tracking-[0.2em] text-white backdrop-blur hover:bg-white/25"
+            >
+              {announcement.label}
+              <span aria-hidden="true">→</span>
+            </a>
+          )
+        }
         <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white/75">{eyebrow}</p>
         <h1
           class="mt-10 font-display font-semibold leading-[0.92] tracking-wide text-[clamp(3.1rem,7.5vw,6.5rem)]"
@@ -130,6 +144,7 @@ const useImageHero = Boolean(heroImageUrl?.trim());
           navigateTo={pickerNavigateTo}
           homeHref={cityHomeHref}
           locationsBaseHref={cityLocationsBaseHref}
+          locale={locale}
         />
       </div>
 

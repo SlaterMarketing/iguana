@@ -1,6 +1,8 @@
 import type { KintanaFormField } from "@kintana/sdk";
 import { PhoneInput } from "@kintana/sdk/react";
 
+import { t, type Locale } from "../../i18n/ui";
+
 const inputClass =
   "rounded-full border border-neutral-400/55 bg-neutral-50 px-4 py-3 text-base text-neutral-900 shadow-inner outline-none transition focus:border-brand";
 const textareaClass =
@@ -16,10 +18,12 @@ export function EmbedFormField({
   field,
   defaults,
   disabled,
+  locale = "en",
 }: {
   field: KintanaFormField;
   defaults: Record<string, string>;
   disabled?: boolean;
+  locale?: Locale;
 }) {
   const def = defaults[field.id];
   const help = field.helpText ? <p className="text-xs font-normal text-neutral-500">{field.helpText}</p> : null;
@@ -103,7 +107,7 @@ export function EmbedFormField({
               </option>
             ))}
           </select>
-          <p className="text-xs font-normal text-neutral-500">Hold Ctrl/Cmd to select multiple.</p>
+          <p className="text-xs font-normal text-neutral-500">{t(locale, "ui.form.selectMultipleHint")}</p>
           {help}
         </>
       );
@@ -226,13 +230,13 @@ export function EmbedFormField({
   }
 }
 
-export function validateFileField(field: KintanaFormField, file: File): string | null {
+export function validateFileField(field: KintanaFormField, file: File, locale: Locale = "en"): string | null {
   const max = field.options?.maxBytes;
   if (typeof max === "number" && file.size > max) {
-    return `File is too large (max ${Math.round(max / 1024)} KB).`;
+    return t(locale, "ui.form.fileTooLarge", { max: String(Math.round(max / 1024)) });
   }
   const mime = field.options?.acceptMimeTypes;
-  if (mime?.length && file.type && !mimeMatchesList(mime, file.type)) return "This file type is not allowed.";
+  if (mime?.length && file.type && !mimeMatchesList(mime, file.type)) return t(locale, "ui.form.fileTypeNotAllowed");
   return null;
 }
 

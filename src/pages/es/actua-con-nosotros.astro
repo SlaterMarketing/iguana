@@ -101,7 +101,7 @@ const prefills = { subject: "perform" };
   </section>
 
   <section class="mx-auto max-w-[118rem] border-t border-black/10 px-6 py-20 sm:py-28">
-    <PerformFaq faq={performFaq} />
+    <PerformFaq faq={performFaq} locale={locale} />
   </section>
 
   <section id="apply" class="relative isolate scroll-mt-24 overflow-hidden">
@@ -129,7 +129,7 @@ const prefills = { subject: "perform" };
                 {t(locale, "perform.formUnavailable").replace("{email}", site.email)}
               </p>
             ) : (
-              <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} endpointSlug={endpointSlug} prefills={prefills} hideHeading />
+              <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} endpointSlug={endpointSlug} prefills={prefills} locale={locale} hideHeading />
             )
           }
         </div>

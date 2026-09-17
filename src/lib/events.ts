@@ -125,6 +125,7 @@ export function formatEventTime(timeInput: string | null | undefined, locale: Lo
     const hours24 = Number(clock[1]);
     const minutes = Number(clock[2]);
     if (hours24 > 23 || minutes > 59) return raw;
+    if (locale === "es") return timeFormatter.format(new Date(1970, 0, 1, hours24, minutes));
     const period = hours24 >= 12 ? "PM" : "AM";
     const hours12 = hours24 % 12 || 12;
     return `${hours12}:${String(minutes).padStart(2, "0")} ${period}`;

@@ -111,6 +111,27 @@ pointing at Cloudflare IPs caused the old Error 1000); `iguanacomedy.mx` 301s to
   anything else is rejected at RCPT. 38.86.78.0/24 is on the Spamhaus PBL, so Postfix prefers IPv6 (Gmail
   rejects the v4 address).
 
+### Everything is bilingual, always
+
+The owner's rule: every string a visitor or customer sees exists in English and Spanish. Three guards enforce it,
+and a new string should go through one of them rather than be written inline:
+
+- **Site:** `t(locale, key)` with keys in both `ui.en` and `ui.es` (`src/i18n/ui.ts`), or a component-local
+  `{ en, es }[locale]` dictionary. `t()` silently falls back to English for a missing Spanish key, so
+  `scripts/check-i18n.mjs` runs before every `build`/`build:node` and fails on a missing key or mismatched `{slot}`.
+  English prop defaults on shared components must be locale-aware, not English literals.
+- **Backend (checkout iframe, order page, confirmation and sign-in emails, check-in, API errors):** English source
+  strings go through `tr(lang, text, *params)` / `{% t lang "..." %}` / `CheckoutError('...', *params)` with Spanish
+  in `backend/sales/i18n.py` (positional `{0}` slots). `api.tests.TranslationTests` scans the code for every such
+  string and fails when one has no Spanish or a slot differs; it also asserts it found over 100 strings, so a broken
+  scan cannot pass by matching nothing.
+- **How the language travels:** the site's checkout widget sets `data-kintana-locale`, `k.js` appends `&lang=` to the
+  iframe, checkout posts `lang`, and `Order.locale` stores it for the order page and email. Browser API calls add
+  `X-Iguana-Locale` (`src/lib/kintana-auth.ts`), and `api.middleware.TranslateErrorsMiddleware` translates any JSON
+  `{"error": ...}`. The sign-in email takes its language from the `/en/` or `/es/` redirect URL. Door check-in
+  follows the staff phone's `Accept-Language`. Ticket types carry `name_es` / `description_es`, snapshotted into the
+  order in the customer's language.
+
 ### Open mic reservations
 
 Open mics are always free to walk into, but walk-ins can be turned away when full. The room holds 80: 60 seats are

@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from catalog.models import Event
 from crm.models import Contact
+from sales.i18n import normalize, tr
 from sales.models import CreditTransfer, LoginToken, Membership, MembershipPlan, Order, RedeemCode
 from sales.services import current_membership, member_unit_price, stripe_client, stripe_enabled, upsert_contact
 
@@ -48,11 +49,14 @@ def auth_request(request):
         return error('Too many sign-in emails. Try again in a few minutes.', 429)
     login = LoginToken.objects.create(email=email, code=f'{secrets.randbelow(10**6):06d}')
     link = f'{redirect_url}{"&" if "?" in redirect_url else "?"}{urlencode({"token": login.token})}'
-    body = (
-        f'Sign in to Iguana Comedy:\n\n{link}\n\nOr enter this code: {login.code}\n\n'
-        'The link and code expire in 30 minutes. If you did not ask for this, ignore this email.\n\nIguana Comedy\niguanacomedy.com'
-    )
-    send_mail(f'Your Iguana Comedy sign-in code: {login.code}', body, settings.DEFAULT_FROM_EMAIL, [email])
+    # The link goes back to /en/... or /es/..., which is the language the person is using the site in.
+    lang = normalize(urlparse(redirect_url).path.strip('/').split('/')[0])
+    body = '\n\n'.join([
+        tr(lang, 'Sign in to Iguana Comedy:'), link, tr(lang, 'Or enter this code: {0}', login.code),
+        tr(lang, 'The link and code expire in 30 minutes. If you did not ask for this, ignore this email.'),
+        'Iguana Comedy\niguanacomedy.com',
+    ])
+    send_mail(tr(lang, 'Your Iguana Comedy sign-in code: {0}', login.code), body, settings.DEFAULT_FROM_EMAIL, [email])
     return JsonResponse({'success': True})
 
 
@@ -235,7 +239,7 @@ def ticket_detail(request, order_id):
     return JsonResponse({'ticket': order_ticket_json(order)})
 
 
-def fan_event_json(event, contact):
+def fan_event_json(event, contact, lang='en'):
     membership = current_membership(contact)
     ticket_url = f'{settings.BACKEND_URL}/embed/event/{event.id}'
     venue = event.venue
@@ -243,7 +247,7 @@ def fan_event_json(event, contact):
     for t in event.ticket_types.filter(active=True):
         left = remaining(t)
         types.append({
-            'id': t.id, 'name': t.name, 'description': t.description or None, 'priceCents': t.price_cents,
+            'id': t.id, 'name': t.label(lang), 'description': t.details(lang) or None, 'priceCents': t.price_cents,
             'currency': event.currency, 'memberAccess': t.member_access, 'memberPriceCents': t.member_price_cents,
             'yourPriceCents': member_unit_price(t, membership) if membership else None,
             'soldOut': left == 0, 'remaining': left,
@@ -288,7 +292,7 @@ def fan_events(request):
 @api_view()
 def fan_event_detail(request, slug):
     event = _by_id_or_slug(public_events(), slug)
-    return JsonResponse({'event': fan_event_json(event, fan_contact(request))})
+    return JsonResponse({'event': fan_event_json(event, fan_contact(request), normalize(request.GET.get('locale')))})
 
 
 def _stripe_customer(contact):

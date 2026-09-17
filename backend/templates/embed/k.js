@@ -72,8 +72,10 @@
       var id = raw.indexOf("event:") === 0 ? raw.slice(6) : "";
       if (!id || el.querySelector("iframe")) return;
       var iframe = document.createElement("iframe");
-      iframe.src = A + "/embed/event/" + encodeURIComponent(id) + "?embedded=1";
-      iframe.title = "Ticket checkout";
+      // The page language rides along so the checkout, order page and email match the site the fan is on.
+      var lang = el.getAttribute("data-kintana-locale") || document.documentElement.lang || "en";
+      iframe.src = A + "/embed/event/" + encodeURIComponent(id) + "?embedded=1&lang=" + encodeURIComponent(lang);
+      iframe.title = el.getAttribute("aria-label") || "Ticket checkout";
       iframe.setAttribute("allow", "payment *");
       iframe.style.cssText = "width:100%;border:0;display:block;min-height:420px;background:transparent";
       el.innerHTML = "";

@@ -138,7 +138,9 @@ class TicketType(models.Model):
     id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='ticket_types')
     name = models.CharField(max_length=120)
+    name_es = models.CharField(max_length=120, blank=True, help_text='Spanish name; blank falls back to the name.')
     description = models.CharField(max_length=300, blank=True)
+    description_es = models.CharField(max_length=300, blank=True, help_text='Spanish description; blank falls back.')
     price_cents = models.PositiveIntegerField()
     member_price_cents = models.PositiveIntegerField(null=True, blank=True)
     member_access = models.CharField(max_length=14, choices=MEMBER_ACCESS_CHOICES, default='ALL')
@@ -154,6 +156,12 @@ class TicketType(models.Model):
 
     def __str__(self):
         return f'{self.event.name}: {self.name}'
+
+    def label(self, lang):
+        return self.name_es if lang == 'es' and self.name_es else self.name
+
+    def details(self, lang):
+        return self.description_es if lang == 'es' and self.description_es else self.description
 
 
 class SiteFile(models.Model):

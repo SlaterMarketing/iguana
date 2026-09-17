@@ -63,7 +63,7 @@ const subjectSummary: Record<string, { en: string; es: string }> = {
           : "The enquiry form wires up automatically once ticketing credentials arrive."}
       </p>
     ) : (
-      <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} endpointSlug={endpointSlug} prefills={prefills} />
+      <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} endpointSlug={endpointSlug} prefills={prefills} locale={locale} />
     )}
   </section>
 </Base>

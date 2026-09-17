@@ -12,9 +12,10 @@ from django.views.decorators.http import require_POST
 
 from catalog.models import Event
 from crm.models import TrackedEvent
+from sales.i18n import lang_from_request, normalize, tr
 from sales.models import Membership, MembershipPlan, Order, Ticket
-from sales.services import (CheckoutError, complete_order, create_order, current_membership, price_cart, reserve_at_door,
-                            stripe_client, stripe_enabled)
+from sales.services import (DATE_FORMATS, CheckoutError, complete_order, create_order, current_membership, price_cart,
+                            reserve_at_door, stripe_client, stripe_enabled)
 
 from .auth import contact_from_fan_token, error, json_body
 from .fan_views import fan_event_json
@@ -27,20 +28,35 @@ def tracker_js(request):
     return response
 
 
+# Strings the checkout script builds in the browser. The page gets them already translated.
+CHECKOUT_JS_STRINGS = ('Sold out', 'pay at the door', 'members only', '{0} left', 'Add one {0}', 'Remove one {0}',
+                       'Subtotal', 'Total', 'Pay at the door', 'Member benefit ({0} free)', 'Member discount',
+                       'Continue', 'Reserve', 'Pay {0}', 'Something went wrong.')
+
+
 @xframe_options_exempt
 def event_checkout(request, key):
     event = _by_id_or_slug(public_events(), key)
+    lang = normalize(request.GET.get('lang'))
     return render(request, 'embed/checkout.html', {
         'event': event,
+        'lang': lang,
         'embedded': request.GET.get('embedded') == '1',
         'bootstrap': {
-            'event': fan_event_json(event, None),
+            'lang': lang,
+            'strings': {text: tr(lang, text) for text in CHECKOUT_JS_STRINGS},
+            'event': fan_event_json(event, None, lang),
             'apiBase': settings.BACKEND_URL,
             'stripeKey': settings.STRIPE_PUBLISHABLE_KEY if stripe_enabled() else '',
             'devPayments': settings.DEBUG and not stripe_enabled(),
             'siteOrigins': settings.SITE_URLS,
         },
     })
+
+
+def _body_lang(request):
+    body = json_body(request)
+    return normalize(body.get('lang')) if isinstance(body, dict) else 'en'
 
 
 def _cart_payload(request):
@@ -57,11 +73,12 @@ def _cart_payload(request):
 @require_POST
 def checkout_quote(request, event_id):
     event = get_object_or_404(public_events(), pk=event_id)
+    lang = _body_lang(request)
     try:
         _, items, contact = _cart_payload(request)
-        cart = price_cart(event, items, contact)
+        cart = price_cart(event, items, contact, lang)
     except CheckoutError as exc:
-        return error(str(exc))
+        return error(exc.translated(lang))
     return JsonResponse({'subtotalCents': cart.subtotal_cents, 'discountCents': cart.discount_cents,
                          'freeTickets': cart.free_tickets, 'totalCents': cart.total_cents, 'currency': event.currency,
                          'isMember': current_membership(contact) is not None,
@@ -72,8 +89,9 @@ def checkout_quote(request, event_id):
 @require_POST
 def checkout_start(request, event_id):
     event = get_object_or_404(public_events(), pk=event_id)
+    lang = _body_lang(request)
     if event.ticketing_type != 'INTERNAL' or event.status in (Event.CANCELLED, Event.POSTPONED, Event.SOLD_OUT):
-        return error('Tickets are not on sale for this show.')
+        return error(tr(lang, 'Tickets are not on sale for this show.'))
     try:
         body, items, contact = _cart_payload(request)
         name, email, phone = (str(body.get(k) or '').strip() for k in ('name', 'email', 'phone'))
@@ -81,9 +99,9 @@ def checkout_start(request, event_id):
             raise CheckoutError('Enter your name and email.')
         if contact and contact.email != email.lower():
             contact = None  # member pricing only applies to the signed-in member's own email
-        cart = price_cart(event, items, contact)
+        cart = price_cart(event, items, contact, lang)
     except CheckoutError as exc:
-        return error(str(exc))
+        return error(exc.translated(lang))
 
     attribution = body.get('attribution') if isinstance(body.get('attribution'), dict) else {}
     attribution = {k: str(v)[:200] for k, v in attribution.items()}
@@ -91,13 +109,14 @@ def checkout_start(request, event_id):
     if any(ticket_type.pay_at_door for ticket_type, _, _ in cart.lines):
         try:
             order = reserve_at_door(event, cart, name=name, email=email, phone=phone, contact=contact,
-                                    attribution=attribution)
+                                    attribution=attribution, locale=lang)
         except CheckoutError as exc:
-            return error(str(exc))
+            return error(exc.translated(lang))
         return JsonResponse({'orderId': order.id, 'complete': True,
                              'successUrl': f'{settings.BACKEND_URL}/orders/{order.public_view_token}/'})
 
-    order = create_order(event, cart, name=name, email=email, phone=phone, contact=contact, attribution=attribution)
+    order = create_order(event, cart, name=name, email=email, phone=phone, contact=contact, attribution=attribution,
+                         locale=lang)
     success_url = f'{settings.BACKEND_URL}/orders/{order.public_view_token}/'
 
     if cart.total_cents == 0:
@@ -107,7 +126,7 @@ def checkout_start(request, event_id):
         if settings.DEBUG:
             return JsonResponse({'orderId': order.id, 'complete': False, 'devPayment': True, 'successUrl': success_url,
                                  'totalCents': cart.total_cents})
-        return error('Online payment is not available yet. Please contact us to book.')
+        return error(tr(lang, 'Online payment is not available yet. Please contact us to book.'))
 
     intent = stripe_client().PaymentIntent.create(
         amount=cart.total_cents, currency=event.currency, receipt_email=order.customer_email,
@@ -125,23 +144,29 @@ def checkout_start(request, event_id):
 @require_POST
 def checkout_confirm(request, order_id):
     order = get_object_or_404(Order, pk=order_id)
+    lang = _body_lang(request)
     if order.status != Order.COMPLETED:
         if order.stripe_payment_intent_id:
             intent = stripe_client().PaymentIntent.retrieve(order.stripe_payment_intent_id)
             if intent.status != 'succeeded':
-                return error('Payment has not completed yet.', 409)
+                return error(tr(lang, 'Payment has not completed yet.'), 409)
             complete_order(order, intent.latest_charge or '')
         elif settings.DEBUG and not stripe_enabled():
             complete_order(order)  # local development: no Stripe keys, simulate a successful payment
         else:
-            return error('Payment has not completed yet.', 409)
+            return error(tr(lang, 'Payment has not completed yet.'), 409)
     return JsonResponse({'ok': True, 'successUrl': f'{settings.BACKEND_URL}/orders/{order.public_view_token}/'})
 
 
 def order_page(request, token):
     order = get_object_or_404(Order.objects.select_related('event__venue').prefetch_related('items', 'tickets'),
                               public_view_token=token)
-    return render(request, 'embed/order.html', {'order': order, 'site_url': settings.SITE_URLS[0] if settings.SITE_URLS else ''})
+    lang = normalize(order.locale)
+    return render(request, 'embed/order.html', {
+        'order': order, 'lang': lang, 'date_format': DATE_FORMATS[lang],
+        'status_label': tr(lang, order.get_status_display().lower()),
+        'site_url': settings.SITE_URLS[0] if settings.SITE_URLS else '',
+    })
 
 
 @staff_member_required
@@ -152,7 +177,11 @@ def checkin(request, token):
         ticket.checked_in_at = timezone.now()
         ticket.save(update_fields=['checked_in_at'])
         just_checked_in = True
-    return render(request, 'embed/checkin.html', {'ticket': ticket, 'just_checked_in': just_checked_in})
+    lang = lang_from_request(request)
+    return render(request, 'embed/checkin.html', {
+        'ticket': ticket, 'just_checked_in': just_checked_in, 'lang': lang,
+        'status_label': tr(lang, ticket.order.get_status_display().lower()),
+    })
 
 
 @csrf_exempt

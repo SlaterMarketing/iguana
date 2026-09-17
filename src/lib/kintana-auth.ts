@@ -24,13 +24,35 @@ export function writeStoredAccessToken(token: string | null): void {
   }
 }
 
+/**
+ * Tells the API which language the page is in (`X-Iguana-Locale`, from `<html lang>`), so the error messages the
+ * account and membership screens show come back in Spanish on /es/.
+ */
+function localeAwareFetch(): typeof fetch | undefined {
+  if (typeof window === "undefined") return undefined;
+  return (input, init) => {
+    const headers = new Headers(init?.headers ?? (input instanceof Request ? input.headers : undefined));
+    const lang = document.documentElement.lang || "en";
+    headers.set("X-Iguana-Locale", lang);
+    return fetch(input, { ...init, headers }).catch(() => {
+      throw new Error(
+        lang.startsWith("es")
+          ? "No pudimos conectar. Revisa tu conexión e intenta de nuevo."
+          : "We could not connect. Check your connection and try again."
+      );
+    });
+  };
+}
+
 export function createAuthenticatedClientFromEnv() {
   const token = readStoredAccessToken();
   const { apiKey, baseUrl } = getKintanaEnv();
+  const localeFetch = localeAwareFetch();
   return createKintanaClient({
     apiKey: apiKey!,
     baseUrl: baseUrl!,
     accessToken: token ?? undefined,
+    ...(localeFetch ? { fetch: localeFetch } : {}),
   });
 }
 

@@ -3,6 +3,7 @@ import LocationCityCard from "../LocationCityCard.astro";
 import { locationCityCards } from "../../content/locations-page";
 import type { Locale } from "../../i18n/locale";
 import { localizePath } from "../../i18n/routes";
+import { t } from "../../i18n/ui";
 
 const { activeSlug, locale = "en" } = Astro.props as { activeSlug: string; locale?: Locale };
 const others = locationCityCards.filter((city) => city.slug !== activeSlug);
@@ -15,13 +16,13 @@ const locationsIndex = localizePath(locale, "locations");
       <div class="mx-auto max-w-[118rem] px-6 py-28">
         <div class="flex flex-col gap-16 lg:flex-row lg:justify-between">
           <p class="font-display text-4xl text-neutral-950 sm:text-5xl" style="font-family: var(--font-display);">
-            More cities
+            {t(locale, "locations.moreCities")}
           </p>
           <p
             class="font-display text-4xl uppercase tracking-[0.45em] text-neutral-600 sm:text-5xl lg:text-end"
             style="font-family: var(--font-display); letter-spacing: 0.4em;"
           >
-            coast
+            {t(locale, "locations.coastLabel")}
           </p>
         </div>
         <div class="mt-20 grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
@@ -31,7 +32,7 @@ const locationsIndex = localizePath(locale, "locations");
         </div>
         <p class="mt-14 text-center">
           <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.6rem] hover:underline" href={locationsIndex}>
-            All locations →
+            {t(locale, "locations.allLocations")}
           </a>
         </p>
       </div>

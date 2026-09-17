@@ -4,16 +4,29 @@ import stripe
 from django.conf import settings
 from django.core.mail import send_mail
 from django.db import transaction
-from django.utils import timezone
+from django.utils import formats, timezone, translation
 
 from api.serializers import remaining
 from catalog.models import TicketType
 from crm.models import Contact
+from sales.i18n import normalize, tr
 from sales.models import Membership, Order, OrderItem, Ticket
 
 
+# Django date formats: "Wednesday 23 September 2026" / "miércoles 23 de septiembre de 2026".
+DATE_FORMATS = {'en': 'l j F Y', 'es': r'l j \d\e F \d\e Y'}
+
+
 class CheckoutError(Exception):
-    pass
+    """A checkout refusal shown to the customer. Keeps the English template and its values so views can translate."""
+
+    def __init__(self, message, *params):
+        super().__init__(message.format(*params) if params else message)
+        self.message = message
+        self.params = params
+
+    def translated(self, lang):
+        return tr(lang, self.message, *self.params)
 
 
 def format_money(cents, currency):
@@ -76,7 +89,7 @@ class PricedCart:
         return max(0, self.subtotal_cents - self.discount_cents)
 
 
-def price_cart(event, requested, contact):
+def price_cart(event, requested, contact, lang='en'):
     """requested: {ticket_type_id: quantity}. Server-side source of truth for every checkout total."""
     membership = current_membership(contact)
     cart = PricedCart()
@@ -91,14 +104,15 @@ def price_cart(event, requested, contact):
             continue
         limit = ticket_type.max_per_order or 20
         if qty > limit:
-            raise CheckoutError(f'You can book up to {limit} {ticket_type.name} per order.')
+            raise CheckoutError('You can book up to {0} {1} per order.', limit, ticket_type.label(lang))
         if ticket_type.member_access == 'MEMBERS_ONLY' and not membership:
-            raise CheckoutError(f'{ticket_type.name} is for members only.')
+            raise CheckoutError('{0} is for members only.', ticket_type.label(lang))
         if ticket_type.member_access == 'NON_MEMBERS' and membership:
-            raise CheckoutError(f'{ticket_type.name} is not available to members.')
+            raise CheckoutError('{0} is not available to members.', ticket_type.label(lang))
         left = remaining(ticket_type)
         if left is not None and qty > left:
-            raise CheckoutError(f'Only {left} {ticket_type.name} tickets left.' if left else f'{ticket_type.name} is sold out.')
+            raise (CheckoutError('Only {0} {1} tickets left.', left, ticket_type.label(lang)) if left
+                   else CheckoutError('{0} is sold out.', ticket_type.label(lang)))
         cart.lines.append((ticket_type, qty, member_unit_price(ticket_type, membership)))
     if not cart.lines:
         raise CheckoutError('Choose at least one ticket.')
@@ -116,7 +130,8 @@ def price_cart(event, requested, contact):
 
 
 @transaction.atomic
-def create_order(event, cart, *, name, email, phone, contact, attribution=None):
+def create_order(event, cart, *, name, email, phone, contact, attribution=None, locale='en'):
+    lang = normalize(locale)
     first, _, last = name.strip().partition(' ')
     contact = contact or upsert_contact(email, 'ORDER', first, last, phone)
     order = Order.objects.create(
@@ -130,14 +145,18 @@ def create_order(event, cart, *, name, email, phone, contact, attribution=None):
         total_amount_cents=cart.total_cents,
         discount_amount_cents=cart.discount_cents,
         attribution=attribution or {},
+        locale=lang,
     )
     for ticket_type, qty, unit in cart.lines:
-        OrderItem.objects.create(order=order, ticket_type=ticket_type, name=ticket_type.name, quantity=qty, unit_price_cents=unit)
+        # Snapshot the name in the customer's language: tickets, the order page and the email all show it.
+        OrderItem.objects.create(order=order, ticket_type=ticket_type, name=ticket_type.label(lang), quantity=qty,
+                                 unit_price_cents=unit)
     return order
 
 
 @transaction.atomic
-def reserve_at_door(event, cart, *, name, email, phone, contact, attribution=None):
+def reserve_at_door(event, cart, *, name, email, phone, contact, attribution=None, locale='en'):
+    lang = normalize(locale)
     """Book pay-at-the-door seats. The order completes now, nothing is charged, and the door collects the total."""
     if not all(ticket_type.pay_at_door for ticket_type, _, _ in cart.lines):
         raise CheckoutError('Reserve pay-at-the-door seats in their own order.')
@@ -147,13 +166,15 @@ def reserve_at_door(event, cart, *, name, email, phone, contact, attribution=Non
     for ticket_type, qty, _ in cart.lines:
         left = remaining(locked[ticket_type.id])
         if left is not None and qty > left:
-            raise CheckoutError(f'Only {left} {ticket_type.name} left.' if left else f'{ticket_type.name} is fully booked.')
+            raise (CheckoutError('Only {0} {1} left.', left, ticket_type.label(lang)) if left
+                   else CheckoutError('{0} is fully booked.', ticket_type.label(lang)))
     email = email.strip().lower()
     # Nothing is paid up front, so one reservation per email per night stops one person holding every seat.
     if Order.objects.filter(event=event, customer_email=email, status=Order.COMPLETED,
                             items__ticket_type__pay_at_door=True).exists():
         raise CheckoutError('You already have a reservation for this night. Check your email for your seats.')
-    order = create_order(event, cart, name=name, email=email, phone=phone, contact=contact, attribution=attribution)
+    order = create_order(event, cart, name=name, email=email, phone=phone, contact=contact, attribution=attribution,
+                         locale=lang)
     order.pay_at_door_cents = cart.total_cents
     order.save(update_fields=['pay_at_door_cents'])
     order, _ = complete_order(order)
@@ -178,29 +199,38 @@ def complete_order(order, charge_id=''):
 
 
 def send_order_confirmation(order):
+    lang = normalize(order.locale)
     link = f'{settings.BACKEND_URL}/orders/{order.public_view_token}/'
     event = order.event
-    when = event.date.astimezone(timezone.get_current_timezone()).strftime('%A %d %B %Y') if event else ''
+    when = ''
+    if event:
+        with translation.override(lang):
+            when = formats.date_format(timezone.localtime(event.date), DATE_FORMATS[lang])
     lines = [
-        f'Hi {order.customer_name or "there"},',
+        tr(lang, 'Hi {0},', order.customer_name) if order.customer_name else tr(lang, 'Hi there,'),
         '',
-        f'You are booked for {order.event_name}{" on " + when if when else ""}.',
+        tr(lang, 'You are booked for {0} on {1}.', order.event_name, when) if when
+        else tr(lang, 'You are booked for {0}.', order.event_name),
     ]
     if event and event.show_time:
-        lines.append(f'Doors {event.doors_open or ""} · Show {event.show_time}'.replace('Doors  · ', ''))
+        lines.append(tr(lang, 'Doors {0} · Show {1}', event.doors_open, event.show_time) if event.doors_open
+                     else tr(lang, 'Show {0}', event.show_time))
     if event and (event.venue or event.venue_label):
-        lines.append(f'Venue: {event.venue.name if event.venue else event.venue_label}')
+        lines.append(tr(lang, 'Venue: {0}', event.venue.name if event.venue else event.venue_label))
     items = list(order.items.select_related('ticket_type'))
     # What the ticket includes and any house rules (a free drink, arrive by doors) live on the ticket type.
-    descriptions = sorted({i.ticket_type.description for i in items if i.ticket_type and i.ticket_type.description})
+    descriptions = sorted({i.ticket_type.details(lang) for i in items if i.ticket_type and i.ticket_type.details(lang)})
     if descriptions:
         lines += [''] + descriptions
     if order.pay_at_door_cents:
         seats = sum(i.quantity for i in items)
-        lines += ['', f'Pay {format_money(order.pay_at_door_cents, order.currency)} at the door for your '
-                      f'{seats} seat{"s" if seats != 1 else ""}. Nothing was charged online.']
-        label, subject = 'Your seats', f'Your reservation: {order.event_name}'
+        amount = format_money(order.pay_at_door_cents, order.currency)
+        lines += ['', tr(lang, 'Pay {0} at the door for your seat. Nothing was charged online.', amount) if seats == 1
+                  else tr(lang, 'Pay {0} at the door for your {1} seats. Nothing was charged online.', amount, seats)]
+        lines += ['', tr(lang, 'Your seats (show this at the door): {0}', link)]
+        subject = tr(lang, 'Your reservation: {0}', order.event_name)
     else:
-        label, subject = 'Your tickets', f'Your tickets: {order.event_name}'
-    lines += ['', f'{label} (show this at the door): {link}', '', 'See you there,', 'Iguana Comedy', 'iguanacomedy.com']
+        lines += ['', tr(lang, 'Your tickets (show this at the door): {0}', link)]
+        subject = tr(lang, 'Your tickets: {0}', order.event_name)
+    lines += ['', tr(lang, 'See you there,'), 'Iguana Comedy', 'iguanacomedy.com']
     send_mail(subject, '\n'.join(lines), settings.DEFAULT_FROM_EMAIL, [order.customer_email])

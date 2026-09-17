@@ -3,7 +3,7 @@ import { t } from "../i18n/ui";
 import type { Locale } from "../i18n/locale";
 import { localizePath } from "../i18n/routes";
 
-const { eyebrow = "Tickets", headline = "Ready to laugh?", ctaHref: ctaHrefProp, secondaryHref: secondaryHrefProp, secondaryLabel = "Talk with us", body, locale = "en" } =
+const { eyebrow: eyebrowProp, headline: headlineProp, ctaHref: ctaHrefProp, secondaryHref: secondaryHrefProp, secondaryLabel: secondaryLabelProp, body, locale = "en" } =
   Astro.props as {
     eyebrow?: string;
     headline?: string;
@@ -14,6 +14,9 @@ const { eyebrow = "Tickets", headline = "Ready to laugh?", ctaHref: ctaHrefProp,
     locale?: Locale;
   };
 
+const eyebrow = eyebrowProp ?? t(locale, "cta.eyebrow.tickets");
+const headline = headlineProp ?? t(locale, "cta.headline.readyToLaugh");
+const secondaryLabel = secondaryLabelProp ?? t(locale, "cta.secondaryLabel.talkWithUs");
 const ctaHref = ctaHrefProp ?? localizePath(locale, "events");
 const secondaryHref = secondaryHrefProp ?? localizePath(locale, "contact");
 ---

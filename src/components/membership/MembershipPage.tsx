@@ -44,6 +44,7 @@ const ui = {
     loading: "Loading…",
     loadingPayment: "Loading payment…",
     paymentNotConfigured: "Payment is not configured for this plan.",
+    membershipFallback: "membership",
     paymentFailed: "Payment failed.",
     startPaymentFail: "Could not start payment.",
     monthly: "Monthly",
@@ -90,6 +91,7 @@ const ui = {
     loading: "Cargando…",
     loadingPayment: "Cargando pago…",
     paymentNotConfigured: "El pago no está configurado para este plan.",
+    membershipFallback: "membresía",
     paymentFailed: "El pago falló.",
     startPaymentFail: "No se pudo iniciar el pago.",
     monthly: "Mensual",
@@ -604,7 +606,7 @@ function MembershipPageInner({ locale }: { locale: Locale }) {
       if (!res.clientSecret || !res.stripePublishableKey) {
         throw new Error(t.paymentNotConfigured);
       }
-      const planName = plans.find((p) => p.id === planId)?.name ?? "membership";
+      const planName = plans.find((p) => p.id === planId)?.name ?? t.membershipFallback;
       setSubscriptionPay({
         planName,
         payload: {

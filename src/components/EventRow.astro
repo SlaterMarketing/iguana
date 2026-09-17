@@ -46,7 +46,7 @@ const emphasized =
   Boolean(highlightCity?.trim()) && eventCitySlug(evt) === highlightCity;
 ---
 
-<section aria-label={`${evt.name} — ticketing`}>
+<section aria-label={t(locale, "events.ticketingAria", { name: evt.name })}>
   <div
     class:list={[
       "grid grid-cols-1 overflow-hidden rounded-[1.85rem] border border-black/10",

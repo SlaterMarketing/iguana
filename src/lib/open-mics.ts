@@ -1,5 +1,6 @@
 import type { KintanaPublicEvent } from "@kintana/sdk";
 
+import type { Locale } from "../i18n/locale";
 import { sortEventsAscending } from "./events";
 
 /** Set on the weekly open mic nights by `manage.py setup_open_mics`. */
@@ -19,4 +20,13 @@ export function nextBookableOpenMics(events: KintanaPublicEvent[]): { es?: Kinta
     es: bookable.find((evt) => evt.language === "es"),
     en: bookable.find((evt) => evt.language === "en"),
   };
+}
+
+/** 5000 MXN -> "50 MXN". The shared formatMinorUnitsPrice prints the currency twice ("MX$50MXN"). */
+export function formatSeatPrice(evt: KintanaPublicEvent, locale: Locale): string {
+  if (evt.priceFrom == null) return "";
+  const amount = new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", { maximumFractionDigits: 2 }).format(
+    evt.priceFrom / 100,
+  );
+  return `${amount} ${(evt.priceCurrency ?? "").toUpperCase()}`.trim();
 }

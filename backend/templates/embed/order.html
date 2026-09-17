@@ -1,6 +1,6 @@
 {% extends "embed/base.html" %}
-{% load showtime %}
-{% block title %}Your tickets · {{ order.event_name }}{% endblock %}
+{% load i18n showtime %}
+{% block title %}{% t lang "Your tickets · {0}" order.event_name %}{% endblock %}
 {% block head %}
 <style>
   .ticket { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; }
@@ -12,36 +12,36 @@
 {% endblock %}
 {% block content %}
 <div class="stack">
-  <p class="eyebrow">Your tickets</p>
+  <p class="eyebrow">{% if order.pay_at_door_cents %}{% t lang "Your seats" %}{% else %}{% t lang "Your tickets" %}{% endif %}</p>
   <h1>{{ order.event_name }}</h1>
   {% if order.event %}
     <p class="muted">
-      {{ order.event.date|date:"l j F Y" }}{% if order.event.doors_open %} · doors {{ order.event.doors_open|clock12 }}{% endif %}{% if order.event.show_time %} · show {{ order.event.show_time|clock12 }}{% endif %}<br>
+      {% language lang %}{{ order.event.date|date:date_format }}{% endlanguage %}{% if order.event.doors_open %} · {% t lang "doors {0}" order.event.doors_open|clock12:lang %}{% endif %}{% if order.event.show_time %} · {% t lang "show {0}" order.event.show_time|clock12:lang %}{% endif %}<br>
       {% if order.event.venue %}{{ order.event.venue.name }}{% if order.event.venue.address %}, {{ order.event.venue.address }}{% endif %}{% else %}{{ order.event.venue_label }}{% endif %}
     </p>
   {% endif %}
   {% if order.status != "COMPLETED" %}
-    <p class="ok">This order is {{ order.get_status_display|lower }}. Tickets appear here once payment completes.</p>
+    <p class="ok">{% t lang "This order is {0}. Tickets appear here once payment completes." status_label %}</p>
   {% else %}
-    <p class="muted">Booked by {{ order.customer_name|default:order.customer_email }}. Show the code for each ticket at the door.</p>
+    <p class="muted">{% t lang "Booked by {0}. Show the code for each ticket at the door." order.customer_name|default:order.customer_email %}</p>
     {% if order.pay_at_door_cents %}
       <section class="card">
-        <p><strong>Pay {{ order.pay_at_door_cents|money:order.currency }} at the door.</strong></p>
-        <p class="muted">Your seats are reserved. Nothing was charged online.</p>
+        <p><strong>{% t lang "Pay {0} at the door." order.pay_at_door_cents|money:order.currency %}</strong></p>
+        <p class="muted">{% t lang "Your seats are reserved. Nothing was charged online." %}</p>
       </section>
     {% endif %}
     {% for ticket in order.tickets.all %}
       <section class="card ticket">
         <div>
-          <p class="eyebrow">Ticket {{ forloop.counter }} of {{ order.tickets.count }}</p>
+          <p class="eyebrow">{% t lang "Ticket {0} of {1}" forloop.counter order.tickets.count %}</p>
           <h2>{{ ticket.ticket_type_name }}</h2>
-          {% if ticket.checked_in_at %}<span class="status">Checked in</span>{% endif %}
+          {% if ticket.checked_in_at %}<span class="status">{% t lang "Checked in" %}</span>{% endif %}
         </div>
-        <div class="qr" data-qr="{{ request.scheme }}://{{ request.get_host }}{% url 'checkin' ticket.checkin_token %}" aria-label="Check-in code"></div>
+        <div class="qr" data-qr="{{ request.scheme }}://{{ request.get_host }}{% url 'checkin' ticket.checkin_token %}" aria-label="{% t lang 'Check-in code' %}"></div>
       </section>
     {% endfor %}
   {% endif %}
-  {% if site_url %}<a class="btn" href="{{ site_url }}">Back to Iguana Comedy</a>{% endif %}
+  {% if site_url %}<a class="btn" href="{{ site_url }}/{{ lang }}/">{% t lang "Back to Iguana Comedy" %}</a>{% endif %}
 </div>
 {% endblock %}
 {% block scripts %}

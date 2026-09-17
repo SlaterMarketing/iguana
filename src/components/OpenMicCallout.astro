@@ -5,7 +5,7 @@ import type { Locale } from "../i18n/locale";
 import { localizePath } from "../i18n/routes";
 import { formatEventDate } from "../lib/events";
 import { holidayNotice } from "../lib/holiday-notice";
-import { nextBookableOpenMics } from "../lib/open-mics";
+import { formatSeatPrice, nextBookableOpenMics } from "../lib/open-mics";
 
 interface Props {
   locale: Locale;
@@ -19,13 +19,6 @@ const { locale, class: className, events = [] } = Astro.props;
 // Null on any day outside a closure, so the banner takes itself down.
 const notice = holidayNotice(locale);
 const next = nextBookableOpenMics(events);
-
-/** 5000 MXN -> "50 MXN". The shared formatMinorUnitsPrice prints the currency twice ("MX$50MXN"). */
-function seatPrice(evt: KintanaPublicEvent): string {
-  if (evt.priceFrom == null) return "";
-  const amount = new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", { maximumFractionDigits: 2 }).format(evt.priceFrom / 100);
-  return `${amount} ${(evt.priceCurrency ?? "").toUpperCase()}`.trim();
-}
 
 const venueAddress = "Calle 6 Nte 189, Centro, 77710 Playa del Carmen, Q.R., Mexico";
 const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`Iguana Comedy, ${venueAddress}`)}`;
@@ -69,6 +62,7 @@ const canReserve = copy.nights.some((night) => night.event);
 ---
 
 <aside
+  id="open-mic"
   class:list={["overflow-hidden rounded-[2rem] bg-neutral-950 text-white", className]}
   aria-label={copy.headline}
 >
@@ -106,7 +100,7 @@ const canReserve = copy.nights.some((night) => night.event);
                 <p class="text-sm text-white/70">
                   {copy.nextNight}: {formatEventDate(night.event.date, locale)}
                   <br />
-                  {seatPrice(night.event)} {copy.perSeat}
+                  {formatSeatPrice(night.event, locale)} {copy.perSeat}
                 </p>
                 <a
                   class="inline-flex rounded-full bg-white px-5 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-neutral-950 hover:bg-white/85"

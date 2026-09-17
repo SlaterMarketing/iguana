@@ -3,10 +3,11 @@ import type { KintanaGroupedCity } from "@kintana/sdk";
 import { slugify } from "../lib/slug";
 import { localizePath } from "../i18n/routes";
 import type { Locale } from "../i18n/locale";
+import { t } from "../i18n/ui";
 
 const { group, locale = "en" } = Astro.props as { group: KintanaGroupedCity; locale?: Locale };
 const citySlug = slugify(group.city);
-const headline = group.city ?? "Regional rooms";
+const headline = group.city ?? t(locale, "locations.regionalRooms");
 const venueCount = group.venues.length;
 const venueLabel = locale === "es"
   ? `${venueCount} sede${venueCount === 1 ? "" : "s"} en línea`

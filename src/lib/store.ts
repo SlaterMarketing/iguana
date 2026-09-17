@@ -1,8 +1,12 @@
 /** Format store prices from Kintana `*Cents` fields. */
-export function formatStorePrice(cents: number | null | undefined, currency = "USD"): string | null {
+export function formatStorePrice(
+  cents: number | null | undefined,
+  currency = "USD",
+  locale: "en" | "es" = "en"
+): string | null {
   if (cents == null || !Number.isFinite(cents)) return null;
   try {
-    return new Intl.NumberFormat("en-US", {
+    return new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", {
       style: "currency",
       currency: currency.toUpperCase(),
       maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
@@ -18,8 +22,8 @@ export function storePriceLabel(
   currency: string,
   locale: "en" | "es" = "en"
 ): string {
-  const price = formatStorePrice(priceFromCents, currency);
-  const compare = compareAtCents != null ? formatStorePrice(compareAtCents, currency) : null;
+  const price = formatStorePrice(priceFromCents, currency, locale);
+  const compare = compareAtCents != null ? formatStorePrice(compareAtCents, currency, locale) : null;
   if (!price) return locale === "es" ? "Precio al pagar" : "Price at checkout";
   if (compare && compareAtCents != null && priceFromCents != null && compareAtCents > priceFromCents) {
     return locale === "es" ? `${price} · era ${compare}` : `${price} · was ${compare}`;

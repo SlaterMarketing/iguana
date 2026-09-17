@@ -1,23 +1,23 @@
 {% extends "embed/base.html" %}
 {% load showtime %}
-{% block title %}Check-in{% endblock %}
+{% block title %}{% t lang "Check-in" %}{% endblock %}
 {% block content %}
 <div class="stack">
-  <p class="eyebrow">Door check-in</p>
+  <p class="eyebrow">{% t lang "Door check-in" %}</p>
   <h1>{{ ticket.order.event_name }}</h1>
   <section class="card stack">
     <p><strong>{{ ticket.ticket_type_name }}</strong><br><span class="muted">{{ ticket.order.customer_name }} · {{ ticket.order.customer_email }}</span></p>
     {% if ticket.order.status != "COMPLETED" %}
-      <p class="error">Order is {{ ticket.order.get_status_display|lower }}. Do not admit.</p>
+      <p class="error">{% t lang "Order is {0}. Do not admit." status_label %}</p>
     {% elif just_checked_in %}
-      <p class="ok">Checked in. Enjoy the show.</p>
+      <p class="ok">{% t lang "Checked in. Enjoy the show." %}</p>
     {% elif ticket.checked_in_at %}
-      <p class="error">Already checked in at {{ ticket.checked_in_at|date:"H:i, j M" }}.</p>
+      <p class="error">{% t lang "Already checked in at {0}." ticket.checked_in_at|date:"H:i, j M" %}</p>
     {% else %}
       {% if ticket.door_price_cents %}
-        <p class="error">Reserved, not paid: collect {{ ticket.door_price_cents|money:ticket.order.currency }} for this seat, then check in.</p>
+        <p class="error">{% t lang "Reserved, not paid: collect {0} for this seat, then check in." ticket.door_price_cents|money:ticket.order.currency %}</p>
       {% endif %}
-      <form method="post">{% csrf_token %}<button class="btn" type="submit">Check in</button></form>
+      <form method="post">{% csrf_token %}<button class="btn" type="submit">{% t lang "Check in" %}</button></form>
     {% endif %}
   </section>
 </div>

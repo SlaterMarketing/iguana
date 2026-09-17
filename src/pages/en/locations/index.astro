@@ -39,9 +39,13 @@ function upcomingCountFor(slug: string) {
 function cardMeta(slug: string) {
   const upcoming = upcomingCountFor(slug);
   const venues = venueCountFor(slug);
-  if (upcoming > 0 && venues > 0) return `${upcoming} shows · ${venues} venues`;
-  if (upcoming > 0) return `${upcoming} upcoming ${upcoming === 1 ? "show" : "shows"}`;
-  if (venues > 0) return `${venues} ${venues === 1 ? "venue" : "venues"}`;
+  const shows = t(locale, upcoming === 1 ? "locations.showCountOne" : "locations.showCountOther", { count: String(upcoming) });
+  const venueText = t(locale, venues === 1 ? "locations.venueCountOne" : "locations.venueCountOther", { count: String(venues) });
+  if (upcoming > 0 && venues > 0) return t(locale, "locations.cardShowsAndVenues", { shows, venues: venueText });
+  if (upcoming > 0) {
+    return t(locale, upcoming === 1 ? "locations.upcomingShowCountOne" : "locations.upcomingShowCountOther", { count: String(upcoming) });
+  }
+  if (venues > 0) return venueText;
   return undefined;
 }
 
