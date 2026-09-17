@@ -17,7 +17,7 @@ const whatsappHref = `https://wa.me/${site.whatsappE164.replace(/\D+/g, "")}`;
     <div class="space-y-12">
       <p class="text-4xl text-white lg:text-[2.75rem]" style="font-family: var(--font-display);">{site.name}</p>
       <div class="space-y-8 text-neutral-400">
-        <p class="text-lg text-white">{site.email}</p>
+        <p class="text-lg text-white [overflow-wrap:anywhere]">{site.email}</p>
         <div class="text-lg tracking-wide text-neutral-400">
           <p class="text-white">{site.whatsappDisplay}</p>
           <p class="text-sm uppercase tracking-[0.45em] text-neutral-400">{t(locale, "footer.whatsappLabel")}</p>

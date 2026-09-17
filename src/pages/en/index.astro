@@ -17,7 +17,7 @@ if (redirectCity) {
   return Astro.redirect(localizePath(locale, "cityDetail", { city: redirectCity }));
 }
 
-const pageData = await loadHomePageData();
+const pageData = await loadHomePageData(undefined, locale);
 
 const cityPickerChoices = [
   { slug: "", label: locale === "es" ? "Toda la costa" : "Whole coastline" },
@@ -37,7 +37,7 @@ const cityPickerChoices = [
     showsHref={localizePath(locale, "events")}
     pickerChoices={cityPickerChoices}
     activeCitySlug=""
-    eyebrow={locale === "es" ? "Noches de comedia en inglés" : "Live English comedy nights"}
+    eyebrow={t(locale, "home.eyebrow")}
     headlineLine1={locale === "es" ? "Stand-up internacional" : "International stand-up"}
     headlineLine2Prefix={locale === "es" ? "comedia en " : "comedy in "}
     headlineLine2Static="Playa del Carmen"

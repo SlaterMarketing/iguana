@@ -4,7 +4,8 @@ import type { KintanaPublicArtistEmbed, KintanaPublicEvent } from "@kintana/sdk"
 import { eventCitySlug, sortEventsAscending, todayInCancun } from "./events";
 import { getKintanaEnv } from "./kintana-env";
 import { logKintanaError, logKintanaSuccess } from "./kintana-error";
-import { isOpenMic } from "./open-mics";
+import { isOpenMic, nextBookableOpenMics } from "./open-mics";
+import type { Locale } from "../i18n/locale";
 
 export type HomePageData = {
   hasCredentials: boolean;
@@ -16,7 +17,7 @@ export type HomePageData = {
   wallArtists: KintanaPublicArtistEmbed[];
 };
 
-export async function loadHomePageData(citySlug?: string): Promise<HomePageData> {
+export async function loadHomePageData(citySlug?: string, locale?: Locale): Promise<HomePageData> {
   const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
 
   let eventsPool: KintanaPublicEvent[] = [];
@@ -56,9 +57,19 @@ export async function loadHomePageData(citySlug?: string): Promise<HomePageData>
     cityFiltered = cityFiltered.filter((evt) => eventCitySlug(evt) === slug);
   }
 
+  // Each language's visitors see their own shows first: the next open mic in the page's language joins the list, and
+  // shows in that language come before the rest (date order within each group), so /es/ leads with Spanish nights
+  // and /en/ with English ones while both still list everything.
+  const nextOpenMic = locale ? nextBookableOpenMics(eventsPool)[locale] : undefined;
+  const withOpenMic = sortEventsAscending(
+    nextOpenMic && (!slug.length || eventCitySlug(nextOpenMic) === slug) ? [...cityFiltered, nextOpenMic] : cityFiltered,
+  );
+  const byLanguage = locale
+    ? [...withOpenMic.filter((evt) => evt.language === locale), ...withOpenMic.filter((evt) => evt.language !== locale)]
+    : withOpenMic;
   const prioritized = [
-    ...cityFiltered.filter((evt) => evt.status === "on-sale"),
-    ...cityFiltered.filter((evt) => evt.status !== "on-sale"),
+    ...byLanguage.filter((evt) => evt.status === "on-sale"),
+    ...byLanguage.filter((evt) => evt.status !== "on-sale"),
   ];
 
   return {

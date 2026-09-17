@@ -69,6 +69,9 @@ const useRotator = !headlineLine2Static && !staticHeadlineCity;
 const useImageHero = Boolean(heroImageUrl?.trim());
 // With an announcement above the headline, phones need the room: drop the small eyebrow line and the upward nudge.
 const hasAnnouncement = Astro.slots.has("announcement");
+// With the newsletter sign-up beside it, Buy ticket matches the email box on phones and tablets (same width, same
+// height) so the two sit flush; on large screens they share a row instead.
+const hasAside = Astro.slots.has("aside");
 const headlineWords = (text: string) => text.trim().split(/\s+/).filter(Boolean);
 ---
 
@@ -152,7 +155,7 @@ const headlineWords = (text: string) => text.trim().split(/\s+/).filter(Boolean)
     <div class:list={["flex w-full shrink-0 flex-col lg:flex-row lg:items-end lg:justify-between", hasAnnouncement ? "gap-5 sm:gap-10" : "gap-10"]}>
       {
         Astro.slots.has("aside") ? (
-          <div class="w-full max-w-sm">
+          <div class="w-full lg:max-w-sm">
             <slot name="aside" />
           </div>
         ) : (
@@ -170,10 +173,13 @@ const headlineWords = (text: string) => text.trim().split(/\s+/).filter(Boolean)
         )
       }
 
-      <div class="flex flex-wrap items-center justify-end gap-4 sm:gap-5">
+      <div class:list={["flex flex-wrap items-center justify-end gap-4 sm:gap-5", hasAside && "w-full lg:w-auto"]}>
         <a
           href={showsHref}
-          class="btn-pill inline-flex items-center rounded-full bg-white px-10 py-[0.85rem] text-[0.68rem] font-semibold uppercase tracking-[0.38em] text-neutral-950 sm:px-12"
+          class:list={[
+            "btn-pill inline-flex items-center rounded-full bg-white px-10 py-[0.85rem] text-[0.68rem] font-semibold uppercase tracking-[0.38em] text-neutral-950 sm:px-12",
+            hasAside && "h-12 w-full justify-center lg:h-auto lg:w-auto",
+          ]}
         >
           {ctaLabel}
           <svg class="ml-2 h-[0.6rem]" viewBox="0 0 22 14" aria-hidden="true">

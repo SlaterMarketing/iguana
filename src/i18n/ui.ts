@@ -240,6 +240,7 @@ export const ui = {
 
     "home.section.eventsLabel": "events",
     "home.upcoming": "Upcoming",
+    "home.eyebrow": "Live stand-up in English and Spanish",
     "openMic.hero.title": "{free} open mics Tuesday & Wednesday",
     "openMic.hero.free": "Free",
     "openMic.hero.reserveTuesday": "Reserve Tuesday, open mic in Spanish",
@@ -525,6 +526,7 @@ export const ui = {
 
     "home.section.eventsLabel": "eventos",
     "home.upcoming": "Próximos",
+    "home.eyebrow": "Stand up en vivo en español e inglés",
     "openMic.hero.title": "Open mics {free} martes y miércoles",
     "openMic.hero.free": "gratis",
     "openMic.hero.reserveTuesday": "Reservar martes, open mic en español",
