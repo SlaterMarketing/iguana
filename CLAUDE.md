@@ -106,7 +106,7 @@ pointing at Cloudflare IPs caused the old Error 1000); `iguanacomedy.mx` 301s to
 - Code is rsynced from the local checkout (not git-pulled). `backend/media/` syncs add-only so server uploads survive.
 - Mail (`ansible/mail.yml`): Postfix + OpenDKIM for every zone in `mail_zones` (`iguanacomedy.mx` and
   `iguanacomedy.com`, each with its own DKIM key under selector `mail`), one mail host `mail.iguanacomedy.mx`
-  because the PTR points there. `mail_human_aliases` (hello, info, bills, andrew, john) deliver to the local
+  because the PTR points there. `mail_human_aliases` (hello, info, bills, andrew, john, will, will.slater) deliver to the local
   `inbox` user **and** forward to `mail_forwards`; role/DSN addresses deliver locally only; no catch-all, so
   anything else is rejected at RCPT. 38.86.78.0/24 is on the Spamhaus PBL, so Postfix prefers IPv6 (Gmail
   rejects the v4 address).

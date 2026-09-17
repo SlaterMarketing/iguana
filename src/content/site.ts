@@ -7,8 +7,11 @@ export const site = {
   email: "hello@iguanacomedy.com",
   /** Full international display (WhatsApp widget text) */
   whatsappDisplay: "+52 998 937 0209",
-  /** Numeric only — used in wa.me links */
-  whatsappE164: "529889370209",
+  /**
+   * Digits only, for wa.me links. Must be the same number as whatsappDisplay: the Framer-era site linked
+   * 52 988 937 0209 (988, a typo), so every WhatsApp button dialled a wrong number until 2026-09-17.
+   */
+  whatsappE164: "529989370209",
   instagramUrl: "https://www.instagram.com/iguanacomedy/",
   facebookUrl: "https://www.facebook.com/IguanaComedy",
   linkedInUrl: "https://www.linkedin.com/company/iguanacomedy",

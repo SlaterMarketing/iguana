@@ -91,7 +91,8 @@ its own DKIM key (`/etc/opendkim/keys/<zone>/`) and its own MX, SPF, DKIM and DM
 off Kintana on 2026-09-15; the Kintana MX records and the leftover leadconnector/mailgun SPF record were
 removed then (two SPF records on one name is a permerror, which fails DMARC on a `p=reject` domain).
 
-Addresses come from `mail_human_aliases` (`hello`, `info`, `bills`, `andrew`, `john`), which deliver to the
+Addresses come from `mail_human_aliases` (`hello`, `info`, `bills`, `andrew`, `john`, and Will Slater's old `will`
+and `will.slater`, kept so mail still sent to him reaches the team), which deliver to the
 local `inbox` user (`sudo mail -f /var/mail/inbox`) **and** forward to every address in `mail_forwards`.
 Role/DSN addresses (`noreply`, `no-reply`, `postmaster`, `abuse`, `mailer-daemon`) deliver locally only, so
 bounce noise stays off the forwards. Nothing forwards *instead* of delivering: the local copy is what survives

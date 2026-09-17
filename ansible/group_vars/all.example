@@ -41,7 +41,7 @@ site_urls: "{{ ([site_url, 'https://www.' + site_domain] + (redirect_domains | m
 # Mail: people's addresses deliver to the local `inbox` user AND forward to mail_forwards; role/DSN addresses
 # deliver locally only, so bounce noise stays off the forwards. Nothing ever forwards INSTEAD of delivering:
 # the local copy is what survives if a forward is rejected. DMARC reports go to the local `dmarc` user.
-mail_human_aliases: [hello, info, bills, andrew, john]
+mail_human_aliases: [hello, info, bills, andrew, john, will, will.slater]
 mail_role_aliases: [noreply, no-reply, postmaster, abuse, mailer-daemon]
 mail_forwards: [someone@example.com, someone-else@example.com]
 mail_test_recipient: someone-else@example.com

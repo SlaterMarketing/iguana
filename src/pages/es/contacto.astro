@@ -1,5 +1,6 @@
 ---
 import Base from "../../layouts/Base.astro";
+import ContactDirect from "../../components/ContactDirect.astro";
 import { ContactFormIsland } from "../../components/ContactFormIsland";
 import { getKintanaEnv } from "../../lib/kintana-env";
 import { t } from "../../i18n/ui";
@@ -60,5 +61,7 @@ const subjectSummary: Record<string, string> = {
     ) : (
       <ContactFormIsland client:load apiKey={apiKey} baseUrl={baseUrl} endpointSlug={endpointSlug} prefills={prefills} locale={locale} />
     )}
+
+    <ContactDirect locale={locale} />
   </section>
 </Base>

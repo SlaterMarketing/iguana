@@ -1,0 +1,27 @@
+---
+import type { Locale } from "../i18n/locale";
+import { t } from "../i18n/ui";
+import { site } from "../content/site";
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const whatsappHref = `https://wa.me/${site.whatsappE164}`;
+---
+
+<div class="rounded-3xl border border-neutral-200 bg-neutral-50 px-6 py-8 sm:px-10">
+  <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{t(locale, "contact.direct.heading")}</p>
+  <div class="mt-6 grid gap-6 sm:grid-cols-2">
+    <a class="group block" href={whatsappHref} target="_blank" rel="noreferrer noopener">
+      <span class="text-xs font-semibold uppercase tracking-[0.35em] text-neutral-500">{t(locale, "contact.direct.whatsapp")}</span>
+      <span class="mt-2 block text-2xl text-neutral-950 group-hover:text-brand">{site.whatsappDisplay}</span>
+      <span class="mt-1 block text-sm text-neutral-500">{t(locale, "contact.direct.whatsappHint")}</span>
+    </a>
+    <a class="group block" href={`mailto:${site.email}`}>
+      <span class="text-xs font-semibold uppercase tracking-[0.35em] text-neutral-500">{t(locale, "contact.direct.email")}</span>
+      <span class="mt-2 block text-2xl text-neutral-950 group-hover:text-brand">{site.email}</span>
+    </a>
+  </div>
+</div>
