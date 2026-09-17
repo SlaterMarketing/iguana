@@ -396,6 +396,13 @@ class ReservationTests(ApiTestCase):
         seat = spanish.ticket_types.get()
         self.assertEqual((seat.name, seat.name_es, seat.price_cents, seat.capacity, seat.max_per_order, seat.pay_at_door),
                          ('Reserved seat + 1 free drink', 'Lugar reservado + 1 bebida gratis', 5000, 60, 6, False))
+        self.assertEqual((spanish.image_url, spanish.image_url_mobile),
+                         ('/media/events/open-mic-es-16x9.jpg', '/media/events/open-mic-es-4x5.jpg'))
+        # A poster set in the admin is kept on re-runs.
+        Event.objects.filter(pk=spanish.pk).update(image_url='/media/events/custom.jpg')
+        call_command('setup_open_mics', stdout=StringIO())
+        spanish.refresh_from_db()
+        self.assertEqual(spanish.image_url, '/media/events/custom.jpg')
 
     @override_settings(STRIPE_SECRET_KEY='sk_test_x', STRIPE_PUBLISHABLE_KEY='pk_test_x')
     def test_setup_renames_a_spanish_named_type_instead_of_duplicating_it(self):

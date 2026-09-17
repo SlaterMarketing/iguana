@@ -47,7 +47,10 @@ const canonicalUrl = getCanonicalUrl(Astro);
 const alternateUrls = getAlternateUrls(Astro);
 const ogLocale = t(locale, "seo.ogLocale");
 const siteOrigin = Astro.site?.origin ?? "https://iguanacomedy.com";
-const defaultOgImage = site.heroImage;
+// Brand share image per language (scripts/make-banners.py), 1200x630; the stock hero photo used to stand in for it.
+const defaultOgImage = `/media/og-default-${locale}.jpg`;
+const shareImage = new URL(ogImage ?? defaultOgImage, siteOrigin).href;
+const shareImageIsDefault = !ogImage;
 
 const { apiKey, baseUrl, trackerToken } = getKintanaEnv();
 const TRACK_BASE = baseUrl.replace(/\/$/, "");
@@ -105,14 +108,19 @@ const trackerMarkup =
     <meta property="og:url" content={canonicalUrl} />
     <meta property="og:type" content="website" />
     <meta property="og:locale" content={ogLocale} />
+    <meta property="og:locale:alternate" content={locale === "es" ? "en_US" : "es_MX"} />
     <meta property="og:site_name" content={t(locale, "seo.siteName")} />
-    <meta property="og:image" content={ogImage ?? defaultOgImage} />
+    <meta property="og:image" content={shareImage} />
+    <meta property="og:image:alt" content={title} />
+    {shareImageIsDefault && <meta property="og:image:width" content="1200" />}
+    {shareImageIsDefault && <meta property="og:image:height" content="630" />}
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
-    <meta name="twitter:image" content={ogImage ?? defaultOgImage} />
+    <meta name="twitter:image" content={shareImage} />
+    <meta name="twitter:image:alt" content={title} />
 
     <!-- JSON-LD -->
     <script type="application/ld+json" set:html={JSON.stringify({

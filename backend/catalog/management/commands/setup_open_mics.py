@@ -43,8 +43,12 @@ RESERVATION = {
 }
 
 SERIES = {
-    'Noche de Open Mic - Espanol!': {'language': 'es', 'currency': 'mxn', 'price_cents': 5000},
-    'Open Mic Night - English!': {'language': 'en', 'currency': 'usd', 'price_cents': 500},
+    # Posters are made from hero video frames by scripts/make-banners.py (16:9 for pages and Facebook, 4:5 for phones
+    # and Instagram), in the language the show is in.
+    'Noche de Open Mic - Espanol!': {'language': 'es', 'currency': 'mxn', 'price_cents': 5000,
+                                     'image': '/media/events/open-mic-es-16x9.jpg', 'image_mobile': '/media/events/open-mic-es-4x5.jpg'},
+    'Open Mic Night - English!': {'language': 'en', 'currency': 'usd', 'price_cents': 500,
+                                  'image': '/media/events/open-mic-en-16x9.jpg', 'image_mobile': '/media/events/open-mic-en-4x5.jpg'},
 }
 
 
@@ -95,6 +99,11 @@ class Command(BaseCommand):
         # Member free tickets would turn a paid reservation into a free one.
         event.members_eligible = False
         event.tags = sorted(set(event.tags or []) | {OPEN_MIC_TAG})
+        # Only fill a missing poster: a night given its own poster in the admin keeps it.
+        if not event.image_url:
+            event.image_url = series['image']
+        if not event.image_url_mobile:
+            event.image_url_mobile = series['image_mobile']
         if opts['show_time']:
             event.show_time = opts['show_time']
         if opts['doors']:
