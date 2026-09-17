@@ -48,6 +48,12 @@ const hashRedirectJson =
 </Base>
 
 <style>
+  /* Headings centre over the column; the paragraphs under them stay left aligned so they are still readable. */
+  .prose-ish :global(h1),
+  .prose-ish :global(h2),
+  .prose-ish :global(h3) {
+    text-align: center;
+  }
   .prose-ish :global(h2) {
     font-family: var(--font-display);
     font-weight: 600;

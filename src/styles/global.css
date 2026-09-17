@@ -623,6 +623,7 @@ body {
   position: relative;
   z-index: 2;
   width: 100%;
+  text-align: center;
   /* 72rem of content plus its own padding, so the hero text lines up with the sections below, whose padding sits
      on the section instead of the inner box. */
   max-width: 75rem;
@@ -646,6 +647,7 @@ body {
 }
 
 .membership-hero-title {
+  margin-inline: auto;
   margin-top: 0.75rem;
   max-width: 16ch;
   font-family: var(--font-display);
@@ -656,6 +658,7 @@ body {
 }
 
 .membership-hero-support {
+  margin-inline: auto;
   margin-top: 1rem;
   max-width: 32rem;
   font-size: 1.05rem;
@@ -698,6 +701,7 @@ body {
 .membership-section-inner {
   max-width: 72rem;
   margin-inline: auto;
+  text-align: center;
 }
 
 /* Every section shares the hero's container, so each heading starts at the same left edge. Only the reading
@@ -712,17 +716,28 @@ body {
 .membership-section-inner--join > .membership-section-body,
 .membership-faq dd {
   max-width: 44rem;
+  margin-inline: auto;
 }
 
 .membership-value-compare,
 .membership-join-panel,
 .membership-faq {
   max-width: 44rem;
+  margin-inline: auto;
+}
+
+/* Headings and intros are centred; the benefit rows, the FAQ answers and the sign-up panel are prose and a form,
+   so their own text stays left aligned inside the centred column. */
+.membership-benefit-list,
+.membership-faq,
+.membership-join-panel {
+  text-align: left;
 }
 
 .membership-section-title {
   margin-top: 0.65rem;
   max-width: 22ch;
+  margin-inline: auto;
   font-family: var(--font-display);
   font-size: clamp(2rem, 4.5vw, 2.75rem);
   font-weight: 400;

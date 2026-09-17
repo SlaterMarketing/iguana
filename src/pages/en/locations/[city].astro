@@ -98,13 +98,14 @@ const cityPickerChoices = [
       {t(locale, "locations.backToAll")}
     </a>
 
-    <div class="mt-12 flex flex-col gap-16 lg:flex-row lg:justify-between">
+    <!-- One heading, centred: the two halves used to sit at opposite edges of the page. -->
+    <div class="mt-12 flex flex-wrap items-baseline justify-center gap-x-5 gap-y-1 text-center">
       <h2 class="font-display text-4xl text-neutral-950 sm:text-5xl" style="font-family: var(--font-display);">
         {t(locale, "locations.venuesIn").replace("{city}", landing.label)}
       </h2>
       <p
-        class="font-display text-4xl uppercase tracking-[0.45em] text-neutral-600 sm:text-5xl lg:text-end"
-        style="font-family: var(--font-display); letter-spacing: 0.4em;"
+        class="font-display text-4xl uppercase text-neutral-500 sm:text-5xl"
+        style="font-family: var(--font-display); letter-spacing: 0.32em; margin-inline-end: -0.32em;"
       >
         {t(locale, "locations.roomsLabel")}
       </p>

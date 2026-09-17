@@ -97,10 +97,10 @@ function StyledFormInner({
   const defaults = prefills ?? {};
 
   return (
-    <div className="max-w-xl">
+    <div className="mx-auto w-full max-w-xl text-left">
       {hideHeading ? null : (
         <h2
-          className="font-display text-2xl tracking-tight text-neutral-950"
+          className="text-center font-display text-2xl tracking-tight text-neutral-950"
           style={{ fontFamily: "var(--font-display)" }}
         >
           {title ?? t(locale, "ui.contactForm.title")}

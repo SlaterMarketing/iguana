@@ -10,14 +10,14 @@ interface Props {
 const { faq, locale = "en" } = Astro.props;
 ---
 
-<div class="grid gap-16 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.15fr)] lg:gap-24">
+<div class="mx-auto max-w-4xl">
   <h2
-    class="font-display text-4xl uppercase leading-[1.05] text-neutral-950 sm:text-5xl lg:text-6xl"
+    class="text-center font-display text-4xl uppercase leading-[1.05] text-neutral-950 sm:text-5xl lg:text-6xl"
     style="font-family: var(--font-display);"
   >
     {t(locale, "events.faqTitle")}
   </h2>
-  <div class="divide-y divide-black/10 border-t border-black/10">
+  <div class="mt-12 divide-y divide-black/10 border-t border-black/10">
     {
       faq.map((item) => (
         <details class="group py-8" open={item.open ? true : undefined}>

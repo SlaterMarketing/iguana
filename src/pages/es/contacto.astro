@@ -31,18 +31,18 @@ const subjectSummary: Record<string, string> = {
 ---
 
 <Base narrow transparentHeader={false} title={`${t(locale, "nav.contact")} · Iguana Comedy`} description="Habla con nuestro equipo de producción sobre programación de comedia en la Riviera.">
-  <section class="space-y-12">
+  <section class="space-y-12 text-center">
     <div>
       <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">Hablemos</p>
       <h1 class="mt-10 font-display text-5xl text-neutral-950" style={`font-family: var(--font-display);`}>
         Conversaciones dirigidas a los productores
       </h1>
-      <p class="mt-8 max-w-2xl text-lg text-neutral-600">
+      <p class="mx-auto mt-8 max-w-2xl text-lg text-neutral-600">
         Ya sea que estés buscando un fin de semana de bodas en destino, reuniendo compañeros de trabajo, reservando talento para hotel, proponiendo ángulos de inversión, o simplemente compartiendo notas de cariño, este formulario llega directo a nuestro calendario.
       </p>
       <details class="mt-8 rounded-3xl border border-neutral-300 bg-neutral-50 px-6 py-4 text-neutral-900">
         <summary class="cursor-pointer text-xs font-semibold uppercase tracking-[0.4em]">Prellenar tipo de consulta</summary>
-        <nav class="mt-5 flex flex-wrap gap-x-10 gap-y-5 text-[0.7rem] uppercase tracking-[0.4em]" aria-label="Tipos de consulta frecuentes">
+        <nav class="mt-5 flex flex-wrap justify-center gap-x-10 gap-y-5 text-[0.7rem] uppercase tracking-[0.4em]" aria-label="Tipos de consulta frecuentes">
           {
             Object.entries(subjectSummary).map(([slug, summary]) => (
               <a class="underline-offset-[0.5rem] hover:underline hover:text-brand" href={`${localizePath(locale, "contact")}?subject=${encodeURIComponent(slug)}`}>

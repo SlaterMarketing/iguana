@@ -142,7 +142,9 @@ const trackerMarkup =
     <Header transparent={transparentHeader} pathname={Astro.url.pathname} locale={locale} />
     <main
       class:list={[
-        flushMain ? "relative w-full" : narrow ? "mx-auto max-w-page px-4 pb-20 pt-8 sm:px-6 lg:pt-14" : "relative w-full",
+        // `narrow` is for a single column of text or a form: keep it a readable width and centred on the screen,
+        // rather than a form column stranded at the left of a 96rem container.
+        flushMain ? "relative w-full" : narrow ? "mx-auto max-w-3xl px-4 pb-20 pt-8 sm:px-6 lg:pt-14" : "relative w-full",
       ]}
     >
       <slot />

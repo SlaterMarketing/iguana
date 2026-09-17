@@ -1,5 +1,5 @@
 import type { KintanaFormField } from "@kintana/sdk";
-import { PhoneInput } from "@kintana/sdk/react";
+import { PhoneInput, defaultDialFromCountryHint } from "@kintana/sdk/react";
 
 import { t, type Locale } from "../../i18n/ui";
 
@@ -12,6 +12,15 @@ function acceptAttr(field: KintanaFormField): string | undefined {
   const mime = field.options?.acceptMimeTypes;
   if (!mime?.length) return undefined;
   return mime.join(",");
+}
+
+/** Whoever reads the Spanish site is almost always dialling from Mexico, and the English site from the US. The
+ * browser's own region wins when it names one of the countries we actually see. */
+function phoneCountry(locale: Locale): string {
+  const byLocale = locale === "es" ? "MX" : "US";
+  if (typeof navigator === "undefined") return byLocale;
+  const region = new Intl.Locale(navigator.language || "en-US").maximize().region;
+  return region && /^(MX|US|CA|GB|AR|CO|CL|ES|PE|BR|DE|FR|AU)$/.test(region) ? region : byLocale;
 }
 
 export function EmbedFormField({
@@ -187,7 +196,10 @@ export function EmbedFormField({
             name={field.id}
             required={field.required}
             disabled={disabled}
-            placeholder={field.placeholder ?? "412 345 678"}
+            // Seeded through `value`, not `defaultCountry`: the SDK reads the value first and its parser answers
+            // "+44" for an empty one, so the country hint never wins. The picker still changes it.
+            value={defaultDialFromCountryHint(phoneCountry(locale))}
+            placeholder={field.placeholder ?? (locale === "es" ? "998 123 4567" : "555 123 4567")}
           />
           {help}
         </>
