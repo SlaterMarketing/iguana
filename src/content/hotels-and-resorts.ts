@@ -8,8 +8,8 @@ export function getHotelsPage(locale: Locale) {
       ? "Shows para hoteles y resorts"
       : "Shows for hotels and resorts",
     description: isES
-      ? "Programación de comedia en inglés para hoteles y resorts en Quintana Roo: noches a la medida, alianzas a largo plazo y producción que tus gerentes de entretenimiento pueden confiar."
-      : "English stand-up programming for hotels and resorts across Quintana Roo—bespoke nights, long-term partnerships, and producing your entertainment managers can trust.",
+      ? "Shows de stand-up en español e inglés para hoteles y resorts en Quintana Roo: noches a la medida, alianzas a largo plazo y producción confiable."
+      : "Stand-up shows in English and Spanish for hotels and resorts across Quintana Roo: bespoke nights, long-term partnerships and producing you can trust.",
     intro: isES
       ? [
           "Nuestros shows para hoteles y resorts son acuerdos de entretenimiento a la medida y a largo plazo en múltiples ciudades de Quintana Roo. Trabajamos con tu equipo de programación para ajustar el tono, la capacidad y el run-of-show, ya sea un showcase único o un slot recurrente en el calendario.",

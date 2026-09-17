@@ -117,7 +117,7 @@ export const ui = {
     "seo.siteName": "Iguana Comedy",
     "seo.defaultTitle": "Iguana Comedy",
     "seo.defaultDescription":
-      "International English stand‑up comedy across Cancún, Playa del Carmen, Tulum, Cozumel & the Riviera Maya.",
+      "Stand-up comedy in English and Spanish at Iguana Comedy, Playa del Carmen, with touring comedians and free weekly open mics.",
     "seo.ogLocale": "en_US",
 
     "stats.comedians": "Comedians",
@@ -241,6 +241,7 @@ export const ui = {
     "home.section.eventsLabel": "events",
     "home.upcoming": "Upcoming",
     "home.eyebrow": "Live stand-up in English and Spanish",
+    "home.metaTitle": "Iguana Comedy · Stand-up in English & Spanish, Playa del Carmen",
     "openMic.hero.title": "{free} open mics Tuesday & Wednesday",
     "openMic.hero.free": "Free",
     "openMic.hero.reserveTuesday": "Reserve Tuesday, open mic in Spanish",
@@ -266,8 +267,8 @@ export const ui = {
       "Punchy British bits, understated Canadian dryness, sweaty American callbacks—woven together with Riviera hospitality. Ticketing behaves, rooms stay cool(er), microphones rarely bail mid-bit.",
     "home.venuesInCityLink": "Venues & rooms in {city} →",
     "home.storyEyebrow": "Believe softly",
-    "home.storyHeadline": "English comedy in the Mexican Caribbean",
-    "home.storyHeadlineCity": "English comedy in {city}",
+    "home.storyHeadline": "Stand-up in English and Spanish in the Mexican Caribbean",
+    "home.storyHeadlineCity": "Stand-up in English and Spanish in {city}",
     "home.storyBody":
       "This coastline craved articulate punch—we opened venues, nurtured audiences, and convinced touring comedians Cancún beats another flyover Midwest weekend.",
     "home.storyBodyCity":
@@ -280,7 +281,7 @@ export const ui = {
       "Comedian bios didn't load—check terminal output alongside your publish credentials.",
     "home.wallEmpty": "No performer profiles matched this ticketing account yet.",
     "home.heroFallbackRegion": "the Riviera Maya",
-    "home.hero.eyebrow": "Live English comedy nights",
+    "home.hero.eyebrow": "Live stand-up in English and Spanish",
     "home.hero.headlineLine1": "International stand-up",
     "home.hero.headlineLine2Prefix": "comedy in ",
     "home.hero.spotlightLabel": "Spotlight city",
@@ -403,7 +404,7 @@ export const ui = {
     "seo.siteName": "Iguana Comedy",
     "seo.defaultTitle": "Iguana Comedy",
     "seo.defaultDescription":
-      "Comedia internacional en inglés en Cancún, Playa del Carmen, Tulum, Cozumel y la Riviera Maya.",
+      "Stand-up en español e inglés en Iguana Comedy, Playa del Carmen, con comediantes internacionales y open mic gratis cada semana.",
     "seo.ogLocale": "es_MX",
 
     "stats.comedians": "Comediantes",
@@ -527,6 +528,7 @@ export const ui = {
     "home.section.eventsLabel": "eventos",
     "home.upcoming": "Próximos",
     "home.eyebrow": "Stand up en vivo en español e inglés",
+    "home.metaTitle": "Iguana Comedy · Stand-up en español e inglés, Playa del Carmen",
     "openMic.hero.title": "Open mics {free} martes y miércoles",
     "openMic.hero.free": "gratis",
     "openMic.hero.reserveTuesday": "Reservar martes, open mic en español",
@@ -552,8 +554,8 @@ export const ui = {
       "Chistes británicos directos, sequedad canadiense sutil, callbacks estadounidenses sudorosos—tejidos con hospitalidad de la Riviera. La taquilla responde, las salas se mantienen frescas (más o menos) y los micrófonos rara vez fallan a mitad del bit.",
     "home.venuesInCityLink": "Sedes y salas en {city} →",
     "home.storyEyebrow": "Créelo con calma",
-    "home.storyHeadline": "Comedia en inglés en el Caribe mexicano",
-    "home.storyHeadlineCity": "Comedia en inglés en {city}",
+    "home.storyHeadline": "Stand-up en español e inglés en el Caribe mexicano",
+    "home.storyHeadlineCity": "Stand-up en español e inglés en {city}",
     "home.storyBody":
       "Esta costa pedía remates con garra—inauguramos sedes, criamos audiencias y convencimos a comediantes de gira de que Cancún gana a otro fin de semana de escala en el medio oeste.",
     "home.storyBodyCity":
@@ -566,7 +568,7 @@ export const ui = {
       "Las biografías de comediantes no cargaron—revisa la salida de la terminal junto con tus credenciales de publicación.",
     "home.wallEmpty": "Aún no hay perfiles de artistas que coincidan con esta cuenta de taquilla.",
     "home.heroFallbackRegion": "la Riviera Maya",
-    "home.hero.eyebrow": "Noches de comedia en inglés",
+    "home.hero.eyebrow": "Stand up en vivo en español e inglés",
     "home.hero.headlineLine1": "Stand-up internacional",
     "home.hero.headlineLine2Prefix": "comedia en ",
     "home.hero.spotlightLabel": "Ciudad destacada",

@@ -27,16 +27,16 @@ export function getCityLanding(locale: Locale, slug: string): CityLanding | unde
     label,
     heroImage: card?.imageUrl ?? site.heroImage,
     eyebrow: isES
-      ? `Comedia en vivo en inglés en ${label}`
-      : `Live English comedy in ${label}`,
+      ? `Stand-up en vivo en español e inglés en ${label}`
+      : `Live stand-up in English and Spanish in ${label}`,
     experienceHeading: isES
       ? `La experiencia Iguana en ${label}`
       : `The iguana experience in ${label}`,
     experienceCopy:
       blurb?.paragraphs[0] ??
       (isES
-        ? `Stand-up en inglés en ${label}: showcases curados, headliners de gira y salas diseñadas para viajeros que quieren punchlines entre días de playa.`
-        : `English stand-up across ${label}—curated showcases, touring headliners, and rooms built for travellers who want punchlines between beach days.`),
+        ? `Stand-up en español e inglés en ${label}: showcases, comediantes de gira y noches para locales y viajeros por igual.`
+        : `Stand-up in English and Spanish in ${label}: curated showcases, touring headliners and nights for locals and travellers alike.`),
   };
 }
 

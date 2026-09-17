@@ -36,11 +36,11 @@ export const site = {
 export const siteMessages = {
   en: {
     shortTagline:
-      "English stand-up comedy across Cancún, Playa, Tulum, Cozumel, and more.",
+      "Stand-up comedy club in downtown Playa del Carmen: shows in English and Spanish, plus free open mics on Tuesdays (Spanish) and Wednesdays (English).",
   },
   es: {
     shortTagline:
-      "Comedia en inglés en Cancún, Playa, Tulum, Cozumel y más.",
+      "Club de stand-up en el centro de Playa del Carmen: shows en español e inglés y open mic gratis los martes (español) y miércoles (inglés).",
   },
 } as const;
 

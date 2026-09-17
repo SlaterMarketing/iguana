@@ -6,8 +6,8 @@ export function getPerformPage(locale: Locale) {
   return {
     title: isES ? "Actúa con Iguana" : "Perform with Iguana",
     description: isES
-      ? "Comedia en inglés en Cancún, Playa del Carmen, Cozumel, Tulum y más: espacio para headliners de gira y cómicos de vacaciones por igual."
-      : "English comedy across Cancún, Playa del Carmen, Cozumel, Tulum, and more—room for touring headliners and vacationing comics alike.",
+      ? "Actúa en Iguana Comedy, Playa del Carmen: stand-up en español e inglés, open mic cada semana y espacio para headliners de gira."
+      : "Perform at Iguana Comedy in Playa del Carmen: stand-up in English and Spanish, weekly open mics and room for touring headliners.",
     intro: isES
       ? [
           "Organizamos comedia en inglés en Cancún, Playa del Carmen, Cozumel, Tulum, Puerto Morelos, Puerto Aventuras y Mérida, trabajando con sedes, hoteles y resorts a lo largo de la costa.",
