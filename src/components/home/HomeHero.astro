@@ -104,7 +104,7 @@ const headlineWords = (text: string) => text.trim().split(/\s+/).filter(Boolean)
     }
   </div>
   <div class:list={["absolute inset-0", useImageHero ? "bg-black/55" : "bg-black/50"]} />
-  <div class="relative z-10 mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col px-6 pb-10 pt-28 text-white sm:pb-12 lg:pt-32">
+  <div class="relative z-10 mx-auto flex h-full min-h-0 w-full max-w-page flex-1 flex-col px-6 pb-10 pt-28 text-white sm:pb-12 lg:pt-32">
     <div class="flex flex-1 flex-col justify-center">
       <div class:list={["text-center", hasAnnouncement ? "sm:-translate-y-[50px]" : "-translate-y-[50px]"]}>
         <p class:list={["text-xs font-semibold uppercase tracking-[0.45em] text-white/75", hasAnnouncement && "hidden sm:block"]}>

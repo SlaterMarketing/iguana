@@ -80,7 +80,7 @@ const cityPickerChoices = [
     ctaLabel={t(locale, "locations.cta.buyTicket")}
   />
 
-  <section class="mx-auto max-w-[118rem] px-6 py-28">
+  <section class="mx-auto max-w-page px-6 py-28">
     <div class="flex flex-col gap-16 lg:flex-row lg:justify-between">
       <p class="font-display text-4xl text-neutral-950 sm:text-5xl" style="font-family: var(--font-display);">
         {t(locale, "locations.ourCities")}
@@ -111,7 +111,7 @@ const cityPickerChoices = [
 
   {
     apiOnlyGroups.length > 0 ? (
-      <section class="mx-auto max-w-[118rem] border-t border-black/15 px-6 py-20">
+      <section class="mx-auto max-w-page border-t border-black/15 px-6 py-20">
         <p class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-500">{t(locale, "locations.fromCalendar")}</p>
         <h2 class="mt-4 font-display text-3xl text-neutral-950 sm:text-4xl" style="font-family: var(--font-display);">
           {t(locale, "locations.alsoOnCoast")}
@@ -125,7 +125,7 @@ const cityPickerChoices = [
     ) : null
   }
 
-  <section class="mx-auto max-w-[118rem] px-6 pb-28">
+  <section class="mx-auto max-w-page px-6 pb-28">
     <div class="grid gap-4 sm:grid-cols-3">
       {locationsPage.galleryImages.map((src) => (
         <div class="overflow-hidden rounded-[2.85rem]">
@@ -135,7 +135,7 @@ const cityPickerChoices = [
     </div>
   </section>
 
-  <section class="mx-auto max-w-[118rem] px-6 pb-28 lg:pb-36">
+  <section class="mx-auto max-w-page px-6 pb-28 lg:pb-36">
     <div class="grid items-center gap-12 lg:grid-cols-2 lg:gap-16 xl:gap-24">
       <figure class="relative isolate mx-auto aspect-square w-full max-w-md overflow-hidden rounded-[2.5rem] bg-neutral-900 lg:mx-0 lg:max-w-none">
         <img src={brandMerged.brandMomentImage} alt="" class="size-full object-cover" loading="lazy" />
@@ -178,7 +178,7 @@ const cityPickerChoices = [
     </div>
   </section>
 
-  <section class="mx-auto max-w-[118rem] border-t border-black/15 px-6 py-28">
+  <section class="mx-auto max-w-page border-t border-black/15 px-6 py-28">
     <div class="grid gap-16 lg:grid-cols-[0.93fr_minmax(0,1fr)] lg:gap-24">
       <div class="overflow-hidden rounded-[2.85rem]">
         <img

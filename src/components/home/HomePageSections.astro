@@ -66,7 +66,7 @@ const storyBody = cityLabel
   : t(locale, "home.storyBody");
 ---
 
-<section class="mx-auto max-w-[118rem] px-6 py-28">
+<section class="mx-auto max-w-page px-6 py-28">
   <!-- One heading, not two words thrown at opposite edges of the page: the second word keeps the tracked,
        lighter treatment but sits next to the first. -->
   <div class="flex flex-wrap items-baseline gap-x-5 gap-y-1">
@@ -109,7 +109,7 @@ const storyBody = cityLabel
   }
 </section>
 
-<section class="mx-auto max-w-[118rem] px-6 py-20 lg:py-28">
+<section class="mx-auto max-w-page px-6 py-20 lg:py-28">
   <div class="grid items-center gap-12 lg:grid-cols-2 lg:gap-16 xl:gap-24">
     <figure class="relative isolate mx-auto aspect-square w-full max-w-md overflow-hidden rounded-[2.5rem] bg-neutral-900 lg:mx-0 lg:max-w-none">
       <img src={brandMerged.brandMomentImage} alt="" class="size-full object-cover" loading="lazy" />
@@ -169,7 +169,7 @@ const storyBody = cityLabel
   </div>
 </section>
 
-<section class="mx-auto max-w-[118rem] px-6 pb-36">
+<section class="mx-auto max-w-page px-6 pb-36">
   <div class="grid gap-24 lg:grid-cols-[minmax(0,1fr)_0.93fr] lg:gap-52">
     <div class="flex flex-col justify-center gap-10">
       <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{t(locale, "home.storyEyebrow")}</p>
@@ -186,7 +186,7 @@ const storyBody = cityLabel
 </section>
 
 <section class="border-t border-black/20 bg-neutral-950 py-32 text-neutral-100">
-  <div class="mx-auto max-w-6xl px-6">
+  <div class="mx-auto max-w-page px-6">
     <p class="text-center font-display text-4xl text-white sm:text-5xl" style="font-family: var(--font-display);" set:html={t(locale, "home.wallTitle")} />
     <p class="mx-auto mt-6 max-w-2xl text-center text-neutral-400">
       {t(locale, "home.wallSubtitle")}

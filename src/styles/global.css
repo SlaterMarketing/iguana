@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* One page container for every top-level section, so the hero, the sections, the CTA band and the footer all share
+   a left edge at every width. Wider than the old 72rem hero, narrower than the old 118rem sections. */
+@utility max-w-page {
+  max-width: 96rem;
+}
+
 @theme {
   --font-display: "Bebas Neue", ui-sans-serif, system-ui, sans-serif;
   --font-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
