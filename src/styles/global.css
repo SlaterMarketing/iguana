@@ -39,12 +39,12 @@ body {
 }
 
 .home-hero {
+  /* svh, never dvh: dvh tracks the mobile URL bar, so the hero grew as the bar hid on scroll and the
+     object-cover video appeared to zoom. svh is the height with the bar showing, and it does not move. */
   height: 100vh;
   height: 100svh;
-  height: 100dvh;
   min-height: 100vh;
   min-height: 100svh;
-  min-height: 100dvh;
 }
 
 .btn-pill {
