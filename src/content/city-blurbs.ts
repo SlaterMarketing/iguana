@@ -1,12 +1,12 @@
 import { slugify } from "../lib/slug";
 import type { Locale } from "../i18n/locale";
 
-/** Editorial blurbs for /locations/[city] — keyed by slugified city strings. */
+/** Editorial blurbs for /locations/[city], keyed by slugified city strings. */
 const blurbsRaw: Record<string, Record<Locale, string[]>> = {
   cancun: {
     en: [
-      "Cancún anchors the Riviera run for headline tours and rotating guests—we keep english rooms tight, roomy, and on time.",
-      "Expect international billings, bilingual hosting when needed, and rooms built for travellers who crave punchlines—not punch clocks.",
+      "Cancún anchors the Riviera run for headline tours and rotating guests: we keep english rooms tight, roomy, and on time.",
+      "Expect international billings, bilingual hosting when needed, and rooms built for travellers who crave punchlines, not punch clocks.",
     ],
     es: [
       "Cancún es el ancla de la gira por la Riviera para headliners de paso y invitados rotativos: mantenemos las salas ágiles, amplias y puntuales.",
@@ -16,7 +16,7 @@ const blurbsRaw: Record<string, Record<Locale, string[]>> = {
   "playa-del-carmen": {
     en: [
       "Playa is our weekly heartbeat: alternating showcases, curated open mics, and pop-up specials when tours swing through Quintana Roo.",
-      "Venues zig-zag Centro to the fringe—bookmark this page whenever you bounce between Playa's coast and cenote day trips.",
+      "Venues zig-zag Centro to the fringe: bookmark this page whenever you bounce between Playa's coast and cenote day trips.",
     ],
     es: [
       "Playa es nuestro latido semanal: showcases alternos, open mics curados y especiales pop-up cuando las giras pasan por Quintana Roo.",
@@ -26,11 +26,11 @@ const blurbsRaw: Record<string, Record<Locale, string[]>> = {
   cozumel: {
     en: [
       "Island nights skew intimate: smaller capacities, cruisers mixed with dive-shop regulars, and comics who love riffing seaside audiences.",
-      "Ferry commuters: check dates early—shows often sell faster than mainland rooms during high season swings.",
+      "Ferry commuters: check dates early. Shows often sell faster than mainland rooms during high season swings.",
     ],
     es: [
       "Las noches de isla son íntimas: capacidades reducidas, cruceristas mezclados con locales de tiendas de buceo, y comediantes que aman improvisar con público frente al mar.",
-      "Si tomas el ferry: revisa fechas con anticipación: los shows suelen agotarse más rápido que en la tierra firme en temporada alta.",
+      "Si tomas el ferry, revisa fechas con anticipación. Los shows suelen agotarse más rápido que en la tierra firme en temporada alta.",
     ],
   },
   tulum: {
@@ -45,7 +45,7 @@ const blurbsRaw: Record<string, Record<Locale, string[]>> = {
   },
   merida: {
     en: [
-      "Mérida's colonial streets pair well with cerebral sets—ideal for comedians itching for slower-burn audiences than beach clubs.",
+      "Mérida's colonial streets pair well with cerebral sets: ideal for comedians itching for slower-burn audiences than beach clubs.",
       "We stagger shows around city festivals; sign up early if you already have festival tickets locked.",
     ],
     es: [
@@ -55,7 +55,7 @@ const blurbsRaw: Record<string, Record<Locale, string[]>> = {
   },
   "puerto-morelos": {
     en: [
-      "Puerto Morelos keeps things neighbourly—the perfect pit stop between Cancún airport hustle and cenote itineraries.",
+      "Puerto Morelos keeps things neighbourly: the perfect pit stop between Cancún airport hustle and cenote itineraries.",
       "Expect laid-back laughs, approachable pricing, and lineups sprinkled with Playa regulars swinging south for the night.",
     ],
     es: [

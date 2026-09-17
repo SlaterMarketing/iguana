@@ -42,13 +42,49 @@ RESERVATION = {
     'door_note_es': ' Pagas en la puerta.',
 }
 
+# Posters are made from hero video frames by scripts/make-banners.py: 16:9 for pages and Facebook, 4:5 for phones and
+# Instagram, and one set per site language, since the artwork carries words.
+# Every night gets the same explanation, in both site languages, with the language of the night dropped in.
+BLURB = {
+    'en': 'Free stand-up every week at Iguana Comedy, Playa del Carmen. Anyone can sign up for five minutes, or '
+          'just come and watch. Entry is free, and a reservation holds your seat and includes a free drink.',
+    'es': 'Stand-up gratis cada semana en Iguana Comedy, Playa del Carmen. Cualquiera puede anotarse para hacer '
+          'cinco minutos, o simplemente venir a ver. La entrada es gratis, y tu reservación te aparta el lugar e '
+          'incluye una bebida gratis.',
+}
+LONG_BLURB = {
+    'en': ('{0}\n\nThe room holds 80 and the open mic fills up, so we reserve 60 seats online and keep the rest for '
+           'walk-ins. Without a reservation we may have to turn you away once it is full.\n\nWant to perform? Sign '
+           'up at the door when you arrive. Five minutes, any style, first time or hundredth.'),
+    'es': ('{0}\n\nLa sala es de 80 lugares y el open mic se llena, así que apartamos 60 lugares en línea y '
+           'dejamos el resto para quien llegue sin reservación. Si se llena, podemos negarte el paso.\n\n¿Quieres '
+           'presentarte? Anótate en la puerta al llegar. Cinco minutos, el estilo que quieras, sea tu primera vez '
+           'o la número cien.'),
+}
+
 SERIES = {
-    # Posters are made from hero video frames by scripts/make-banners.py (16:9 for pages and Facebook, 4:5 for phones
-    # and Instagram), in the language the show is in.
-    'Noche de Open Mic - Espanol!': {'language': 'es', 'currency': 'mxn', 'price_cents': 5000,
-                                     'image': '/media/events/open-mic-es-16x9.jpg', 'image_mobile': '/media/events/open-mic-es-4x5.jpg'},
-    'Open Mic Night - English!': {'language': 'en', 'currency': 'usd', 'price_cents': 500,
-                                  'image': '/media/events/open-mic-en-16x9.jpg', 'image_mobile': '/media/events/open-mic-en-4x5.jpg'},
+    'spanish-night': {
+        'tag': 'open-mic-es',
+        'legacy_names': ['Noche de Open Mic - Espanol!', 'Noche de Open Mic - Español!'],
+        'name': 'Open Mic Night in Spanish',
+        'name_es': 'Noche de Open Mic en Español',
+        'language': 'es',
+        'currency': 'mxn',
+        'price_cents': 5000,
+        'images': {'en': ('/media/events/open-mic-es-en-16x9.jpg', '/media/events/open-mic-es-en-4x5.jpg'),
+                   'es': ('/media/events/open-mic-es-16x9.jpg', '/media/events/open-mic-es-4x5.jpg')},
+    },
+    'english-night': {
+        'tag': 'open-mic-en',
+        'legacy_names': ['Open Mic Night - English!'],
+        'name': 'Open Mic Night in English',
+        'name_es': 'Noche de Open Mic en Inglés',
+        'language': 'en',
+        'currency': 'usd',
+        'price_cents': 500,
+        'images': {'en': ('/media/events/open-mic-en-16x9.jpg', '/media/events/open-mic-en-4x5.jpg'),
+                   'es': ('/media/events/open-mic-en-es-16x9.jpg', '/media/events/open-mic-en-es-4x5.jpg')},
+    },
 }
 
 
@@ -71,13 +107,21 @@ class Command(BaseCommand):
                                'first, or pass --pay-at-door to take bookings now and collect at the door.')
         start = dt.date.fromisoformat(opts['start']) if opts['start'] else dt.datetime.now(CANCUN).date()
         since = dt.datetime.combine(start, dt.time.min, tzinfo=CANCUN)
-        events = Event.objects.filter(name__in=SERIES, date__gte=since).select_related('venue').order_by('date')
+        # Match on the tag this command sets, or on the names the series had before it was renamed. Tags are matched in
+        # Python: a JSON "contains" lookup works on Postgres but not on SQLite, which the tests use.
+        names = {name: series for series in SERIES.values() for name in [*series['legacy_names'], series['name']]}
+        tags = {series['tag']: series for series in SERIES.values()}
+        found = []
+        for event in Event.objects.filter(date__gte=since).select_related('venue').order_by('date'):
+            series = names.get(event.name) or next((tags[t] for t in (event.tags or []) if t in tags), None)
+            if series:
+                found.append((event, series))
 
         with transaction.atomic():
-            for event in events:
-                self.stdout.write(self.setup(event, SERIES[event.name], opts))
+            for event, series in found:
+                self.stdout.write(self.setup(event, series, opts))
             mode = 'paid at the door' if opts['pay_at_door'] else 'paid online'
-            self.stdout.write(f'{events.count()} open mic night(s) from {start}, reservations {mode}')
+            self.stdout.write(f'{len(found)} open mic night(s) from {start}, reservations {mode}')
             if opts['dry_run']:
                 transaction.set_rollback(True)
                 self.stdout.write(self.style.WARNING('dry run: nothing saved'))
@@ -94,16 +138,24 @@ class Command(BaseCommand):
                 notes.append(f'kept currency {event.currency}: the event already has orders')
             else:
                 event.currency = series['currency']
+        event.name = series['name']
+        event.name_es = series['name_es']
+        # Only fill blanks: a night given its own blurb in the admin keeps it.
+        for attr, text in (('description', BLURB['en']), ('description_es', BLURB['es']),
+                           ('long_description', LONG_BLURB['en'].format(BLURB['en'])),
+                           ('long_description_es', LONG_BLURB['es'].format(BLURB['es']))):
+            if not getattr(event, attr):
+                setattr(event, attr, text)
         event.language = series['language']
         event.ticketing_type = 'INTERNAL'
         # Member free tickets would turn a paid reservation into a free one.
         event.members_eligible = False
-        event.tags = sorted(set(event.tags or []) | {OPEN_MIC_TAG})
+        event.tags = sorted(set(event.tags or []) | {OPEN_MIC_TAG, series['tag']})
         # Only fill a missing poster: a night given its own poster in the admin keeps it.
-        if not event.image_url:
-            event.image_url = series['image']
-        if not event.image_url_mobile:
-            event.image_url_mobile = series['image_mobile']
+        for attr, value in (('image_url', series['images']['en'][0]), ('image_url_mobile', series['images']['en'][1]),
+                            ('image_url_es', series['images']['es'][0]), ('image_url_mobile_es', series['images']['es'][1])):
+            if not getattr(event, attr):
+                setattr(event, attr, value)
         if opts['show_time']:
             event.show_time = opts['show_time']
         if opts['doors']:
@@ -133,6 +185,6 @@ class Command(BaseCommand):
 
         venue = event.venue.name if event.venue else event.venue_label or 'no venue'
         price = f'{reservation.price_cents / 100:g} {event.currency.upper()}'
-        return (f'{event.date.astimezone(CANCUN):%a %Y-%m-%d} {event.name:30} {event.status:7} {venue:14} '
+        return (f'{event.date.astimezone(CANCUN):%a %Y-%m-%d} {event.name:26} {event.status:7} {venue:14} '
                 f'{price:>7} x {reservation.capacity} seats, {booked} booked'
                 + (f' | {"; ".join(notes)}' if notes else ''))

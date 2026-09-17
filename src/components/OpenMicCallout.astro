@@ -75,53 +75,61 @@ const canReserve = copy.nights.some((night) => night.event);
     )
   }
 
-  <div class="flex flex-col gap-8 px-8 py-10 sm:px-12 lg:flex-row lg:items-center lg:justify-between lg:gap-12">
-    <div class="space-y-3">
-      <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white/60">{copy.kicker}</p>
-      <p
-        class="font-display leading-none"
-        style="font-family: var(--font-display); font-size: clamp(2.25rem, 3vw + 1.25rem, 3.25rem);"
-      >
-        {copy.headline}
-      </p>
-      <p class="inline-flex rounded-full bg-brand px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.2em]">
-        {copy.free}
-      </p>
-    </div>
+  <div class="mx-auto max-w-4xl px-6 py-10 text-center sm:px-10">
+    <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white/60">{copy.kicker}</p>
+    <p
+      class="mt-3 font-display leading-none"
+      style="font-family: var(--font-display); font-size: clamp(2.25rem, 3vw + 1.25rem, 3.25rem);"
+    >
+      {copy.headline}
+    </p>
+    <p class="mt-4 inline-flex rounded-full bg-brand px-4 py-1.5 text-sm font-semibold uppercase tracking-[0.2em]">
+      {copy.free}
+    </p>
 
-    <ul class="grid gap-4 sm:grid-cols-2 lg:min-w-[26rem]">
+    {/* The whole night is one target: the card itself is the link, with the button inside it as the affordance. */}
+    <ul class="mt-8 grid gap-4 sm:grid-cols-2">
       {
-        copy.nights.map((night) => (
-          <li class="flex flex-col rounded-2xl border border-white/15 px-6 py-5">
-            <p class="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">{night.day}</p>
-            <p class="mt-2 text-lg font-semibold">{night.show}</p>
-            {night.event && (
-              <div class="mt-4 space-y-3">
-                <p class="text-sm text-white/70">
+        copy.nights.map((night) =>
+          night.event ? (
+            <li>
+              <a
+                class="group flex h-full flex-col items-center rounded-2xl border border-white/20 bg-white/[0.03] px-6 py-6 transition hover:border-white/70 hover:bg-white/10 focus-visible:border-white/70 focus-visible:outline-none"
+                href={localizePath(locale, "eventDetail", { slug: night.event.slug })}
+              >
+                <span class="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">{night.day}</span>
+                <span class="mt-2 text-lg font-semibold">{night.show}</span>
+                <span class="mt-2 text-sm text-white/70">
                   {copy.nextNight}: {formatEventDate(night.event.date, locale)}
                   <br />
                   {formatSeatPrice(night.event, locale)} {copy.perSeat}
-                </p>
-                <a
-                  class="inline-flex rounded-full bg-white px-5 py-2 text-xs font-semibold uppercase tracking-[0.3em] text-neutral-950 hover:bg-white/85"
-                  href={localizePath(locale, "eventDetail", { slug: night.event.slug })}
-                >
+                </span>
+                <span class="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.3em] text-neutral-950 transition group-hover:bg-brand group-hover:text-white">
                   {copy.reserve}
-                </a>
-              </div>
-            )}
-          </li>
-        ))
+                  <span aria-hidden="true">→</span>
+                </span>
+              </a>
+            </li>
+          ) : (
+            <li class="flex h-full flex-col items-center rounded-2xl border border-white/15 px-6 py-6">
+              <span class="text-xs font-semibold uppercase tracking-[0.35em] text-white/60">{night.day}</span>
+              <span class="mt-2 text-lg font-semibold">{night.show}</span>
+            </li>
+          ),
+        )
       }
     </ul>
+
+    {canReserve && <p class="mx-auto mt-6 max-w-2xl text-sm leading-relaxed text-white/70">{copy.reserveNote}</p>}
   </div>
 
-  {canReserve && <p class="px-8 pb-8 text-sm leading-relaxed text-white/70 sm:px-12">{copy.reserveNote}</p>}
-
-  <div class="flex flex-wrap items-center justify-between gap-4 border-t border-white/10 px-8 py-5 text-sm text-white/75 sm:px-12">
-    <p>{copy.venue}</p>
-    <a class="font-semibold uppercase tracking-[0.3em] text-white hover:underline" href={mapsHref} rel="noopener" target="_blank">
-      {copy.maps}
-    </a>
-  </div>
+  <a
+    class="flex flex-wrap items-center justify-center gap-3 border-t border-white/10 px-6 py-5 text-sm text-white/75 transition hover:bg-white/5 hover:text-white sm:px-10"
+    href={mapsHref}
+    rel="noopener"
+    target="_blank"
+  >
+    <span>{copy.venue}</span>
+    <span class="font-semibold uppercase tracking-[0.3em] text-white">{copy.maps} →</span>
+  </a>
 </aside>

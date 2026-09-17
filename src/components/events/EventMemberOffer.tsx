@@ -16,7 +16,7 @@ type Props = {
 
 const copy = {
   en: {
-    memberPricing: "You're a member — member pricing applies at checkout where available.",
+    memberPricing: "You're a member. Member pricing applies at checkout where available.",
     membersOnlyShow: "This show is for members.",
     join: "Join membership",
     toBook: "to book.",
@@ -25,7 +25,7 @@ const copy = {
     someMembersOnly: "Some ticket types are members only.",
   },
   es: {
-    memberPricing: "Eres miembro — el precio de miembro aplica en el checkout cuando esté disponible.",
+    memberPricing: "Eres miembro: el precio de miembro aplica en el checkout cuando esté disponible.",
     membersOnlyShow: "Este show es solo para miembros.",
     join: "Únete a la membresía",
     toBook: "para reservar.",

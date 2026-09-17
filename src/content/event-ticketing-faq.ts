@@ -7,7 +7,7 @@ type FaqItem = { question: string; answer: string; open?: boolean };
 
 const ACCESSIBILITY_QUESTION: Record<Locale, string> = {
   en: "Is the venue accessible?",
-  es: "¿El venue es accesible?",
+  es: "¿El lugar es accesible?",
 };
 
 const DOORS_QUESTION: Record<Locale, string> = {
@@ -17,7 +17,7 @@ const DOORS_QUESTION: Record<Locale, string> = {
 
 const VENUE_QUESTION: Record<Locale, string> = {
   en: "Where is the venue?",
-  es: "¿Dónde está el venue?",
+  es: "¿Dónde está el lugar?",
 };
 
 const FAQ: Record<Locale, FaqItem[]> = {
@@ -31,7 +31,7 @@ const FAQ: Record<Locale, FaqItem[]> = {
     {
       question: "What is the refund policy?",
       answer:
-        "We honour refunds when you request them more than 48 hours before the show. Contact us if your plans change—we will help when we can.",
+        "We honour refunds when you request them more than 48 hours before the show. Contact us if your plans change. We will help when we can.",
     },
     {
       question: "Is there an age limit?",
@@ -51,20 +51,20 @@ const FAQ: Record<Locale, FaqItem[]> = {
     {
       question: ACCESSIBILITY_QUESTION.en,
       answer:
-        "Contact us before you buy if you need step-free access or other accommodations—we will confirm what is possible for that room.",
+        "Contact us before you buy if you need step-free access or other accommodations and we will confirm what is possible for that room.",
     },
   ],
   es: [
     {
       question: "¿Cómo recibo mis boletos?",
       answer:
-        "Después del checkout recibes un correo de confirmación con tus boletos. También puedes verlos desde el enlace de la orden en la pantalla de confirmación.",
+        "Al terminar tu compra recibes un correo de confirmación con tus boletos. También puedes verlos desde el enlace de la orden en la pantalla de confirmación.",
       open: true,
     },
     {
       question: "¿Cuál es la política de reembolso?",
       answer:
-        "Honramos reembolsos cuando los solicitas con más de 48 horas de anticipación al show. Escríbenos si cambian tus planes—te ayudaremos cuando podamos.",
+        "Honramos reembolsos cuando los solicitas con más de 48 horas de anticipación al show. Escríbenos si cambian tus planes y te ayudaremos cuando podamos.",
     },
     {
       question: "¿Hay límite de edad?",
@@ -74,7 +74,7 @@ const FAQ: Record<Locale, FaqItem[]> = {
     {
       question: VENUE_QUESTION.es,
       answer:
-        "Cada show lista el room y la dirección en esta página. Toca Ver en Google Maps para indicaciones.",
+        "Cada show indica la sala y la dirección en esta página. Toca Ver en Google Maps para indicaciones.",
     },
     {
       question: DOORS_QUESTION.es,
@@ -84,7 +84,7 @@ const FAQ: Record<Locale, FaqItem[]> = {
     {
       question: ACCESSIBILITY_QUESTION.es,
       answer:
-        "Contáctanos antes de comprar si necesitas acceso sin escaleras u otras adaptaciones—confirmaremos lo posible para ese room.",
+        "Contáctanos antes de comprar si necesitas acceso sin escaleras u otras adaptaciones y te confirmamos lo posible para esa sala.",
     },
   ],
 };
@@ -102,7 +102,7 @@ function venueFaqAnswer(
       return `${venueName} está en ${address}. Toca Ver en Google Maps arriba para indicaciones.`;
     }
     if (venueName) {
-      return `${venueName}. Toca Ver en Google Maps en la sección del venue arriba para indicaciones.`;
+      return `${venueName}. Toca Ver en Google Maps en la sección del lugar arriba para indicaciones.`;
     }
     return `${address}. Toca Ver en Google Maps arriba para indicaciones.`;
   }
@@ -154,8 +154,8 @@ function accessibilityFaqAnswer(
       : `${venueName} is marked as wheelchair accessible. Contact us before you buy if you need anything more specific.`;
   }
   return locale === "es"
-    ? `${venueName} no está marcado como accesible con silla de ruedas. Contáctanos antes de comprar si necesitas acceso sin escaleras u otras adaptaciones—confirmaremos lo posible.`
-    : `${venueName} is not marked as wheelchair accessible. Contact us before you buy if you need step-free access or other accommodations—we will confirm what is possible for that room.`;
+    ? `${venueName} no está marcado como accesible con silla de ruedas. Contáctanos antes de comprar si necesitas acceso sin escaleras u otras adaptaciones y te confirmamos lo posible.`
+    : `${venueName} is not marked as wheelchair accessible. Contact us before you buy if you need step-free access or other accommodations and we will confirm what is possible for that room.`;
 }
 
 export function getEventTicketingFaq(
@@ -179,7 +179,7 @@ export function getEventTicketingFaq(
 
   const wheelchairAccessible = event.venue?.wheelchairAccessible;
   if (wheelchairAccessible != null) {
-    const venueName = event.venue?.name?.trim() || (locale === "es" ? "Este venue" : "This venue");
+    const venueName = event.venue?.name?.trim() || (locale === "es" ? "Este lugar" : "This venue");
     const accessibilityIndex = items.findIndex((item) => item.question === ACCESSIBILITY_QUESTION[locale]);
     if (accessibilityIndex !== -1) {
       items[accessibilityIndex] = {

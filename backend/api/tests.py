@@ -82,6 +82,47 @@ class PublicApiTests(ApiTestCase):
         self.assertEqual(self.api('post', '/api/public/v1/endpoints/nope/submit', {'email': 'a@example.com'}).status_code, 404)
 
 
+class EventLanguageTests(ApiTestCase):
+    """Event name, text and poster come back in the language the site asks for."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        Event.objects.filter(pk=cls.event.pk).update(
+            name='Open Mic Night in Spanish', name_es='Noche de Open Mic en Español',
+            description='Free entry.', description_es='Entrada libre.',
+            image_url='/media/events/en.jpg', image_url_es='/media/events/es.jpg',
+            image_url_mobile='/media/events/en-4x5.jpg', image_url_mobile_es='/media/events/es-4x5.jpg')
+
+    def test_events_and_detail_answer_in_the_requested_language(self):
+        for path in ('/api/public/v1/events?limit=10', '/api/public/v1/events/open-mic'):
+            english = self.api('get', path).json()
+            spanish = self.api('get', f'{path}{"&" if "?" in path else "?"}locale=es').json()
+            pick = (lambda data: data['events'][0]) if 'events' in english else (lambda data: data['event'])
+            self.assertEqual(pick(english)['name'], 'Open Mic Night in Spanish')
+            self.assertEqual(pick(spanish)['name'], 'Noche de Open Mic en Español')
+            self.assertEqual(pick(english)['description'], 'Free entry.')
+            self.assertEqual(pick(spanish)['description'], 'Entrada libre.')
+            self.assertTrue(pick(english)['imageUrl'].endswith('/media/events/en.jpg'))
+            self.assertTrue(pick(spanish)['imageUrl'].endswith('/media/events/es.jpg'))
+            self.assertTrue(pick(spanish)['imageUrlMobile'].endswith('/media/events/es-4x5.jpg'))
+
+    def test_missing_spanish_falls_back_to_the_english_row(self):
+        Event.objects.filter(pk=self.event.pk).update(name_es='', description_es='', image_url_es='')
+        spanish = self.api('get', '/api/public/v1/events/open-mic?locale=es').json()['event']
+        self.assertEqual(spanish['name'], 'Open Mic Night in Spanish')
+        self.assertEqual(spanish['description'], 'Free entry.')
+        self.assertTrue(spanish['imageUrl'].endswith('/media/events/en.jpg'))
+
+    def test_artist_page_upcoming_events_follow_the_locale(self):
+        data = self.api('get', f'/api/public/v1/artists/{self.artist.slug}?locale=es').json()['artist']
+        self.assertEqual(data['upcomingEvents'][0]['name'], 'Noche de Open Mic en Español')
+
+    def test_checkout_header_uses_the_localized_name(self):
+        page = self.client.get(f'/embed/event/{self.event.id}?lang=es').content.decode()
+        self.assertIn('Noche de Open Mic en Español', page)
+
+
 class NewsletterTests(ApiTestCase):
     """Home page sign-ups join "Newsletter"; empty city pages also join that city's alert list. No alert emails."""
 
@@ -396,13 +437,17 @@ class ReservationTests(ApiTestCase):
         seat = spanish.ticket_types.get()
         self.assertEqual((seat.name, seat.name_es, seat.price_cents, seat.capacity, seat.max_per_order, seat.pay_at_door),
                          ('Reserved seat + 1 free drink', 'Lugar reservado + 1 bebida gratis', 5000, 60, 6, False))
-        self.assertEqual((spanish.image_url, spanish.image_url_mobile),
-                         ('/media/events/open-mic-es-16x9.jpg', '/media/events/open-mic-es-4x5.jpg'))
-        # A poster set in the admin is kept on re-runs.
+        # Posters carry words, so each night has one per site language; the Spanish night's English-worded poster is
+        # the default and its Spanish-worded one is the _es field.
+        self.assertEqual((spanish.image_url, spanish.image_url_es),
+                         ('/media/events/open-mic-es-en-16x9.jpg', '/media/events/open-mic-es-16x9.jpg'))
+        self.assertEqual((spanish.name, spanish.name_es), ('Open Mic Night in Spanish', 'Noche de Open Mic en Español'))
+        # A poster set in the admin is kept on re-runs, and the renamed night is still matched (by its tag).
         Event.objects.filter(pk=spanish.pk).update(image_url='/media/events/custom.jpg')
         call_command('setup_open_mics', stdout=StringIO())
         spanish.refresh_from_db()
         self.assertEqual(spanish.image_url, '/media/events/custom.jpg')
+        self.assertEqual(spanish.ticket_types.count(), 1)
 
     @override_settings(STRIPE_SECRET_KEY='sk_test_x', STRIPE_PUBLISHABLE_KEY='pk_test_x')
     def test_setup_renames_a_spanish_named_type_instead_of_duplicating_it(self):

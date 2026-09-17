@@ -1,4 +1,4 @@
-/** Editorial content for /locations/ — aligned with the legacy Framer page. */
+/** Editorial content for /locations/, aligned with the legacy Framer page. */
 
 import { heroCityChoices } from "./site";
 import { localizePath } from "../i18n/routes";
@@ -56,7 +56,7 @@ const cityImages: Record<string, string> = {
     "/media/city-tulum.jpg",
 };
 
-/** City cards in nav order — labels match the homepage city picker. */
+/** City cards in nav order: labels match the homepage city picker. */
 export const locationCityCards: readonly LocationCityCard[] = heroCityChoices
   .filter((entry) => entry.slug)
   .map((entry) => ({

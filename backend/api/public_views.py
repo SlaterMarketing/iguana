@@ -7,6 +7,7 @@ from django.db.models import Prefetch, Q
 from django.http import Http404, JsonResponse
 
 from crm.geo import remember_on_contact, visitor_profile
+from sales.i18n import normalize
 from crm.models import ContactList, ContactListMember
 from catalog.models import Artist, Event, FormEndpoint, FormSubmission, LineupEntry, SiteFile, StoreCollection, StoreProduct, Venue
 from sales.services import upsert_contact
@@ -69,7 +70,7 @@ def events(request):
     elif status in ('on-sale', 'sold-out'):
         qs = qs.filter(date__date__gte=today).exclude(status__in=[Event.CANCELLED, Event.POSTPONED])
     plan = active_plan()
-    rows = [event_json(e, plan) for e in qs.distinct()]
+    rows = [event_json(e, plan, normalize(request.GET.get('locale'))) for e in qs.distinct()]
     if status in ('on-sale', 'sold-out'):
         rows = [r for r in rows if r['status'] == status]
     return JsonResponse({'events': rows[: _limit(request, 24)]})
@@ -77,14 +78,15 @@ def events(request):
 
 @api_view()
 def event_detail(request, key):
-    return JsonResponse({'event': event_json(_by_id_or_slug(public_events(), key), active_plan())})
+    return JsonResponse({'event': event_json(_by_id_or_slug(public_events(), key), active_plan(),
+                                             normalize(request.GET.get('locale')))})
 
 
-def _upcoming_for(**filters):
+def _upcoming_for(lang='en', **filters):
     today = today_local()
     plan = active_plan()
     qs = public_events().exclude(visibility='UNLISTED').filter(date__date__gte=today, **filters).exclude(status=Event.CANCELLED)
-    return [event_json(e, plan) for e in qs.distinct()]
+    return [event_json(e, plan, lang) for e in qs.distinct()]
 
 
 @api_view()
@@ -98,7 +100,7 @@ def artists(request):
 def artist_detail(request, key):
     artist = _by_id_or_slug(Artist.objects.all(), key)
     data = artist_json(artist, request.GET.get('locale', 'en'))
-    data['upcomingEvents'] = _upcoming_for(lineup__artist=artist)
+    data['upcomingEvents'] = _upcoming_for(normalize(request.GET.get('locale')), lineup__artist=artist)
     return JsonResponse({'artist': data})
 
 
@@ -111,7 +113,7 @@ def venues(request):
 def venue_detail(request, key):
     venue = _by_id_or_slug(Venue.objects.all(), key)
     data = venue_json(venue, listed=True)
-    data['upcomingEvents'] = _upcoming_for(venue=venue)
+    data['upcomingEvents'] = _upcoming_for(normalize(request.GET.get('locale')), venue=venue)
     return JsonResponse({'venue': data})
 
 

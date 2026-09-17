@@ -44,6 +44,7 @@ def event_checkout(request, key):
     lang = normalize(request.GET.get('lang'))
     return render(request, 'embed/checkout.html', {
         'event': event,
+        'event_name': event.label(lang),
         'lang': lang,
         'embedded': request.GET.get('embedded') == '1',
         'bootstrap': {

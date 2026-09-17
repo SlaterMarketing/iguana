@@ -80,14 +80,20 @@ class Event(models.Model):
     id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
     slug = models.SlugField(max_length=160, unique=True)
     name = models.CharField(max_length=200)
+    name_es = models.CharField(max_length=200, blank=True, help_text='Spanish name; blank falls back to the name.')
     date = models.DateTimeField(help_text='Show day. Imported rows are midnight in Cancun.')
     doors_open = models.CharField(max_length=10, blank=True, help_text='24h clock, e.g. 19:30')
     show_time = models.CharField(max_length=10, blank=True, help_text='24h clock, e.g. 20:00')
     end_time = models.CharField(max_length=10, blank=True)
     description = models.TextField(blank=True)
+    description_es = models.TextField(blank=True, help_text='Spanish description; blank falls back.')
     long_description = models.TextField(blank=True)
+    long_description_es = models.TextField(blank=True, help_text='Spanish long description; blank falls back.')
     image_url = models.CharField(max_length=500, blank=True, help_text='Absolute URL or /media/... path')
     image_url_mobile = models.CharField(max_length=500, blank=True, help_text='Absolute URL or /media/... path')
+    # Posters whose artwork carries Spanish text; blank falls back to the ones above.
+    image_url_es = models.CharField(max_length=500, blank=True, help_text='Spanish poster; blank falls back.')
+    image_url_mobile_es = models.CharField(max_length=500, blank=True, help_text='Spanish mobile poster.')
     status = models.CharField(max_length=12, choices=STATUS_CHOICES, default=DRAFT)
     visibility = models.CharField(max_length=10, choices=VISIBILITY_CHOICES, default='PUBLIC')
     ticketing_type = models.CharField(max_length=10, choices=TICKETING_CHOICES, default='INTERNAL')
@@ -118,6 +124,24 @@ class Event(models.Model):
     @property
     def is_public(self):
         return self.status != self.DRAFT and self.visibility != 'UNLISTED'
+
+    def _localized(self, lang, spanish, english):
+        return spanish if lang == 'es' and spanish else english
+
+    def label(self, lang):
+        return self._localized(lang, self.name_es, self.name)
+
+    def details(self, lang):
+        return self._localized(lang, self.description_es, self.description)
+
+    def long_details(self, lang):
+        return self._localized(lang, self.long_description_es, self.long_description)
+
+    def poster(self, lang):
+        return self._localized(lang, self.image_url_es, self.image_url)
+
+    def poster_mobile(self, lang):
+        return self._localized(lang, self.image_url_mobile_es, self.image_url_mobile)
 
 
 class LineupEntry(models.Model):

@@ -24,8 +24,12 @@ INK = (10, 10, 10)
 
 BANNERS = [
     # (file stem, video second, focus x for 16:9 and 4:5 crops (0 left .. 1 right), kicker, big, second line, pill, footer)
+    # Each night gets artwork in both site languages: the Spanish night also has an English-labelled poster for /en/,
+    # and the English night a Spanish-labelled one for /es/. The stem suffix is the language of the WORDS.
     ('open-mic-es', 57, (0.44, 0.44), 'CADA MARTES', 'OPEN MIC', 'EN ESPAÑOL', 'ENTRADA GRATIS', 'Iguana Comedy · Playa del Carmen'),
+    ('open-mic-es-en', 57, (0.44, 0.44), 'EVERY TUESDAY', 'OPEN MIC', 'IN SPANISH', 'FREE ENTRY', 'Iguana Comedy · Playa del Carmen'),
     ('open-mic-en', 3, (0.62, 0.8), 'EVERY WEDNESDAY', 'OPEN MIC', 'IN ENGLISH', 'FREE ENTRY', 'Iguana Comedy · Playa del Carmen'),
+    ('open-mic-en-es', 3, (0.62, 0.8), 'CADA MIÉRCOLES', 'OPEN MIC', 'EN INGLÉS', 'ENTRADA GRATIS', 'Iguana Comedy · Playa del Carmen'),
 ]
 SHARE = [
     ('og-default-en', 3, (0.5, 0.5), 'PLAYA DEL CARMEN', 'STAND-UP COMEDY', 'INTERNATIONAL COMEDY CLUB', 'FREE OPEN MICS TUE & WED', 'iguanacomedy.com'),

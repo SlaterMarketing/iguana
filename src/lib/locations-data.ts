@@ -4,7 +4,8 @@ import { groupVenuesByCity } from "@kintana/sdk/locations";
 
 import { eventCitySlug, sortEventsAscending, todayInCancun } from "./events";
 import { logKintanaError, logKintanaSuccess } from "./kintana-error";
-import { getKintanaEnv } from "./kintana-env";
+import { createLocalizedKintanaClient, getKintanaEnv } from "./kintana-env";
+import type { Locale } from "../i18n/locale";
 import { slugify } from "./slug";
 
 export type LocationsCatalog = {
@@ -48,11 +49,11 @@ function indexUpcomingCounts(events: KintanaPublicEvent[]) {
   return upcomingCountBySlug;
 }
 
-export async function loadLocationsCatalog(): Promise<LocationsCatalog> {
-  const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
+export async function loadLocationsCatalog(locale: Locale = "en"): Promise<LocationsCatalog> {
+  const { hasCredentials } = getKintanaEnv();
   if (!hasCredentials) return emptyCatalog();
 
-  const client = createKintanaClient({ apiKey, baseUrl });
+  const client = createLocalizedKintanaClient(locale);
   const catalog = emptyCatalog();
   catalog.hasCredentials = true;
 
@@ -95,7 +96,7 @@ export type CityLocationsData = {
   upcomingCount: number;
 };
 
-export async function loadCityLocationsData(citySlug: string): Promise<CityLocationsData> {
+export async function loadCityLocationsData(citySlug: string, locale: Locale = "en"): Promise<CityLocationsData> {
   const empty: CityLocationsData = {
     venuesInCity: [],
     happenings: [],
@@ -103,10 +104,10 @@ export async function loadCityLocationsData(citySlug: string): Promise<CityLocat
     upcomingCount: 0,
   };
 
-  const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
+  const { hasCredentials } = getKintanaEnv();
   if (!hasCredentials) return empty;
 
-  const client = createKintanaClient({ apiKey, baseUrl });
+  const client = createLocalizedKintanaClient(locale);
 
   try {
     const grouped = groupVenuesByCity(await client.listVenues());

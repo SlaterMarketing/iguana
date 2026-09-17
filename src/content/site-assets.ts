@@ -1,5 +1,5 @@
 /**
- * Filename candidates (Business → Files, link visibility). Match ignores extension/case — see normalizeStem in ../lib/kintana-files.
+ * Filename candidates (Business → Files, link visibility). Match ignores extension/case. See normalizeStem in ../lib/kintana-files.
  */
 
 export type SiteBrandOverrideKeys =

@@ -1,8 +1,7 @@
 ---
 import EventDetailPage from "../../../components/events/EventDetailPage.astro";
-import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicEvent } from "@kintana/sdk";
-import { getKintanaEnv } from "../../../lib/kintana-env";
+import { createLocalizedKintanaClient, getKintanaEnv } from "../../../lib/kintana-env";
 import { detailPageStatus } from "../../../lib/detail-page-status";
 import { getLocale } from "../../../i18n/locale";
 
@@ -15,7 +14,7 @@ let event: KintanaPublicEvent | null = null;
 let lookupError: unknown = null;
 if (hasCredentials && slug) {
   try {
-    event = await createKintanaClient({ apiKey, baseUrl }).getEvent(slug);
+    event = await createLocalizedKintanaClient(locale).getEvent(slug);
   } catch (err) {
     lookupError = err;
     event = null;

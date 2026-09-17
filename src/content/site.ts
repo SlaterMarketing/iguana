@@ -1,5 +1,5 @@
 /**
- * Editorial copy & brand contacts — tweak here without chasing UI internals.
+ * Editorial copy & brand contacts: tweak here without chasing UI internals.
  */
 
 export const site = {

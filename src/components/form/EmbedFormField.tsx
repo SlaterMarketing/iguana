@@ -75,7 +75,7 @@ export function EmbedFormField({
             className={inputClass}
             defaultValue={def ?? ""}
           >
-            <option value="">—</option>
+            <option value=""></option>
             {choices.map((choice) => (
               <option key={choice} value={choice}>
                 {choice}

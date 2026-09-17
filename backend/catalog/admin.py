@@ -54,8 +54,10 @@ class EventAdmin(admin.ModelAdmin):
     autocomplete_fields = ('venue',)
     inlines = [TicketTypeInline, LineupInline]
     fieldsets = (
-        (None, {'fields': ('name', 'slug', 'status', 'visibility', 'date', 'doors_open', 'show_time', 'end_time', 'venue', 'venue_label')}),
-        ('Listing', {'fields': ('description', 'long_description', 'image_url', 'image_url_mobile', 'language', 'age_restriction', 'tags', 'reviews', 'tour')}),
+        (None, {'fields': ('name', 'name_es', 'slug', 'status', 'visibility', 'date', 'doors_open', 'show_time', 'end_time', 'venue', 'venue_label')}),
+        ('Listing', {'fields': ('description', 'description_es', 'long_description', 'long_description_es', 'image_url',
+                                'image_url_mobile', 'image_url_es', 'image_url_mobile_es', 'language', 'age_restriction',
+                                'tags', 'reviews', 'tour')}),
         ('Ticketing', {'fields': ('ticketing_type', 'external_ticket_url', 'currency', 'members_eligible')}),
     )
 

@@ -25,7 +25,7 @@ const brandMerged = mergeBrand(Astro.locals.brandOverrides ?? {});
 const locationsPage = getLocationsPage(locale);
 const locationServices = getLocationServices(locale);
 
-const catalog = await loadLocationsCatalog();
+const catalog = await loadLocationsCatalog(locale);
 const { apiKey, baseUrl } = getKintanaEnv();
 
 function venueCountFor(slug: string) {
@@ -167,7 +167,7 @@ const cityPickerChoices = [
                 <div>
                   <p class="text-xs font-semibold uppercase tracking-[0.32em] text-neutral-500">{city.name}</p>
                   <p class="mt-2 font-display text-3xl text-brand-hover sm:text-4xl" style="font-family: var(--font-display);">
-                    {count > 0 ? `${count}+` : "—"}
+                    {count > 0 ? `${count}+` : "0"}
                   </p>
                   <p class="mt-1 text-sm text-neutral-600 group-hover:text-neutral-950">{t(locale, "locations.venuesSuffix")}</p>
                 </div>

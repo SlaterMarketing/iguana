@@ -6,11 +6,11 @@ import { SITE_BRAND_FILE_ALIASES } from "../content/site-assets";
 
 const TTL_MS = 5 * 60 * 1000;
 
-/** Last resolved overrides — may be `{}` legitimately — always TTL-gated refresh. */
+/** Last resolved overrides (may be `{}` legitimately), always TTL-gated refresh. */
 let expiresAtMs = 0;
 let cached: SiteBrandOverrides = {};
 
-/** Lowercase basename without trailing extension — used to match curated names against files from Kintana. */
+/** Lowercase basename without trailing extension, used to match curated names against files from Kintana. */
 export function normalizeStem(fileName: string): string {
   const base = fileName.trim().replace(/\\/g, "/").split("/").pop() ?? fileName.trim();
   return base.replace(/\.[a-z0-9]{1,8}$/i, "").toLowerCase();

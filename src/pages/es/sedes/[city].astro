@@ -20,7 +20,7 @@ if (!landing) {
   return Astro.redirect(localizePath(locale, "locations"));
 }
 
-const { venuesInCity, happenings } = await loadCityLocationsData(citySlug);
+const { venuesInCity, happenings } = await loadCityLocationsData(citySlug, locale);
 const blurb = getCityBlurb(locale, citySlug);
 const secondaryParagraph = blurb?.paragraphs[1];
 

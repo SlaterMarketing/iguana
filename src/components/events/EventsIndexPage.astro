@@ -4,13 +4,12 @@ import CityPicker from "../CityPicker.astro";
 import EventRow from "../EventRow.astro";
 import OpenMicCallout from "../OpenMicCallout.astro";
 import NoEventsNearby from "../locations/NoEventsNearby.astro";
-import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import { heroCityChoices } from "../../content/site";
 import { eventCitySlug, groupEventsByMonth } from "../../lib/events";
 import { loadEventsForCalendarPages } from "../../lib/events-catalog";
 import { logKintanaError, logKintanaSuccess, kintanaHttpStatus } from "../../lib/kintana-error";
-import { getKintanaEnv } from "../../lib/kintana-env";
+import { createLocalizedKintanaClient, getKintanaEnv } from "../../lib/kintana-env";
 import type { Locale } from "../../i18n/locale";
 import { t } from "../../i18n/ui";
 import { localizePath } from "../../i18n/routes";
@@ -39,7 +38,7 @@ let listingsHttpStatus: number | undefined;
 
 if (hasCredentials) {
   try {
-    const client = createKintanaClient({ apiKey, baseUrl });
+    const client = createLocalizedKintanaClient(locale);
     const loaded = await loadEventsForCalendarPages(client);
     upcoming = loaded.upcoming;
     past = loaded.past;

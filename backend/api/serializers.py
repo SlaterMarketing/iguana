@@ -120,7 +120,7 @@ def event_urls(event):
     return embed, f'{embed}?embedded=1'
 
 
-def event_json(event, plan=None):
+def event_json(event, plan=None, lang='en'):
     types = [t for t in event.ticket_types.all() if t.active]
     lineup = list(event.lineup.all())
     headliner = next((e for e in lineup if e.headliner), None)
@@ -132,19 +132,19 @@ def event_json(event, plan=None):
     data = {
         'id': event.id,
         'slug': event.slug,
-        'name': event.name,
+        'name': event.label(lang),
         'date': event_day(event),
         'city': event.venue.city if event.venue and event.venue.city else None,
         'country': event.venue.country if event.venue and event.venue.country else None,
-        'imageUrl': media(event.image_url),
-        'imageUrlMobile': media(event.image_url_mobile),
+        'imageUrl': media(event.poster(lang)),
+        'imageUrlMobile': media(event.poster_mobile(lang)),
         'ticketUrl': ticket_url,
         'embedUrl': embed_url,
         'doorsOpen': event.doors_open or None,
         'showTime': event.show_time or None,
         'endTime': event.end_time or None,
-        'description': event.description or None,
-        'longDescription': event.long_description or None,
+        'description': event.details(lang) or None,
+        'longDescription': event.long_details(lang) or None,
         'status': listing_status(event, types),
         'language': event.language or 'en',
         'venue': venue,

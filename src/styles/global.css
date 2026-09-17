@@ -162,7 +162,7 @@ body {
   color: var(--color-ink);
 }
 
-/* —— Account auth / shell —— */
+/* Account auth / shell */
 
 .account-shell,
 .account-auth {
@@ -578,7 +578,7 @@ body {
   }
 }
 
-/* —— Membership sales funnel —— */
+/* Membership sales funnel */
 
 .membership-hero {
   position: relative;

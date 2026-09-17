@@ -34,7 +34,7 @@ export function sortEventsDescending(events: KintanaPublicEvent[]): KintanaPubli
   return [...events].sort((a, b) => parseEventTs(b.date) - parseEventTs(a.date));
 }
 
-/** Local midnight today — events before this count as past. */
+/** Local midnight today: events before this count as past. */
 export function startOfTodayMs(now = new Date()): number {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
 }

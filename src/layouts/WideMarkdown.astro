@@ -7,7 +7,7 @@ const props = Astro.props as {
   frontmatter?: {
     title?: string;
     description?: string;
-    /** e.g. `{ hotels: "/hotels-and-resorts/" }` — redirects `/#hotels` to the dedicated page (fragments are not visible to hosting redirects). */
+    /** e.g. `{ hotels: "/hotels-and-resorts/" }`: redirects `/#hotels` to the dedicated page (fragments are not visible to hosting redirects). */
     hashRedirects?: Record<string, string>;
   };
 };

@@ -59,11 +59,13 @@ export function formatEventHeroDateParts(dateInput: string, locale: Locale = "en
 
 /** Split "Performer - Show title" style names like Kintana event pages. */
 export function splitEventDisplayTitle(name: string): { headline: string; subtitle: string | null } {
-  const parts = name.split(/\s+[–—-]\s+/);
+  // Kintana-era names may separate with a hyphen, en dash or em dash; escapes keep
+  // those characters out of our own source while matching the same input.
+  const parts = name.split(/\s+[\u2013\u2014-]\s+/);
   if (parts.length >= 2) {
     return {
       headline: parts[0]!.trim(),
-      subtitle: parts.slice(1).join(" – ").trim() || null,
+      subtitle: parts.slice(1).join(", ").trim() || null,
     };
   }
   return { headline: name.trim(), subtitle: null };
@@ -80,7 +82,7 @@ export function eventVenueMapsUrl(
   return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : null;
 }
 
-/** Google Maps iframe embed — no API key; prefers coordinates when available. */
+/** Google Maps iframe embed with no API key; prefers coordinates when available. */
 export function eventVenueMapEmbedUrl(
   event: Pick<KintanaPublicEvent, "venue" | "city">
 ): string | null {

@@ -254,7 +254,7 @@ def fan_event_json(event, contact, lang='en'):
             'payAtDoor': t.pay_at_door, 'maxPerOrder': t.max_per_order or 20,
         })
     data = {
-        'id': event.id, 'slug': event.slug, 'name': event.name, 'date': event_day(event),
+        'id': event.id, 'slug': event.slug, 'name': event.label(lang), 'date': event_day(event),
         'doorsOpen': event.doors_open or None, 'showTime': event.show_time or None, 'endTime': event.end_time or None,
         'description': event.description or None, 'longDescription': event.long_description or None,
         'imageUrl': media(event.image_url), 'imageUrlMobile': media(event.image_url_mobile),

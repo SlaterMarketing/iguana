@@ -9,7 +9,7 @@ export const testimonials: Testimonial[] = [
   {
     rating: 5,
     quote: {
-      en: "Honestly the sharpest english comedy night we found in Playa—great pacing, respectful crowd.",
+      en: "Honestly the sharpest english comedy night we found in Playa: great pacing, respectful crowd.",
       es: "Sinceramente, la noche de comedia en inglés más afilada que encontramos en Playa: gran ritmo, público respetuoso.",
     },
     author: "Alex M.",
@@ -27,7 +27,7 @@ export const testimonials: Testimonial[] = [
   {
     rating: 5,
     quote: {
-      en: "Hosting our small company off-site here was painless—friendly team, smooth ticketing.",
+      en: "Hosting our small company off-site here was painless: friendly team, smooth ticketing.",
       es: "Organizar nuestro off-site de empresa aquí fue sencillo: equipo amigable, boletería fluida.",
     },
     author: "Laura S.",

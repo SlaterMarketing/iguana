@@ -1,6 +1,6 @@
 {% extends "embed/base.html" %}
 {% load showtime %}
-{% block title %}{% t lang "Tickets · {0}" event.name %}{% endblock %}
+{% block title %}{% t lang "Tickets · {0}" event_name %}{% endblock %}
 {% block head %}
 <style>
   /* One card, one button: pick seats, fill in who you are, press the button that says what happens and what it costs. */
@@ -38,7 +38,7 @@
 <div class="stack">
   {% if not embedded %}
     <p class="eyebrow">{% t lang "Tickets" %}</p>
-    <h1>{{ event.name }}</h1>
+    <h1>{{ event_name }}</h1>
   {% endif %}
   <noscript><p class="error">{% t lang "Checkout needs JavaScript enabled." %}</p></noscript>
   <form class="card checkout" id="checkout" novalidate>

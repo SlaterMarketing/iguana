@@ -33,7 +33,7 @@ const copy = {
     loadingAccount: "Loading your account…",
     loadAccountFail: "Could not load your account.",
     signOut: "Sign out",
-    flashJoined: "You’re in — your membership is active.",
+    flashJoined: "You’re in. Your membership is active.",
     loadingMembership: "Loading membership…",
     loadMembershipFail: "Could not load your membership.",
     notMember: "You’re not a member yet.",
@@ -44,7 +44,7 @@ const copy = {
     creditsTitle: "Iguana credits",
     creditsNote: "Credits stay with Iguana Comedy and can be used on tickets.",
     creditsPending: (amount: string) =>
-      `You have ${amount} in credits waiting — join to unlock them.`,
+      `You have ${amount} in credits waiting. Join to unlock them.`,
     creditsPendingLand: (amount: string) => `${amount} still waiting to land on your membership.`,
     sendTo: "Send to",
     amount: "Amount",
@@ -53,7 +53,7 @@ const copy = {
     noCredits: "No credits to send yet.",
     enterAmount: "Enter an amount to send.",
     tooMuch: "That’s more than your credit balance.",
-    sentPending: (email: string) => `Sent — waiting for ${email} to join.`,
+    sentPending: (email: string) => `Sent. Waiting for ${email} to join.`,
     sentOk: (amount: string, email: string) => `Sent ${amount} to ${email}.`,
     sendFail: "Could not send credits.",
     sentTo: "Sent to",
@@ -89,7 +89,7 @@ const copy = {
     loadingAccount: "Cargando tu cuenta…",
     loadAccountFail: "No se pudo cargar tu cuenta.",
     signOut: "Cerrar sesión",
-    flashJoined: "Listo — tu membresía está activa.",
+    flashJoined: "Listo: tu membresía está activa.",
     loadingMembership: "Cargando membresía…",
     loadMembershipFail: "No se pudo cargar tu membresía.",
     notMember: "Aún no eres miembro.",
@@ -100,7 +100,7 @@ const copy = {
     creditsTitle: "Créditos Iguana",
     creditsNote: "Los créditos se quedan en Iguana Comedy y se pueden usar en boletos.",
     creditsPending: (amount: string) =>
-      `Tienes ${amount} en créditos en espera — únete para desbloquearlos.`,
+      `Tienes ${amount} en créditos en espera. Únete para desbloquearlos.`,
     creditsPendingLand: (amount: string) =>
       `${amount} aún esperando llegar a tu membresía.`,
     sendTo: "Enviar a",
@@ -110,7 +110,7 @@ const copy = {
     noCredits: "Aún no hay créditos para enviar.",
     enterAmount: "Ingresa un monto a enviar.",
     tooMuch: "Eso supera tu saldo de créditos.",
-    sentPending: (email: string) => `Enviado — esperando que ${email} se una.`,
+    sentPending: (email: string) => `Enviado. Esperando que ${email} se una.`,
     sentOk: (amount: string, email: string) => `Enviaste ${amount} a ${email}.`,
     sendFail: "No se pudieron enviar los créditos.",
     sentTo: "Enviado a",
@@ -143,7 +143,7 @@ const copy = {
 } as const;
 
 function formatDate(iso: string | null | undefined, locale: Locale) {
-  if (!iso) return "—";
+  if (!iso) return "";
   try {
     return new Date(iso).toLocaleDateString(numberLocale(locale), {
       day: "numeric",
@@ -398,7 +398,8 @@ function MembershipView({ locale, returnUrl }: { locale: Locale; returnUrl: stri
             <li key={m.id} className="account-plan">
               <p className="account-plan-name">{m.plan.name}</p>
               <p className="account-plan-meta">
-                {formatStatus(m.status, locale)} · {t.fromDate} {formatDate(m.startsAt, locale)}
+                {formatStatus(m.status, locale)}
+                {formatDate(m.startsAt, locale) ? ` · ${t.fromDate} ${formatDate(m.startsAt, locale)}` : ""}
                 {m.endsAt ? ` · ${t.until} ${formatDate(m.endsAt, locale)}` : ""}
               </p>
             </li>

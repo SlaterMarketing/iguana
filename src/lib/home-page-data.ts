@@ -2,7 +2,7 @@ import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicArtistEmbed, KintanaPublicEvent } from "@kintana/sdk";
 
 import { eventCitySlug, sortEventsAscending, todayInCancun } from "./events";
-import { getKintanaEnv } from "./kintana-env";
+import { createLocalizedKintanaClient, getKintanaEnv } from "./kintana-env";
 import { logKintanaError, logKintanaSuccess } from "./kintana-error";
 import { isOpenMic, nextBookableOpenMics } from "./open-mics";
 import type { Locale } from "../i18n/locale";
@@ -26,7 +26,7 @@ export async function loadHomePageData(citySlug?: string, locale?: Locale): Prom
   let performersCatalogFailed = false;
 
   if (hasCredentials) {
-    const client = createKintanaClient({ apiKey, baseUrl });
+    const client = createLocalizedKintanaClient(locale ?? "en");
 
     try {
       eventsPool = await client.listEvents({ limit: 40, from: todayInCancun() });

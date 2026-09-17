@@ -172,11 +172,14 @@ const reviews = event ? eventReviews(event) : [];
                   <div class="space-y-4 text-lg leading-relaxed text-neutral-700">
                     {event.description ? <p>{event.description}</p> : null}
                     {
+                      // The long description almost always opens by repeating the short one (that is how the
+                      // catalogue was written), so drop the paragraph we just printed.
                       event.longDescription
                         ? event.longDescription
                             .split(/\r?\n\s*\r?\n/)
-                            .filter((chunk) => chunk.trim().length > 0)
-                            .map((chunk) => <p>{chunk.trim()}</p>)
+                            .map((chunk) => chunk.trim())
+                            .filter((chunk) => chunk.length > 0 && chunk !== event.description?.trim())
+                            .map((chunk) => <p>{chunk}</p>)
                         : null
                     }
                   </div>

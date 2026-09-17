@@ -1,7 +1,6 @@
 ---
 import Base from "../../../../layouts/Base.astro";
 import EventCheckoutWidget from "../../../../components/EventCheckoutWidget.astro";
-import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import { formatEventScheduleLine } from "../../../../lib/events";
 import {
@@ -9,7 +8,7 @@ import {
   eventHeroImageUrl,
   eventSocialDescription,
 } from "../../../../lib/event-hero";
-import { getKintanaEnv } from "../../../../lib/kintana-env";
+import { createLocalizedKintanaClient, getKintanaEnv } from "../../../../lib/kintana-env";
 import { t } from "../../../../i18n/ui";
 import { localizePath } from "../../../../i18n/routes";
 
@@ -21,7 +20,7 @@ const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
 let event: KintanaPublicEvent | null = null;
 if (hasCredentials && slug) {
   try {
-    event = await createKintanaClient({ apiKey, baseUrl }).getEvent(slug);
+    event = await createLocalizedKintanaClient(locale).getEvent(slug);
   } catch {
     event = null;
   }

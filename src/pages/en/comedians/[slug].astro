@@ -1,9 +1,8 @@
 ---
 import Base from "../../../layouts/Base.astro";
-import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicArtistDetail } from "@kintana/sdk";
 import { formatEventDate } from "../../../lib/events";
-import { getKintanaEnv } from "../../../lib/kintana-env";
+import { createLocalizedKintanaClient, getKintanaEnv } from "../../../lib/kintana-env";
 import { detailPageStatus } from "../../../lib/detail-page-status";
 import { getLocale } from "../../../i18n/locale";
 import { t } from "../../../i18n/ui";
@@ -19,7 +18,7 @@ let artist: KintanaPublicArtistDetail | null = null;
 let lookupError: unknown = null;
 if (hasCredentials && slug) {
   try {
-    artist = await createKintanaClient({ apiKey, baseUrl }).getArtist(slug);
+    artist = await createLocalizedKintanaClient(locale).getArtist(slug);
   } catch (err) {
     lookupError = err;
     artist = null;

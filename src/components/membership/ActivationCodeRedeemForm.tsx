@@ -37,7 +37,7 @@ const copy = {
     redeem: "Redeem",
     redeeming: "Redeeming…",
     creditsAdded: (added: string, balance: string) =>
-      `Added ${added} — balance now ${balance}.`,
+      `Added ${added}. Balance now ${balance}.`,
     extended: (until: string) => `Membership extended${until ? ` until ${until}` : ""}.`,
     active: (name: string, until: string) =>
       `${name} membership active${until ? ` until ${until}` : ""}.`,
@@ -49,7 +49,7 @@ const copy = {
     redeem: "Canjear",
     redeeming: "Canjeando…",
     creditsAdded: (added: string, balance: string) =>
-      `Se agregaron ${added} — saldo actual ${balance}.`,
+      `Se agregaron ${added}. Saldo actual ${balance}.`,
     extended: (until: string) => `Membresía extendida${until ? ` hasta ${until}` : ""}.`,
     active: (name: string, until: string) =>
       `Membresía ${name} activa${until ? ` hasta ${until}` : ""}.`,

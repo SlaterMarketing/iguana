@@ -1,5 +1,5 @@
 /**
- * Bilingual route map — paths are **without** locale prefix; {@link localizePath} adds `/en` or `/es`.
+ * Bilingual route map: paths are **without** locale prefix; {@link localizePath} adds `/en` or `/es`.
  */
 export const routeMap = {
   en: {

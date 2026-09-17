@@ -15,7 +15,7 @@ interface Props {
   pathname?: string;
   transparent?: boolean;
   locale: Locale;
-  /** Merged fallback + Kintana listFiles URLs — pass from layout */
+  /** Merged fallback + Kintana listFiles URLs (pass from the layout) */
   brand?: MergedSite;
 }
 
@@ -348,7 +348,7 @@ const esPath =
     opacity: 1;
   }
 
-  /* Drive mobile menu visibility from [data-open] — no reliance on
+  /* Drive mobile menu visibility from [data-open], with no reliance on
      dynamically-toggled Tailwind classes that may be purged. */
   .mobile-menu-sheet {
     transform: translateX(100%);

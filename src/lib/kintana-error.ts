@@ -17,5 +17,5 @@ export function logKintanaError(scope: string, error: unknown) {
  */
 export function logKintanaSuccess(scope: string, count: number) {
   /** Use `.log` (not `.info`): some consoles hide INFO level when filtered. */
-  if (import.meta.env.DEV) console.log(`[Kintana:${scope}] OK — ${count} row(s)`);
+  if (import.meta.env.DEV) console.log(`[Kintana:${scope}] OK: ${count} row(s)`);
 }
