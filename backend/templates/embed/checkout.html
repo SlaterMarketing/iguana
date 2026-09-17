@@ -87,9 +87,13 @@
   }
 
   function money(cents) {
+    var code = ev.currency.toUpperCase();
     try {
-      return new Intl.NumberFormat(B.lang === "es" ? "es-MX" : "en-US", { style: "currency", currency: ev.currency.toUpperCase() }).format(cents / 100);
-    } catch (e) { return (cents / 100).toFixed(2) + " " + ev.currency.toUpperCase(); }
+      var amount = new Intl.NumberFormat(B.lang === "es" ? "es-MX" : "en-US", { style: "currency", currency: code }).format(cents / 100);
+      // es-MX prints pesos as a bare "$50.00", which reads as dollars to a visitor comparing the two nights, so
+      // name the currency unless the formatter already spelled it out.
+      return amount.indexOf(code) >= 0 || amount.indexOf(code.slice(0, 2)) >= 0 ? amount : amount + " " + code;
+    } catch (e) { return (cents / 100).toFixed(2) + " " + code; }
   }
   function postJSON(url, body) {
     return fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) })

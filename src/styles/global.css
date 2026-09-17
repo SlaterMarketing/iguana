@@ -188,6 +188,8 @@ body {
 .account-shell,
 .account-auth {
   max-width: 36rem;
+  /* The box was narrower than its column and flush left inside it, so a centred form still sat off centre. */
+  margin-inline: auto;
   caret-color: var(--color-brand);
 }
 
@@ -532,6 +534,7 @@ body {
 .account-auth-lead {
   margin-top: 0.7rem;
   max-width: 28rem;
+  margin-inline: auto;
   font-size: 1.02rem;
   line-height: 1.5;
   color: var(--color-ink);

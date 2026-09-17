@@ -12,11 +12,11 @@ const { locale } = Astro.props;
 const whatsappHref = `https://wa.me/${site.whatsappE164.replace(/\D+/g, "")}`;
 ---
 
-<footer class="border-t border-black/10 bg-ink pb-24 pt-28 text-neutral-300">
+<footer class="border-t border-black/10 bg-ink pb-24 pt-28 text-center text-neutral-300">
   <!-- Two columns from sm, five only from lg: the brand column has to stay wide enough to hold the email address
        on one line, which is why it used to break mid-word. -->
-  <div class="mx-auto grid max-w-page gap-14 px-4 sm:grid-cols-2 sm:gap-16 sm:px-6 lg:grid-cols-[1.6fr_repeat(4,minmax(0,1fr))] lg:gap-20">
-    <div class="min-w-0 space-y-12 sm:col-span-2 lg:col-span-1">
+  <div class="mx-auto grid max-w-page gap-14 px-4 sm:grid-cols-2 sm:gap-16 sm:px-6 lg:grid-cols-5 lg:gap-16">
+    <div class="min-w-0 space-y-12 sm:col-span-2 lg:col-span-5">
       <p class="text-4xl text-white lg:text-[2.75rem]" style="font-family: var(--font-display);">{site.name}</p>
       <div class="space-y-8 text-neutral-400">
         <a class="block text-base text-white underline-offset-4 transition hover:underline" href={`mailto:${site.email}`}>
@@ -67,7 +67,7 @@ const whatsappHref = `https://wa.me/${site.whatsappE164.replace(/\D+/g, "")}`;
     </div>
   </div>
   <div
-    class="mx-auto mt-24 flex max-w-page flex-col gap-8 border-t border-white/15 px-4 pt-10 sm:px-6 md:flex-row md:items-center md:justify-between md:gap-6"
+    class="mx-auto mt-24 flex max-w-page flex-col items-center gap-8 border-t border-white/15 px-4 pt-10 sm:px-6"
   >
     <p class="text-sm text-neutral-500">© {new Date().getFullYear()} Iguana Comedy. {t(locale, "footer.copyright")}.</p>
     <div class="flex flex-wrap items-center gap-x-6 gap-y-4">

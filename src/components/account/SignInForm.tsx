@@ -141,7 +141,10 @@ function SignInFormInner({
       setSent(true);
       setStep("code");
     } catch (err) {
-      setError(err instanceof Error ? err.message : copy.emailError);
+      // The SDK throws with its own English, endpoint-shaped text ("Kintana Fan API 400: {...}"), which is not
+      // something to show a customer. Log it and show the translated message instead.
+      console.error("sign-in request failed", err);
+      setError(copy.emailError);
     } finally {
       setLoading(false);
     }
@@ -155,7 +158,8 @@ function SignInFormInner({
       await verifyCode(email.trim(), code.trim());
       window.location.assign(postAuthRedirect(locale));
     } catch (err) {
-      setError(err instanceof Error ? err.message : copy.invalidCode);
+      console.error("sign-in verification failed", err);
+      setError(copy.invalidCode);
     } finally {
       setLoading(false);
     }

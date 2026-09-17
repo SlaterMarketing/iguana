@@ -10,6 +10,12 @@ Repo is `SlaterMarketing/iguana` (public, client-owned). Backend, deploy and mig
 ## Commands
 
 ```bash
+# End to end (needs the backend on :8000 and the BUILT site on :4321, not the dev server: the account and
+# checkout islands are React, and a stale Vite dep cache silently breaks hydration)
+npm run build:node && node dist/server/entry.mjs &   # port 4321, env from .env
+node tests/account-flow.mjs                          # register, code sign-in, magic link
+node tests/reserve-flow.mjs                          # reserve a seat through the real checkout iframe
+
 # Site (Node 20, see .node-version)
 npm install
 npm run dev                      # Astro dev server; needs .env + .dev.vars (copy the .example files)
