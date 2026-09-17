@@ -366,7 +366,11 @@ const esPath =
     opacity: 1;
   }
 
+  /* The closed state hides the sheet with `transform`, and Tailwind's translate-x-full uses the separate `translate`
+     property, so opening must clear both: resetting only `translate` left the sheet off-screen while the backdrop
+     showed, which made the menu look open with nothing tappable in it. */
   [data-mobile-menu][data-open] .mobile-menu-sheet {
+    transform: none;
     translate: 0;
   }
 </style>
