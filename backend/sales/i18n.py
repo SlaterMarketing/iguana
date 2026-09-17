@@ -6,6 +6,8 @@ drops or adds a slot, so a customer-facing string cannot ship untranslated. Slot
 sentence can reorder them.
 """
 
+from urllib.parse import urlparse
+
 ES = {
     # Checkout
     'Tickets': 'Boletos',
@@ -155,6 +157,21 @@ def normalize(lang):
 def tr(lang, text, *params):
     template = ES.get(text, text) if normalize(lang) == 'es' else text
     return template.format(*params) if params else template
+
+
+def locale_from_request(request):
+    """The language a browser call belongs to: the explicit parameter, then our own header, then the page that
+    made the call. Some SDK methods take no locale argument, and the referring /es/ or /en/ path is the only
+    signal they carry."""
+    explicit = request.GET.get('locale') or request.headers.get('X-Iguana-Locale', '')
+    if explicit:
+        return normalize(explicit)
+    referer = request.headers.get('Referer', '')
+    try:
+        first = urlparse(referer).path.strip('/').split('/')[0]
+    except ValueError:
+        first = ''
+    return normalize(first)
 
 
 def lang_from_request(request):

@@ -19,6 +19,13 @@ MEMBER_BENEFITS = [
     'Members-only nights',
     'Cancel anytime',
 ]
+MEMBER_BENEFITS_ES = [
+    'Dos boletos gratis en shows elegibles',
+    '10% de descuento para tus invitados',
+    'Acceso anticipado y preventas',
+    'Noches solo para miembros',
+    'Cancela cuando quieras',
+]
 
 
 class Command(BaseCommand):
@@ -30,6 +37,7 @@ class Command(BaseCommand):
         plan, created = MembershipPlan.objects.get_or_create(name='Iguana Member', defaults={'currency': 'mxn'})
         changed = []
         for attr, value in (('monthly_cents', 9900), ('annual_cents', 99900), ('benefits', MEMBER_BENEFITS),
+                            ('benefits_es', MEMBER_BENEFITS_ES), ('name_es', 'Iguana Member'),
                             ('free_tickets_per_order', 2), ('guest_discount_percent', 10)):
             if not getattr(plan, attr):
                 setattr(plan, attr, value)

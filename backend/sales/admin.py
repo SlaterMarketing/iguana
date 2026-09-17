@@ -40,6 +40,9 @@ class OrderAdmin(admin.ModelAdmin):
 @admin.register(MembershipPlan)
 class MembershipPlanAdmin(admin.ModelAdmin):
     list_display = ('name', 'currency', 'monthly_cents', 'annual_cents', 'active')
+    fields = ('name', 'name_es', 'description', 'description_es', 'benefits', 'benefits_es', 'currency',
+              'monthly_cents', 'annual_cents', 'lifetime_cents', 'pass_cents', 'pass_days',
+              'free_tickets_per_order', 'guest_discount_percent', 'stripe_product_id', 'active')
 
 
 @admin.register(Membership)

@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from catalog.models import Event
 from crm.models import Contact
-from sales.i18n import normalize, tr
+from sales.i18n import locale_from_request, normalize, tr
 from sales.models import CreditTransfer, LoginToken, Membership, MembershipPlan, Order, RedeemCode
 from sales.services import current_membership, member_unit_price, stripe_client, stripe_enabled, upsert_contact
 
@@ -108,7 +108,8 @@ def account_profile(request):
 
 @api_view()
 def membership_plans(request):
-    return JsonResponse({'plans': [plan_json(p) for p in MembershipPlan.objects.filter(active=True)]})
+    lang = locale_from_request(request)
+    return JsonResponse({'plans': [plan_json(p, lang) for p in MembershipPlan.objects.filter(active=True)]})
 
 
 def _pending_received(contact):

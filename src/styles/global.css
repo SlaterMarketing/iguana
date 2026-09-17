@@ -876,13 +876,15 @@ body {
 .membership-plan-block {
   padding-top: 0.25rem;
   max-width: 28rem;
+  /* The card is narrower than the section, so without this it sat against the left edge of a centred page. */
+  margin-inline: auto;
 }
 
 .membership-billing-toggle {
   display: flex;
   flex-wrap: nowrap;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 0.65rem;
   margin-bottom: 1.25rem;
   max-width: 100%;

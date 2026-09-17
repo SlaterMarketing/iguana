@@ -72,8 +72,11 @@ class Ticket(models.Model):
 class MembershipPlan(models.Model):
     id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
     name = models.CharField(max_length=120)
+    name_es = models.CharField(max_length=120, blank=True)
     description = models.TextField(blank=True)
+    description_es = models.TextField(blank=True)
     benefits = models.JSONField(default=list, blank=True, help_text='["Two free tickets", ...]')
+    benefits_es = models.JSONField(default=list, blank=True, help_text='["Dos boletos gratis", ...]')
     currency = models.CharField(max_length=3, default='mxn')
     monthly_cents = models.PositiveIntegerField(null=True, blank=True)
     annual_cents = models.PositiveIntegerField(null=True, blank=True)
@@ -83,6 +86,15 @@ class MembershipPlan(models.Model):
     free_tickets_per_order = models.PositiveIntegerField(default=2)
     guest_discount_percent = models.PositiveIntegerField(default=10)
     stripe_product_id = models.CharField(max_length=60, blank=True)
+
+    def label(self, lang):
+        return self.name_es if lang == 'es' and self.name_es else self.name
+
+    def details(self, lang):
+        return self.description_es if lang == 'es' and self.description_es else self.description
+
+    def perks(self, lang):
+        return self.benefits_es if lang == 'es' and self.benefits_es else (self.benefits or [])
     active = models.BooleanField(default=True)
     sort_order = models.IntegerField(default=0)
 

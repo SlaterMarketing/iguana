@@ -128,14 +128,18 @@ const ui = {
 } as const;
 
 function formatPrice(cents: number, currency: string, locale: Locale) {
+  const code = currency.toUpperCase();
   try {
-    return new Intl.NumberFormat(numberLocale(locale), {
+    const amount = new Intl.NumberFormat(numberLocale(locale), {
       style: "currency",
-      currency: currency.toUpperCase(),
+      currency: code,
       maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
     }).format(cents / 100);
+    // es-MX renders pesos as a bare "$99", which reads as dollars to a visitor, so name the currency unless the
+    // formatter already did. Same rule as the event prices and the checkout.
+    return amount.includes(code) || amount.includes(code.slice(0, 2)) ? amount : `${amount} ${code}`;
   } catch {
-    return `${(cents / 100).toFixed(2)} ${currency.toUpperCase()}`;
+    return `${(cents / 100).toFixed(2)} ${code}`;
   }
 }
 
@@ -520,7 +524,7 @@ function PlanCheckout({
   );
 }
 
-function MembershipPageInner({ locale }: { locale: Locale }) {
+function MembershipPageInner({ locale, apiKey, baseUrl }: { locale: Locale; apiKey: string; baseUrl: string }) {
   const t = ui[locale];
   const paths = membershipPaths(locale);
   const { client, isSignedIn } = useKintanaAuth();
@@ -555,11 +559,15 @@ function MembershipPageInner({ locale }: { locale: Locale }) {
         setError(err instanceof Error ? err.message : t.loadSettingsFail);
       });
 
-    void client
-      .listFanMembershipPlans()
-      .then((listedPlans) => {
+    // Straight fetch rather than the SDK: listFanMembershipPlans() takes no locale, and a cross-origin request
+    // sends only our origin as the referrer, so the backend has no way to tell which language the page is in.
+    void fetch(`${baseUrl}/api/fan/v1/membership/plans?locale=${locale}`, {
+      headers: { Authorization: `Bearer ${apiKey}`, "X-Iguana-Locale": locale },
+    })
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(String(res.status)))))
+      .then((data: { plans?: KintanaFanMembershipPlan[] }) => {
         if (!alive) return;
-        setPlans(listedPlans);
+        setPlans(data.plans ?? []);
       })
       .catch((err: unknown) => {
         if (!alive) return;
@@ -721,7 +729,7 @@ function MembershipPageInner({ locale }: { locale: Locale }) {
 export function MembershipPage({ apiKey, baseUrl, locale }: Props) {
   return (
     <KintanaAuthProvider apiKey={apiKey} baseUrl={baseUrl}>
-      <MembershipPageInner locale={locale} />
+      <MembershipPageInner locale={locale} apiKey={apiKey} baseUrl={baseUrl} />
     </KintanaAuthProvider>
   );
 }

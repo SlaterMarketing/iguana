@@ -166,7 +166,7 @@ def event_json(event, plan=None, lang='en'):
     return data
 
 
-def plan_json(plan):
+def plan_json(plan, lang='en'):
     prices = {}
     if plan.monthly_cents is not None:
         prices['monthly'] = {'amountCents': plan.monthly_cents}
@@ -179,9 +179,9 @@ def plan_json(plan):
     primary = plan.monthly_cents if plan.monthly_cents is not None else (plan.annual_cents or plan.lifetime_cents or plan.pass_cents or 0)
     return {
         'id': plan.id,
-        'name': plan.name,
-        'description': plan.description or None,
-        'benefits': [{'label': b, 'sortOrder': i} for i, b in enumerate(plan.benefits or [])],
+        'name': plan.label(lang),
+        'description': plan.details(lang) or None,
+        'benefits': [{'label': b, 'sortOrder': i} for i, b in enumerate(plan.perks(lang))],
         'currency': plan.currency,
         'prices': prices,
         'priceCents': primary,
