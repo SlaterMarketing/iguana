@@ -1,5 +1,12 @@
 ---
 import "../styles/global.css";
+// Fonts are self-hosted (no Google Fonts request): hashed files under /_astro/, cached for a year by nginx.
+import bebasLatin from "@fontsource/bebas-neue/files/bebas-neue-latin-400-normal.woff2?url";
+import bebasLatinExt from "@fontsource/bebas-neue/files/bebas-neue-latin-ext-400-normal.woff2?url";
+import dmSansLatin from "@fontsource-variable/dm-sans/files/dm-sans-latin-wght-normal.woff2?url";
+import dmSansLatinExt from "@fontsource-variable/dm-sans/files/dm-sans-latin-ext-wght-normal.woff2?url";
+import dmSansLatinItalic from "@fontsource-variable/dm-sans/files/dm-sans-latin-wght-italic.woff2?url";
+import dmSansLatinExtItalic from "@fontsource-variable/dm-sans/files/dm-sans-latin-ext-wght-italic.woff2?url";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
 import { site } from "../content/site";
@@ -48,6 +55,24 @@ const TRACK_TOKEN = trackerToken || apiKey;
 // Clicky via the first-party nginx proxy; only set on hosts that run that proxy (see ansible/files/nginx.conf.j2).
 const clickySiteId = import.meta.env.PUBLIC_CLICKY_SITE_ID?.trim();
 const clickyScriptPath = import.meta.env.PUBLIC_CLICKY_SCRIPT_PATH?.trim();
+
+const LATIN = "U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD";
+const LATIN_EXT = "U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF";
+// Bebas Neue is `block`: the headline waits for it (preloaded, so briefly) instead of drawing in a fallback font and
+// reflowing when it arrives, which measured as a 0.25 layout shift on desktop. Body text keeps `swap`.
+const fontFaces = [
+  ["Bebas Neue", bebasLatin, "400", "normal", "block", LATIN],
+  ["Bebas Neue", bebasLatinExt, "400", "normal", "block", LATIN_EXT],
+  ["DM Sans", dmSansLatin, "100 1000", "normal", "swap", LATIN],
+  ["DM Sans", dmSansLatinExt, "100 1000", "normal", "swap", LATIN_EXT],
+  ["DM Sans", dmSansLatinItalic, "100 1000", "italic", "swap", LATIN],
+  ["DM Sans", dmSansLatinExtItalic, "100 1000", "italic", "swap", LATIN_EXT],
+]
+  .map(
+    ([family, url, weight, style, display, range]) =>
+      `@font-face{font-family:"${family}";src:url(${url}) format("woff2");font-weight:${weight};font-style:${style};font-display:${display};unicode-range:${range}}`,
+  )
+  .join("");
 
 const trackerMarkup =
   TRACK_BASE && TRACK_TOKEN
@@ -100,12 +125,9 @@ const trackerMarkup =
 
     <link rel="icon" type="image/webp" href={site.faviconUrl} />
     <link rel="apple-touch-icon" href={site.faviconUrl} />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:ital,wght@0,400..700;1,400..700&display=swap"
-      rel="stylesheet"
-    />
+    <link rel="preload" href={bebasLatin} as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href={dmSansLatin} as="font" type="font/woff2" crossorigin />
+    <style is:inline set:html={fontFaces} />
     {clickySiteId && clickyScriptPath ? <script is:inline async data-id={clickySiteId} src={clickyScriptPath}></script> : null}
   </head>
   <body class="relative bg-white text-neutral-900 antialiased">
