@@ -155,6 +155,26 @@ email per night and locks the ticket types while booking, because nothing paid u
 The site finds the next bookable night per language by the `open-mic` tag (`src/lib/open-mics.ts`), skipping sold-out
 nights, and the home page keeps open mics out of its six event slots.
 
+### Newsletter, city alerts and who signs up from where
+
+- The home hero's bottom-left is a newsletter sign-up (`NewsletterSignup.astro`, form endpoint slug `newsletter`,
+  intent `newsletter`). Subscribers join the `Newsletter` contact list; there is no alert email per sign-up.
+- A city page, or `/events/?city=`, with nothing coming up (any city except Playa del Carmen) shows
+  `NoEventsNearby.astro`: travel time to the club (`src/content/playa-travel.ts`), links to Playa shows, the open
+  mics and directions, and a "tell me when there's a show in <city>" sign-up that also joins `City alerts: <City>`.
+  Those lists are who to email when a show is booked in that city.
+- Every form sign-up and every booking records who and where (`backend/crm/geo.py`): site language, browser
+  language, time zone and IP location (country, region, city). It lands on the contact (`locale`, `geo_*`,
+  `time_zone`, `last_ip`), in `FormSubmission.context["visitor"]` and in `Order.attribution["visitor"]`. The real
+  IP comes from nginx's `X-Real-IP`, trusted only when the request came from the local proxy (before this, every
+  submission recorded 127.0.0.1).
+- IP location uses DB-IP "IP to City Lite" (CC BY 4.0) at `geoip_db` (`/var/lib/iguana/dbip-city-lite.mmdb`).
+  `deploy.yml` downloads it when missing and installs a monthly cron (`iguana-geoip-refresh`, logs to
+  `journalctl -t iguana-geoip`); `geo.py` reopens the file when it changes, so no restart. A missing file only logs a
+  warning: sign-ups and checkout never fail over it.
+- City pages used to list a city's oldest past shows under "Upcoming in <city>" (no `from` filter); both loaders in
+  `src/lib/locations-data.ts` now ask for today onward (`todayInCancun()`) and drop `past`.
+
 ### Meta ads (Facebook/Instagram)
 
 `scripts/meta-ads.py` (`status`, `campaigns --days N`, `daily --days N`, `pixels`, `pause/resume <id>`) talks to

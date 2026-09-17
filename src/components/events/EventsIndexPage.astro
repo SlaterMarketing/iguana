@@ -3,6 +3,7 @@ import Base from "../../layouts/Base.astro";
 import CityPicker from "../CityPicker.astro";
 import EventRow from "../EventRow.astro";
 import OpenMicCallout from "../OpenMicCallout.astro";
+import NoEventsNearby from "../locations/NoEventsNearby.astro";
 import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import { heroCityChoices } from "../../content/site";
@@ -57,6 +58,10 @@ if (citySlugFilter) {
   past = past.filter((evt) => eventCitySlug(evt) === citySlugFilter);
 }
 
+// A city with nothing coming up (other than Playa itself) points people to the club in Playa instead of a dead end.
+const nearbyCity =
+  citySlugFilter && activeCityLabel && citySlugFilter !== "playa-del-carmen" ? { slug: citySlugFilter, label: activeCityLabel } : null;
+
 const upcomingGrouped = groupEventsByMonth(upcoming, "asc", locale);
 const pastGrouped = groupEventsByMonth(past, "desc", locale);
 const hasAnyShows = upcomingGrouped.size > 0 || pastGrouped.size > 0;
@@ -109,9 +114,13 @@ const emptyMessage =
         )}
       </div>
     ) : !hasAnyShows ? (
-      <div class="mt-16 rounded-3xl border border-neutral-200 px-6 py-12 text-neutral-700">
-        {emptyMessage}
-      </div>
+      nearbyCity ? (
+        <NoEventsNearby locale={locale} city={nearbyCity} />
+      ) : (
+        <div class="mt-16 rounded-3xl border border-neutral-200 px-6 py-12 text-neutral-700">
+          {emptyMessage}
+        </div>
+      )
     ) : (
       <div class="mt-20 space-y-28">
         <div>
@@ -121,7 +130,11 @@ const emptyMessage =
               : t(locale, "ui.upcomingShows")}
           </h2>
           {upcomingGrouped.size === 0 ? (
-            <p class="mt-8 text-neutral-600">{t(locale, "events.noUpcoming")}</p>
+            nearbyCity ? (
+              <NoEventsNearby locale={locale} city={nearbyCity} />
+            ) : (
+              <p class="mt-8 text-neutral-600">{t(locale, "events.noUpcoming")}</p>
+            )
           ) : (
             <div class="mt-14 space-y-24">
               {Array.from(upcomingGrouped.entries()).map(([month, rows]) => (

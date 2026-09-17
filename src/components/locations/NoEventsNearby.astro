@@ -1,0 +1,39 @@
+---
+import NewsletterSignup from "../NewsletterSignup.astro";
+import { site } from "../../content/site";
+import { travelToPlaya } from "../../content/playa-travel";
+import type { Locale } from "../../i18n/locale";
+import { localizePath } from "../../i18n/routes";
+import { t } from "../../i18n/ui";
+
+interface Props {
+  locale: Locale;
+  city: { slug: string; label: string };
+}
+
+// Shown where a city has no upcoming shows: point people at the club in Playa, and let them ask to hear when there
+// is a show in their city.
+const { locale, city } = Astro.props;
+const linkClass =
+  "btn-pill inline-flex items-center rounded-full border border-neutral-300 px-6 py-3 text-[0.68rem] font-semibold uppercase tracking-[0.3em] text-neutral-950 hover:border-neutral-950";
+---
+
+<div class="mx-auto mt-14 max-w-3xl rounded-3xl border border-neutral-200 bg-neutral-50 px-6 py-10 text-center sm:px-10" data-no-events-nearby>
+  <p class="font-display text-3xl text-neutral-950 sm:text-4xl" style="font-family: var(--font-display);">
+    {t(locale, "locations.noShowsHeading", { city: city.label })}
+  </p>
+  <p class="mx-auto mt-5 max-w-2xl text-lg leading-relaxed text-neutral-700">
+    {t(locale, "locations.noShowsNearby", { travel: travelToPlaya(locale, city.slug) })}
+  </p>
+  <div class="mt-8 flex flex-wrap justify-center gap-3">
+    <a
+      class="btn-pill inline-flex items-center rounded-full bg-neutral-950 px-6 py-3 text-[0.68rem] font-semibold uppercase tracking-[0.3em] text-white"
+      href={localizePath(locale, "cityDetail", { city: "playa-del-carmen" })}
+    >
+      {t(locale, "locations.playaShows")}
+    </a>
+    <a class={linkClass} href={`${localizePath(locale, "events")}#open-mic`}>{t(locale, "locations.freeOpenMic")}</a>
+    <a class={linkClass} href={site.venueMapsUrl} target="_blank" rel="noopener">{t(locale, "locations.directions")}</a>
+  </div>
+  <NewsletterSignup locale={locale} city={city} class="mx-auto mt-10 max-w-md" />
+</div>

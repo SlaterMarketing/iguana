@@ -17,3 +17,4 @@ DEFAULT_FROM_EMAIL = '"Iguana Comedy" <no-reply@{{ site_domain }}>'
 EMAIL_HOST = 'localhost'
 EMAIL_PORT = 25
 NOTIFY_EMAILS = {{ notify_emails | to_json }}
+GEOIP_DB = '{{ geoip_db }}'

@@ -5,6 +5,9 @@
 export const site = {
   name: "Iguana Comedy",
   email: "hello@iguanacomedy.com",
+  venueAddress: "Calle 6 Nte 189, Centro, 77710 Playa del Carmen, Q.R., Mexico",
+  venueMapsUrl:
+    "https://www.google.com/maps/search/?api=1&query=Iguana%20Comedy%2C%20Calle%206%20Nte%20189%2C%20Centro%2C%2077710%20Playa%20del%20Carmen%2C%20Q.R.%2C%20Mexico",
   /** Full international display (WhatsApp widget text) */
   whatsappDisplay: "+52 998 937 0209",
   /**

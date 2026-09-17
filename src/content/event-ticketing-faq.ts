@@ -36,7 +36,7 @@ const FAQ: Record<Locale, FaqItem[]> = {
     {
       question: "Is there an age limit?",
       answer:
-        "Teenagers 16 and up are welcome. Our comedians may discuss adult topics, and they won't change their material because teens are in the audience.",
+        "All our shows are 18+. Our comedians talk about adult topics.",
     },
     {
       question: VENUE_QUESTION.en,
@@ -69,7 +69,7 @@ const FAQ: Record<Locale, FaqItem[]> = {
     {
       question: "¿Hay límite de edad?",
       answer:
-        "Adolescentes de 16 años en adelante son bienvenidos. Nuestros comediantes pueden hablar de temas para adultos y no modificarán su material por la presencia de adolescentes en el público.",
+        "Todos nuestros shows son para mayores de 18 años (18+). Nuestros comediantes hablan de temas para adultos.",
     },
     {
       question: VENUE_QUESTION.es,

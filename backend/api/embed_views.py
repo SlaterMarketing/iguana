@@ -11,6 +11,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from catalog.models import Event
+from crm.geo import remember_on_contact, visitor_profile
 from crm.models import TrackedEvent
 from sales.i18n import lang_from_request, normalize, tr
 from sales.models import Membership, MembershipPlan, Order, Ticket
@@ -104,7 +105,10 @@ def checkout_start(request, event_id):
         return error(exc.translated(lang))
 
     attribution = body.get('attribution') if isinstance(body.get('attribution'), dict) else {}
-    attribution = {k: str(v)[:200] for k, v in attribution.items()}
+    attribution = {k: str(v)[:200] for k, v in attribution.items() if k != 'visitor'}
+    client = body.get('client') if isinstance(body.get('client'), dict) else {}
+    attribution['visitor'] = visitor_profile(request, locale=lang, browser_language=client.get('browserLanguage', ''),
+                                             time_zone=client.get('timeZone', ''))
 
     if any(ticket_type.pay_at_door for ticket_type, _, _ in cart.lines):
         try:
@@ -112,11 +116,13 @@ def checkout_start(request, event_id):
                                     attribution=attribution, locale=lang)
         except CheckoutError as exc:
             return error(exc.translated(lang))
+        remember_on_contact(order.contact, attribution['visitor'])
         return JsonResponse({'orderId': order.id, 'complete': True,
                              'successUrl': f'{settings.BACKEND_URL}/orders/{order.public_view_token}/'})
 
     order = create_order(event, cart, name=name, email=email, phone=phone, contact=contact, attribution=attribution,
                          locale=lang)
+    remember_on_contact(order.contact, attribution['visitor'])
     success_url = f'{settings.BACKEND_URL}/orders/{order.public_view_token}/'
 
     if cart.total_cents == 0:

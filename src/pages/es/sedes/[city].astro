@@ -4,6 +4,7 @@ import Cta from "../../../components/Cta.astro";
 import EventRow from "../../../components/EventRow.astro";
 import HomeHero from "../../../components/home/HomeHero.astro";
 import LocationOtherCities from "../../../components/locations/LocationOtherCities.astro";
+import NoEventsNearby from "../../../components/locations/NoEventsNearby.astro";
 import { getCityLanding } from "../../../content/city-landings";
 import { getCityBlurb } from "../../../content/city-blurbs";
 import { heroCityChoices } from "../../../content/site";
@@ -74,9 +75,13 @@ const cityPickerChoices = [
 
     {
       happenings.length === 0 ? (
-        <p class="mx-auto mt-14 max-w-2xl rounded-3xl border border-neutral-200 px-10 py-6 text-center text-neutral-700">
-          {t(locale, "locations.noUpcomingIn").replace("{city}", landing.label)}
-        </p>
+        citySlug === "playa-del-carmen" ? (
+          <p class="mx-auto mt-14 max-w-2xl rounded-3xl border border-neutral-200 px-10 py-6 text-center text-neutral-700">
+            {t(locale, "locations.noUpcomingIn").replace("{city}", landing.label)}
+          </p>
+        ) : (
+          <NoEventsNearby locale={locale} city={{ slug: citySlug, label: landing.label }} />
+        )
       ) : (
         <div class="mt-20 grid gap-16 lg:grid-cols-2">
           {happenings.map((evt, index) => (

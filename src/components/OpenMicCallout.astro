@@ -3,6 +3,7 @@ import type { KintanaPublicEvent } from "@kintana/sdk";
 
 import type { Locale } from "../i18n/locale";
 import { localizePath } from "../i18n/routes";
+import { site } from "../content/site";
 import { formatEventDate } from "../lib/events";
 import { holidayNotice } from "../lib/holiday-notice";
 import { formatSeatPrice, nextBookableOpenMics } from "../lib/open-mics";
@@ -20,8 +21,7 @@ const { locale, class: className, events = [] } = Astro.props;
 const notice = holidayNotice(locale);
 const next = nextBookableOpenMics(events);
 
-const venueAddress = "Calle 6 Nte 189, Centro, 77710 Playa del Carmen, Q.R., Mexico";
-const mapsHref = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`Iguana Comedy, ${venueAddress}`)}`;
+const mapsHref = site.venueMapsUrl;
 
 const copy = {
   en: {

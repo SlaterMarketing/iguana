@@ -81,6 +81,97 @@ class PublicApiTests(ApiTestCase):
         self.assertEqual(self.api('post', '/api/public/v1/endpoints/nope/submit', {'email': 'a@example.com'}).status_code, 404)
 
 
+class NewsletterTests(ApiTestCase):
+    """Home page sign-ups join "Newsletter"; empty city pages also join that city's alert list. No alert emails."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        FormEndpoint.objects.create(slug='newsletter', intent='newsletter', title='Newsletter')
+
+    def signup(self, email, context=None):
+        return self.api('post', '/api/public/v1/endpoints/newsletter/submit',
+                        {'email': email, 'fields': {'locale': 'es'}, 'context': context or {}})
+
+    def test_signup_joins_newsletter_without_an_alert_email(self):
+        from crm.models import ContactList
+
+        with self.settings(NOTIFY_EMAILS=['hello@example.com']):
+            self.assertTrue(self.signup('Fan@Example.com').json()['ok'])
+            self.signup('fan@example.com')  # signing up twice is harmless
+        members = ContactList.objects.get(name='Newsletter').contacts.all()
+        self.assertEqual([c.email for c in members], ['fan@example.com'])
+        self.assertEqual(Contact.objects.get(email='fan@example.com').source, 'NEWSLETTER')
+        self.assertEqual(mail.outbox, [])
+
+    def test_city_signup_also_joins_that_citys_alert_list(self):
+        from crm.models import ContactList
+
+        self.signup('cancun@example.com', {'citySlug': 'cancun', 'cityLabel': 'Cancún'})
+        self.assertEqual(sorted(ContactList.objects.filter(contacts__email='cancun@example.com').values_list('name', flat=True)),
+                         ['City alerts: Cancún', 'Newsletter'])
+        self.signup('bad@example.com', {'citySlug': '<script>', 'cityLabel': 'x'})
+        self.assertEqual(list(ContactList.objects.filter(contacts__email='bad@example.com').values_list('name', flat=True)),
+                         ['Newsletter'])
+
+
+class VisitorLoggingTests(ApiTestCase):
+    """Sign-ups and bookings record language, time zone and IP location on the contact, submission and order."""
+
+    FAKE_PLACE = {'country': 'MX', 'region': 'Quintana Roo', 'city': 'Playa del Carmen'}
+
+    def setUp(self):
+        from unittest import mock
+
+        patcher = mock.patch('crm.geo.locate', side_effect=lambda ip: dict(self.FAKE_PLACE) if ip == '189.203.10.20' else {})
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        FormEndpoint.objects.get_or_create(slug='newsletter', defaults={'intent': 'newsletter'})
+
+    def test_real_ip_only_trusted_from_the_local_proxy(self):
+        from django.test import RequestFactory
+
+        from crm.geo import client_ip
+
+        factory = RequestFactory()
+        self.assertEqual(client_ip(factory.get('/', REMOTE_ADDR='127.0.0.1', HTTP_X_REAL_IP='189.203.10.20')), '189.203.10.20')
+        self.assertEqual(client_ip(factory.get('/', REMOTE_ADDR='200.1.1.1', HTTP_X_REAL_IP='189.203.10.20')), '200.1.1.1')
+
+    def test_newsletter_signup_records_language_and_location(self):
+        from catalog.models import FormSubmission
+
+        self.client.post(
+            '/api/public/v1/endpoints/newsletter/submit', content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {KEY}',
+            HTTP_X_REAL_IP='189.203.10.20',
+            data=json.dumps({'email': 'geo@example.com', 'fields': {'locale': 'es'},
+                             'context': {'browserLanguage': 'es-MX', 'timeZone': 'America/Cancun'}}))
+        contact = Contact.objects.get(email='geo@example.com')
+        self.assertEqual((contact.locale, contact.browser_language, contact.time_zone, contact.geo_country, contact.geo_region,
+                          contact.geo_city, contact.last_ip),
+                         ('es', 'es-MX', 'America/Cancun', 'MX', 'Quintana Roo', 'Playa del Carmen', '189.203.10.20'))
+        submission = FormSubmission.objects.get(email='geo@example.com')
+        self.assertEqual(submission.ip, '189.203.10.20')
+        self.assertEqual(submission.context['visitor']['city'], 'Playa del Carmen')
+
+    def test_booking_records_language_and_location_on_order_and_contact(self):
+        start = self.client.post(f'/api/checkout/{self.event.id}/start', content_type='application/json', HTTP_X_REAL_IP='189.203.10.20',
+                                 data=json.dumps({'lang': 'en', 'items': {self.ga.id: 1}, 'name': 'Geo Fan', 'email': 'geofan@example.com',
+                                                  'client': {'browserLanguage': 'en-US', 'timeZone': 'America/Chicago'}})).json()
+        order = Order.objects.get(pk=start['orderId'])
+        self.assertEqual(order.attribution['visitor'], {'ip': '189.203.10.20', 'locale': 'en', 'browserLanguage': 'en-US',
+                                                        'timeZone': 'America/Chicago', **self.FAKE_PLACE})
+        self.assertEqual((order.contact.locale, order.contact.time_zone, order.contact.geo_city), ('en', 'America/Chicago', 'Playa del Carmen'))
+
+    def test_missing_database_never_breaks_a_signup(self):
+        from unittest import mock
+
+        from crm import geo
+
+        with self.settings(GEOIP_DB='/nonexistent/dbip.mmdb'), mock.patch.dict(geo._state, {'mtime': None, 'reader': None, 'warned': False}):
+            self.assertEqual(geo._reader(), None)
+            self.assertTrue(self.api('post', '/api/public/v1/endpoints/newsletter/submit', {'email': 'nogeo@example.com'}).json()['ok'])
+
+
 class FanAuthTests(ApiTestCase):
     def test_magic_link_flow(self):
         res = self.api('post', '/api/fan/v1/auth/request', {'email': 'fan@example.com', 'redirectUrl': f'{SITE}/en/account/verify/'})

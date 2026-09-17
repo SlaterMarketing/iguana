@@ -196,6 +196,36 @@
       command: supervisorctl update
       changed_when: false
 
+    # ------------------------------------------------------ IP location data
+    - name: IP location refresh script
+      become: true
+      copy: {src: files/iguana-geoip-refresh, dest: /usr/local/bin/iguana-geoip-refresh, mode: "0755"}
+
+    - name: IP location data directory
+      become: true
+      file: {path: "{{ geoip_db | dirname }}", state: directory, owner: "{{ deploy_user }}", group: "{{ deploy_user }}", mode: "0755"}
+
+    - name: Look for the IP location database
+      stat: {path: "{{ geoip_db }}"}
+      register: geoip_file
+
+    - name: Download the IP location database when missing
+      command: /usr/local/bin/iguana-geoip-refresh {{ geoip_db }}
+      when: not geoip_file.stat.exists
+      become: true
+      become_user: "{{ deploy_user }}"
+
+    - name: Refresh the IP location database monthly (DB-IP publishes on the 1st)
+      become: true
+      cron:
+        name: iguana geoip refresh
+        user: "{{ deploy_user }}"
+        day: "4"
+        hour: "5"
+        minute: "17"
+        # crm/geo.py reopens the file when it changes, so no restart; results go to syslog (journalctl -t iguana-geoip).
+        job: "timeout 30m /usr/local/bin/iguana-geoip-refresh {{ geoip_db }} 2>&1 | logger -t iguana-geoip"
+
     - name: Restart app
       become: true
       command: "supervisorctl restart {{ projectname }}:"

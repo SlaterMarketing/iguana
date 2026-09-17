@@ -176,7 +176,7 @@
   $("details").addEventListener("submit", function (e) {
     e.preventDefault();
     var f = e.currentTarget;
-    var body = { lang: B.lang, items: qty, fanToken: fanToken, attribution: attribution, name: f.name.value, email: f.email.value, phone: f.phone.value };
+    var body = { lang: B.lang, client: { browserLanguage: navigator.language, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }, items: qty, fanToken: fanToken, attribution: attribution, name: f.name.value, email: f.email.value, phone: f.phone.value };
     $("continue").disabled = true;
     setError($("details-error"), "");
     postJSON(B.apiBase + "/api/checkout/" + ev.id + "/start", body)

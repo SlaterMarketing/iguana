@@ -3,6 +3,7 @@ import Base from "../../layouts/Base.astro";
 import HomeHero from "../../components/home/HomeHero.astro";
 import HomePageSections from "../../components/home/HomePageSections.astro";
 import OpenMicHeroBadge from "../../components/home/OpenMicHeroBadge.astro";
+import NewsletterSignup from "../../components/NewsletterSignup.astro";
 import { heroCityChoices, siteMessages } from "../../content/site";
 import { loadHomePageData } from "../../lib/home-page-data";
 import { getLocale } from "../../i18n/locale";
@@ -44,6 +45,7 @@ const cityPickerChoices = [
     spotlightLabel={locale === "es" ? "Ciudad destacada" : "Spotlight city"}
   >
     <OpenMicHeroBadge slot="announcement" locale={locale} events={pageData.eventsPool} />
+    <NewsletterSignup slot="aside" locale={locale} tone="dark" />
   </HomeHero>
   <HomePageSections {...pageData} apiConfigured={pageData.hasCredentials} locale={locale} />
 </Base>

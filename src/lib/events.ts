@@ -21,6 +21,11 @@ export function eventSupportsOnSiteCheckout(
   return Boolean(event.id?.trim()) && event.status !== "sold-out" && event.status !== "postponed";
 }
 
+/** `YYYY-MM-DD` for today in Quintana Roo, where every show happens; the API's `from` filter and "past" use it. */
+export function todayInCancun(now = new Date()): string {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Cancun" }).format(now);
+}
+
 export function sortEventsAscending(events: KintanaPublicEvent[]): KintanaPublicEvent[] {
   return [...events].sort((a, b) => parseEventTs(a.date) - parseEventTs(b.date));
 }

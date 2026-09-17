@@ -26,3 +26,5 @@ DEFAULT_FROM_EMAIL = '"Iguana Comedy" <no-reply@iguanacomedy.com>'
 EMAIL_HOST = 'localhost'
 EMAIL_PORT = 25
 NOTIFY_EMAILS = ['hello@iguanacomedy.com']
+# Path to a DB-IP City Lite .mmdb for contact/order locations (ansible puts it at /var/lib/iguana/). Blank = off.
+GEOIP_DB = ''

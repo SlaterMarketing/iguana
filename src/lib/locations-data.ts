@@ -2,7 +2,7 @@ import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaGroupedCity, KintanaPublicEvent, KintanaPublicVenueListed } from "@kintana/sdk";
 import { groupVenuesByCity } from "@kintana/sdk/locations";
 
-import { eventCitySlug, sortEventsAscending } from "./events";
+import { eventCitySlug, sortEventsAscending, todayInCancun } from "./events";
 import { logKintanaError, logKintanaSuccess } from "./kintana-error";
 import { getKintanaEnv } from "./kintana-env";
 import { slugify } from "./slug";
@@ -38,11 +38,9 @@ function indexVenueCounts(grouped: KintanaGroupedCity[]) {
 
 function indexUpcomingCounts(events: KintanaPublicEvent[]) {
   const upcomingCountBySlug = new Map<string, number>();
-  const now = Date.now();
   for (const evt of events) {
-    if (evt.status === "cancelled") continue;
-    const ts = Date.parse(evt.date);
-    if (!Number.isFinite(ts) || ts < now) continue;
+    // The API marks a show "past" once its day has ended in Cancún; comparing against the server clock is not safe.
+    if (evt.status === "cancelled" || evt.status === "past") continue;
     const slug = eventCitySlug(evt);
     if (!slug || slug === "unknown") continue;
     upcomingCountBySlug.set(slug, (upcomingCountBySlug.get(slug) ?? 0) + 1);
@@ -79,7 +77,9 @@ export async function loadLocationsCatalog(): Promise<LocationsCatalog> {
   try {
     events = await client.listEvents({ limit: 200 });
     catalog.eventCount = events.filter((evt) => evt.status !== "cancelled").length;
-    catalog.upcomingCountBySlug = indexUpcomingCounts(events);
+    // Count upcoming shows from their own request: the unfiltered list starts at the oldest events, so once there are
+    // more than `limit` of them it would contain no upcoming shows at all.
+    catalog.upcomingCountBySlug = indexUpcomingCounts(await client.listEvents({ limit: 200, from: todayInCancun() }));
   } catch {
     catalog.eventCount = 0;
     catalog.upcomingCountBySlug = new Map();
@@ -118,8 +118,10 @@ export async function loadCityLocationsData(citySlug: string): Promise<CityLocat
   }
 
   try {
-    const pool = sortEventsAscending(await client.listEvents({ limit: 140 })).filter(
-      (evt) => evt.status !== "cancelled",
+    // Only today onward: without `from` this listed a city's oldest past shows under "Upcoming in <city>", and a city
+    // with nothing coming up never reached the "no shows yet" message.
+    const pool = sortEventsAscending(await client.listEvents({ limit: 140, from: todayInCancun() })).filter(
+      (evt) => evt.status !== "cancelled" && evt.status !== "past",
     );
     const inCity = pool.filter((evt) => eventCitySlug(evt) === citySlug);
     empty.upcomingCount = inCity.length;

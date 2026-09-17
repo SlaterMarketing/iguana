@@ -69,6 +69,7 @@ const useRotator = !headlineLine2Static && !staticHeadlineCity;
 const useImageHero = Boolean(heroImageUrl?.trim());
 // With an announcement above the headline, phones need the room: drop the small eyebrow line and the upward nudge.
 const hasAnnouncement = Astro.slots.has("announcement");
+const headlineWords = (text: string) => text.trim().split(/\s+/).filter(Boolean);
 ---
 
 <section
@@ -103,45 +104,71 @@ const hasAnnouncement = Astro.slots.has("announcement");
   <div class="relative z-10 mx-auto flex h-full min-h-0 w-full max-w-6xl flex-1 flex-col px-6 pb-10 pt-28 text-white sm:pb-12 lg:pt-32">
     <div class="flex flex-1 flex-col justify-center">
       <div class:list={["text-center", hasAnnouncement ? "sm:-translate-y-[50px]" : "-translate-y-[50px]"]}>
-        {/* Above-the-fold announcement from the page, e.g. the free open mics (OpenMicHeroBadge). */}
-        <slot name="announcement" />
         <p class:list={["text-xs font-semibold uppercase tracking-[0.45em] text-white/75", hasAnnouncement && "hidden sm:block"]}>
           {eyebrow}
         </p>
         <h1
           class:list={[
-            "font-display font-semibold leading-[0.92] tracking-wide text-[clamp(3.1rem,7.5vw,6.5rem)]",
-            hasAnnouncement ? "sm:mt-10" : "mt-10",
+            "font-display font-semibold leading-[0.92] tracking-wide",
+            // With an announcement under it, the headline gives up a little height on short phones.
+            hasAnnouncement ? "sm:mt-10 text-[clamp(2.7rem,7.5vw,6.5rem)]" : "mt-10 text-[clamp(3.1rem,7.5vw,6.5rem)]",
           ]}
           style="font-family: var(--font-display);"
         >
-          <span class="block">{headlineLine1}</span>
-          <span class="block">
-            {headlineLine2Prefix}
+          {/* Words never split ("STAND-" / "UP" once a smaller phone size let the hyphen break); lines are balanced. */}
+          <span class="block [text-wrap:balance]">
+            {headlineWords(headlineLine1).map((word, index, words) => (
+              <>
+                <span class="inline-block whitespace-nowrap" data-headline-word>{word}</span>
+                {index < words.length - 1 ? " " : ""}
+              </>
+            ))}
+          </span>
+          <span class="block [text-wrap:balance]">
+            {headlineWords(headlineLine2Prefix).map((word) => (
+              <>
+                <span class="inline-block whitespace-nowrap" data-headline-word>{word}</span>{" "}
+              </>
+            ))}
             {
               useRotator ? (
                 <HeroCityRotator cities={rotatorCities} fallback={rotatorFallback} />
               ) : (
-                <span class="text-brand-hover">{staticHeadlineCity}</span>
+                headlineWords(staticHeadlineCity ?? "").map((word, index, words) => (
+                  <>
+                    <span class="inline-block whitespace-nowrap text-brand-hover" data-headline-word>{word}</span>
+                    {index < words.length - 1 ? " " : ""}
+                  </>
+                ))
               )
             }
           </span>
         </h1>
+        {/* Above-the-fold announcement from the page, under the headline, e.g. the free open mics (OpenMicHeroBadge). */}
+        <slot name="announcement" />
       </div>
     </div>
 
-    <div class="flex w-full shrink-0 flex-col gap-10 lg:flex-row lg:items-end lg:justify-between">
-      <div class="max-w-xs">
-        <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white/90">{spotlightLabel}</p>
-        <CityPicker
-          choices={pickerChoices}
-          value={activeCitySlug}
-          navigateTo={pickerNavigateTo}
-          homeHref={cityHomeHref}
-          locationsBaseHref={cityLocationsBaseHref}
-          locale={locale}
-        />
-      </div>
+    <div class:list={["flex w-full shrink-0 flex-col lg:flex-row lg:items-end lg:justify-between", hasAnnouncement ? "gap-5 sm:gap-10" : "gap-10"]}>
+      {
+        Astro.slots.has("aside") ? (
+          <div class="w-full max-w-sm">
+            <slot name="aside" />
+          </div>
+        ) : (
+          <div class="max-w-xs">
+            <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white/90">{spotlightLabel}</p>
+            <CityPicker
+              choices={pickerChoices}
+              value={activeCitySlug}
+              navigateTo={pickerNavigateTo}
+              homeHref={cityHomeHref}
+              locationsBaseHref={cityLocationsBaseHref}
+              locale={locale}
+            />
+          </div>
+        )
+      }
 
       <div class="flex flex-wrap items-center justify-end gap-4 sm:gap-5">
         <a

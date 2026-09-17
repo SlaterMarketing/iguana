@@ -1,0 +1,142 @@
+---
+import type { Locale } from "../i18n/locale";
+import { t } from "../i18n/ui";
+import { getKintanaEnv } from "../lib/kintana-env";
+
+interface Props {
+  locale: Locale;
+  /** On a city page with no shows: the sign-up also joins that city's alert list ("City alerts: Cancún"). */
+  city?: { slug: string; label: string };
+  /** "dark" over the hero video, "light" on page sections. */
+  tone?: "dark" | "light";
+  class?: string;
+}
+
+const { locale, city, tone = "light", class: className } = Astro.props;
+const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();
+const vars = city ? { city: city.label } : undefined;
+const heading = city ? t(locale, "newsletter.cityHeading", vars) : t(locale, "newsletter.heading");
+const submitLabel = city ? t(locale, "newsletter.citySubmit") : t(locale, "newsletter.submit");
+const success = city ? t(locale, "newsletter.citySuccess", vars) : t(locale, "newsletter.success");
+const dark = tone === "dark";
+const inputId = `newsletter-email-${city?.slug ?? "all"}`;
+---
+
+{
+  hasCredentials && (
+    <form
+      class:list={["text-left", className]}
+      novalidate
+      data-newsletter
+      data-endpoint={`${baseUrl}/api/public/v1/endpoints/newsletter/submit`}
+      data-key={apiKey}
+      data-locale={locale}
+      data-city-slug={city?.slug ?? ""}
+      data-city-label={city?.label ?? ""}
+      data-msg-success={success}
+      data-msg-invalid={t(locale, "newsletter.invalid")}
+      data-msg-failed={t(locale, "newsletter.failed")}
+      data-msg-sending={t(locale, "newsletter.sending")}
+    >
+      <label
+        for={inputId}
+        class:list={["block text-xs font-semibold uppercase tracking-[0.2em] sm:tracking-[0.3em]", dark ? "text-white/90" : "text-neutral-500"]}
+      >
+        {heading}
+      </label>
+      <div
+        class:list={[
+          "mt-3 flex items-center gap-1 rounded-full border p-1",
+          dark ? "border-white/30 bg-black/40 backdrop-blur" : "border-neutral-300 bg-white",
+        ]}
+      >
+        <input
+          id={inputId}
+          type="email"
+          name="email"
+          required
+          autocomplete="email"
+          inputmode="email"
+          placeholder={t(locale, "newsletter.placeholder")}
+          class:list={[
+            "min-w-0 flex-1 bg-transparent px-4 py-2.5 text-sm outline-none",
+            dark ? "text-white placeholder:text-white/60" : "text-neutral-950 placeholder:text-neutral-400",
+          ]}
+        />
+        <button
+          type="submit"
+          class:list={[
+            "shrink-0 rounded-full px-5 py-2.5 text-[0.65rem] font-semibold uppercase tracking-[0.25em] disabled:opacity-60",
+            dark ? "bg-white text-neutral-950" : "bg-neutral-950 text-white",
+          ]}
+        >
+          {submitLabel}
+        </button>
+      </div>
+      <p
+        class:list={["mt-2 text-sm sm:min-h-[1.25rem]", dark ? "text-white/90" : "text-neutral-700"]}
+        role="status"
+        aria-live="polite"
+        data-newsletter-status
+      />
+    </form>
+  )
+}
+
+<script>
+  function initNewsletterForms() {
+    document.querySelectorAll<HTMLFormElement>("form[data-newsletter]").forEach((form) => {
+      if (form.dataset.ready === "1") return;
+      form.dataset.ready = "1";
+      const d = form.dataset;
+      const input = form.querySelector<HTMLInputElement>("input[type=email]");
+      const button = form.querySelector<HTMLButtonElement>("button[type=submit]");
+      const status = form.querySelector<HTMLElement>("[data-newsletter-status]");
+      if (!input || !button || !status) return;
+
+      form.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const email = input.value.trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+          status.textContent = d.msgInvalid ?? "";
+          input.focus();
+          return;
+        }
+        button.disabled = true;
+        status.textContent = d.msgSending ?? "";
+        try {
+          const response = await fetch(d.endpoint ?? "", {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${d.key}`,
+              "Content-Type": "application/json",
+              "X-Iguana-Locale": d.locale ?? "en",
+            },
+            body: JSON.stringify({
+              email,
+              fields: { locale: d.locale },
+              context: {
+                source: d.citySlug ? "city-page" : "home",
+                citySlug: d.citySlug,
+                cityLabel: d.cityLabel,
+                page: window.location.pathname,
+                // Where and in what language the person browses, for campaigns by language and area.
+                browserLanguage: navigator.language,
+                timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+              },
+            }),
+          });
+          if (!response.ok) throw new Error(String(response.status));
+          status.textContent = d.msgSuccess ?? "";
+          input.value = "";
+        } catch {
+          status.textContent = d.msgFailed ?? "";
+          button.disabled = false;
+        }
+      });
+    });
+  }
+
+  initNewsletterForms();
+  document.addEventListener("astro:page-load", initNewsletterForms);
+</script>

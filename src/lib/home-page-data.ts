@@ -1,7 +1,7 @@
 import { createKintanaClient } from "@kintana/sdk";
 import type { KintanaPublicArtistEmbed, KintanaPublicEvent } from "@kintana/sdk";
 
-import { eventCitySlug, sortEventsAscending } from "./events";
+import { eventCitySlug, sortEventsAscending, todayInCancun } from "./events";
 import { getKintanaEnv } from "./kintana-env";
 import { logKintanaError, logKintanaSuccess } from "./kintana-error";
 import { isOpenMic } from "./open-mics";
@@ -15,11 +15,6 @@ export type HomePageData = {
   trimmedEvents: KintanaPublicEvent[];
   wallArtists: KintanaPublicArtistEmbed[];
 };
-
-/** `YYYY-MM-DD` for today in Quintana Roo, where every show happens. */
-function todayInCancun(now = new Date()): string {
-  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Cancun" }).format(now);
-}
 
 export async function loadHomePageData(citySlug?: string): Promise<HomePageData> {
   const { apiKey, baseUrl, hasCredentials } = getKintanaEnv();

@@ -1,0 +1,32 @@
+#!/bin/sh
+# Refresh the DB-IP "IP to City Lite" database (CC BY 4.0, https://db-ip.com) that backend/crm/geo.py reads for
+# contact and order locations.   Usage: iguana-geoip-refresh /var/lib/iguana/dbip-city-lite.mmdb
+#
+# DB-IP publishes one file per month; early in a month the new one may not exist yet, so fall back to last month.
+# The new file only replaces the old one after it downloads completely and opens as a MaxMind database, so a failed
+# or truncated download can never leave the site without a working file.
+set -eu
+
+dest="$1"
+python="${GEOIP_PYTHON:-/home/www/iguana/backend/venv/bin/python}"
+tmp="$(mktemp "${dest}.XXXXXX")"
+trap 'rm -f "$tmp"' EXIT
+
+this_month="$(date -u +%Y-%m)"
+last_month="$(date -u -d "$(date -u +%Y-%m-01) -1 day" +%Y-%m)"
+
+for month in "$this_month" "$last_month"; do
+  url="https://download.db-ip.com/free/dbip-city-lite-${month}.mmdb.gz"
+  if curl -fsS --max-time 600 "$url" | gunzip > "$tmp" 2>/dev/null && [ -s "$tmp" ]; then
+    if "$python" -c "import maxminddb, sys; r = maxminddb.open_database(sys.argv[1]); assert r.get('8.8.8.8') is not None" "$tmp"; then
+      chmod 0644 "$tmp"
+      mv -f "$tmp" "$dest"
+      echo "iguana-geoip-refresh: installed dbip-city-lite-${month} ($(du -h "$dest" | cut -f1))"
+      exit 0
+    fi
+    echo "iguana-geoip-refresh: ${url} downloaded but is not a usable database" >&2
+  fi
+done
+
+echo "iguana-geoip-refresh: no usable download for ${this_month} or ${last_month}; kept the existing file" >&2
+exit 1

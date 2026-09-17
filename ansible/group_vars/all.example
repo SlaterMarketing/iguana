@@ -46,6 +46,9 @@ mail_role_aliases: [noreply, no-reply, postmaster, abuse, mailer-daemon]
 mail_forwards: [someone@example.com, someone-else@example.com]
 mail_test_recipient: someone-else@example.com
 
+# DB-IP "IP to City Lite" (CC BY 4.0), refreshed monthly by iguana-geoip-refresh; read by backend/crm/geo.py.
+geoip_db: /var/lib/iguana/dbip-city-lite.mmdb
+
 # Clicky analytics through a first-party proxy (https://clicky.com/help/proxy). Paths are random per site.
 clicky_site_id: "101511754"
 clicky_js_path: /ce3c4461b3c804.js

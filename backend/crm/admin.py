@@ -5,8 +5,8 @@ from .models import Campaign, CampaignRecipient, Contact, ContactList, ContactLi
 
 @admin.register(Contact)
 class ContactAdmin(admin.ModelAdmin):
-    list_display = ('email', 'first_name', 'last_name', 'phone', 'subscribed', 'source', 'cities', 'created_at')
-    list_filter = ('subscribed', 'source', 'cities')
+    list_display = ('email', 'first_name', 'last_name', 'source', 'locale', 'geo_country', 'geo_city', 'time_zone', 'created_at')
+    list_filter = ('subscribed', 'source', 'locale', 'geo_country', 'lists')
     search_fields = ('email', 'first_name', 'last_name', 'phone')
     readonly_fields = ('stripe_customer_id', 'stripe_card_brand', 'stripe_card_last4', 'created_at', 'updated_at')
 

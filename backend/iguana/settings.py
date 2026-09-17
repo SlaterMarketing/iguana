@@ -16,6 +16,8 @@ STRIPE_PUBLISHABLE_KEY = getattr(config, 'STRIPE_PUBLISHABLE_KEY', '')
 STRIPE_SECRET_KEY = getattr(config, 'STRIPE_SECRET_KEY', '')
 STRIPE_WEBHOOK_SECRET = getattr(config, 'STRIPE_WEBHOOK_SECRET', '')
 NOTIFY_EMAILS = getattr(config, 'NOTIFY_EMAILS', [])
+# DB-IP City Lite (.mmdb) for contact and order locations; see crm/geo.py. Blank or missing file = no lookups.
+GEOIP_DB = getattr(config, 'GEOIP_DB', '')
 
 INSTALLED_APPS = [
     'django.contrib.admin',

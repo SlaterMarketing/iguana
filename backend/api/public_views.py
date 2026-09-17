@@ -1,3 +1,4 @@
+import re
 from datetime import date
 
 from django.conf import settings
@@ -5,6 +6,8 @@ from django.core.mail import send_mail
 from django.db.models import Prefetch, Q
 from django.http import Http404, JsonResponse
 
+from crm.geo import remember_on_contact, visitor_profile
+from crm.models import ContactList, ContactListMember
 from catalog.models import Artist, Event, FormEndpoint, FormSubmission, LineupEntry, SiteFile, StoreCollection, StoreProduct, Venue
 from sales.services import upsert_contact
 
@@ -130,18 +133,39 @@ def endpoint_submit(request, slug):
     fields = {str(k)[:80]: str(v)[:5000] for k, v in (body.get('fields') or {}).items()} if isinstance(body.get('fields'), dict) else {}
     context = {str(k)[:80]: str(v)[:2000] for k, v in (body.get('context') or {}).items()} if isinstance(body.get('context'), dict) else {}
     phone = str(body.get('phone', ''))[:40]
+    visitor = visitor_profile(request, locale=fields.get('locale') or request.headers.get('X-Iguana-Locale', ''),
+                              browser_language=context.get('browserLanguage', ''), time_zone=context.get('timeZone', ''))
+    context['visitor'] = visitor
     submission = FormSubmission.objects.create(
         endpoint=endpoint, email=email, phone=phone, fields=fields, context=context,
         visitor_key=str(body.get('visitorKey', ''))[:100],
-        ip=request.META.get('REMOTE_ADDR'),
+        ip=visitor.get('ip') or None,
     )
-    upsert_contact(email, 'CONTACT_FORM', fields.get('firstName', '') or fields.get('first_name', ''),
-                   fields.get('lastName', '') or fields.get('last_name', ''), phone)
+    if endpoint.intent == 'newsletter':
+        remember_on_contact(_join_newsletter(email, context), visitor)
+        # A sign-up is not an enquiry: no alert email per subscriber.
+        return JsonResponse({'ok': True, 'successMessage': endpoint.success_message or None, 'redirectUrl': None, 'id': submission.pk})
+    contact = upsert_contact(email, 'CONTACT_FORM', fields.get('firstName', '') or fields.get('first_name', ''),
+                             fields.get('lastName', '') or fields.get('last_name', ''), phone)
+    remember_on_contact(contact, visitor)
     if settings.NOTIFY_EMAILS:
         lines = [f'Form: {endpoint.slug}', f'Email: {email}', f'Phone: {phone}', ''] + [f'{k}: {v}' for k, v in fields.items()]
         send_mail(f'New {endpoint.title or endpoint.slug} enquiry from {email}', '\n'.join(lines),
                   settings.DEFAULT_FROM_EMAIL, settings.NOTIFY_EMAILS, fail_silently=True)
     return JsonResponse({'ok': True, 'successMessage': endpoint.success_message or None, 'redirectUrl': None, 'id': submission.pk})
+
+
+def _join_newsletter(email, context):
+    """Add the subscriber to "Newsletter", plus "City alerts: <city>" when they asked to hear about one city's shows."""
+    contact = upsert_contact(email, 'NEWSLETTER')
+    names = ['Newsletter']
+    city_slug = context.get('citySlug', '')
+    if re.fullmatch(r'[a-z0-9-]{2,40}', city_slug):
+        names.append(f'City alerts: {(context.get("cityLabel") or city_slug)[:60]}')
+    for name in names:
+        contact_list, _ = ContactList.objects.get_or_create(name=name)
+        ContactListMember.objects.get_or_create(contact_list=contact_list, contact=contact)
+    return contact
 
 
 @api_view()

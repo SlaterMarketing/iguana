@@ -8,6 +8,7 @@ ENDPOINTS = [
     ('contact', 'contact', 'Contact'),
     ('perform-with-us', 'show_request', 'Perform with us'),
     ('hotels-and-resorts', 'external_lead', 'Hotels and resorts'),
+    ('newsletter', 'newsletter', 'Newsletter'),
 ]
 
 # Matches src/content/membership.ts: MX$99 / month, MX$999 / year, two free tickets, 10% off guests.
