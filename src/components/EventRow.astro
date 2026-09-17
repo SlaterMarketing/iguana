@@ -1,6 +1,7 @@
 ---
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import { eventCitySlug, eventSupportsOnSiteCheckout, eventLanguageLabel, formatEventScheduleLine, formatMinorUnitsPrice } from "../lib/events";
+import { isOpenMic } from "../lib/open-mics";
 import { t } from "../i18n/ui";
 import { localizePath } from "../i18n/routes";
 import type { Locale } from "../i18n/locale";
@@ -28,6 +29,8 @@ const posterDesktopSrc = evt.imageUrl?.trim() || evt.imageUrlMobile?.trim();
 const priceFormatted = formatMinorUnitsPrice(evt, locale);
 const priceLabel = priceFormatted ? t(locale, "events.priceStarting").replace("{price}", priceFormatted) : null;
 const languageLabel = eventLanguageLabel(evt, locale);
+// Entry to an open mic is free, so the card offers a seat reservation, the same words the hero and the callout use.
+const ticketsLabel = isOpenMic(evt) ? t(locale, "ui.reserveSeat") : t(locale, "ui.buyTickets");
 
 const statusBadge =
   past
@@ -49,13 +52,15 @@ const emphasized =
 <section aria-label={t(locale, "events.ticketingAria", { name: evt.name })}>
   <div
     class:list={[
-      "grid grid-cols-1 overflow-hidden rounded-[1.85rem] border border-black/10",
+      "group relative grid grid-cols-1 overflow-hidden rounded-[1.85rem] border border-black/10 transition",
+      "hover:-translate-y-1 hover:border-black/25 hover:shadow-[0_20px_50px_rgba(0,0,0,0.16)]",
+      "focus-within:-translate-y-1 focus-within:shadow-[0_20px_50px_rgba(0,0,0,0.16)]",
       featured && "lg:min-h-[22rem] lg:grid-cols-[minmax(280px,34%)_1fr] lg:rounded-[2.75rem]",
     ]}
   >
     <div
       class:list={[
-        "aspect-[16/10] bg-neutral-200",
+        "aspect-[16/10] overflow-hidden bg-neutral-200",
         featured && "lg:aspect-auto lg:min-h-[22rem]",
       ]}
     >
@@ -63,14 +68,14 @@ const emphasized =
         posterMobileSrc ? (
           <>
             <img
-              class="size-full object-cover md:hidden"
+              class="size-full object-cover transition duration-500 group-hover:scale-[1.03] md:hidden"
               src={posterMobileSrc}
               alt=""
               loading="lazy"
               decoding="async"
             />
             <img
-              class="hidden size-full object-cover md:block"
+              class="hidden size-full object-cover transition duration-500 group-hover:scale-[1.03] md:block"
               src={posterDesktopSrc ?? posterMobileSrc}
               alt=""
               loading="lazy"
@@ -116,7 +121,8 @@ const emphasized =
           class="font-semibold tracking-tight"
           style="font-family: var(--font-display); font-size: clamp(2.1rem, 3vw + 1.4rem, 3rem); line-height: 1.06;"
         >
-          <a href={detailHref} class="transition-opacity hover:opacity-90">{evt.name}</a>
+          <!-- Stretched link: the whole card opens the show, and the title stays the link's accessible name. -->
+          <a href={detailHref} class="transition-opacity after:absolute after:inset-0 group-hover:opacity-95">{evt.name}</a>
         </h3>
 
         {
@@ -134,7 +140,7 @@ const emphasized =
         {priceLabel ? <p class="text-sm font-medium opacity-[0.9]">{priceLabel}</p> : null}
       </div>
 
-      <div class="mt-12 flex flex-wrap gap-6">
+      <div class="relative z-10 mt-12 flex flex-wrap gap-6">
         {
           past ? (
             <a
@@ -151,7 +157,7 @@ const emphasized =
                 emphasized ? "border-neutral-950 bg-neutral-950 tracking-[0.39em]" : "border-transparent bg-neutral-950 tracking-[0.35em]",
               ]}
             >
-              {t(locale, "ui.buyTickets")}
+              {ticketsLabel}
             </a>
           ) : (
             <a

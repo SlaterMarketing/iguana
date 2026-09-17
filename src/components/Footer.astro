@@ -13,16 +13,25 @@ const whatsappHref = `https://wa.me/${site.whatsappE164.replace(/\D+/g, "")}`;
 ---
 
 <footer class="border-t border-black/10 bg-ink pb-24 pt-28 text-neutral-300">
-  <div class="mx-auto grid max-w-6xl gap-14 px-4 sm:gap-24 md:grid-cols-[1.05fr_repeat(4,minmax(0,1fr))] sm:px-6 lg:gap-28">
-    <div class="space-y-12">
+  <!-- Two columns from sm, five only from lg: the brand column has to stay wide enough to hold the email address
+       on one line, which is why it used to break mid-word. -->
+  <div class="mx-auto grid max-w-6xl gap-14 px-4 sm:grid-cols-2 sm:gap-16 sm:px-6 lg:grid-cols-[1.6fr_repeat(4,minmax(0,1fr))] lg:gap-20">
+    <div class="min-w-0 space-y-12 sm:col-span-2 lg:col-span-1">
       <p class="text-4xl text-white lg:text-[2.75rem]" style="font-family: var(--font-display);">{site.name}</p>
       <div class="space-y-8 text-neutral-400">
-        <p class="text-lg text-white [overflow-wrap:anywhere]">{site.email}</p>
-        <div class="text-lg tracking-wide text-neutral-400">
-          <p class="text-white">{site.whatsappDisplay}</p>
-          <p class="text-sm uppercase tracking-[0.45em] text-neutral-400">{t(locale, "footer.whatsappLabel")}</p>
-          <p class="text-sm lowercase text-neutral-500">{t(locale, "footer.whatsappSub")}</p>
-        </div>
+        <a class="block text-base text-white underline-offset-4 transition hover:underline" href={`mailto:${site.email}`}>
+          {site.email}
+        </a>
+        <a
+          class="block tracking-wide text-neutral-400 transition hover:text-white"
+          href={whatsappHref}
+          target="_blank"
+          rel="noreferrer noopener"
+        >
+          <span class="block text-lg text-white">{site.whatsappDisplay}</span>
+          <span class="block text-sm uppercase tracking-[0.45em] text-neutral-400">{t(locale, "footer.whatsappLabel")}</span>
+          <span class="block text-sm lowercase text-neutral-500">{t(locale, "footer.whatsappSub")}</span>
+        </a>
       </div>
     </div>
     <div>

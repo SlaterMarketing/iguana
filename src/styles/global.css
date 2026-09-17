@@ -617,7 +617,9 @@ body {
   position: relative;
   z-index: 2;
   width: 100%;
-  max-width: 72rem;
+  /* 72rem of content plus its own padding, so the hero text lines up with the sections below, whose padding sits
+     on the section instead of the inner box. */
+  max-width: 75rem;
   margin-inline: auto;
   padding: max(6.5rem, calc(env(safe-area-inset-top, 0px) + 5.5rem)) 1rem 3rem;
 }
@@ -692,16 +694,29 @@ body {
   margin-inline: auto;
 }
 
-.membership-section-inner--narrow {
-  max-width: 40rem;
+/* Every section shares the hero's container, so each heading starts at the same left edge. Only the reading
+   measure is capped, on the text itself: mixing a 40rem column with a 72rem one read as half the page centred
+   and half not. */
+.membership-section-inner--narrow,
+.membership-section-inner--join {
+  max-width: 72rem;
 }
 
-.membership-section-inner--join {
-  max-width: 36rem;
+.membership-section-inner--narrow > .membership-section-body,
+.membership-section-inner--join > .membership-section-body,
+.membership-faq dd {
+  max-width: 44rem;
+}
+
+.membership-value-compare,
+.membership-join-panel,
+.membership-faq {
+  max-width: 44rem;
 }
 
 .membership-section-title {
   margin-top: 0.65rem;
+  max-width: 22ch;
   font-family: var(--font-display);
   font-size: clamp(2rem, 4.5vw, 2.75rem);
   font-weight: 400;

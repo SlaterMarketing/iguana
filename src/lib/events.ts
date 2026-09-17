@@ -183,9 +183,11 @@ export function formatMinorUnitsPrice(
       currency,
       maximumFractionDigits: major % 1 === 0 ? 0 : 2,
     }).format(major);
-    return `${amount}${currency}`;
+    // es-MX prints MXN as a bare "$50", which is ambiguous next to dollar prices, so name the currency. When the
+    // formatter already spells it out ("USD 5", "MX$50") do not say it twice.
+    return amount.includes(currency) || amount.includes(currency.slice(0, 2)) ? amount : `${amount} ${currency}`;
   } catch {
-    return `$${digits}${currency}`;
+    return `$${digits} ${currency}`;
   }
 }
 
