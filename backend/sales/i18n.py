@@ -146,6 +146,21 @@ ES = {
     'Reserved, not paid: collect {0} for this seat, then check in.':
         'Reservado sin pagar: cobra {0} por este lugar y después registra.',
     'Check in': 'Registrar',
+    # Unsubscribe page and the footer line on bulk email.
+    'Email preferences': 'Preferencias de correo',
+    'That link is not valid': 'Ese enlace no es válido',
+    'Write to hello@iguanacomedy.com and we will take you off the list by hand.':
+        'Escríbenos a hello@iguanacomedy.com y te sacamos de la lista a mano.',
+    'You are on the list': 'Estás en la lista',
+    'We email {0} when new shows go on sale.': 'Escribimos a {0} cuando salen shows nuevos a la venta.',
+    'Unsubscribe': 'Cancelar suscripción',
+    'You are unsubscribed': 'Cancelaste tu suscripción',
+    'We will not email {0} about new shows again. Tickets you already bought are not affected.':
+        'No volveremos a escribir a {0} sobre shows nuevos. Los boletos que ya compraste no se ven afectados.',
+    'Changed your mind? Resubscribe': '¿Cambiaste de opinión? Vuelve a suscribirte',
+    'You are receiving this because you signed up at iguanacomedy.com.':
+        'Recibes esto porque te suscribiste en iguanacomedy.com.',
+    'Unsubscribe: {0}': 'Cancelar suscripción: {0}',
 }
 
 

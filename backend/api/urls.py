@@ -40,6 +40,8 @@ urlpatterns = [
     # Checkout widget, tracker, tickets
     path('_t/k.js', embed_views.tracker_js),
     path('embed/event/<str:key>', embed_views.event_checkout),
+    path('unsubscribe/<str:token>', embed_views.unsubscribe),
+    path('unsubscribe/<str:token>/', embed_views.unsubscribe),
     path('api/checkout/<str:event_id>/quote', embed_views.checkout_quote),
     path('api/checkout/<str:event_id>/start', embed_views.checkout_start),
     path('api/checkout/orders/<str:order_id>/confirm', embed_views.checkout_confirm),

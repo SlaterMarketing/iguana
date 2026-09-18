@@ -1,5 +1,6 @@
 ---
 import { site } from "../content/site";
+import NewsletterSignup from "./NewsletterSignup.astro";
 import { t } from "../i18n/ui";
 import { localizePath } from "../i18n/routes";
 import type { Locale } from "../i18n/locale";
@@ -16,6 +17,8 @@ const whatsappHref = `https://wa.me/${site.whatsappE164.replace(/\D+/g, "")}`;
   <div class="mx-auto max-w-page px-4 sm:px-6">
     <div class="min-w-0 space-y-6">
       <p class="text-4xl text-white lg:text-[2.75rem]" style="font-family: var(--font-display);">{site.name}</p>
+      <!-- The catch-all: every page offers a way onto the list, for the people who read and do not book today. -->
+      <NewsletterSignup locale={locale} tone="dark" class="mx-auto max-w-md pt-2" />
       <div class="space-y-4 text-neutral-400">
         <a class="block text-base text-white underline-offset-4 transition hover:underline" href={`mailto:${site.email}`}>
           {site.email}

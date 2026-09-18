@@ -3,6 +3,7 @@ import Base from "../../layouts/Base.astro";
 import CityPicker from "../CityPicker.astro";
 import EventRow from "../EventRow.astro";
 import EventCalendarRow from "./EventCalendarRow.astro";
+import NewsletterSignup from "../NewsletterSignup.astro";
 import OpenMicCallout from "../OpenMicCallout.astro";
 import NoEventsNearby from "../locations/NoEventsNearby.astro";
 import type { KintanaPublicEvent } from "@kintana/sdk";
@@ -181,6 +182,11 @@ const emptyMessage =
             </div>
           </details>
         ) : null}
+
+        <div class="border-t border-neutral-200 pt-12">
+          <p class="mx-auto max-w-xl text-neutral-600">{t(locale, "events.newsletterPitch")}</p>
+          <NewsletterSignup locale={locale} class="mx-auto mt-8 max-w-md" />
+        </div>
 
         {pastGrouped.size > 0 ? (
           <details class="group border-t border-neutral-200 pt-10">

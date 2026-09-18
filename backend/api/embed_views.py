@@ -12,7 +12,8 @@ from django.views.decorators.http import require_POST
 
 from catalog.models import Event
 from crm.geo import remember_on_contact, visitor_profile
-from crm.models import TrackedEvent
+from crm.models import Contact, TrackedEvent
+from crm.unsubscribe import email_from_token, resume_marketing, stop_marketing
 from sales.i18n import lang_from_request, normalize, tr
 from sales.models import Membership, MembershipPlan, Order, Ticket
 from sales.services import (DATE_FORMATS, CheckoutError, complete_order, create_order, current_membership, price_cart,
@@ -72,6 +73,32 @@ def _cart_payload(request):
     if not isinstance(items, dict):
         raise CheckoutError('Invalid ticket selection')
     return body, {str(k): v for k, v in items.items()}, contact_from_fan_token(str(body.get('fanToken') or ''))
+
+
+@csrf_exempt
+def unsubscribe(request, token):
+    """The link at the foot of every bulk email. GET shows where the address stands, POST changes it.
+
+    Gmail's one-click button POSTs here without a CSRF token and without a session, so the view is exempt: the
+    signed token in the URL is the only thing that proves who is asking, and it only ever names one address.
+    """
+    email = email_from_token(token)
+    lang = lang_from_request(request)
+    contact = Contact.objects.filter(email=email).first() if email else None
+
+    if request.method == 'POST' and contact:
+        if request.POST.get('action') == 'resubscribe':
+            resume_marketing(contact)
+        else:
+            stop_marketing(contact)
+
+    return render(request, 'embed/unsubscribe.html', {
+        'lang': lang,
+        'email': email,
+        # An address we have never seen counts as unsubscribed: there is nothing to send it either way.
+        'subscribed': bool(contact and contact.subscribed),
+        'site_url': settings.SITE_URLS[0] if settings.SITE_URLS else settings.BACKEND_URL,
+    })
 
 
 @csrf_exempt
