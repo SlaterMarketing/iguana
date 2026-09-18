@@ -53,7 +53,9 @@ const mapsUrl = event ? eventVenueMapsUrl(event) : null;
 const mapEmbedUrl = event ? eventVenueMapEmbedUrl(event) : null;
 // Open mics sell reservations, so every label says "reserve" rather than "buy".
 const checkoutLabel = event && isOpenMic(event) ? t(locale, "ui.reserveSeat") : t(locale, "ui.buyTickets");
-const showJump = onSiteCheckout && !ticketingBlocked;
+const externalTicketUrl = !onSiteCheckout && !ticketingBlocked ? event?.ticketUrl ?? null : null;
+// The hero CTA jumps to our checkout, or straight out to whoever is selling the tickets.
+const heroCtaHref = ticketingBlocked ? null : onSiteCheckout ? "#checkout" : externalTicketUrl;
 const hasIntro = Boolean(
   event && (!heroPoster || (event.headliner && event.headliner.name !== headline) || event.description || event.longDescription),
 );
@@ -122,9 +124,20 @@ const reviews = event ? eventReviews(event) : [];
                 </div>
 
                 {
-                  showJump ? (
-                    <a href="#checkout" class="mt-8 flex min-h-12 w-full items-center justify-center rounded-full bg-brand px-8 py-3.5 text-sm font-semibold uppercase tracking-[0.2em] text-neutral-950 sm:w-auto sm:self-start lg:hidden">
+                  heroCtaHref ? (
+                    <a
+                      href={heroCtaHref}
+                      target={externalTicketUrl ? "_blank" : undefined}
+                      rel={externalTicketUrl ? "noreferrer noopener" : undefined}
+                      class:list={[
+                        "mt-8 flex min-h-12 w-full items-center justify-center gap-3 rounded-full bg-brand px-8 py-3.5 text-sm font-semibold uppercase tracking-[0.2em] text-neutral-950 transition hover:brightness-110 sm:w-auto sm:self-start",
+                        // Our own checkout sits further down the page, so the jump is only useful on phones. An
+                        // external link is the only way to buy at all, so it stays visible at every width.
+                        externalTicketUrl ? "" : "lg:hidden",
+                      ]}
+                    >
                       {checkoutLabel}
+                      <span aria-hidden="true">→</span>
                     </a>
                   ) : null
                 }
@@ -138,9 +151,18 @@ const reviews = event ? eventReviews(event) : [];
               <h1 class="mt-10 font-display text-5xl text-neutral-950" style="font-family: var(--font-display);">{headline}</h1>
               {subtitle ? <p class="mt-3 text-xl text-neutral-600">{subtitle}</p> : null}
               {
-                showJump ? (
-                  <a href="#checkout" class="mt-8 flex min-h-12 w-full items-center justify-center rounded-full bg-brand px-8 py-3.5 text-sm font-semibold uppercase tracking-[0.2em] text-neutral-950 sm:inline-flex sm:w-auto lg:hidden">
+                heroCtaHref ? (
+                  <a
+                    href={heroCtaHref}
+                    target={externalTicketUrl ? "_blank" : undefined}
+                    rel={externalTicketUrl ? "noreferrer noopener" : undefined}
+                    class:list={[
+                      "mt-8 flex min-h-12 w-full items-center justify-center gap-3 rounded-full bg-brand px-8 py-3.5 text-sm font-semibold uppercase tracking-[0.2em] text-neutral-950 transition hover:brightness-110 sm:inline-flex sm:w-auto",
+                      externalTicketUrl ? "" : "lg:hidden",
+                    ]}
+                  >
                     {checkoutLabel}
+                    <span aria-hidden="true">→</span>
                   </a>
                 ) : null
               }
@@ -222,9 +244,10 @@ const reviews = event ? eventReviews(event) : [];
                       href={event.ticketUrl}
                       target="_blank"
                       rel="noreferrer noopener"
-                      class="flex rounded-xl bg-neutral-950 px-6 py-4 text-center text-xs font-semibold uppercase tracking-[0.35em] text-white hover:opacity-95"
+                      class="flex min-h-14 items-center justify-center gap-3 rounded-full bg-brand px-8 py-4 text-center text-sm font-semibold uppercase tracking-[0.2em] text-neutral-950 shadow-lg shadow-black/10 transition hover:brightness-110"
                     >
                       {t(locale, "ui.buyTickets")}
+                      <span aria-hidden="true">→</span>
                     </a>
                     {
                       hasCredentials && apiKey && baseUrl ? (

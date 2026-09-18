@@ -5,6 +5,9 @@ import { eventCitySlug, sortEventsAscending, todayInCancun } from "./events";
 import { createLocalizedKintanaClient, getKintanaEnv } from "./kintana-env";
 import { logKintanaError, logKintanaSuccess } from "./kintana-error";
 import { isOpenMic, nextBookableOpenMics } from "./open-mics";
+
+/** Cards on the home page: two rows of two on a wide screen. */
+const HOME_EVENT_SLOTS = 4;
 import type { Locale } from "../i18n/locale";
 
 export type HomePageData = {
@@ -49,7 +52,7 @@ export async function loadHomePageData(citySlug?: string, locale?: Locale): Prom
 
   const slug = citySlug?.trim() ?? "";
   // The API marks a show "past" once its day has ended in Cancún, so this holds whatever timezone the server runs in.
-  // Weekly open mics would fill most of the six home slots; the open mic callout links to them instead.
+  // Weekly open mics would crowd out the ticketed shows, so they are held back here and topped up at the end.
   let cityFiltered = sortEventsAscending(
     eventsPool.filter((evt) => evt.status !== "cancelled" && evt.status !== "past" && !isOpenMic(evt)),
   );
@@ -72,13 +75,29 @@ export async function loadHomePageData(citySlug?: string, locale?: Locale): Prom
     ...byLanguage.filter((evt) => evt.status !== "on-sale"),
   ];
 
+  // Most weeks the only shows are the two open mics, and holding all but one of them back left the grid with a
+  // single card. Top the row up with the open mics that come next, soonest first, so the home page always offers
+  // a full set of nights to pick from.
+  const chosen = new Set(prioritized.map((evt) => evt.id));
+  const spare = sortEventsAscending(
+    eventsPool.filter(
+      (evt) =>
+        isOpenMic(evt) &&
+        evt.status !== "cancelled" &&
+        evt.status !== "past" &&
+        !chosen.has(evt.id) &&
+        (!slug.length || eventCitySlug(evt) === slug),
+    ),
+  );
+  const filled = [...prioritized, ...spare].slice(0, HOME_EVENT_SLOTS);
+
   return {
     hasCredentials,
     eventsPool,
     artistsPool,
     eventsCatalogFailed,
     performersCatalogFailed,
-    trimmedEvents: prioritized.slice(0, 6),
+    trimmedEvents: filled,
     wallArtists: artistsPool.slice(0, 3),
   };
 }
