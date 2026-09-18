@@ -14,10 +14,14 @@ export function eventTicketsPath(event: Pick<KintanaPublicEvent, "slug" | "id">,
   return key ? localizePath(locale, "eventTickets", { slug: key }) : null;
 }
 
-/** True when the event detail page can mount the embedded checkout widget. */
+/** True when the event detail page can mount the embedded checkout widget.
+ *
+ * A guest promoter's show in our room sells on their own site: it is EXTERNAL, and mounting our checkout on it
+ * both fails and hides the only link that can actually sell a ticket. */
 export function eventSupportsOnSiteCheckout(
-  event: Pick<KintanaPublicEvent, "id" | "status">
+  event: Pick<KintanaPublicEvent, "id" | "status" | "ticketingType">
 ): boolean {
+  if (event.ticketingType === "EXTERNAL") return false;
   return Boolean(event.id?.trim()) && event.status !== "sold-out" && event.status !== "postponed";
 }
 

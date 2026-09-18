@@ -218,7 +218,12 @@ const reviews = event ? eventReviews(event) : [];
                   <p class="rounded-xl border border-black/10 bg-neutral-50 px-6 py-10 text-center text-sm text-neutral-600">{t(locale, "events.ticketsUnavailable")}</p>
                 ) : event.ticketUrl ? (
                   <div>
-                    <a href={event.ticketUrl} class="flex rounded-xl bg-neutral-950 px-6 py-4 text-center text-xs font-semibold uppercase tracking-[0.35em] text-white hover:opacity-95">
+                    <a
+                      href={event.ticketUrl}
+                      target="_blank"
+                      rel="noreferrer noopener"
+                      class="flex rounded-xl bg-neutral-950 px-6 py-4 text-center text-xs font-semibold uppercase tracking-[0.35em] text-white hover:opacity-95"
+                    >
                       {t(locale, "ui.buyTickets")}
                     </a>
                     {

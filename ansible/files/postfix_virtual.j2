@@ -1,8 +1,12 @@
 # Managed by ansible/mail.yml. People's addresses deliver LOCALLY and forward; role addresses deliver locally
 # only. Nothing forwards INSTEAD of delivering, so a rejected forward still leaves the message in /var/mail/inbox.
+# Addresses of people who have left point at the shared address, which expands to the same local copy and forwards.
 {% for zone in mail_zones %}
 {% for name in mail_human_aliases %}
 {{ name }}@{{ zone }} {{ (['inbox'] + mail_forwards) | join(', ') }}
+{% endfor %}
+{% for name in mail_departed_aliases | default([]) %}
+{{ name }}@{{ zone }} {{ mail_departed_target }}@{{ zone }}
 {% endfor %}
 {% for name in mail_role_aliases %}
 {{ name }}@{{ zone }} inbox

@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+"""Read the mail this server keeps a copy of. Installed by ansible/mail.yml.
+
+    iguana-mail                     # the 20 newest, oldest first
+    iguana-mail list -n 50          # more of them
+    iguana-mail show 7              # one message, headers and body
+    iguana-mail search "enquiry"    # anything matching, in headers or body
+    iguana-mail list --box dmarc    # the DMARC report mailbox instead
+
+Every address that reaches a person delivers here as well as forwarding, so this is the copy that survives when a
+forward is rejected. Read only: nothing here deletes or sends.
+"""
+
+import argparse
+import mailbox
+import sys
+from email.header import decode_header, make_header
+from email.utils import parsedate_to_datetime
+
+BOXES = {'inbox': '/var/mail/inbox', 'dmarc': '/var/mail/dmarc'}
+
+
+def header(message, name):
+    raw = message.get(name, '')
+    try:
+        return str(make_header(decode_header(raw)))
+    except (ValueError, UnicodeDecodeError):
+        return raw
+
+
+def when(message):
+    try:
+        return parsedate_to_datetime(message.get('Date', '')).strftime('%Y-%m-%d %H:%M')
+    except (TypeError, ValueError):
+        return '?'
+
+
+def body(message):
+    """The plain text part, or the first part that will decode."""
+    if message.is_multipart():
+        for part in message.walk():
+            if part.get_content_type() == 'text/plain':
+                message = part
+                break
+        else:
+            return '(no plain text part)'
+    payload = message.get_payload(decode=True)
+    if payload is None:
+        return str(message.get_payload())
+    return payload.decode(message.get_content_charset() or 'utf-8', 'replace')
+
+
+def messages(box):
+    return list(enumerate(mailbox.mbox(BOXES[box]), start=1))
+
+
+def line(index, message):
+    return (f'{index:>4}  {when(message):16}  {header(message, "From")[:34]:34}  '
+            f'{header(message, "To")[:28]:28}  {header(message, "Subject")[:48]}')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('command', nargs='?', default='list', choices=['list', 'show', 'search'])
+    parser.add_argument('argument', nargs='?', default='')
+    parser.add_argument('-n', '--number', type=int, default=20, help='How many to list (default 20)')
+    parser.add_argument('--box', choices=sorted(BOXES), default='inbox')
+    args = parser.parse_args()
+
+    rows = messages(args.box)
+    if not rows:
+        print(f'{BOXES[args.box]} is empty')
+        return 0
+
+    if args.command == 'show':
+        if not args.argument.isdigit():
+            print('Which one? e.g. iguana-mail show 7', file=sys.stderr)
+            return 2
+        wanted = int(args.argument)
+        match = next((m for i, m in rows if i == wanted), None)
+        if match is None:
+            print(f'No message {wanted}; the box holds {len(rows)}', file=sys.stderr)
+            return 1
+        for name in ('Date', 'From', 'To', 'Subject'):
+            print(f'{name}: {header(match, name)}')
+        print()
+        print(body(match).strip())
+        return 0
+
+    if args.command == 'search':
+        needle = args.argument.lower()
+        if not needle:
+            print('Search for what? e.g. iguana-mail search reservation', file=sys.stderr)
+            return 2
+        hits = [(i, m) for i, m in rows
+                if needle in (header(m, 'From') + header(m, 'To') + header(m, 'Subject') + body(m)).lower()]
+        for index, message in hits:
+            print(line(index, message))
+        print(f'\n{len(hits)} of {len(rows)} messages match "{args.argument}"')
+        return 0
+
+    for index, message in rows[-args.number:]:
+        print(line(index, message))
+    print(f'\n{len(rows)} messages in {BOXES[args.box]}; showing the last {min(args.number, len(rows))}')
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
