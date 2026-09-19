@@ -101,6 +101,11 @@ URLs or `/media/...` paths; `serializers.media()` makes them absolute with `BACK
 
 ### Production
 
+**Always deploy.** A change is finished when it is live on the VPS and checked there, not when it is committed:
+the club is trading off this site, so nothing of value happens until production has it. Backend data changes
+(a new event, seeded copy) also need their management command run on the server, because the deploy only ships
+code. Anything that genuinely cannot be deployed, such as a Stripe dashboard setting, gets said out loud.
+
 One VPS (VPS.org `free` account, 38.86.78.36, user `iguana`, creds `~/.credentials/vpsorg/iguanacomedy/`).
 nginx fronts supervisor programs `iguana:iguana-web` (Node, :3000) and `iguana:iguana-api` (gunicorn, :8001);
 Postgres `iguana`. `iguanacomedy.com` is canonical (DNS on Cloudflare, records must stay DNS-only: proxied records
