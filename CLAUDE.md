@@ -226,6 +226,20 @@ Instagram through `/media`, a `status_code` poll, then `/media_publish`. Weekly 
 `showTime` in the data, so they cannot be posted until one is set (or `--image` is passed); WebP is refused.
 Tests: `python3 -m unittest discover -s scripts/tests`.
 
+### Reading the mail the server keeps
+
+Every human alias delivers to the local `inbox` user **as well as** forwarding, so the box is the copy that
+survives a rejected forward. `/usr/local/bin/iguana-mail` (installed by `mail.yml`, read only) reads it:
+`iguana-mail`, `iguana-mail show 37`, `iguana-mail search reservation`, `iguana-mail list --box dmarc`.
+Worth checking when a customer says they wrote in, or when Stripe/Google send an account notice: a Stripe
+"acción requerida" about an overdue ID check was sitting there unread while the API only said
+`payouts_enabled: false`.
+
+Marketing mail must go through `crm.mail.send_marketing` (or `manage.py send_newsletter`, a dry run without
+`--send`), which drops unsubscribed contacts and attaches the unsubscribe footer and `List-Unsubscribe` headers
+itself. `crm/unsubscribe.py` signs the per-address token; `/unsubscribe/<token>` serves the bilingual page and
+accepts Gmail's cookie-less one-click POST. Receipts and sign-in codes deliberately carry no unsubscribe link.
+
 ### Data outside the repo
 
 `~/iguana-migration/` holds the Kintana CSV export (customer PII), the Wayback Machine mirror, and

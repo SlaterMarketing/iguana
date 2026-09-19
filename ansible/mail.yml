@@ -121,6 +121,11 @@
       when: virtual_map.changed
       notify: restart postfix
 
+    # Every human address keeps a local copy as well as forwarding, so the server holds the full history. This
+    # reads it: `iguana-mail`, `iguana-mail show 7`, `iguana-mail search reservation`, `--box dmarc`.
+    - name: Mail reader for the local copies
+      copy: {src: files/iguana-mail, dest: /usr/local/bin/iguana-mail, mode: '0755'}
+
     - name: System aliases deliver to inbox (DSNs about our own mail must not bounce)
       lineinfile:
         path: /etc/aliases
