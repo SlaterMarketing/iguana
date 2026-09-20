@@ -32,11 +32,27 @@ const heroImage = site.brandMomentImage || site.clubPhotoImage || site.heroImage
     </div>
   </section>
 
-  <section class="membership-section">
-    <div class="membership-section-inner membership-section-inner--narrow">
-      <p class="section-kicker">{copy.what.kicker}</p>
-      <h2 class="membership-section-title">{copy.what.headline}</h2>
-      <p class="membership-section-body">{copy.what.body}</p>
+  {/*
+    Prices first. Somebody on this page has already decided to consider paying,
+    so the plan cards sit directly under the hero instead of four sections down.
+    The "what it is" section that used to be here repeated the benefit list word
+    for word, and each plan card already prints the same five benefits.
+  */}
+  <section id="join" class="membership-section membership-join-section">
+    <div class="membership-section-inner membership-section-inner--join">
+      <p class="section-kicker">{copy.join.kicker}</p>
+      <h2 class="membership-section-title">{copy.join.headline}</h2>
+      <p class="membership-section-body">{copy.join.body}</p>
+
+      {
+        hasKintanaCredentials() ? (
+          <div class="membership-join-panel mt-10">
+            <MembershipPage client:load apiKey={apiKey!} baseUrl={baseUrl!} locale={locale} />
+          </div>
+        ) : (
+          <p class="mt-8 text-muted">Membership is not configured yet.</p>
+        )
+      }
     </div>
   </section>
 
@@ -72,24 +88,6 @@ const heroImage = site.brandMomentImage || site.clubPhotoImage || site.heroImage
           <p class="membership-value-note">{copy.value.annualLine}</p>
         </div>
       </div>
-    </div>
-  </section>
-
-  <section id="join" class="membership-section membership-join-section">
-    <div class="membership-section-inner membership-section-inner--join">
-      <p class="section-kicker">{copy.join.kicker}</p>
-      <h2 class="membership-section-title">{copy.join.headline}</h2>
-      <p class="membership-section-body">{copy.join.body}</p>
-
-      {
-        hasKintanaCredentials() ? (
-          <div class="membership-join-panel mt-10">
-            <MembershipPage client:load apiKey={apiKey!} baseUrl={baseUrl!} locale={locale} />
-          </div>
-        ) : (
-          <p class="mt-8 text-muted">Membership is not configured yet.</p>
-        )
-      }
     </div>
   </section>
 

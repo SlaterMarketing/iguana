@@ -11,11 +11,6 @@ export const membershipContent = {
       ctaLabel: "Join now",
       ctaHref: "#join",
     },
-    what: {
-      kicker: "What it is",
-      headline: "Your Riviera Maya comedy pass",
-      body: "Iguana Member is how regulars and travellers get the best of our rooms: two free tickets on eligible shows, 10% off for guests beyond that, first look at new nights, and shows put on just for members. One membership. Cancel anytime.",
-    },
     benefitsEyebrow: "What you get",
     benefitsHeadline: "Built for people who come back",
     benefits: [
@@ -99,11 +94,6 @@ export const membershipContent = {
       priceHook: "Desde MX$99 / mes · MX$999 / año",
       ctaLabel: "Únete ahora",
       ctaHref: "#join",
-    },
-    what: {
-      kicker: "Qué es",
-      headline: "Tu pase de comedia en la Riviera Maya",
-      body: "Iguana Member es cómo los habituales y viajeros aprovechan lo mejor de nuestras salas: dos boletos gratis en shows elegibles, 10% de descuento para invitados adicionales, primer vistazo a noches nuevas y shows solo para miembros. Una membresía. Cancela cuando quieras.",
     },
     benefitsEyebrow: "Qué obtienes",
     benefitsHeadline: "Hecho para quien vuelve",
