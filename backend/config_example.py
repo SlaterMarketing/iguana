@@ -33,3 +33,6 @@ GEOIP_DB = ''
 META_PIXEL_ID = ''
 META_CAPI_TOKEN = ''
 META_TEST_EVENT_CODE = ''
+
+# A human address replies to the newsletter land on; blank means no Reply-To.
+MARKETING_REPLY_TO = ''

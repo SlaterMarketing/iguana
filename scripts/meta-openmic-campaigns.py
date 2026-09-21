@@ -68,6 +68,11 @@ ENGLISH_LOCALES = [6, 24]              # English (US), English (UK)
 # is still recorded and still what we judge the campaigns on; it is just not what delivery is steered by yet.
 # Move this back to PURCHASE once a reservations ad set is clearing about 50 sales a week on its own.
 CONVERSION_EVENT = 'INITIATED_CHECKOUT'
+# Meta refuses to edit the pixel, conversion event or optimisation of an ad set once it has been published
+# ("no puedes editar ... después de publicarlo"). Changing what we steer on therefore means a NEW ad set, so the
+# event is part of the name: a different event produces a different name, the new ad set is built, and the one it
+# replaces is paused rather than left running against the old goal.
+EVENT_TAG = {'PURCHASE': 'purchase', 'INITIATED_CHECKOUT': 'checkout'}
 
 SITE = 'https://iguanacomedy.com'
 
@@ -264,7 +269,8 @@ def campaign_name(lang, kind):
 
 
 def adset_name(lang, kind):
-    return f'{NIGHTS[lang]["night"]}s · Playa {WIDE_KM if kind == "reservations" else NEAR_KM}km · {kind}'
+    name = f'{NIGHTS[lang]["night"]}s · Playa {WIDE_KM if kind == "reservations" else NEAR_KM}km · {kind}'
+    return f'{name} · {EVENT_TAG[CONVERSION_EVENT]}' if kind == 'reservations' else name
 
 
 def targeting(lang, kind):
@@ -415,18 +421,35 @@ def ensure_campaign(lang, kind, objective, live):
     return made['id']
 
 
+def retire_superseded_adsets(campaign_id, keep_name):
+    """Pause any other ad set in this campaign. One campaign holds exactly one ad set here, so anything else is a
+    previous version left behind when its optimisation event changed, and it would otherwise keep spending
+    against the old goal."""
+    for adset in pages(f'{campaign_id}/adsets', fields='id,name,status'):
+        if adset['name'] != keep_name and adset.get('status') != 'PAUSED':
+            post(adset['id'], status='PAUSED')
+            print(f'  retired  {adset["id"]}  {adset["name"]} (superseded)')
+
+
 def ensure_adset(lang, kind, campaign_id, live):
     spec = adset_spec(lang, kind, campaign_id)
     found = existing('adsets', spec['name'], fields='id,name,status,daily_budget')
     spec['status'] = 'ACTIVE' if live else 'PAUSED'
     if found:
-        post(found['id'], **{k: v for k, v in spec.items() if k != 'campaign_id'})
+        # Never re-send the optimisation fields to a published ad set: Meta rejects the whole call for them, even
+        # when the value is unchanged. Budget, targeting and status stay editable.
+        frozen = {'campaign_id', 'optimization_goal', 'promoted_object', 'destination_type', 'billing_event',
+                  'attribution_spec'}
+        post(found['id'], **{k: v for k, v in spec.items() if k not in frozen})
         print(f'  ad set   {found["id"]}  {spec["name"]}  {int(spec["daily_budget"]) / 100:.2f} MXN/day (updated)')
-        return found['id']
-    made = post(f'{AD_ACCOUNT}/adsets', **spec)
-    remember('adsets', {'id': made['id'], 'name': spec['name'], 'status': spec['status']})
-    print(f'  ad set   {made["id"]}  {spec["name"]}  {int(spec["daily_budget"]) / 100:.2f} MXN/day (created)')
-    return made['id']
+        adset_id = found['id']
+    else:
+        made = post(f'{AD_ACCOUNT}/adsets', **spec)
+        remember('adsets', {'id': made['id'], 'name': spec['name'], 'status': spec['status']})
+        print(f'  ad set   {made["id"]}  {spec["name"]}  {int(spec["daily_budget"]) / 100:.2f} MXN/day (created)')
+        adset_id = made['id']
+    retire_superseded_adsets(campaign_id, spec['name'])
+    return adset_id
 
 
 def ensure_ad(lang, kind, adset_id, creative, ad_name, live):

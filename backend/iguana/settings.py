@@ -16,6 +16,8 @@ STRIPE_PUBLISHABLE_KEY = getattr(config, 'STRIPE_PUBLISHABLE_KEY', '')
 STRIPE_SECRET_KEY = getattr(config, 'STRIPE_SECRET_KEY', '')
 STRIPE_WEBHOOK_SECRET = getattr(config, 'STRIPE_WEBHOOK_SECRET', '')
 NOTIFY_EMAILS = getattr(config, 'NOTIFY_EMAILS', [])
+# Where a reply to a newsletter should land. Receipts and sign-in codes keep the no-reply From and no Reply-To.
+MARKETING_REPLY_TO = getattr(config, 'MARKETING_REPLY_TO', '')
 # Meta Conversions API: the only way Meta learns a ticket sold, since checkout is an iframe on this domain and a
 # pixel on the marketing site cannot see it. Blank means conversions simply are not reported; see crm/meta_capi.py.
 META_PIXEL_ID = getattr(config, 'META_PIXEL_ID', '')

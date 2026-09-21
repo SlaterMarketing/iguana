@@ -161,6 +161,20 @@ ES = {
     'You are receiving this because you signed up at iguanacomedy.com.':
         'Recibes esto porque te suscribiste en iguanacomedy.com.',
     'Unsubscribe: {0}': 'Cancelar suscripción: {0}',
+    # Weekly what-is-on email (crm/whats_on.py)
+    'This week at Iguana Comedy, Playa del Carmen:': 'Esta semana en Iguana Comedy, Playa del Carmen:',
+    'This week at Iguana Comedy: {0}': 'Esta semana en Iguana Comedy: {0}',
+    'This week at Iguana Comedy: open mic Tuesday and Wednesday':
+        'Esta semana en Iguana Comedy: open mic martes y miércoles',
+    'Sign-up list {0}, show {1}. Free entry.': 'Lista {0}, show {1}. Entrada gratis.',
+    'Doors {0}, show {1}. Free entry.': 'Puertas {0}, show {1}. Entrada gratis.',
+    'Hold your seat for {0}, a free drink included: {1}':
+        'Aparta tu lugar por {0}, incluye una bebida gratis: {1}',
+    'Show {0}.': 'Show {0}.',
+    'Tickets from {0}: {1}': 'Boletos desde {0}: {1}',
+    'Details: {0}': 'Más información: {0}',
+    'Everything that is on: {0}': 'Toda la cartelera: {0}',
+    'See you at the club,': 'Nos vemos en el club,',
 }
 
 

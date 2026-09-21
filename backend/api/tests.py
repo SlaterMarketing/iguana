@@ -476,7 +476,7 @@ class TranslationTests(TestCase):
 
         root = pathlib.Path(__file__).resolve().parent.parent
         patterns = [
-            (('api', 'sales'), '*.py', r"\btr\(\s*\w+\s*,\s*'((?:[^'\\]|\\.)+)'"),
+            (('api', 'sales', 'crm'), '*.py', r"\btr\(\s*\w+\s*,\s*'((?:[^'\\]|\\.)+)'"),
             (('api', 'sales'), '*.py', r"CheckoutError\(\s*'((?:[^'\\]|\\.)+)'"),
             (('api',), '*.py', r"\berror\(\s*'((?:[^'\\]|\\.)+)'"),
             (('templates/embed',), '*.html', r'\{% t \w+ "([^"]+)"'),
@@ -677,3 +677,106 @@ class MetaConversionTests(ApiTestCase):
         finally:
             meta_capi._post = original
         self.assertEqual(posted, [])
+
+
+class WeeklyEmailTests(ApiTestCase):
+    """The weekly what-is-on mail: both languages, working links, and a language learned from a click."""
+
+    def setUp(self):
+        from catalog.models import Event, TicketType
+
+        self.mic = Event.objects.create(
+            name='Open Mic Night in Spanish', name_es='Noche de Open Mic en Español', slug='mic-es',
+            status=Event.ACTIVE, venue=self.venue, language='es', currency='mxn',
+            date=timezone.now() + timedelta(days=1), doors_open='20:00', show_time='21:00', tags=['open-mic'])
+        TicketType.objects.create(event=self.mic, name='Reserved seat', price_cents=5000, capacity=60)
+
+    def test_carries_both_languages_with_the_readers_own_first(self):
+        from crm.whats_on import body, week_events
+
+        events = week_events()
+        contact = Contact.objects.create(email='lector@example.com', locale='es')
+        text = body(events, contact)
+        self.assertIn('Esta semana en Iguana Comedy', text)
+        self.assertIn('This week at Iguana Comedy', text)
+        # Their own language leads; the other follows, because 92% of this list has no language recorded and a
+        # mail somebody cannot read is worse than one that is twice as long.
+        self.assertLess(text.index('Esta semana'), text.index('This week'))
+
+        english = body(events, Contact.objects.create(email='reader@example.com', locale='en'))
+        self.assertLess(english.index('This week'), english.index('Esta semana'))
+
+    def test_every_link_is_marked_with_the_contact(self):
+        from crm.whats_on import body, week_events
+
+        contact = Contact.objects.create(email='clicker@example.com')
+        text = body(week_events(), contact)
+        links = re.findall(r'https?://\S+', text)
+        self.assertTrue(links)
+        # A link with no marker teaches us nothing about who read it, which is the whole point of sending it.
+        self.assertEqual([link for link in links if f'ic={contact.id}' not in link], [])
+
+    def test_a_click_records_the_language_and_ties_the_visitor_to_the_contact(self):
+        from crm.email_links import remember_click
+
+        contact = Contact.objects.create(email='quien@example.com')
+        self.assertEqual(contact.locale, '')
+        remember_click(f'{SITE}/es/open-mic/?ic={contact.id}', visitor_key='v-123')
+        contact.refresh_from_db()
+        self.assertEqual(contact.locale, 'es')
+        self.assertEqual(contact.page_visitor_key, 'v-123')
+        # The English block of the same mail says the opposite, and the later click wins.
+        remember_click(f'{SITE}/en/events/?ic={contact.id}')
+        contact.refresh_from_db()
+        self.assertEqual(contact.locale, 'en')
+
+    def test_a_click_with_no_marker_or_no_language_changes_nothing(self):
+        from crm.email_links import remember_click
+
+        contact = Contact.objects.create(email='nobody@example.com')
+        self.assertIsNone(remember_click(f'{SITE}/es/open-mic/'))
+        self.assertIsNone(remember_click(f'{SITE}/?ic={contact.id}'))
+        self.assertIsNone(remember_click(f'{SITE}/es/open-mic/?ic=cdoesnotexist'))
+        contact.refresh_from_db()
+        self.assertEqual(contact.locale, '')
+
+    def test_the_tracking_endpoint_records_the_language(self):
+        contact = Contact.objects.create(email='ingested@example.com')
+        response = self.client.post('/api/ingest/pageview', content_type='application/json', data=json.dumps({
+            'token': KEY, 'visitorKey': 'v-9', 'url': f'{SITE}/es/open-mic/?ic={contact.id}'}))
+        self.assertEqual(response.status_code, 204)
+        contact.refresh_from_db()
+        self.assertEqual(contact.locale, 'es')
+
+    def test_a_signed_in_fan_records_their_language_by_using_the_site(self):
+        contact = Contact.objects.create(email='socio@example.com')
+        token = self.sign_in('socio@example.com')
+        self.client.get('/api/fan/v1/account/profile', HTTP_AUTHORIZATION=f'Bearer {KEY}',
+                        HTTP_X_CUSTOMER_AUTHORIZATION=f'Bearer {token}', HTTP_X_IGUANA_LOCALE='es')
+        contact.refresh_from_db()
+        self.assertEqual(contact.locale, 'es')
+
+    def test_the_email_route_table_matches_the_sites_real_routes(self):
+        """The links are built in Python from a copy of src/i18n/routes.ts. A dead link in a newsletter is only
+        ever found by the person who clicked it, so the copy is checked against the original."""
+        import pathlib
+        import re as regex
+
+        from crm.whats_on import PATHS
+
+        routes = (pathlib.Path(__file__).resolve().parents[2] / 'src' / 'i18n' / 'routes.ts').read_text()
+        blocks = dict(regex.findall(r'\b(en|es):\s*\{(.*?)\n  \}', routes, regex.S)[:2])
+        self.assertEqual(sorted(blocks), ['en', 'es'])
+        for key, by_lang in PATHS.items():
+            for lang, path in by_lang.items():
+                match = regex.search(rf'\b{key}:\s*"([^"]+)"', blocks[lang])
+                self.assertIsNotNone(match, f'{key} is not in routes.ts under {lang}')
+                expected = f'/{lang}{match.group(1)}'.replace(':slug', '{slug}')
+                self.assertEqual(path, expected, f'{key} ({lang}) has drifted from routes.ts')
+
+    def test_nothing_on_means_no_email(self):
+        from catalog.models import Event
+        from crm.whats_on import week_events
+
+        Event.objects.all().update(status=Event.DRAFT)
+        self.assertEqual(week_events(), [])

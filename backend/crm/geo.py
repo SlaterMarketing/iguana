@@ -92,3 +92,19 @@ def remember_on_contact(contact, profile):
             changed = True
     if changed:
         contact.save()
+
+
+def remember_locale(contact, locale):
+    """Record the language a contact is actually using, wherever we happen to learn it.
+
+    Most of this list arrived from the Kintana export with no language at all, and the weekly email has to carry
+    both until we know. So every place that knows writes it down: a form, a checkout, a signed-in API call, a
+    click out of the email. An unknown language is the only thing worth overwriting cheaply, and a change is
+    saved rather than assumed, because this runs on every authenticated request.
+    """
+    locale = str(locale or '')[:5]
+    if not contact or locale not in ('en', 'es') or contact.locale == locale:
+        return False
+    contact.locale = locale
+    contact.save(update_fields=['locale'])
+    return True

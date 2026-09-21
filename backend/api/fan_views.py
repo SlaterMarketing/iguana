@@ -10,6 +10,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 
 from catalog.models import Event
+from crm.geo import remember_locale
 from crm.models import Contact
 from sales.i18n import locale_from_request, normalize, tr
 from sales.models import CreditTransfer, LoginToken, Membership, MembershipPlan, Order, RedeemCode
@@ -51,6 +52,9 @@ def auth_request(request):
     link = f'{redirect_url}{"&" if "?" in redirect_url else "?"}{urlencode({"token": login.token})}'
     # The link goes back to /en/... or /es/..., which is the language the person is using the site in.
     lang = normalize(urlparse(redirect_url).path.strip('/').split('/')[0])
+    # Worth writing down on a contact we already have. Not worth creating one for: anyone can ask for a sign-in
+    # email, and a contact row should mean somebody actually did something.
+    remember_locale(Contact.objects.filter(email=email).first(), lang)
     body = '\n\n'.join([
         tr(lang, 'Sign in to Iguana Comedy:'), link, tr(lang, 'Or enter this code: {0}', login.code),
         tr(lang, 'The link and code expire in 30 minutes. If you did not ask for this, ignore this email.'),

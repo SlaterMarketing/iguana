@@ -8,6 +8,7 @@ from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
 
+from crm.geo import remember_locale
 from crm.models import Contact
 
 FAN_TOKEN_SALT = 'iguana.fan-session'
@@ -84,6 +85,9 @@ def fan_required(view):
         request.contact = fan_contact(request)
         if request.contact is None:
             return error('Sign in required', 401)
+        # The site sends the page language on every browser call, so a signed-in fan tells us theirs by using
+        # the site at all. remember_locale writes only when it changes.
+        remember_locale(request.contact, request.headers.get('X-Iguana-Locale', ''))
         return view(request, *args, **kwargs)
 
     return wrapper

@@ -1,3 +1,4 @@
+import logging
 from datetime import UTC, datetime, timedelta
 
 import stripe
@@ -11,6 +12,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_POST
 
 from catalog.models import Event
+from crm.email_links import remember_click
 from crm.geo import remember_on_contact, visitor_profile
 from crm.models import Contact, TrackedEvent
 from crm.unsubscribe import email_from_token, resume_marketing, stop_marketing
@@ -23,6 +25,8 @@ from sales.services import (DATE_FORMATS, CheckoutError, complete_order, create_
 from .auth import contact_from_fan_token, error, json_body
 from .fan_views import fan_event_json
 from .public_views import _by_id_or_slug, public_events
+
+log = logging.getLogger(__name__)
 
 
 def tracker_js(request):
@@ -279,12 +283,19 @@ def ingest(request, kind):
     body = json_body(request) or {}
     if str(body.get('token', '')) not in settings.PUBLIC_API_KEYS:
         return HttpResponse(status=204)
+    url, visitor_key = str(body.get('url', ''))[:1000], str(body.get('visitorKey', ''))[:100]
     TrackedEvent.objects.create(
         kind=kind[:40],
         name=str(body.get('name', ''))[:80],
-        visitor_key=str(body.get('visitorKey', ''))[:100],
-        url=str(body.get('url', ''))[:1000],
+        visitor_key=visitor_key,
+        url=url,
         referrer=str(body.get('referrer', ''))[:1000],
         properties={k: body[k] for k in ('utm', 'props', 'email', 'traits') if body.get(k)},
     )
+    # A click out of the weekly email says which of its two language blocks this person reads. It is the only
+    # signal we get from the imported list, most of which has no language on it at all.
+    try:
+        remember_click(url, visitor_key)
+    except Exception:  # noqa: BLE001 - tracking must stay a 204 whatever happens
+        log.warning('could not record the language of a click on %s', url[:120], exc_info=True)
     return HttpResponse(status=204)
