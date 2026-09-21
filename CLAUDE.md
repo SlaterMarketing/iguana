@@ -300,6 +300,43 @@ Worth checking when a customer says they wrote in, or when Stripe/Google send an
 "acción requerida" about an overdue ID check was sitting there unread while the API only said
 `payouts_enabled: false`.
 
+🚨 **Every newsletter sign-up this site had ever received was ONE BOT, and nothing about the requests could
+tell it from a person.** All 59, found 2026-09-21: `timeZone: Europe/Moscow` on every one, `page: /en/`,
+`browserLanguage: en-US`, arriving through Tor exits in DE/SE/US/NL, paced at a median 63-minute gap and never
+under four so the rate never looked like a burst. The addresses were scraped and belonged to real strangers at
+universities and companies. The Monday cron was hours from making this domain's FIRST bulk send to all of
+them, which would have taken the 626 real contacts' deliverability down with it.
+🔑 **The payload is not a discriminator: the bot sends exactly what the real form sends.** The gate is the one
+thing it cannot do, which is read the mail. `crm/optin.py` holds the signed confirm token (its own salt, so an
+unsubscribe link can never re-subscribe someone who used it to leave); a sign-up creates the contact
+**unsubscribed and on no list**, sends one confirmation, and only `/newsletter/confirm/<token>` makes it
+mailable. `api.tests.NewsletterOptInTests` covers it.
+⚠ **Do NOT key "already confirmed" on `Contact.subscribed`** — the model defaults it to `True`, so every brand
+new contact reads as confirmed and the gate silently does nothing. That was the first version of this. Key it
+on whether `get_or_create` actually created the row, and never downgrade an existing subscriber who signs up
+again.
+⚠ **A missing `visitorKey` proves nothing**: the real newsletter form has never sent one, so "0 of 59 carry a
+visitor key" is not evidence of automation. The uniform timezone was.
+⚠ **The contact form was being farmed too** (15 random-string submissions in 3 days, each one emailing
+`hello@`). `catalog/spam.py` is a honeypot plus a check that free text is not one unbroken run of letters and
+digits; a dropped submission gets the SAME success response as a real one, because naming the gate teaches the
+bot to pass it. The rows were never the cost: the cost is the owner learning to ignore the alert that a real
+enquiry arrives in.
+
+🚨 **The deploy used to break live traffic twice over, and both were invisible to every log check.** Gunicorn
+was hard-restarted, so the checkout iframe served **502 inside the ad landing page** for the ~2s window; it is
+now a graceful `supervisorctl signal HUP`, which keeps the listening socket, and only a dependency change
+falls back to a restart. Worse, the site was rebuilt **in place**: the Node adapter resolves Astro route
+modules lazily, so every route the running process had not yet imported threw `ERR_MODULE_NOT_FOUND` until the
+restart (`/en/open-mic/` 500'd for a minute on 2026-09-21 with ads pointed at it). It now builds into
+`dist.next`, asserts that build produced a `server/entry.mjs`, and renames; `dist.old` is the rollback. The
+play then polls the site and the checkout before finishing.
+
+🚨 **`/var/mail/inbox` is 0600 `inbox:mail` and the deploy user was in neither group, so `iguana-mail` read
+NOTHING and a check reported the mailbox as a clean channel.** An unread channel is not an empty one. `mail.yml`
+now puts `deploy_user` in `mail` and sets the boxes 0640. Reading it is what found the Stripe "acción
+requerida" thread and the performer enquiry that had waited a month.
+
 Marketing mail must go through `crm.mail.send_marketing` (or `manage.py send_newsletter`, a dry run without
 `--send`), which drops unsubscribed contacts and attaches the unsubscribe footer and `List-Unsubscribe` headers
 itself. `crm/unsubscribe.py` signs the per-address token; `/unsubscribe/<token>` serves the bilingual page and

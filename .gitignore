@@ -8,3 +8,4 @@ dist
 .astro
 __pycache__/
 build/
+.check_timestamp
