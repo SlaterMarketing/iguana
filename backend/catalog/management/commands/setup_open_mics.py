@@ -65,6 +65,18 @@ BLURB = {
           'cinco minutos, o simplemente venir a ver. La entrada es gratis, y reservar también: solo te aparta '
           'el lugar.',
 }
+# What this command used to write. A night still carrying one of these was never edited by hand, so the stale
+# promise in it is ours to correct. Anything else is somebody's own copy and is never touched.
+# Without this, "only fill blanks" meant all 31 nights kept advertising a free drink with the reservation for
+# as long as they were on sale, hours after the seat became free and the drink became the thing being sold.
+LEGACY_BLURBS = {
+    'en': ['Free stand-up every week at Iguana Comedy, Playa del Carmen. Anyone can sign up for five minutes, '
+           'or just come and watch. Entry is free, and a reservation holds your seat and includes a free drink.'],
+    'es': ['Stand-up gratis cada semana en Iguana Comedy, Playa del Carmen. Cualquiera puede anotarse para hacer '
+           'cinco minutos, o simplemente venir a ver. La entrada es gratis, y tu reservación te aparta el lugar e '
+           'incluye una bebida gratis.'],
+}
+
 LONG_BLURB = {
     'en': ('{0}\n\nThe room holds 80 and the open mic fills up, so we reserve 60 seats online and keep the rest for '
            'walk-ins. Without a reservation we may have to turn you away once it is full.\n\nWant to perform? Sign '
@@ -159,11 +171,15 @@ class Command(BaseCommand):
                 event.currency = series['currency']
         event.name = series['name']
         event.name_es = series['name_es']
-        # Only fill blanks: a night given its own blurb in the admin keeps it.
+        # Fill a blank, and replace anything this command wrote before. A night given its own blurb in the
+        # admin still keeps it.
+        stale = {text for lang in ('en', 'es') for base in LEGACY_BLURBS[lang]
+                 for text in (base, LONG_BLURB[lang].format(base))}
         for attr, text in (('description', BLURB['en']), ('description_es', BLURB['es']),
                            ('long_description', LONG_BLURB['en'].format(BLURB['en'])),
                            ('long_description_es', LONG_BLURB['es'].format(BLURB['es']))):
-            if not getattr(event, attr):
+            current = getattr(event, attr)
+            if not current or current in stale:
                 setattr(event, attr, text)
         event.language = series['language']
         event.ticketing_type = 'INTERNAL'

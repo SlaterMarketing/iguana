@@ -1139,3 +1139,75 @@ class ConfirmationEmailCannotBreakABookingTests(ApiTestCase):
         order = Order.objects.get(pk=response.json()['orderId'])
         self.assertEqual(order.status, Order.COMPLETED)
         self.assertEqual(order.tickets.count(), 1, 'the seat is held even though we could not write about it')
+
+
+class TemplateCommentTests(TestCase):
+    """Django's `{# ... #}` is a SINGLE LINE comment. Spread one over two lines and it is not a comment at
+    all, it is text, and it renders to whoever is looking at the page.
+
+    That is not hypothetical: a note explaining why the drinks upsell sits below the name and email was
+    written that way and appeared, in full, in the middle of the live checkout, between a customer's email
+    field and the thing it was trying to sell them.
+    """
+
+    def test_no_hash_comment_spans_more_than_one_line(self):
+        import pathlib
+        import re
+
+        root = pathlib.Path(__file__).resolve().parent.parent
+        offenders = []
+        for path in root.rglob('templates/**/*.html'):
+            text = path.read_text()
+            for match in re.finditer(r'\{#', text):
+                end = text.find('#}', match.start())
+                body = text[match.start():end + 2] if end != -1 else text[match.start():]
+                if '\n' in body:
+                    line = text[:match.start()].count('\n') + 1
+                    offenders.append(f'{path.relative_to(root)}:{line}')
+        self.assertEqual(offenders, [], 'use {% comment %}...{% endcomment %} for anything over one line')
+
+
+class StaleBlurbTests(ApiTestCase):
+    """A night already on sale must stop advertising something that is no longer true.
+
+    `setup_open_mics` only ever filled BLANK descriptions, so when the seat became free and the drink became
+    the thing being sold, all 31 nights carried on promising "incluye una bebida gratis" on their own pages.
+    A hand-written blurb still has to survive, so the rule is: replace what this command wrote before, never
+    what somebody typed.
+    """
+
+    def spanish_night(self):
+        from catalog.models import Event
+
+        return Event.objects.create(name='Noche de Open Mic - Espanol!', slug='noche-open-mic-blurb',
+                                    venue=self.venue, date=timezone.now() + timedelta(days=6))
+
+    def run_setup(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        call_command('setup_open_mics', stdout=StringIO())
+
+    def test_a_blurb_this_command_wrote_before_is_corrected(self):
+        from catalog.models import Event
+
+        old_es = ('Stand-up gratis cada semana en Iguana Comedy, Playa del Carmen. Cualquiera puede anotarse '
+                  'para hacer cinco minutos, o simplemente venir a ver. La entrada es gratis, y tu reservación '
+                  'te aparta el lugar e incluye una bebida gratis.')
+        night = self.spanish_night()
+        Event.objects.filter(pk=night.pk).update(description_es=old_es)
+        self.run_setup()
+        night.refresh_from_db()
+        self.assertNotIn('bebida gratis', night.description_es)
+        self.assertIn('reservar también', night.description_es.lower())
+
+    def test_a_blurb_somebody_wrote_by_hand_is_left_alone(self):
+        from catalog.models import Event
+
+        mine = 'Esta noche es especial: viene un invitado sorpresa.'
+        night = self.spanish_night()
+        Event.objects.filter(pk=night.pk).update(description_es=mine)
+        self.run_setup()
+        night.refresh_from_db()
+        self.assertEqual(night.description_es, mine)

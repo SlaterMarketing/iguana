@@ -52,8 +52,14 @@
         <label>{% t lang "Email" %}<input name="email" type="email" autocomplete="email" inputmode="email" required></label>
         <label>{% t lang "Phone (optional)" %}<input name="phone" type="tel" autocomplete="tel"></label>
       </div>
-      {# The seat is free, so this is the sale. It comes AFTER the details on purpose: asking for money before
-         the free thing is claimed is how a free offer stops feeling free. #}
+      {% comment %}
+        The seat is free, so this is the sale. It comes AFTER the details on purpose: asking for money before
+        the free thing is claimed is how a free offer stops feeling free.
+
+        A block tag rather than a hash comment, because Django's hash comment is SINGLE LINE ONLY and a
+        multi-line one is not a comment at all, it is text. This wording rendered in full, to customers, on
+        the live checkout. api.tests.TemplateCommentTests now refuses to let that happen again.
+      {% endcomment %}
       <div class="addons" id="addons" hidden>
         <p class="addon-title">{% t lang "Want to order your drinks in advance?" %}</p>
         <div class="types" id="addon-types"></div>
