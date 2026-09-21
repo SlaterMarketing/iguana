@@ -49,8 +49,10 @@ RESERVATION = {
 DRINKS = {
     'name': '2 drinks, ordered in advance',
     'name_es': '2 bebidas, pedidas por adelantado',
-    'description': 'Waiting for you at your seat when you arrive, so you are not queuing at the bar.',
-    'description_es': 'Te esperan en tu lugar cuando llegues, para que no hagas fila en la barra.',
+    # The benefit in the owner's own words: the wait here is for a waiter, not a queue at the bar. Guessing at
+    # "so you are not queuing at the bar" described a friction this room does not have.
+    'description': 'Waiting for you at your seat when you arrive, so you do not have to wait for a waiter.',
+    'description_es': 'Te esperan en tu lugar cuando llegues, para que no tengas que esperar al mesero.',
     'prices': {'mxn': 10000, 'usd': 600},
     'max_per_order': 6,
 }
