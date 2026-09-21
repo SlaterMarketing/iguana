@@ -174,7 +174,9 @@ def get(path, **params):
         except urllib.error.HTTPError as exc:
             _fail(path, exc)
 
-    return with_backoff(once)
+    # Reads wait briefly and then give up with the reason. Only a WRITE is worth waiting out a rate limit for,
+    # because a half-built account has to be finished; a report that hangs for twenty minutes is just broken.
+    return with_backoff(once, tries=2, first_wait=20)
 
 
 def post(path, **params):
@@ -521,6 +523,9 @@ def main():
     args = parser.parse_args()
     try:
         args.func(args)
+    except RateLimited as exc:
+        sys.exit(f'{exc}\n\nThe ad account limit clears on a rolling window, so the only fix is to wait a few '
+                 'minutes and run it again.')
     except GraphError as exc:
         sys.exit(str(exc))
 
