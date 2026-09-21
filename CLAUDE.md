@@ -213,11 +213,52 @@ their `end_time` passed months or years ago, so the UI looks busy and the accoun
 since April 2026. Judge delivery by `end_time` in the future plus non-zero `insights.spend`, which is what
 `status` does. The same trap in reverse: `campaigns` only lists campaigns that actually spent in the window.
 
-**No Meta pixel is installed on this site.** `Ticket Tracking` last received an event on 2026-05-17, from the
-old Kintana-era site; the Astro site has no `fbq` and the checkout runs in an iframe from `api.iguanacomedy.com`,
-so a plain pixel snippet on the marketing pages would not see purchases anyway. Conversion campaigns
-(`OUTCOME_SALES`) cannot be optimised or measured until that is fixed, most robustly by sending the purchase
-server-side from the Stripe webhook in `api/embed_views.py` via the Conversions API.
+**Conversion tracking: the backend reports the sale, the pixel only reports the visit.** Checkout is an iframe
+served from `api.iguanacomedy.com`, so a pixel on the marketing pages can never see a purchase. `crm/meta_capi.py`
+sends `Purchase` (from `complete_order`) and `InitiateCheckout` (from `checkout_start`) to pixel
+`2122037578734069` over the Conversions API; `src/components/MetaPixel.astro` sends only `PageView` and
+`ViewContent`. One sender per event, so there is no deduplication to get wrong and the money events survive an
+ad blocker. Keys are `META_PIXEL_ID` / `META_CAPI_TOKEN` in `config.py` and `PUBLIC_META_PIXEL_ID` in `.env`.
+
+🔑 **Matching is what decides whether a sale is attributed at all, and `_fbp`/`_fbc` belong to the SITE origin,
+not the iframe.** `k.js` reads both cookies, rebuilds `_fbc` from `fbclid` when the pixel was blocked before it
+could write one, and posts them as attribution; `checkout_start` stores them plus the User-Agent on the order and
+`sales/ad_reporting.py` reads them back. A production order carries ten match fields
+(`em fn ln ct st country client_ip_address client_user_agent fbp fbc`). Never report a sale without them: an
+unattributed sale teaches the algorithm the ad did not work.
+
+Nothing in that path may cost a booking. Every send is queued `on_commit`, runs on a daemon thread and swallows
+its failures; `api.tests.MetaConversionTests` asserts a sale still completes with the Graph API throwing.
+
+**A pixel's history cannot be imported into another pixel.** The Conversions API refuses any event with an
+`event_time` older than seven days, so there is nothing to backfill, and `Ticket Tracking`'s last event (2026-05-17)
+is outside every window Meta optimises on anyway. The one thing that *can* be imported is the customer list:
+`scripts/meta-audiences.py build [--lookalike]` hashes the CRM **on the production box** (only hashes leave it)
+and pushes it as a Custom Audience.
+⚠ It needs the Custom Audience Terms accepted once, by hand, at
+`business.facebook.com/ads/manage/customaudiences/tos/?act=178760798664478`. There is no API for that, and until
+it is accepted every create returns 400.
+
+**The weekly open mic campaigns.** `scripts/meta-openmic-campaigns.py` (`plan`, `apply [--live]`, `status`,
+`pause`) builds two campaigns per night and is idempotent: it matches on name and updates rather than duplicating,
+so re-running after a copy or budget change is safe. Per night, 1,000 MXN a week: a `OUTCOME_SALES` ad set at 100
+MXN/day optimised for `Purchase` against the pixel, and a `OUTCOME_TRAFFIC` ad set at 43 MXN/day optimised for
+landing page views. The split is deliberate. A reservation is 50 MXN with a drink included, so at this account's
+historic 55 to 220 MXN cost per purchase the conversion ads cost more per head than they collect: they pay back at
+the bar, and the cheap traffic ads fill the 20 walk-in seats and seed the pixel at the same time.
+
+Targeting comes from what actually worked here: Playa del Carmen (geo key `1540930`), `home` **and** `recent` so
+tourists are not excluded, 18 to 65, interest `6003273904571` "Comedia stand up" on the conversion ad sets and
+nothing on the reach ad sets. English night adds locales `[6, 24]`.
+
+🚨 **Ads point at `/open-mic/`, never at an event page.** Event URLs carry their date
+(`/events/playa-del-carmen-2026-09-22/`), so a weekly campaign aimed at one needs rewriting every Tuesday and
+spends on a dead show in between. `src/components/OpenMicPage.astro` asks the API for the next bookable night in
+each language on every request and carries both checkouts inline. Use the apex domain: `www.` 301s, and a redirect
+costs clicks.
+⚠ Creating a campaign without CBO now requires `is_adset_budget_sharing_enabled`; Meta 400s without it.
+⚠ No `end_time` on any ad set, on purpose. 31 ad sets on this account say ACTIVE with a schedule that ended
+months ago, which is what makes the UI look busy while the account spends nothing.
 
 **Posting to Facebook and Instagram.** `scripts/meta-social.py` (same token, stdlib only) has `whoami` (scopes,
 Page and IG visibility, Page tasks, IG publishing quota), `recent` (last 5 Page posts and IG media),

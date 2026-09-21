@@ -1,0 +1,477 @@
+#!/usr/bin/env python3
+"""Build and run the weekly open mic campaigns on Meta.
+
+Operator tool, run by hand from the dev box, same system-user token as scripts/meta-ads.py. It is idempotent:
+it looks for a campaign, ad set, creative or ad it has already made (by name) and updates that rather than
+making a second one, so re-running it after changing the copy or the budget is safe.
+
+    scripts/meta-openmic-campaigns.py plan                  print what would be created or changed
+    scripts/meta-openmic-campaigns.py apply                 create or update everything, PAUSED
+    scripts/meta-openmic-campaigns.py apply --live          the same, and switch the campaigns on
+    scripts/meta-openmic-campaigns.py status                what exists now, and what it is spending
+    scripts/meta-openmic-campaigns.py pause                 stop all four campaigns
+
+Two campaigns per night, because one objective cannot do both jobs:
+
+  reservations (OUTCOME_SALES, optimised for Purchase) chases the 60 bookable seats. It commits people, it
+  captures an email, and it is the only ad set the Conversions API can teach. It also costs more per head than a
+  50 MXN reservation brings in, which is the deal: the room pays for itself at the bar, not at the door.
+
+  local reach (OUTCOME_TRAFFIC, optimised for landing page views) fills the other 20 seats with walk-ins, who
+  pay nothing to get in and are therefore cheap. This account historically bought clicks at 0.36 to 0.48 MXN.
+  It also seeds the pixel: every visit it sends writes the _fbp the conversion campaign later matches on.
+
+Why the ads point at /open-mic/ and not at an event page: an event URL carries its date, so a weekly campaign
+aimed at one would need rewriting every Tuesday and would keep spending on a dead show in between.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import mimetypes
+import os
+import pathlib
+import sys
+import time
+import urllib.error
+import urllib.parse
+import urllib.request
+import uuid
+
+API = 'https://graph.facebook.com/v21.0'
+AD_ACCOUNT = 'act_178760798664478'
+PAGE_ID = '122106930026005410'
+INSTAGRAM_ID = '17841461594533193'
+PIXEL_ID = '2122037578734069'          # "andrew new pixel"; the backend reports Purchase into it over the CAPI
+TOKEN_FILE = os.environ.get('META_TOKEN_FILE', '~/.credentials/meta/iguanacomedy/token')
+CREATIVE_DIR = pathlib.Path(os.environ.get('IGUANA_CREATIVE_DIR', '~/iguana-ads/creative')).expanduser()
+
+# Playa del Carmen. The club is in the centre, so the wide radius is for the reservation ads (worth a drive) and
+# the tight one for walk-ins, who will not cross the highway for a free show.
+PLAYA = 1540930
+WIDE_KM, NEAR_KM = 25, 12
+# The interest every campaign this account ever won on used.
+STANDUP_INTEREST = {'id': '6003273904571', 'name': 'Comedia stand up (comedia)'}
+ENGLISH_LOCALES = [6, 24]              # English (US), English (UK)
+
+SITE = 'https://iguanacomedy.com'
+
+NIGHTS = {
+    'es': {
+        'label': 'Spanish',
+        'night': 'Tuesday',
+        'link': f'{SITE}/es/open-mic/',
+        'locales': None,               # Playa residents; a language filter would only shrink a local audience
+        'daily_conversions': 10000,    # centavos: 100.00 MXN
+        'daily_reach': 4300,           #           43.00 MXN, so 1,000 MXN a week on the night
+        'videos': ['openmic-es-long-9x16.mp4', 'openmic-es-short-9x16.mp4'],
+        'image': 'openmic-es-flyer-4x5.jpg',
+        'copy': {
+            'message': ('Stand-up gratis cada martes en Playa del Carmen. Lista a las 8, show a las 9, y la '
+                        'entrada siempre es gratis.\n\nLa sala es de 80 lugares y se llena. Si quieres tu lugar '
+                        'seguro, la reservación cuesta 50 pesos e incluye una bebida.'),
+            'title': 'Open mic en español, cada martes',
+            'description': 'Iguana Comedy, Calle 6 norte y Av 20, centro',
+        },
+        'reach_copy': {
+            'message': ('Stand-up gratis cada martes en Playa del Carmen. Lista a las 8, show a las 9.\n\n'
+                        'Ven a ver, o anótate en la puerta y haz cinco minutos tú. No cuesta nada.'),
+            'title': 'Noche de open mic en Playa',
+            'description': 'Iguana Comedy, Calle 6 norte y Av 20, centro',
+        },
+    },
+    'en': {
+        'label': 'English',
+        'night': 'Wednesday',
+        'link': f'{SITE}/en/open-mic/',
+        'locales': ENGLISH_LOCALES,
+        'daily_conversions': 10000,
+        'daily_reach': 4300,
+        'videos': ['openmic-en-long-9x16.mp4'],
+        'image': 'openmic-en-flyer-4x5.jpg',
+        'copy': {
+            'message': ('Free stand-up every Wednesday in Playa del Carmen. Doors at 8, show at 8:30, and entry '
+                        'is always free.\n\nThe room holds 80 and it fills up. If you want your seat held, a five '
+                        'dollar reservation keeps it and includes a drink.'),
+            'title': 'English comedy night, every Wednesday',
+            'description': 'Iguana Comedy, Calle 6 Nte and Av 20, centro',
+        },
+        'reach_copy': {
+            'message': ('Free stand-up every Wednesday in Playa del Carmen. Doors at 8, show at 8:30.\n\n'
+                        'Come and watch, or sign up at the door and do five minutes yourself. Nothing to pay.'),
+            'title': 'Open mic night in Playa',
+            'description': 'Iguana Comedy, Calle 6 Nte and Av 20, centro',
+        },
+    },
+}
+
+
+# --------------------------------------------------------------------------------------------- Graph plumbing
+
+def token() -> str:
+    path = pathlib.Path(TOKEN_FILE).expanduser()
+    try:
+        value = path.read_text().strip()
+    except OSError as exc:
+        sys.exit(f'cannot read the Meta token from {path}: {exc}')
+    if not value:
+        sys.exit(f'{path} is empty; put the system-user token there (chmod 600)')
+    return value
+
+
+class GraphError(Exception):
+    """A Graph API refusal. Raised rather than exited so one blocked ad cannot abandon the rest of the build."""
+
+
+def _fail(path, exc):
+    body = exc.read().decode(errors='replace')
+    try:
+        error = json.loads(body)['error']
+        message = error.get('error_user_msg') or error.get('message', '')
+        detail = error.get('error_user_title', '')
+    except Exception:
+        message, detail = body[:400], ''
+    raise GraphError(f'Graph API {exc.code} on {path}: {detail} {message}'.strip())
+
+
+def get(path, **params):
+    params['access_token'] = token()
+    url = f'{API}/{path}?' + urllib.parse.urlencode(params)
+    try:
+        with urllib.request.urlopen(url, timeout=60) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as exc:
+        _fail(path, exc)
+
+
+def post(path, **params):
+    params['access_token'] = token()
+    data = urllib.parse.urlencode({k: (json.dumps(v) if isinstance(v, (dict, list)) else v)
+                                   for k, v in params.items()}).encode()
+    try:
+        with urllib.request.urlopen(urllib.request.Request(f'{API}/{path}', data=data), timeout=120) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as exc:
+        _fail(path, exc)
+
+
+def post_file(path, field, file_path, **params):
+    """Multipart upload, for /advideos and /adimages. stdlib only, so the body is built by hand."""
+    boundary = uuid.uuid4().hex
+    params['access_token'] = token()
+    body = bytearray()
+    for key, value in params.items():
+        body += (f'--{boundary}\r\nContent-Disposition: form-data; name="{key}"\r\n\r\n{value}\r\n').encode()
+    kind = mimetypes.guess_type(str(file_path))[0] or 'application/octet-stream'
+    body += (f'--{boundary}\r\nContent-Disposition: form-data; name="{field}"; '
+             f'filename="{file_path.name}"\r\nContent-Type: {kind}\r\n\r\n').encode()
+    body += file_path.read_bytes() + b'\r\n'
+    body += f'--{boundary}--\r\n'.encode()
+    request = urllib.request.Request(f'{API}/{path}', data=bytes(body),
+                                     headers={'Content-Type': f'multipart/form-data; boundary={boundary}'})
+    try:
+        with urllib.request.urlopen(request, timeout=600) as response:
+            return json.load(response)
+    except urllib.error.HTTPError as exc:
+        _fail(path, exc)
+
+
+def pages(path, **params):
+    params.setdefault('limit', 100)
+    while True:
+        payload = get(path, **params)
+        yield from payload.get('data', [])
+        paging = payload.get('paging', {})
+        after = paging.get('cursors', {}).get('after')
+        if not after or 'next' not in paging:
+            return
+        params['after'] = after
+
+
+# ------------------------------------------------------------------------------------------------ the shapes
+
+def campaign_name(lang, kind):
+    return f'Open mic {NIGHTS[lang]["label"]} · {kind}'
+
+
+def adset_name(lang, kind):
+    return f'{NIGHTS[lang]["night"]}s · Playa {WIDE_KM if kind == "reservations" else NEAR_KM}km · {kind}'
+
+
+def targeting(lang, kind):
+    night = NIGHTS[lang]
+    spec = {
+        'geo_locations': {
+            'cities': [{'key': PLAYA, 'radius': WIDE_KM if kind == 'reservations' else NEAR_KM,
+                        'distance_unit': 'kilometer'}],
+            # "home" alone misses every tourist in Playa, who are exactly who the English night is for.
+            'location_types': ['home', 'recent'],
+        },
+        'age_min': 18,
+        'age_max': 65,
+        'targeting_automation': {'advantage_audience': 1},
+    }
+    if night['locales']:
+        spec['locales'] = night['locales']
+    if kind == 'reservations':
+        # Narrowed to the interest that every campaign this account ever won on used. The reach ad set stays broad
+        # on purpose: it is buying cheap local attention, and an interest filter only makes that dearer.
+        spec['flexible_spec'] = [{'interests': [STANDUP_INTEREST]}]
+    return spec
+
+
+def adset_spec(lang, kind, campaign_id):
+    night = NIGHTS[lang]
+    common = {
+        'name': adset_name(lang, kind),
+        'campaign_id': campaign_id,
+        'billing_event': 'IMPRESSIONS',
+        'bid_strategy': 'LOWEST_COST_WITHOUT_CAP',
+        'targeting': targeting(lang, kind),
+        # No end_time on purpose. An ad set that says ACTIVE while its schedule ended is this account's oldest
+        # trap: 31 of them are sitting in here right now, looking busy and spending nothing.
+        'status': 'PAUSED',
+    }
+    if kind == 'reservations':
+        return {**common,
+                'daily_budget': night['daily_conversions'],
+                'optimization_goal': 'OFFSITE_CONVERSIONS',
+                'destination_type': 'WEBSITE',
+                'promoted_object': {'pixel_id': PIXEL_ID, 'custom_event_type': 'PURCHASE'},
+                'attribution_spec': [{'event_type': 'CLICK_THROUGH', 'window_days': 7},
+                                     {'event_type': 'VIEW_THROUGH', 'window_days': 1}]}
+    return {**common,
+            'daily_budget': night['daily_reach'],
+            'optimization_goal': 'LANDING_PAGE_VIEWS',
+            'destination_type': 'WEBSITE'}
+
+
+def creative_spec(lang, kind, *, video_id=None, thumbnail=None, image_hash=None, name=''):
+    night = NIGHTS[lang]
+    copy = night['copy'] if kind == 'reservations' else night['reach_copy']
+    cta = {'type': 'BOOK_NOW' if kind == 'reservations' else 'LEARN_MORE',
+           'value': {'link': night['link']}}
+    if video_id:
+        story = {'video_data': {'video_id': video_id, 'message': copy['message'], 'title': copy['title'],
+                                'link_description': copy['description'], 'call_to_action': cta,
+                                'image_url': thumbnail}}
+    else:
+        story = {'link_data': {'link': night['link'], 'message': copy['message'], 'name': copy['title'],
+                               'description': copy['description'], 'image_hash': image_hash,
+                               'call_to_action': cta}}
+    return {
+        'name': name,
+        'object_story_spec': {'page_id': PAGE_ID, 'instagram_user_id': INSTAGRAM_ID, **story},
+        # Meta reads the landing page and may rewrite the headline or crop the creative. The copy here is written
+        # to be exact about the price and the times, so it stays as written.
+        'degrees_of_freedom_spec': {'creative_features_spec': {'standard_enhancements': {'enroll_status': 'OPT_OUT'}}},
+    }
+
+
+# ------------------------------------------------------------------------------------------------- the work
+
+def existing(edge, name, fields='id,name,status'):
+    for row in pages(f'{AD_ACCOUNT}/{edge}', fields=fields):
+        if row.get('name') == name:
+            return row
+    return None
+
+
+def upload_video(path):
+    """Uploaded once and reused: Meta keeps them on the ad account, keyed by our own name."""
+    for row in pages(f'{AD_ACCOUNT}/advideos', fields='id,title'):
+        if row.get('title') == path.name:
+            return row['id']
+    print(f'  uploading {path.name} ({path.stat().st_size / 1e6:.1f} MB)')
+    return post_file(f'{AD_ACCOUNT}/advideos', 'source', path, title=path.name, name=path.name)['id']
+
+
+def wait_for_video(video_id, timeout=600):
+    """A creative made from a still-encoding video is rejected, so wait for it rather than race it."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        status = get(video_id, fields='status').get('status', {})
+        state = status.get('video_status') or status.get('processing_progress')
+        if state == 'ready':
+            return
+        if state == 'error':
+            sys.exit(f'video {video_id} failed to process: {status}')
+        time.sleep(10)
+    sys.exit(f'video {video_id} was still processing after {timeout}s')
+
+
+def video_thumbnail(video_id):
+    thumbs = get(f'{video_id}/thumbnails', fields='uri,is_preferred').get('data', [])
+    preferred = next((t for t in thumbs if t.get('is_preferred')), None) or (thumbs[0] if thumbs else None)
+    if not preferred:
+        sys.exit(f'video {video_id} has no thumbnail yet')
+    return preferred['uri']
+
+
+def upload_image(path):
+    result = post_file(f'{AD_ACCOUNT}/adimages', 'source', path)
+    images = result.get('images', {})
+    return images[next(iter(images))]['hash']
+
+
+def ensure_campaign(lang, kind, objective, live):
+    name = campaign_name(lang, kind)
+    found = existing('campaigns', name, fields='id,name,status,objective')
+    want = 'ACTIVE' if live else 'PAUSED'
+    if found:
+        if found['status'] != want:
+            post(found['id'], status=want)
+        print(f'  campaign {found["id"]}  {name}  [{want}]')
+        return found['id']
+    made = post(f'{AD_ACCOUNT}/campaigns', name=name, objective=objective, status=want,
+                special_ad_categories=[], buying_type='AUCTION',
+                # The budget lives on the ad set, and each campaign holds exactly one, so there is nothing to
+                # share. Meta refuses to create the campaign unless this is stated either way.
+                is_adset_budget_sharing_enabled=False)
+    print(f'  campaign {made["id"]}  {name}  [{want}] (created)')
+    return made['id']
+
+
+def ensure_adset(lang, kind, campaign_id, live):
+    spec = adset_spec(lang, kind, campaign_id)
+    found = existing('adsets', spec['name'], fields='id,name,status,daily_budget')
+    spec['status'] = 'ACTIVE' if live else 'PAUSED'
+    if found:
+        post(found['id'], **{k: v for k, v in spec.items() if k != 'campaign_id'})
+        print(f'  ad set   {found["id"]}  {spec["name"]}  {int(spec["daily_budget"]) / 100:.2f} MXN/day (updated)')
+        return found['id']
+    made = post(f'{AD_ACCOUNT}/adsets', **spec)
+    print(f'  ad set   {made["id"]}  {spec["name"]}  {int(spec["daily_budget"]) / 100:.2f} MXN/day (created)')
+    return made['id']
+
+
+def ensure_ad(lang, kind, adset_id, creative, ad_name, live):
+    found = existing('ads', ad_name, fields='id,name,status')
+    made = post(f'{AD_ACCOUNT}/adcreatives', **creative)
+    status = 'ACTIVE' if live else 'PAUSED'
+    if found:
+        post(found['id'], creative={'creative_id': made['id']}, status=status)
+        print(f'  ad       {found["id"]}  {ad_name} (new creative {made["id"]})')
+        return found['id']
+    ad = post(f'{AD_ACCOUNT}/ads', name=ad_name, adset_id=adset_id, creative={'creative_id': made['id']},
+              status=status)
+    print(f'  ad       {ad["id"]}  {ad_name} (created)')
+    return ad['id']
+
+
+def try_ad(blocked, lang, kind, adset_id, creative, ad_name, live):
+    try:
+        ensure_ad(lang, kind, adset_id, creative, ad_name, live)
+    except GraphError as exc:
+        print(f'  ad       BLOCKED  {ad_name}')
+        blocked.append((ad_name, str(exc)))
+
+
+def cmd_apply(args):
+    missing = [f for lang in NIGHTS for f in [*NIGHTS[lang]['videos'], NIGHTS[lang]['image']]
+               if not (CREATIVE_DIR / f).exists()]
+    if missing:
+        sys.exit(f'creative missing from {CREATIVE_DIR}: {", ".join(missing)}')
+    blocked = []
+
+    for lang, night in NIGHTS.items():
+        print(f'\n{night["label"]} night ({night["night"]}s) -> {night["link"]}')
+        for kind, objective in (('reservations', 'OUTCOME_SALES'), ('local reach', 'OUTCOME_TRAFFIC')):
+            campaign_id = ensure_campaign(lang, kind, objective, args.live)
+            adset_id = ensure_adset(lang, kind, campaign_id, args.live)
+
+            for index, filename in enumerate(night['videos'], start=1):
+                video_id = upload_video(CREATIVE_DIR / filename)
+                wait_for_video(video_id)
+                creative = creative_spec(lang, kind, video_id=video_id, thumbnail=video_thumbnail(video_id),
+                                         name=f'{campaign_name(lang, kind)} · video {index}')
+                try_ad(blocked, lang, kind, adset_id, creative, f'{adset_name(lang, kind)} · video {index}', args.live)
+
+            if kind == 'reservations':
+                # The flyer carries the times and the address in the artwork, which a video cannot do at a glance.
+                image_hash = upload_image(CREATIVE_DIR / night['image'])
+                creative = creative_spec(lang, kind, image_hash=image_hash,
+                                         name=f'{campaign_name(lang, kind)} · flyer')
+                try_ad(blocked, lang, kind, adset_id, creative, f'{adset_name(lang, kind)} · flyer', args.live)
+
+    if blocked:
+        print(f'\n{len(blocked)} ad(s) could not be created. Campaigns and ad sets are in place and will pick the '
+              'ads up as soon as the cause is cleared; re-run this command then.')
+        for name, reason in blocked:
+            print(f'  {name}\n    {reason}')
+        if any('modo de desarrollo' in reason or 'development mode' in reason for _, reason in blocked):
+            print('\n  That one is the Meta app, not the ads. App "Iguana 2026" (1616667029816710) is in\n'
+                  '  Development mode, and Meta refuses to build an ad creative from a development app.\n'
+                  '  Switch it to Live at developers.facebook.com/apps/1616667029816710/settings/basic/\n'
+                  f'  (it wants a privacy policy URL first: {SITE}/en/legal/privacy-policy/).')
+        sys.exit(1)
+    print('\nlive' if args.live else '\npaused: re-run with --live to switch them on')
+
+
+def cmd_status(args):
+    today = time.strftime('%Y-%m-%d')
+    for lang, night in NIGHTS.items():
+        for kind in ('reservations', 'local reach'):
+            found = existing('campaigns', campaign_name(lang, kind), fields='id,name,status,effective_status')
+            if not found:
+                print(f'{campaign_name(lang, kind):42} not created')
+                continue
+            spend = get(f'{found["id"]}/insights', date_preset='last_30d',
+                        fields='spend,impressions,clicks,actions,cost_per_action_type').get('data', [])
+            row = spend[0] if spend else {}
+            actions = {a['action_type']: int(float(a['value'])) for a in row.get('actions', [])}
+            purchases = actions.get('purchase') or actions.get('offsite_conversion.fb_pixel_purchase') or 0
+            print(f'{found["name"]:42} {found["effective_status"]:22} '
+                  f'spend {float(row.get("spend", 0)):8,.2f}  clicks {int(row.get("clicks", 0)):5}  '
+                  f'purchases {purchases}')
+            for adset in pages(f'{found["id"]}/adsets', fields='id,name,effective_status,end_time,daily_budget'):
+                end = (adset.get('end_time') or '')[:10]
+                flag = '  SCHEDULE ENDED, SPENDS NOTHING' if end and end < today else ''
+                print(f'    {adset["id"]}  {adset["name"][:46]:46} {adset["effective_status"]:12} '
+                      f'{int(adset.get("daily_budget") or 0) / 100:6.2f}/day{flag}')
+
+
+def cmd_pause(args):
+    for lang in NIGHTS:
+        for kind in ('reservations', 'local reach'):
+            found = existing('campaigns', campaign_name(lang, kind))
+            if found:
+                post(found['id'], status='PAUSED')
+                print(f'paused {found["id"]}  {found["name"]}')
+
+
+def cmd_plan(args):
+    for lang, night in NIGHTS.items():
+        weekly = (night['daily_conversions'] + night['daily_reach']) * 7 / 100
+        print(f'\n{night["label"]} night, {night["night"]}s -> {night["link"]}')
+        print(f'  {campaign_name(lang, "reservations"):44} OUTCOME_SALES    '
+              f'{night["daily_conversions"] / 100:6.2f} MXN/day  optimise Purchase via pixel {PIXEL_ID}')
+        print(f'  {campaign_name(lang, "local reach"):44} OUTCOME_TRAFFIC  '
+              f'{night["daily_reach"] / 100:6.2f} MXN/day  optimise landing page views')
+        print(f'  targeting  Playa del Carmen {WIDE_KM}km / {NEAR_KM}km, home+recent, 18 to 65'
+              + (f', locales {night["locales"]}' if night['locales'] else ''))
+        print(f'  creative   {", ".join(night["videos"])}, {night["image"]}')
+        print(f'  weekly     {weekly:,.2f} MXN')
+    total = sum((n['daily_conversions'] + n['daily_reach']) for n in NIGHTS.values()) * 7 / 100
+    print(f'\ntotal {total:,.2f} MXN a week across both nights')
+
+
+def main():
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    sub = parser.add_subparsers(dest='command', required=True)
+    sub.add_parser('plan', help='print what would be created').set_defaults(func=cmd_plan)
+    apply_cmd = sub.add_parser('apply', help='create or update the campaigns')
+    apply_cmd.add_argument('--live', action='store_true', help='switch them on rather than leaving them paused')
+    apply_cmd.set_defaults(func=cmd_apply)
+    sub.add_parser('status', help='what exists and what it spent').set_defaults(func=cmd_status)
+    sub.add_parser('pause', help='pause all four campaigns').set_defaults(func=cmd_pause)
+    args = parser.parse_args()
+    try:
+        args.func(args)
+    except GraphError as exc:
+        sys.exit(str(exc))
+
+
+if __name__ == '__main__':
+    main()
