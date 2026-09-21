@@ -92,7 +92,9 @@ NIGHTS = {
     'es': {
         'label': 'Spanish',
         'night': 'Tuesday',
-        'link': f'{SITE}/es/open-mic/',
+        # ?night= pins the Tuesday Spanish show. A Spanish speaker is not coming to the English night, so
+        # the ad must not land on a page that offers it first.
+        'link': f'{SITE}/es/open-mic/?night=es',
         'locales': None,               # Playa residents; a language filter would only shrink a local audience
         'daily_conversions': 10000,    # centavos: 100.00 MXN
         'daily_reach': 4300,           #           43.00 MXN, so 1,000 MXN a week on the night
@@ -115,7 +117,7 @@ NIGHTS = {
     'en': {
         'label': 'English',
         'night': 'Wednesday',
-        'link': f'{SITE}/en/open-mic/',
+        'link': f'{SITE}/en/open-mic/?night=en',
         'locales': ENGLISH_LOCALES,
         'daily_conversions': 10000,
         'daily_reach': 4300,
