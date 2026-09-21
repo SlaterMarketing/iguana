@@ -15,10 +15,22 @@ export function isOpenMic(evt: KintanaPublicEvent): boolean {
  * following one, so a Reserve button never lands on a night with no seats left.
  */
 export function nextBookableOpenMics(events: KintanaPublicEvent[]): { es?: KintanaPublicEvent; en?: KintanaPublicEvent } {
+  const { es, en } = bookableOpenMics(events);
+  return { es: es[0], en: en[0] };
+}
+
+/**
+ * Every bookable night in each language, soonest first.
+ *
+ * The page leads with the next one, but it has to offer the ones after it too. Somebody who cannot make this
+ * Tuesday has nothing to book otherwise, and there are thirty-one nights on sale at a time: only ever selling
+ * the nearest one leaves the rest of them empty by construction.
+ */
+export function bookableOpenMics(events: KintanaPublicEvent[]): { es: KintanaPublicEvent[]; en: KintanaPublicEvent[] } {
   const bookable = sortEventsAscending(events.filter((evt) => isOpenMic(evt) && evt.status === "on-sale"));
   return {
-    es: bookable.find((evt) => evt.language === "es"),
-    en: bookable.find((evt) => evt.language === "en"),
+    es: bookable.filter((evt) => evt.language === "es"),
+    en: bookable.filter((evt) => evt.language === "en"),
   };
 }
 

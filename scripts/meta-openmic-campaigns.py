@@ -56,6 +56,19 @@ WIDE_KM, NEAR_KM = 25, 17
 STANDUP_INTEREST = {'id': '6003273904571', 'name': 'Comedia stand up (comedia)'}
 ENGLISH_LOCALES = [6, 24]              # English (US), English (UK)
 
+# What the reservation ad sets optimise for.
+#
+# Meta needs roughly 50 conversions per ad set per week to leave the learning phase, and below that it delivers
+# erratically at the top of its price range. A night holds 60 reservable seats, so Purchase caps at 60 a week per
+# ad set even if we sold out every time, and at 100 MXN a day we will be nowhere near that. Optimising on a
+# capped event we cannot feed means paying learning-phase prices indefinitely.
+#
+# InitiateCheckout fires when someone puts their name and email in, several times for every sale, and the backend
+# reports it server-side exactly like Purchase. It is the deepest event this budget can actually supply. Purchase
+# is still recorded and still what we judge the campaigns on; it is just not what delivery is steered by yet.
+# Move this back to PURCHASE once a reservations ad set is clearing about 50 sales a week on its own.
+CONVERSION_EVENT = 'INITIATED_CHECKOUT'
+
 SITE = 'https://iguanacomedy.com'
 
 # Meta's creative enhancements, opted out one by one. The blanket `standard_enhancements` switch these replaced
@@ -293,7 +306,7 @@ def adset_spec(lang, kind, campaign_id):
                 'daily_budget': night['daily_conversions'],
                 'optimization_goal': 'OFFSITE_CONVERSIONS',
                 'destination_type': 'WEBSITE',
-                'promoted_object': {'pixel_id': PIXEL_ID, 'custom_event_type': 'PURCHASE'},
+                'promoted_object': {'pixel_id': PIXEL_ID, 'custom_event_type': CONVERSION_EVENT},
                 'attribution_spec': [{'event_type': 'CLICK_THROUGH', 'window_days': 7},
                                      {'event_type': 'VIEW_THROUGH', 'window_days': 1}]}
     return {**common,
@@ -519,7 +532,7 @@ def cmd_plan(args):
         weekly = (night['daily_conversions'] + night['daily_reach']) * 7 / 100
         print(f'\n{night["label"]} night, {night["night"]}s -> {night["link"]}')
         print(f'  {campaign_name(lang, "reservations"):44} OUTCOME_SALES    '
-              f'{night["daily_conversions"] / 100:6.2f} MXN/day  optimise Purchase via pixel {PIXEL_ID}')
+              f'{night["daily_conversions"] / 100:6.2f} MXN/day  optimise {CONVERSION_EVENT} via pixel {PIXEL_ID}')
         print(f'  {campaign_name(lang, "local reach"):44} OUTCOME_TRAFFIC  '
               f'{night["daily_reach"] / 100:6.2f} MXN/day  optimise landing page views')
         print(f'  targeting  Playa del Carmen {WIDE_KM}km / {NEAR_KM}km, home+recent, 18 to 65'

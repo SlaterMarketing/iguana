@@ -20,7 +20,7 @@ import { loadEventsForCalendarPages } from "../lib/events-catalog";
 import { holidayNotice } from "../lib/holiday-notice";
 import { createLocalizedKintanaClient, getKintanaEnv } from "../lib/kintana-env";
 import { logKintanaError, logKintanaSuccess } from "../lib/kintana-error";
-import { formatSeatPrice, nextBookableOpenMics } from "../lib/open-mics";
+import { bookableOpenMics, formatSeatPrice } from "../lib/open-mics";
 import type { Locale } from "../i18n/locale";
 import { localizePath } from "../i18n/routes";
 
@@ -42,7 +42,11 @@ if (hasCredentials) {
   }
 }
 
-const next = nextBookableOpenMics(upcoming);
+const bookable = bookableOpenMics(upcoming);
+const next = { es: bookable.es[0], en: bookable.en[0] };
+// How many later dates to offer under each night's checkout. Enough to catch somebody who is busy this week
+// without turning the page into a calendar; there are always around fifteen on sale per language.
+const LATER_NIGHTS = 4;
 const notice = holidayNotice(locale);
 
 const copy = {
@@ -55,12 +59,13 @@ const copy = {
     seatBody:
       "The room holds 80 and the open mics fill up. Entry is always free, but without a reservation we may have to turn you away once we are full. A reservation guarantees your seat and includes a free drink.",
     nights: [
-      { key: "es" as const, day: "Tuesday", show: "Open mic in Spanish", detail: "Sign-up list 8:00 pm · Show 9:00 pm", event: next.es },
-      { key: "en" as const, day: "Wednesday", show: "Open mic in English", detail: "Doors 8:00 pm · Show 8:30 pm", event: next.en },
+      { key: "es" as const, day: "Tuesday", show: "Open mic in Spanish", detail: "Sign-up list 8:00 pm · Show 9:00 pm", event: next.es, later: bookable.es.slice(1, 1 + LATER_NIGHTS) },
+      { key: "en" as const, day: "Wednesday", show: "Open mic in English", detail: "Doors 8:00 pm · Show 8:30 pm", event: next.en, later: bookable.en.slice(1, 1 + LATER_NIGHTS) },
     ],
     nextNight: "Next",
     perSeat: "per seat, includes a free drink",
     soon: "Dates for this night go up shortly. Check the calendar for what else is on.",
+    cannotMakeIt: "Cannot make that one? Book a later night:",
     allEvents: "See every show",
     performTitle: "Want to perform?",
     performBody:
@@ -78,12 +83,13 @@ const copy = {
     seatBody:
       "La sala es de 80 lugares y los open mics se llenan. La entrada siempre es gratis, pero sin reservación podemos negarte el paso si se llena. Tu reservación te garantiza un lugar e incluye una bebida gratis.",
     nights: [
-      { key: "es" as const, day: "Martes", show: "Open mic en español", detail: "Lista 8:00 pm · Show 9:00 pm", event: next.es },
-      { key: "en" as const, day: "Miércoles", show: "Open mic en inglés", detail: "Puertas 8:00 pm · Show 8:30 pm", event: next.en },
+      { key: "es" as const, day: "Martes", show: "Open mic en español", detail: "Lista 8:00 pm · Show 9:00 pm", event: next.es, later: bookable.es.slice(1, 1 + LATER_NIGHTS) },
+      { key: "en" as const, day: "Miércoles", show: "Open mic en inglés", detail: "Puertas 8:00 pm · Show 8:30 pm", event: next.en, later: bookable.en.slice(1, 1 + LATER_NIGHTS) },
     ],
     nextNight: "Próximo",
     perSeat: "por lugar, incluye una bebida gratis",
     soon: "Las fechas de esta noche se publican en breve. Mira el calendario para ver qué más hay.",
+    cannotMakeIt: "¿No puedes esa noche? Reserva una más adelante:",
     allEvents: "Ver toda la cartelera",
     performTitle: "¿Quieres presentarte?",
     performBody:
@@ -171,6 +177,23 @@ const pixelContent = headlineEvent
             ) : (
               <p class="px-8 py-10 text-center text-sm text-neutral-500">{copy.soon}</p>
             )}
+            {night.later.length ? (
+              <div class="border-t border-black/10 px-6 py-5 text-center sm:px-8">
+                <p class="text-xs font-semibold uppercase tracking-[0.2em] text-neutral-500">{copy.cannotMakeIt}</p>
+                <ul class="mt-3 flex flex-wrap justify-center gap-2">
+                  {night.later.map((later) => (
+                    <li>
+                      <a
+                        class="inline-flex rounded-full border border-black/15 px-4 py-1.5 text-sm text-neutral-700 transition hover:border-neutral-900 hover:text-neutral-900"
+                        href={localizePath(locale, "eventDetail", { slug: later.slug })}
+                      >
+                        {formatEventDate(later.date, locale)}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </div>
         ))
       }
