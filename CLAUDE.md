@@ -256,7 +256,26 @@ nothing on the reach ad sets. English night adds locales `[6, 24]`.
 spends on a dead show in between. `src/components/OpenMicPage.astro` asks the API for the next bookable night in
 each language on every request and carries both checkouts inline. Use the apex domain: `www.` 301s, and a redirect
 costs clicks.
+| Campaign | ID |
+| --- | --- |
+| Open mic Spanish · reservations / ad set | `120250125973220182` / `120250125973580182` |
+| Open mic Spanish · local reach / ad set | `120250125990540182` / `120250126057270182` |
+| Open mic English · reservations / ad set | `120250126057820182` / `120250126057990182` |
+| Open mic English · local reach / ad set | `120250126062910182` / `120250126063000182` |
+
+🚨 **The Meta app must be in LIVE mode or no ad creative can be made at all.** App `Iguana 2026`
+(`1616667029816710`) is the business's only app, and while it is in Development mode every POST to
+`/adcreatives` returns 400 "se creó con una app que se encuentra en modo de desarrollo", with or without
+Instagram on the creative. Campaigns, ad sets, video and image uploads all succeed, so the account looks built
+and delivers nothing. Toggle it at `developers.facebook.com/apps/1616667029816710/settings/basic/`, then re-run
+`apply --live`. An ad set with no ads cannot spend, so leaving the structure ACTIVE meanwhile is safe.
+
 ⚠ Creating a campaign without CBO now requires `is_adset_budget_sharing_enabled`; Meta 400s without it.
+⚠ **A city radius under 17km is refused** ("el radio geográfico no se encuentra dentro de los límites"), so the
+walk-in ad set cannot be drawn tighter than that.
+⚠ **Read every edge once per run.** Paging the account for each lookup trips the ad account rate limit partway
+through and leaves half the structure built; the builder caches listings and backs off on codes
+`{4, 17, 32, 613}` / subcodes `{2446079, 1487742}`, because that limit clears only by waiting.
 ⚠ No `end_time` on any ad set, on purpose. 31 ad sets on this account say ACTIVE with a schedule that ended
 months ago, which is what makes the UI look busy while the account spends nothing.
 
