@@ -1,6 +1,11 @@
 import type { KintanaPublicEvent } from "@kintana/sdk";
+
+import { site } from "../content/site";
 import type { Locale } from "../i18n/locale";
 import { formatEventScheduleLine } from "./events";
+
+/** The club itself, as opposed to a guest venue we do not own a Google listing for. */
+const HOME_VENUE_SLUG = "iguana-comedy";
 
 export function eventHeroImageUrl(
   event: Pick<KintanaPublicEvent, "imageUrl" | "imageUrlMobile">
@@ -87,6 +92,11 @@ export function eventVenueMapEmbedUrl(
   event: Pick<KintanaPublicEvent, "venue" | "city">
 ): string | null {
   const venue = event.venue;
+  // Our own room, by its Google listing, so the embed shows the business card and a click opens the club.
+  // Coordinates alone render an anonymous pin, which is what the open mic lander shipped with.
+  if (venue?.slug === HOME_VENUE_SLUG && site.venueMapsCid) {
+    return `https://maps.google.com/maps?cid=${site.venueMapsCid}&z=16&output=embed`;
+  }
   if (venue?.lat != null && venue?.lng != null) {
     return `https://maps.google.com/maps?q=${venue.lat},${venue.lng}&z=15&output=embed`;
   }

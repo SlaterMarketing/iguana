@@ -16,6 +16,13 @@ export const site = {
    */
   venueMapsUrl:
     "https://www.google.com/maps/search/?api=1&query=Iguana%20Comedy&query_place_id=ChIJTTE8rE8tTI8Rgg7boGKlXno",
+  /**
+   * The same listing as a CID, which is what an EMBED needs. An embed built from lat/lng draws an unlabelled
+   * red pin: no name, no rating, and clicking it opens a dropped pin rather than the club. Built from the CID
+   * it draws the business card ("Iguana Comedy · 5.0 stars (15)") with open-in-Maps and directions buttons.
+   * Built from a name search it draws BOTH Iguana Comedy listings, which is its own argument for merging them.
+   */
+  venueMapsCid: "8817666963462098562",
   /** Full international display (WhatsApp widget text) */
   whatsappDisplay: "+52 998 937 0209",
   /**
