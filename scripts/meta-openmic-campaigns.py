@@ -58,6 +58,18 @@ ENGLISH_LOCALES = [6, 24]              # English (US), English (UK)
 
 SITE = 'https://iguanacomedy.com'
 
+# Meta's creative enhancements, opted out one by one. The blanket `standard_enhancements` switch these replaced
+# is now refused outright ("quedó obsoleto"), and an unrecognised name is refused too, so this list is only ever
+# the names the API actually accepted.
+#
+# Everything that rewrites the words or repaints the picture is off. The copy states a price and two clock times
+# and has to stay true, and the flyers carry the times and the address as artwork, which is why they were padded
+# to 4:5 rather than cropped in the first place. What is left on only adds places for the ad to appear:
+# adapt_to_placement, site_extensions and profile_card change nothing that is claimed.
+OPT_OUT_FEATURES = ['text_optimizations', 'text_generation', 'description_automation', 'enhance_cta',
+                    'image_touchups', 'add_text_overlay', 'image_brightness_and_contrast', 'image_templates',
+                    'image_background_gen', 'video_auto_crop']
+
 NIGHTS = {
     'es': {
         'label': 'Spanish',
@@ -150,9 +162,17 @@ def _fail(path, exc):
     raise GraphError(text)
 
 
-def with_backoff(call, *, tries=6, first_wait=60):
+# Whether this run is allowed to sit and wait out a rate limit. A build sets it: it has to finish, because a
+# half-built account has to be completed by hand afterwards. A report leaves it off, because the useful answer
+# there is the reason, not a twenty-minute silence. Patience belongs to the command, not to the verb: a LISTING
+# read inside a build is as load-bearing as the write that follows it.
+PATIENT = False
+
+
+def with_backoff(call):
     """Retry a rate-limited call, doubling the wait. Meta's ad account limit clears on a rolling window, so the
     only thing that helps is waiting; retrying immediately makes it worse."""
+    tries, first_wait = (7, 60) if PATIENT else (2, 20)
     wait = first_wait
     for attempt in range(1, tries + 1):
         try:
@@ -174,9 +194,7 @@ def get(path, **params):
         except urllib.error.HTTPError as exc:
             _fail(path, exc)
 
-    # Reads wait briefly and then give up with the reason. Only a WRITE is worth waiting out a rate limit for,
-    # because a half-built account has to be finished; a report that hangs for twenty minutes is just broken.
-    return with_backoff(once, tries=2, first_wait=20)
+    return with_backoff(once)
 
 
 def post(path, **params):
@@ -300,9 +318,8 @@ def creative_spec(lang, kind, *, video_id=None, thumbnail=None, image_hash=None,
     return {
         'name': name,
         'object_story_spec': {'page_id': PAGE_ID, 'instagram_user_id': INSTAGRAM_ID, **story},
-        # Meta reads the landing page and may rewrite the headline or crop the creative. The copy here is written
-        # to be exact about the price and the times, so it stays as written.
-        'degrees_of_freedom_spec': {'creative_features_spec': {'standard_enhancements': {'enroll_status': 'OPT_OUT'}}},
+        'degrees_of_freedom_spec': {'creative_features_spec':
+                                    {f: {'enroll_status': 'OPT_OUT'} for f in OPT_OUT_FEATURES}},
     }
 
 
@@ -423,6 +440,8 @@ def try_ad(blocked, lang, kind, adset_id, creative, ad_name, live):
 
 
 def cmd_apply(args):
+    global PATIENT
+    PATIENT = True
     missing = [f for lang in NIGHTS for f in [*NIGHTS[lang]['videos'], NIGHTS[lang]['image']]
                if not (CREATIVE_DIR / f).exists()]
     if missing:
