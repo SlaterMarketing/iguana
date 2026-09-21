@@ -17,6 +17,9 @@ const edgeReactAliases =
     : undefined;
 
 export default defineConfig({
+  // Normally `dist`. The deploy sets it to build BESIDE the running server and rename afterwards, because the
+  // Node adapter resolves route modules lazily and a rebuild in place 500s every route not yet imported.
+  ...(process.env.ASTRO_OUT_DIR ? { outDir: process.env.ASTRO_OUT_DIR } : {}),
   site: process.env.PUBLIC_SITE_URL?.replace(/\/$/, "") || "https://iguanacomedy.com",
   output: "server",
   session: {

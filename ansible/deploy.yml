@@ -122,6 +122,8 @@
           - "--exclude=.git/"
           - "--exclude=node_modules/"
           - "--exclude=dist/"
+          - "--exclude=dist.next/"
+          - "--exclude=dist.old/"
           - "--exclude=.astro/"
           - "--exclude=.env"
           - "--exclude=.dev.vars"
@@ -205,10 +207,30 @@
       args: {chdir: "{{ app_dir }}"}
       changed_when: false
 
-    - name: Build site (Node adapter)
+    # Built BESIDE the live one, never over it. The Node adapter resolves Astro's route modules lazily, so
+    # rebuilding dist/ under the running server makes every route it has not yet imported throw
+    # ERR_MODULE_NOT_FOUND until the restart -- which is how /en/open-mic/ served 500s for a minute on
+    # 2026-09-21 while the open mic ads were pointing at it. A build takes ~30s; a rename takes no time at all.
+    - name: Build site into a staging directory (Node adapter)
       command: npm run build:node
       args: {chdir: "{{ app_dir }}"}
-      environment: {NODE_OPTIONS: "--max-old-space-size=1536"}
+      environment:
+        NODE_OPTIONS: "--max-old-space-size=1536"
+        ASTRO_OUT_DIR: "{{ app_dir }}/dist.next"
+      changed_when: true
+
+    - name: Refuse to swap in a build that did not produce a server
+      stat: {path: "{{ app_dir }}/dist.next/server/entry.mjs"}
+      register: staged_build
+      failed_when: not staged_build.stat.exists
+
+    - name: Swap the new build in
+      shell: |
+        set -e
+        rm -rf "{{ app_dir }}/dist.old"
+        if [ -d "{{ app_dir }}/dist" ]; then mv "{{ app_dir }}/dist" "{{ app_dir }}/dist.old"; fi
+        mv "{{ app_dir }}/dist.next" "{{ app_dir }}/dist"
+      args: {executable: /bin/bash}
       changed_when: true
 
     # ----------------------------------------------------------- nginx/procs

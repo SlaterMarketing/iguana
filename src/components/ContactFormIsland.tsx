@@ -18,6 +18,9 @@ function contactFormFields(locale: Locale): KintanaFormField[] {
   ];
 }
 
+/** Must match catalog/spam.py HONEYPOT_FIELD. Hidden, never focusable, never announced. */
+const HONEYPOT_FIELD = "company_website";
+
 function collectFormValues(form: HTMLFormElement, fields: KintanaFormField[]): Record<string, string> {
   const fd = new FormData(form);
   const values: Record<string, string> = {};
@@ -38,6 +41,11 @@ function collectFormValues(form: HTMLFormElement, fields: KintanaFormField[]): R
     const raw = fd.get(field.id);
     values[field.id] = typeof raw === "string" ? raw : "";
   }
+
+  // The honeypot is not a declared field, so it has to be read by name. A browser leaves it empty; a bot that
+  // fills every input it finds does not, and the backend drops the submission without telling it why.
+  const trap = fd.get(HONEYPOT_FIELD);
+  values[HONEYPOT_FIELD] = typeof trap === "string" ? trap : "";
 
   return values;
 }
@@ -108,6 +116,10 @@ function StyledFormInner({
       )}
 
       <form className={hideHeading ? "grid gap-5" : "mt-8 grid gap-5"} onSubmit={(e) => void handleSubmit(e)}>
+        <div aria-hidden="true" className="absolute left-[-9999px] h-px w-px overflow-hidden">
+          <label htmlFor={HONEYPOT_FIELD}>Leave this field empty</label>
+          <input id={HONEYPOT_FIELD} name={HONEYPOT_FIELD} type="text" tabIndex={-1} autoComplete="off" />
+        </div>
         {fieldsForLocale.map((field) => (
           <div key={field.id} className="grid gap-2 text-sm font-medium text-neutral-900">
             {field.type === "boolean" ? (

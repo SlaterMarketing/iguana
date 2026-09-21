@@ -1,3 +1,4 @@
+import logging
 import re
 from datetime import date
 
@@ -6,6 +7,7 @@ from django.core.mail import send_mail
 from django.db.models import Prefetch, Q
 from django.http import Http404, JsonResponse
 
+from catalog.spam import rejection_reason
 from crm.geo import remember_on_contact, visitor_profile
 from sales.i18n import normalize
 from crm.models import ContactList, ContactListMember
@@ -117,6 +119,8 @@ def venue_detail(request, key):
     return JsonResponse({'venue': data})
 
 
+log = logging.getLogger(__name__)
+
 @api_view()
 def endpoints(request):
     rows = FormEndpoint.objects.filter(active=True)
@@ -138,11 +142,24 @@ def endpoint_submit(request, slug):
     visitor = visitor_profile(request, locale=fields.get('locale') or request.headers.get('X-Iguana-Locale', ''),
                               browser_language=context.get('browserLanguage', ''), time_zone=context.get('timeZone', ''))
     context['visitor'] = visitor
+    # Judged before anything is created, so the reason can be stored with the row.
+    spam = rejection_reason(fields)
+    if spam:
+        context['spam'] = spam
     submission = FormSubmission.objects.create(
         endpoint=endpoint, email=email, phone=phone, fields=fields, context=context,
         visitor_key=str(body.get('visitorKey', ''))[:100],
         ip=visitor.get('ip') or None,
+        # Marked handled so it never shows up as a person waiting for an answer.
+        handled=bool(spam),
     )
+    if spam:
+        log.info('form %s: dropped a %s submission from %s', endpoint.slug, spam, email)
+        # Answered exactly like a real one. Telling a bot which gate caught it is how it learns to pass.
+        # No contact row, no list membership, and above all no alert email: the cost of this was never the
+        # rows, it was teaching the owner to ignore the alert a real enquiry arrives in.
+        return JsonResponse({'ok': True, 'successMessage': endpoint.success_message or None,
+                             'redirectUrl': None, 'id': submission.pk})
     if endpoint.intent == 'newsletter':
         remember_on_contact(_join_newsletter(email, context), visitor)
         # A sign-up is not an enquiry: no alert email per subscriber.

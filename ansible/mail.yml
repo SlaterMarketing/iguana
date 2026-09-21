@@ -126,6 +126,17 @@
     - name: Mail reader for the local copies
       copy: {src: files/iguana-mail, dest: /usr/local/bin/iguana-mail, mode: '0755'}
 
+    # The reader is useless if the deploy user cannot open the mailbox, and it could not: /var/mail/inbox is
+    # 0600 inbox:mail and `iguana` was in neither. /check reported the mailbox as a clean channel on
+    # 2026-09-21 when it had in fact been unable to read a single message. Group-read for the `mail` group,
+    # which is what the group exists for; still unreadable to anyone else.
+    - name: Let the deploy user read the mailboxes
+      user: {name: "{{ deploy_user }}", groups: mail, append: true}
+
+    - name: Mailboxes are readable by the mail group
+      file: {path: "/var/mail/{{ item }}", mode: '0640', owner: "{{ item }}", group: mail}
+      loop: [inbox, dmarc]
+
     - name: System aliases deliver to inbox (DSNs about our own mail must not bounce)
       lineinfile:
         path: /etc/aliases

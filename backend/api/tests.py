@@ -788,3 +788,63 @@ class WeeklyEmailTests(ApiTestCase):
 
         parser = Command().create_parser('manage.py', 'send_whats_on')
         self.assertIsNone(parser.parse_args([]).lede_file)
+
+
+class FormSpamTests(ApiTestCase):
+    """The contact form had no gate and a bot found it: 15 submissions in three days, every one a random
+    string, and every one emailed the owner. The rows were never the cost; the alert going unread was."""
+
+    def submit(self, slug, fields, email='someone@example.com'):
+        return self.api('post', f'/api/public/v1/endpoints/{slug}/submit', {'email': email, 'fields': fields})
+
+    def test_a_real_enquiry_still_gets_through_and_still_alerts(self):
+        from catalog.models import FormSubmission
+
+        mail.outbox.clear()
+        with self.settings(NOTIFY_EMAILS=['hello@example.com']):
+            response = self.submit('contact', {'name': 'Ada', 'message': 'Do you take group bookings?'})
+        self.assertEqual(response.status_code, 200)
+        row = FormSubmission.objects.latest('created_at')
+        self.assertFalse(row.handled)
+        self.assertNotIn('spam', row.context)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_a_random_string_is_dropped_without_alerting(self):
+        from catalog.models import FormSubmission
+
+        mail.outbox.clear()
+        with self.settings(NOTIFY_EMAILS=['hello@example.com']):
+            # The exact shape the live bot sends: one unbroken run, no spaces, no name.
+            response = self.submit('contact', {'message': 'qjWYpEHreBSHUKwJlWwkQGD'})
+        # Answered exactly like a real one: telling a bot which gate caught it is how it learns to pass.
+        self.assertEqual(response.status_code, 200)
+        self.assertTrue(response.json()['ok'])
+        row = FormSubmission.objects.latest('created_at')
+        self.assertEqual(row.context.get('spam'), 'random_text')
+        self.assertTrue(row.handled, 'spam must not sit in the backlog as a person waiting for an answer')
+        self.assertEqual(mail.outbox, [])
+
+    def test_a_filled_honeypot_is_dropped(self):
+        from catalog.models import FormSubmission
+        from catalog.spam import HONEYPOT_FIELD
+
+        mail.outbox.clear()
+        with self.settings(NOTIFY_EMAILS=['hello@example.com']):
+            self.submit('contact', {'message': 'Hola, quiero reservar', HONEYPOT_FIELD: 'http://spam.example'})
+        self.assertEqual(FormSubmission.objects.latest('created_at').context.get('spam'), 'honeypot')
+        self.assertEqual(mail.outbox, [])
+
+    def test_ordinary_short_answers_are_not_mistaken_for_tokens(self):
+        from catalog.spam import looks_like_a_person_wrote_it
+
+        for text in ('Hola', 'gracias!', 'Do you take group bookings?', '', 'si', 'Yes please'):
+            self.assertTrue(looks_like_a_person_wrote_it(text), text)
+        for text in ('qjWYpEHreBSHUKwJlWwkQGD', 'txfyHCRLeIwqciJGuOgYO', 'iCwiEKVTQCOsfZGlCg'):
+            self.assertFalse(looks_like_a_person_wrote_it(text), text)
+
+    def test_a_newsletter_signup_is_never_judged_on_free_text_it_does_not_have(self):
+        from catalog.models import FormEndpoint, FormSubmission
+
+        FormEndpoint.objects.create(slug='newsletter', intent='newsletter')
+        self.submit('newsletter', {}, email='reader@example.com')
+        self.assertFalse(FormSubmission.objects.latest('created_at').handled)
