@@ -1,3 +1,4 @@
+import logging
 from dataclasses import dataclass, field
 
 import stripe
@@ -16,6 +17,9 @@ from sales.models import Membership, Order, OrderItem, Ticket
 
 # Django date formats: "Wednesday 23 September 2026" / "miércoles 23 de septiembre de 2026".
 DATE_FORMATS = {'en': 'l j F Y', 'es': r'l j \d\e F \d\e Y'}
+
+
+log = logging.getLogger(__name__)
 
 
 class CheckoutError(Exception):
@@ -243,4 +247,14 @@ def send_order_confirmation(order):
         lines += ['', tr(lang, 'Your tickets (show this at the door): {0}', link)]
         subject = tr(lang, 'Your tickets: {0}', order.event_name)
     lines += ['', tr(lang, 'See you there,'), 'Iguana Comedy', 'iguanacomedy.com']
-    send_mail(subject, '\n'.join(lines), settings.DEFAULT_FROM_EMAIL, [order.customer_email])
+    # fail_silently, because this runs on_commit and therefore inside the request: an address the mail server
+    # refuses would otherwise raise SMTPRecipientsRefused straight through a checkout that had ALREADY created
+    # and completed the order. The customer would see a 500 and still hold a valid ticket, which is the worst
+    # of both. Measured on production the night reservations became free, when the refused address happened to
+    # be a probe; the next one would have been a typo in a stranger's email, and free bookings mean many more
+    # addresses typed by people with nothing at stake.
+    sent = send_mail(subject, '\n'.join(lines), settings.DEFAULT_FROM_EMAIL, [order.customer_email],
+                     fail_silently=True)
+    if not sent:
+        log.warning('order %s completed but its confirmation to %s was not accepted', order.id, order.customer_email)
+    return sent

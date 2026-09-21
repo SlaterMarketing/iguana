@@ -1099,3 +1099,43 @@ class FreeReservationTests(ApiTestCase):
         self.assertIn('Want to order your drinks in advance?', page)
         spanish = self.client.get(f'/embed/event/{self.mic.id}?embedded=1&lang=es').content.decode()
         self.assertIn('¿Quieres pedir tus bebidas por adelantado?', spanish)
+
+
+class ConfirmationEmailCannotBreakABookingTests(ApiTestCase):
+    """A completed reservation must survive a refused confirmation email.
+
+    Found on production the night reservations became free: the confirmation is sent on_commit, so it runs
+    inside the request, and an address the mail server refused raised SMTPRecipientsRefused straight through a
+    checkout that had already created AND completed the order. The customer saw a 500 and held a valid ticket.
+    Free bookings mean far more addresses typed by people with nothing at stake, so a typo must cost the email
+    and nothing else.
+    """
+
+    def setUp(self):
+        from catalog.models import Event, TicketType
+
+        self.mic = Event.objects.create(name='Open Mic', slug='mic-mail', status=Event.ACTIVE, venue=self.venue,
+                                        currency='mxn', date=timezone.now() + timedelta(days=2), tags=['open-mic'])
+        self.seat = TicketType.objects.create(event=self.mic, name='Free reserved seat', price_cents=0, capacity=60)
+
+    def test_a_refused_address_does_not_500_a_completed_reservation(self):
+        import smtplib
+        from unittest import mock
+
+        from sales.models import Order
+
+        refused = smtplib.SMTPRecipientsRefused({'nope@example.com': (550, b'User unknown')})
+        # Patch the SMTP socket, not Django's send_messages: `fail_silently` is implemented INSIDE the backend,
+        # so mocking the backend method tests the mock instead of the protection.
+        with self.settings(EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend'), \
+                mock.patch('smtplib.SMTP') as smtp:
+            smtp.return_value.sendmail.side_effect = refused
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post(
+                    f'/api/checkout/{self.mic.id}/start', content_type='application/json',
+                    data=json.dumps({'items': {self.seat.id: 1}, 'name': 'Ada', 'email': 'nope@example.com'}))
+        self.assertEqual(response.status_code, 200, 'the booking succeeded; the email is not the booking')
+        self.assertTrue(response.json()['complete'])
+        order = Order.objects.get(pk=response.json()['orderId'])
+        self.assertEqual(order.status, Order.COMPLETED)
+        self.assertEqual(order.tickets.count(), 1, 'the seat is held even though we could not write about it')
