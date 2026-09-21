@@ -120,7 +120,16 @@ def event_urls(event):
     return embed, f'{embed}?embedded=1'
 
 
-def event_json(event, plan=None, lang='en'):
+def _demand(event):
+    # Imported here: sales imports catalog, so a module-level import the other way is a cycle.
+    from sales.demand import demand
+
+    return demand(event)
+
+
+def event_json(event, plan=None, lang='en', demand=None):
+    """`demand` is passed in by listing views, which compute it for the whole page at once; a single event
+    works it out for itself."""
     types = [t for t in event.ticket_types.all() if t.active]
     lineup = list(event.lineup.all())
     headliner = next((e for e in lineup if e.headliner), None)
@@ -140,6 +149,7 @@ def event_json(event, plan=None, lang='en'):
         'imageUrlMobile': media(event.poster_mobile(lang)),
         'ticketUrl': ticket_url,
         'embedUrl': embed_url,
+        'demand': demand if demand is not None else _demand(event),
         'doorsOpen': event.doors_open or None,
         'showTime': event.show_time or None,
         'endTime': event.end_time or None,

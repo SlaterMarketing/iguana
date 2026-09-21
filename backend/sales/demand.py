@@ -16,6 +16,7 @@ from datetime import timedelta
 from django.db.models import Sum
 from django.utils import timezone
 
+from catalog.models import TicketType
 from sales.models import Order, OrderItem
 
 # Tightest first. Each is (hours, the key the widget translates).
@@ -61,3 +62,48 @@ def demand(event):
         'recent': recent,
         'recentWindow': window,
     }
+
+
+def demand_for(events):
+    """The same thing for a whole listing page, in two queries rather than two per row.
+
+    The events index shows a dozen nights. Calling demand() per row would be a dozen round trips to say the
+    same thing, which is how a listing page quietly becomes the slowest page on the site.
+    """
+    events = [e for e in events if e is not None]
+    if not events:
+        return {}
+
+    capacities = {}
+    for t in TicketType.objects.filter(event__in=events, active=True, is_addon=False):
+        if t.capacity is not None:
+            capacities[t.event_id] = capacities.get(t.event_id, 0) + t.capacity
+
+    now = timezone.now()
+    taken, recent = {}, {h: {} for h, _ in WINDOWS}
+    rows = (OrderItem.objects
+            .filter(order__event__in=events, order__status=Order.COMPLETED)
+            .exclude(ticket_type__is_addon=True)
+            .values_list('order__event_id', 'quantity', 'order__completed_at'))
+    for event_id, quantity, completed in rows:
+        taken[event_id] = taken.get(event_id, 0) + quantity
+        for hours, _ in WINDOWS:
+            if completed and completed >= now - timedelta(hours=hours):
+                recent[hours][event_id] = recent[hours].get(event_id, 0) + quantity
+
+    out = {}
+    for event in events:
+        capacity = capacities.get(event.id, 0)
+        if not capacity:
+            continue
+        got = taken.get(event.id, 0)
+        count, window = 0, ''
+        for hours, label in WINDOWS:
+            if recent[hours].get(event.id, 0) >= MIN_RECENT:
+                count, window = recent[hours][event.id], label
+                break
+        out[event.id] = {
+            'capacity': capacity, 'taken': got, 'left': max(0, capacity - got),
+            'showBar': got / capacity >= BAR_FROM, 'recent': count, 'recentWindow': window,
+        }
+    return out

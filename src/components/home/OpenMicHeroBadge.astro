@@ -4,6 +4,7 @@ import type { KintanaPublicEvent } from "@kintana/sdk";
 import type { Locale } from "../../i18n/locale";
 import { localizePath } from "../../i18n/routes";
 import { t } from "../../i18n/ui";
+import { demandLine } from "../../lib/demand";
 import { formatSeatPrice, nextBookableOpenMics } from "../../lib/open-mics";
 
 interface Props {
@@ -31,7 +32,15 @@ const nights = [
     label: t(locale, "openMic.hero.reserveWednesday"),
     event: next.en,
   },
-].flatMap((night) => (night.event ? [{ ...night, event: night.event, price: formatSeatPrice(night.event, locale) }] : []));
+].flatMap((night) =>
+  night.event
+    ? [{ ...night, event: night.event, price: formatSeatPrice(night.event, locale), demand: demandLine(night.event, locale) }]
+    : [],
+);
+// Somebody else is already coming. Each line names its night, because two buttons sit above them and an
+// unattributed count would be read as belonging to whichever one the eye landed on last. A night with nothing
+// true to say says nothing: see src/lib/demand.ts.
+const pressure = nights.flatMap((night) => (night.demand ? [{ day: night.dayShort, demand: night.demand }] : []));
 const buttonClass =
   "inline-flex items-center gap-2 sm:gap-3 whitespace-nowrap rounded-2xl border border-white/40 bg-black/30 px-3 py-2 text-left font-semibold uppercase text-white backdrop-blur transition hover:bg-white hover:text-neutral-950 sm:px-5";
 
@@ -79,4 +88,20 @@ const [beforeFree, afterFree = ""] = t(locale, "openMic.hero.title").split("{fre
       )
     }
   </div>
+  {
+    pressure.length > 0 && (
+      <div class="flex flex-col items-center gap-1">
+        {pressure.map((row) => (
+          <p
+            class:list={[
+              "text-[0.62rem] font-semibold uppercase tracking-[0.18em] sm:text-[0.7rem] sm:tracking-[0.22em]",
+              row.demand.tight ? "text-amber-300" : "text-white/75",
+            ]}
+          >
+            {row.day} · {row.demand.text}
+          </p>
+        ))}
+      </div>
+    )
+  }
 </div>

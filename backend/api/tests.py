@@ -1349,6 +1349,38 @@ class DemandLineTests(ApiTestCase):
         self.reserve(20, 'b@example.com')
         self.assertTrue(demand(self.mic)['showBar'])
 
+    def test_the_listing_carries_it_too(self):
+        """The site puts the same line under the home page hero and on every event card, so it has to come back
+        from the list endpoint and not only from the single-event payload the iframe reads."""
+        self.reserve(1, 'a@example.com', timedelta(minutes=5))
+        self.reserve(1, 'b@example.com', timedelta(minutes=6))
+        rows = self.api('get', '/api/public/v1/events').json()['events']
+        mine = next(e for e in rows if e['id'] == self.mic.id)
+        self.assertEqual(mine['demand']['recent'], 2)
+        self.assertEqual(mine['demand']['recentWindow'], 'in the last hour')
+
+    def test_the_bulk_and_single_counts_cannot_drift(self):
+        """`demand_for` exists only so a listing page is not 2N queries. The moment the two disagree, the home
+        page and the reserve button start telling a visitor different things about the same night."""
+        from sales.demand import demand, demand_for
+
+        self.reserve(3, 'a@example.com', timedelta(minutes=5))
+        self.reserve(19, 'b@example.com', timedelta(hours=30), drinks=6)
+        other = Event.objects.create(name='Quiet night', slug='quiet-demand', status=Event.ACTIVE, venue=self.venue,
+                                     date=timezone.now() + timedelta(days=3))
+        TicketType.objects.create(event=other, name='GA', price_cents=0, capacity=40)
+
+        events = [self.mic, other, self.event]
+        self.assertEqual(demand_for(events), {e.id: demand(e) for e in events if demand(e)})
+
+    def test_a_listing_does_not_cost_a_query_per_row(self):
+        from sales.demand import demand_for
+
+        self.reserve(2, 'a@example.com')
+        events = list(Event.objects.all())
+        with self.assertNumQueries(2):
+            demand_for(events)
+
     def test_it_is_in_the_json_the_widget_reads(self):
         self.reserve(1, 'a@example.com', timedelta(minutes=5))
         self.reserve(1, 'b@example.com', timedelta(minutes=6))

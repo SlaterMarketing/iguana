@@ -1,6 +1,7 @@
 ---
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import { eventCitySlug, eventSupportsOnSiteCheckout, eventLanguageLabel, formatEventScheduleLine, formatMinorUnitsPrice } from "../lib/events";
+import { demandLine } from "../lib/demand";
 import { isOpenMic } from "../lib/open-mics";
 import { t } from "../i18n/ui";
 import { localizePath } from "../i18n/routes";
@@ -31,6 +32,9 @@ const priceLabel = priceFormatted ? t(locale, "events.priceStarting").replace("{
 const languageLabel = eventLanguageLabel(evt, locale);
 // Entry to an open mic is free, so the card offers a seat reservation, the same words the hero and the callout use.
 const ticketsLabel = isOpenMic(evt) ? t(locale, "ui.reserveSeat") : t(locale, "ui.buyTickets");
+
+// How the night is filling. Never on a show that has already happened, where it would only be a scoreboard.
+const demand = past ? null : demandLine(evt, locale);
 
 const statusBadge =
   past
@@ -138,6 +142,28 @@ const emphasized =
           {t(locale, "events.offeredIn").replace("{language}", languageLabel)}
         </p>
         {priceLabel ? <p class="text-sm font-medium opacity-[0.9]">{priceLabel}</p> : null}
+        {
+          demand ? (
+            <div class="mx-auto max-w-xs space-y-2">
+              {demand.fill != null ? (
+                <div class:list={["h-1.5 overflow-hidden rounded-full", emphasized ? "bg-neutral-900/15" : "bg-white/25"]}>
+                  <div
+                    class:list={["h-full rounded-full", emphasized ? "bg-neutral-900" : "bg-white"]}
+                    style={`width: ${demand.fill}%`}
+                  />
+                </div>
+              ) : null}
+              <p
+                class:list={[
+                  "text-xs font-semibold uppercase tracking-[0.22em]",
+                  demand.tight ? "opacity-100" : "opacity-85",
+                ]}
+              >
+                {demand.text}
+              </p>
+            </div>
+          ) : null
+        }
       </div>
 
       <div class="relative z-10 mt-12 flex flex-wrap justify-center gap-6">

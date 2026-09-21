@@ -10,6 +10,7 @@ from django.http import Http404, JsonResponse
 from catalog.spam import rejection_reason
 from crm.optin import send_confirmation
 from crm.geo import remember_on_contact, visitor_profile
+from sales.demand import demand_for
 from sales.i18n import normalize
 from crm.models import Contact, ContactList, ContactListMember
 from catalog.models import Artist, Event, FormEndpoint, FormSubmission, LineupEntry, SiteFile, StoreCollection, StoreProduct, Venue
@@ -73,7 +74,11 @@ def events(request):
     elif status in ('on-sale', 'sold-out'):
         qs = qs.filter(date__date__gte=today).exclude(status__in=[Event.CANCELLED, Event.POSTPONED])
     plan = active_plan()
-    rows = [event_json(e, plan, normalize(request.GET.get('locale'))) for e in qs.distinct()]
+    rows_qs = list(qs.distinct())
+    # One pass for the page, rather than two queries per row.
+    pressure = demand_for(rows_qs)
+    lang = normalize(request.GET.get('locale'))
+    rows = [event_json(e, plan, lang, demand=pressure.get(e.id)) for e in rows_qs]
     if status in ('on-sale', 'sold-out'):
         rows = [r for r in rows if r['status'] == status]
     return JsonResponse({'events': rows[: _limit(request, 24)]})
@@ -89,7 +94,9 @@ def _upcoming_for(lang='en', **filters):
     today = today_local()
     plan = active_plan()
     qs = public_events().exclude(visibility='UNLISTED').filter(date__date__gte=today, **filters).exclude(status=Event.CANCELLED)
-    return [event_json(e, plan, lang) for e in qs.distinct()]
+    rows_qs = list(qs.distinct())
+    pressure = demand_for(rows_qs)
+    return [event_json(e, plan, lang, demand=pressure.get(e.id)) for e in rows_qs]
 
 
 @api_view()
