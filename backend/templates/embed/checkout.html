@@ -134,9 +134,14 @@
       form.hidden = true;
       return;
     }
+    // A show with one thing to buy starts at one. The widget otherwise opens on "0" with no button at all and
+    // the words "choose how many with +", so an ad click lands on a puzzle rather than on a price and a button.
+    // More than one ticket type is a real choice and still starts empty, because guessing which one is worse.
+    var single = ev.ticketTypes.length === 1 && !ev.ticketTypes[0].soldOut
+      && ev.ticketTypes[0].memberAccess !== "MEMBERS_ONLY";
     ev.ticketTypes.forEach(function (t) {
-      qty[t.id] = 0;
       var limit = Math.min(t.maxPerOrder || 20, t.remaining != null ? t.remaining : Infinity);
+      qty[t.id] = single && limit >= 1 ? 1 : 0;
       var row = document.createElement("div"); row.className = "type";
       var top = document.createElement("div"); top.className = "type-top";
       var info = document.createElement("div");

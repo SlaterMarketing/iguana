@@ -155,6 +155,8 @@
         requirements: "{{ app_dir }}/backend/requirements.txt"
         virtualenv: "{{ app_dir }}/backend/venv"
         virtualenv_command: python3 -m venv
+      # Decides whether the API can be reloaded in place or has to be restarted; see the reload task below.
+      register: venv
 
     - name: Migrate
       command: venv/bin/python manage.py migrate --noinput
@@ -268,10 +270,41 @@
           timeout 30m {{ app_dir }}/backend/venv/bin/python {{ app_dir }}/backend/manage.py send_whats_on
           --send --lede-file {{ newsletter_lede }} 2>&1 | logger -t iguana-newsletter
 
-    - name: Restart app
+    # The API serves the checkout iframe and k.js, so a hard restart of it shows a 502 inside the checkout on a
+    # live ad click. Gunicorn's master keeps the listening socket across a HUP and rolls its workers, which
+    # re-import the code, so a code deploy costs no dropped requests. A dependency change needs the real restart,
+    # because the master itself has to come back on the new environment.
+    - name: Reload the API gracefully (no dropped requests)
       become: true
-      command: "supervisorctl restart {{ projectname }}:"
+      command: "supervisorctl signal HUP {{ projectname }}:{{ projectname }}-api"
+      when: not (venv.changed | default(false))
       changed_when: true
+
+    - name: Restart the API (dependencies changed, so a reload is not enough)
+      become: true
+      command: "supervisorctl restart {{ projectname }}:{{ projectname }}-api"
+      when: venv.changed | default(false)
+      changed_when: true
+
+    - name: Restart the site
+      become: true
+      command: "supervisorctl restart {{ projectname }}:{{ projectname }}-web"
+      changed_when: true
+
+    # Never walk away from a deploy without knowing the thing an ad click lands on is actually answering. Both
+    # are local, so this is a sub-second check, and a failure here fails the play rather than going quiet.
+    - name: Wait for the site and the checkout to answer again
+      uri:
+        url: "{{ item }}"
+        status_code: 200
+        timeout: 10
+      register: back_up
+      retries: 15
+      delay: 2
+      until: back_up is succeeded
+      loop:
+        - "http://127.0.0.1:3000/en/open-mic/"
+        - "http://127.0.0.1:8001/_t/k.js"
 
     # ----------------------------------------------------------------- certs
     - name: Obtain certificates (needs DNS pointing here)

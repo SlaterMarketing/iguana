@@ -7,3 +7,4 @@ dist
 !.dev.vars.example
 .astro
 __pycache__/
+build/
