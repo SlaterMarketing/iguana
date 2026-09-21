@@ -231,7 +231,7 @@ export const ui = {
 
     "store.eyebrow": "Merch desk",
     "store.title": "Iguana merch",
-    "store.description": "Browse here on iguanacomedy.com. When you are ready to buy, checkout opens on our secure payments page.",
+    "store.description": "Iguana shirts and bits from the club. Browse here; when something is on sale, checkout opens on our secure payments page.",
     "store.label": "store",
     "store.noCredentials": "Store catalogue connects once ticketing credentials are live.",
     "store.error": "We could not load the merch catalogue right now. Check back shortly, or message us and we will sort you out.",
@@ -532,7 +532,7 @@ export const ui = {
 
     "store.eyebrow": "Tienda",
     "store.title": "Tienda de Iguana",
-    "store.description": "Navega aquí en iguanacomedy.com. Cuando estés listo para comprar, el pago se abre en nuestra página segura.",
+    "store.description": "Playeras y cosas de Iguana del club. Navega aquí; cuando haya algo a la venta, el pago se abre en nuestra página segura.",
     "store.label": "tienda",
     "store.noCredentials": "El catálogo de la tienda se conecta una vez que las credenciales de taquilla estén activas.",
     "store.error": "No pudimos cargar el catálogo de la tienda ahora. Vuelve a intentar pronto o escríbenos y lo resolvemos.",
