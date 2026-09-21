@@ -256,7 +256,7 @@ def fan_event_json(event, contact, lang='en'):
             'currency': event.currency, 'memberAccess': t.member_access, 'memberPriceCents': t.member_price_cents,
             'yourPriceCents': member_unit_price(t, membership) if membership else None,
             'soldOut': left == 0, 'remaining': left,
-            'payAtDoor': t.pay_at_door, 'maxPerOrder': t.max_per_order or 20,
+            'payAtDoor': t.pay_at_door, 'maxPerOrder': t.max_per_order or 20, 'isAddon': t.is_addon,
         })
     data = {
         'id': event.id, 'slug': event.slug, 'name': event.label(lang), 'date': event_day(event),

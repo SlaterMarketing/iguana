@@ -186,6 +186,12 @@ ES = {
     'It may have expired. Sign up again on the site and we will send a new one.':
         'Quizá caducó. Vuelve a registrarte en el sitio y te mandamos otro.',
     'Back to the site': 'Volver al sitio',
+    # Free open mic reservation + the drinks upsell
+    'Reserve my free spot': 'Reserva mi lugar gratis',
+    'Reserve {0} free spots': 'Reserva {0} lugares gratis',
+    'Nothing to pay': 'No pagas nada',
+    'Want to order your drinks in advance?': '¿Quieres pedir tus bebidas por adelantado?',
+    'Reserve a free seat: {0}': 'Reserva un lugar gratis: {0}',
 }
 
 

@@ -32,11 +32,11 @@ const copy = {
       { day: "Tuesday", show: "Open mic in Spanish", event: next.es },
       { day: "Wednesday", show: "Open mic in English", event: next.en },
     ],
-    reserve: "Reserve",
-    perSeat: "per seat, includes a free drink",
+    reserve: "Reserve free",
+    perSeat: "Free to reserve",
     nextNight: "Next",
     reserveNote:
-      "Entry is always free, but walk-ins may be turned away when we are full. A reservation guarantees your seat and includes a free drink. Arrive when doors open.",
+      "Entry is always free, but walk-ins may be turned away when we are full. Reserving is free too and holds your seat. Arrive when doors open.",
     venue: "At Iguana Comedy, Playa del Carmen",
     maps: "Directions",
     more: "All about the open mics",
@@ -49,11 +49,11 @@ const copy = {
       { day: "Martes", show: "Open mic en español", event: next.es },
       { day: "Miércoles", show: "Open mic en inglés", event: next.en },
     ],
-    reserve: "Reservar",
-    perSeat: "por lugar, incluye una bebida gratis",
+    reserve: "Reservar gratis",
+    perSeat: "Reservar es gratis",
     nextNight: "Próximo",
     reserveNote:
-      "La entrada siempre es gratis, pero sin reservación podemos negarte el paso si se llena. Tu reservación te garantiza un lugar e incluye una bebida gratis. Llega a la hora de apertura de puertas.",
+      "La entrada siempre es gratis, pero sin reservación podemos negarte el paso si se llena. Reservar también es gratis y te aparta el lugar. Llega a la hora de apertura de puertas.",
     venue: "En Iguana Comedy, Playa del Carmen",
     maps: "Cómo llegar",
     more: "Todo sobre los open mics",
@@ -104,7 +104,7 @@ const canReserve = copy.nights.some((night) => night.event);
                 <span class="mt-2 text-sm text-white/70">
                   {copy.nextNight}: {formatEventDate(night.event.date, locale)}
                   <br />
-                  {formatSeatPrice(night.event, locale)} {copy.perSeat}
+                  {copy.perSeat}
                 </span>
                 <span class="mt-5 inline-flex items-center gap-2 rounded-full bg-white px-6 py-2.5 text-xs font-semibold uppercase tracking-[0.3em] text-neutral-950 transition group-hover:bg-brand group-hover:text-white">
                   {copy.reserve}

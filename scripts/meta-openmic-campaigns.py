@@ -101,10 +101,10 @@ NIGHTS = {
         'videos': ['openmic-es-long-9x16.mp4', 'openmic-es-short-9x16.mp4'],
         'image': 'openmic-es-flyer-4x5.jpg',
         'copy': {
-            'message': ('Stand-up gratis cada martes en Playa del Carmen. Lista a las 8, show a las 9, y la '
-                        'entrada siempre es gratis.\n\nLa sala es de 80 lugares y se llena. Si quieres tu lugar '
-                        'seguro, la reservación cuesta 50 pesos e incluye una bebida.'),
-            'title': 'Open mic en español, cada martes',
+            'message': ('Stand-up gratis cada martes en Playa del Carmen. Lista a las 8, show a las 9.\n\n'
+                        'La sala es de 80 lugares y se llena. Aparta tu lugar gratis en treinta segundos y '
+                        'entras seguro.'),
+            'title': 'Reserva tu lugar gratis, cada martes',
             'description': 'Iguana Comedy, Calle 6 norte y Av 20, centro',
         },
         'reach_copy': {
@@ -124,10 +124,10 @@ NIGHTS = {
         'videos': ['openmic-en-long-9x16.mp4'],
         'image': 'openmic-en-flyer-4x5.jpg',
         'copy': {
-            'message': ('Free stand-up every Wednesday in Playa del Carmen. Doors at 8, show at 8:30, and entry '
-                        'is always free.\n\nThe room holds 80 and it fills up. If you want your seat held, a five '
-                        'dollar reservation keeps it and includes a drink.'),
-            'title': 'English comedy night, every Wednesday',
+            'message': ('Free stand-up every Wednesday in Playa del Carmen. Doors at 8, show at 8:30.\n\n'
+                        'The room holds 80 and it fills up. Reserve your spot free in thirty seconds and walk '
+                        'straight in.'),
+            'title': 'Reserve your free spot, every Wednesday',
             'description': 'Iguana Comedy, Calle 6 Nte and Av 20, centro',
         },
         'reach_copy': {
@@ -326,7 +326,8 @@ def adset_spec(lang, kind, campaign_id):
 def creative_spec(lang, kind, *, video_id=None, thumbnail=None, image_hash=None, name=''):
     night = NIGHTS[lang]
     copy = night['copy'] if kind == 'reservations' else night['reach_copy']
-    cta = {'type': 'BOOK_NOW' if kind == 'reservations' else 'LEARN_MORE',
+    # The seat costs nothing, so this is a sign-up, not a booking. BOOK_NOW implies a bill.
+    cta = {'type': 'SIGN_UP' if kind == 'reservations' else 'LEARN_MORE',
            'value': {'link': night['link']}}
     if video_id:
         story = {'video_data': {'video_id': video_id, 'message': copy['message'], 'title': copy['title'],

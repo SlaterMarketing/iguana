@@ -133,6 +133,12 @@ def price_cart(event, requested, contact, lang='en'):
 @transaction.atomic
 def create_order(event, cart, *, name, email, phone, contact, attribution=None, locale='en'):
     lang = normalize(locale)
+    email = email.strip().lower()
+    # Nothing paid up front means nothing stops one person taking the room. Sixty free seats and no limit is an
+    # invitation; the same guard already covers pay-at-the-door bookings for exactly this reason.
+    if cart.total_cents == 0 and Order.objects.filter(
+            event=event, customer_email=email, status=Order.COMPLETED).exists():
+        raise CheckoutError('You already have a reservation for this night. Check your email for your seats.')
     first, _, last = name.strip().partition(' ')
     contact = contact or upsert_contact(email, 'ORDER', first, last, phone)
     order = Order.objects.create(
@@ -140,7 +146,7 @@ def create_order(event, cart, *, name, email, phone, contact, attribution=None, 
         event_name=event.label(lang),
         contact=contact,
         customer_name=name.strip(),
-        customer_email=email.strip().lower(),
+        customer_email=email,
         customer_phone=phone.strip(),
         currency=event.currency,
         total_amount_cents=cart.total_cents,

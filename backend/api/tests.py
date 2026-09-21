@@ -421,19 +421,30 @@ class ReservationTests(ApiTestCase):
         return Event.objects.create(name='Noche de Open Mic - Espanol!', slug='noche-open-mic', venue=self.venue,
                                     date=timezone.now() + timedelta(days=6))
 
-    def test_setup_refuses_paid_reservations_without_stripe(self):
+    def test_setup_publishes_without_stripe_but_offers_no_drinks(self):
+        """It used to refuse outright, because a seat cost 50 pesos and nobody could pay. A free seat needs no
+        card, so the night goes up regardless; only the upsell waits for Stripe. An add-on nobody can pay for
+        would be worse than none, since it puts a price on a page advertising the night as free."""
         from io import StringIO
 
-        from django.core.management import CommandError, call_command
+        from django.core.management import call_command
 
         spanish = self.spanish_night()
-        with self.assertRaisesMessage(CommandError, 'Stripe is not configured'):
-            call_command('setup_open_mics', stdout=StringIO())
+        call_command('setup_open_mics', stdout=StringIO())
         spanish.refresh_from_db()
-        self.assertEqual(spanish.status, Event.DRAFT)
-
-        call_command('setup_open_mics', '--pay-at-door', stdout=StringIO())
+        self.assertEqual(spanish.status, Event.ACTIVE)
         seat = spanish.ticket_types.get()
+        self.assertEqual(seat.price_cents, 0)
+        self.assertFalse(seat.is_addon)
+
+    def test_pay_at_door_still_marks_the_seat_and_says_so(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        spanish = self.spanish_night()
+        call_command('setup_open_mics', '--pay-at-door', stdout=StringIO())
+        seat = spanish.ticket_types.get(is_addon=False)
         self.assertTrue(seat.pay_at_door)
         self.assertTrue(seat.description.endswith('Pay at the door.'))
         self.assertTrue(seat.description_es.endswith('Pagas en la puerta.'))
@@ -451,9 +462,13 @@ class ReservationTests(ApiTestCase):
         self.assertEqual((spanish.status, spanish.currency, spanish.language, spanish.members_eligible),
                          (Event.ACTIVE, 'mxn', 'es', False))
         self.assertIn('open-mic', spanish.tags)
-        seat = spanish.ticket_types.get()
+        seat = spanish.ticket_types.get(is_addon=False)
         self.assertEqual((seat.name, seat.name_es, seat.price_cents, seat.capacity, seat.max_per_order, seat.pay_at_door),
-                         ('Reserved seat + 1 free drink', 'Lugar reservado + 1 bebida gratis', 5000, 60, 6, False))
+                         ('Free reserved seat', 'Lugar reservado gratis', 0, 60, 6, False))
+        # The sale. Priced in the night's own currency and never auto-selected.
+        drinks = spanish.ticket_types.get(is_addon=True)
+        self.assertEqual((drinks.price_cents, drinks.max_per_order), (10000, 6))
+        self.assertIn('bebidas', drinks.name_es)
         # Posters carry words, so each night has one per site language; the Spanish night's English-worded poster is
         # the default and its Spanish-worded one is the _es field.
         self.assertEqual((spanish.image_url, spanish.image_url_es),
@@ -464,7 +479,7 @@ class ReservationTests(ApiTestCase):
         call_command('setup_open_mics', stdout=StringIO())
         spanish.refresh_from_db()
         self.assertEqual(spanish.image_url, '/media/events/custom.jpg')
-        self.assertEqual(spanish.ticket_types.count(), 1)
+        self.assertEqual(spanish.ticket_types.count(), 2, 'the seat and the drinks, never duplicated')
 
     @override_settings(STRIPE_SECRET_KEY='sk_test_x', STRIPE_PUBLISHABLE_KEY='pk_test_x')
     def test_setup_renames_a_spanish_named_type_instead_of_duplicating_it(self):
@@ -475,9 +490,24 @@ class ReservationTests(ApiTestCase):
         spanish = self.spanish_night()
         TicketType.objects.create(event=spanish, name='Lugar reservado + 1 bebida gratis', price_cents=5000, pay_at_door=True)
         call_command('setup_open_mics', stdout=StringIO())
-        seat = spanish.ticket_types.get()
-        self.assertEqual((seat.name, seat.name_es, seat.pay_at_door), ('Reserved seat + 1 free drink',
-                                                                       'Lugar reservado + 1 bebida gratis', False))
+        seat = spanish.ticket_types.get(is_addon=False)
+        self.assertEqual((seat.name, seat.name_es, seat.pay_at_door),
+                         ('Free reserved seat', 'Lugar reservado gratis', False))
+        self.assertEqual(seat.price_cents, 0, 'the 31 nights already on sale must be repriced, not duplicated')
+
+    @override_settings(STRIPE_SECRET_KEY='sk_test_x', STRIPE_PUBLISHABLE_KEY='pk_test_x')
+    def test_the_paid_seat_already_live_is_made_free_rather_than_duplicated(self):
+        """Production had 31 nights carrying "Reserved seat + 1 free drink" at 5000 cents when the seat became
+        free. Matching only the new name would have left every one of them priced and added a second type."""
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        spanish = self.spanish_night()
+        TicketType.objects.create(event=spanish, name='Reserved seat + 1 free drink', price_cents=5000)
+        call_command('setup_open_mics', stdout=StringIO())
+        self.assertEqual(spanish.ticket_types.filter(is_addon=False).count(), 1)
+        self.assertEqual(spanish.ticket_types.get(is_addon=False).price_cents, 0)
 
 
 class TranslationTests(TestCase):
@@ -996,3 +1026,76 @@ class NewsletterOptInTests(ApiTestCase):
         self.client.get(f'/newsletter/confirm/{token_for("reader@example.com")}')
         self.sign_up()
         self.assertTrue(Contact.objects.get(email='reader@example.com').subscribed)
+
+
+class FreeReservationTests(ApiTestCase):
+    """The open mic seat is free and the drinks are the sale.
+
+    At 50 MXN a seat the first day of ads produced 44 landing page views and zero checkouts. Free removes the
+    payment barrier from the thing the ad promises, and moves the money to an upsell offered only after the
+    free thing has been claimed.
+    """
+
+    def setUp(self):
+        from catalog.models import Event, TicketType
+
+        self.mic = Event.objects.create(
+            name='Open Mic Night in Spanish', slug='mic-free', status=Event.ACTIVE, venue=self.venue,
+            language='es', currency='mxn', date=timezone.now() + timedelta(days=2), tags=['open-mic'])
+        self.seat = TicketType.objects.create(event=self.mic, name='Free reserved seat', price_cents=0, capacity=60)
+        self.drinks = TicketType.objects.create(event=self.mic, name='2 drinks', price_cents=10000,
+                                                is_addon=True, max_per_order=6)
+
+    def post(self, path, body):
+        return self.client.post(path, data=json.dumps(body), content_type='application/json')
+
+    def book(self, items, email='fan@example.com'):
+        return self.post(f'/api/checkout/{self.mic.id}/start',
+                         {'items': items, 'name': 'Ada Lovelace', 'email': email, 'lang': 'es'})
+
+    def test_a_seat_alone_costs_nothing_and_completes_without_a_card(self):
+        from sales.models import Order
+
+        with self.captureOnCommitCallbacks(execute=True):
+            body = self.book({self.seat.id: 1}).json()
+        self.assertTrue(body['complete'], 'a free reservation must not ask for a card')
+        self.assertNotIn('clientSecret', body)
+        order = Order.objects.get(pk=body['orderId'])
+        self.assertEqual(order.status, Order.COMPLETED)
+        self.assertEqual(order.total_amount_cents, 0)
+        self.assertEqual(order.tickets.count(), 1)
+        self.assertIn('fan@example.com', mail.outbox[-1].to)
+
+    def test_adding_drinks_is_what_asks_for_payment(self):
+        quote = self.post(f'/api/checkout/{self.mic.id}/quote',
+                          {'items': {self.seat.id: 1, self.drinks.id: 1}}).json()
+        self.assertEqual(quote['totalCents'], 10000)
+        body = self.book({self.seat.id: 1, self.drinks.id: 1}).json()
+        self.assertFalse(body['complete'], 'adding drinks must stop it completing for free')
+        self.assertEqual(body['totalCents'], 10000)
+
+    def test_one_free_reservation_per_email_per_night(self):
+        """Nothing paid up front means nothing stops one person taking the whole room."""
+        with self.captureOnCommitCallbacks(execute=True):
+            self.assertTrue(self.book({self.seat.id: 1}).json()['complete'])
+        second = self.book({self.seat.id: 1})
+        self.assertEqual(second.status_code, 400, 'the refusal must reach the customer, not 500 at them')
+        # Booked in Spanish, so the refusal comes back in Spanish: the guard goes through the same translation
+        # as every other checkout error.
+        self.assertIn('Ya tienes una reservación', second.json()['error'])
+
+    def test_a_paid_order_is_not_blocked_by_the_free_guard(self):
+        with self.captureOnCommitCallbacks(execute=True):
+            self.book({self.seat.id: 1})
+        # Same person coming back to buy drinks must not be turned away by the free-seat limit.
+        second = self.book({self.seat.id: 1, self.drinks.id: 1})
+        self.assertEqual(second.status_code, 200)
+        self.assertFalse(second.json()['complete'])
+
+    def test_the_addon_is_marked_as_one_in_the_json_the_widget_reads(self):
+        page = self.client.get(f'/embed/event/{self.mic.id}?embedded=1&lang=en').content.decode()
+        self.assertIn('"isAddon": true', page)
+        self.assertIn('"isAddon": false', page)
+        self.assertIn('Want to order your drinks in advance?', page)
+        spanish = self.client.get(f'/embed/event/{self.mic.id}?embedded=1&lang=es').content.decode()
+        self.assertIn('¿Quieres pedir tus bebidas por adelantado?', spanish)

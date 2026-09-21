@@ -27,7 +27,7 @@ import { loadEventsForCalendarPages } from "../lib/events-catalog";
 import { holidayNotice } from "../lib/holiday-notice";
 import { createLocalizedKintanaClient, getKintanaEnv } from "../lib/kintana-env";
 import { logKintanaError, logKintanaSuccess } from "../lib/kintana-error";
-import { bookableOpenMics, formatSeatPrice } from "../lib/open-mics";
+import { bookableOpenMics, formatSeatPrice, isFreeToReserve } from "../lib/open-mics";
 import type { Locale } from "../i18n/locale";
 import { localizePath } from "../i18n/routes";
 
@@ -81,12 +81,13 @@ const copy = {
     headline: "Open mic nights in Playa del Carmen",
     lede: "Free stand-up every week at Iguana Comedy. Come and watch, or sign up at the door and do five minutes yourself.",
     seatBody:
-      "The room holds 80 and the open mics fill up. Entry is always free, but without a reservation we may have to turn you away once we are full. A reservation guarantees your seat and includes a free drink.",
+      "The room holds 80 and the open mics fill up. Entry is always free, but without a reservation we may have to turn you away once we are full. Reserving is free too and holds your seat.",
     nights: {
       es: { show: "Open mic in Spanish", detail: "Sign-up list 8:00 pm · Show 9:00 pm", tab: "Tue · Spanish" },
       en: { show: "Open mic in English", detail: "Doors 8:00 pm · Show 8:30 pm", tab: "Wed · English" },
     },
     perSeat: "per seat, includes a free drink",
+    freeToReserve: "Free to reserve",
     soon: "Dates go up shortly. Check the calendar for what else is on.",
     pickDate: "Which night?",
     allEvents: "See every show",
@@ -104,12 +105,13 @@ const copy = {
     headline: "Noches de open mic en Playa del Carmen",
     lede: "Stand-up gratis cada semana en Iguana Comedy. Ven a ver, o anótate en la puerta y haz cinco minutos tú.",
     seatBody:
-      "La sala es de 80 lugares y los open mics se llenan. La entrada siempre es gratis, pero sin reservación podemos negarte el paso si se llena. Tu reservación te garantiza un lugar e incluye una bebida gratis.",
+      "La sala es de 80 lugares y los open mics se llenan. La entrada siempre es gratis, pero sin reservación podemos negarte el paso si se llena. Reservar también es gratis y te aparta el lugar.",
     nights: {
       es: { show: "Open mic en español", detail: "Lista 8:00 pm · Show 9:00 pm", tab: "Mar · Español" },
       en: { show: "Open mic en inglés", detail: "Puertas 8:00 pm · Show 8:30 pm", tab: "Mié · Inglés" },
     },
     perSeat: "por lugar, incluye una bebida gratis",
+    freeToReserve: "Reservar es gratis",
     soon: "Las fechas se publican en breve. Mira el calendario para ver qué más hay.",
     pickDate: "¿Qué noche?",
     allEvents: "Ver toda la cartelera",
@@ -189,7 +191,13 @@ const night = copy.nights[shownKey];
         {
           selected ? (
             <p class="mt-0.5 text-sm text-neutral-600">
-              <span class="font-semibold text-neutral-900">{formatSeatPrice(selected, locale)}</span> {copy.perSeat}
+              {isFreeToReserve(selected) ? (
+                <span class="font-semibold text-brand">{copy.freeToReserve}</span>
+              ) : (
+                <>
+                  <span class="font-semibold text-neutral-900">{formatSeatPrice(selected, locale)}</span> {copy.perSeat}
+                </>
+              )}
             </p>
           ) : null
         }

@@ -94,10 +94,9 @@ def _open_mic_block(event, lang, contact=None):
         opens = tr(lang, 'Sign-up list {0}, show {1}. Free entry.', doors, show) if event.language == 'es' \
             else tr(lang, 'Doors {0}, show {1}. Free entry.', doors, show)
         lines.append(opens)
-    price = price_from(event)
-    if price:
-        lines.append(tr(lang, 'Hold your seat for {0}, a free drink included: {1}',
-                        price, site_url(PATHS['openMic'][lang], contact)))
+    # The seat is free now, so the link is the whole offer. A price here would be the drinks, which are an
+    # upsell inside the checkout and not something to advertise in a weekly what-is-on.
+    lines.append(tr(lang, 'Reserve a free seat: {0}', site_url(PATHS['openMic'][lang], contact)))
     return '\n'.join(lines)
 
 

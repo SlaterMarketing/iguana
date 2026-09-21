@@ -35,8 +35,14 @@ export function bookableOpenMics(events: KintanaPublicEvent[]): { es: KintanaPub
 }
 
 /** 5000 MXN -> "50 MXN". The shared formatMinorUnitsPrice prints the currency twice ("MX$50MXN"). */
+/** True when reserving costs nothing, which is the whole offer the ads are built on. */
+export function isFreeToReserve(evt: KintanaPublicEvent): boolean {
+  return evt.priceFrom == null || evt.priceFrom === 0;
+}
+
 export function formatSeatPrice(evt: KintanaPublicEvent, locale: Locale): string {
-  if (evt.priceFrom == null) return "";
+  // Never "0 MXN": a price of nothing is a word, not a number.
+  if (evt.priceFrom == null || evt.priceFrom === 0) return "";
   const amount = new Intl.NumberFormat(locale === "es" ? "es-MX" : "en-US", { maximumFractionDigits: 2 }).format(
     evt.priceFrom / 100,
   );

@@ -43,6 +43,7 @@ CHECKOUT_JS_STRINGS = ('Sold out', 'pay at the door', 'members only', '{0} left'
                        'Up to {0} per order', 'Member benefit ({0} free)', 'Member discount',
                        'Reserve 1 seat', 'Reserve {0} seats', 'Pay {0} at the door', 'Free', 'Get 1 ticket',
                        'Get {0} tickets', 'Pay {0}', '1 ticket', '{0} tickets', 'Reserving...', 'Processing...',
+                       'Reserve my free spot', 'Reserve {0} free spots', 'Nothing to pay',
                        'Enter your name and email.', 'The total is now {0}. Press the button again to pay it.',
                        'Something went wrong.')
 
@@ -198,8 +199,13 @@ def checkout_start(request, event_id):
         return JsonResponse({'orderId': order.id, 'complete': True,
                              'successUrl': f'{settings.BACKEND_URL}/orders/{order.public_view_token}/'})
 
-    order = create_order(event, cart, name=name, email=email, phone=phone, contact=contact, attribution=attribution,
-                         locale=lang)
+    try:
+        order = create_order(event, cart, name=name, email=email, phone=phone, contact=contact,
+                             attribution=attribution, locale=lang)
+    except CheckoutError as exc:
+        # create_order refuses a second free reservation for the same email. Before this was caught the refusal
+        # reached the customer as a 500 with no message at all.
+        return error(exc.translated(lang))
     remember_on_contact(order.contact, attribution['visitor'])
     report_payment_info_added(order)
     success_url = f'{settings.BACKEND_URL}/orders/{order.public_view_token}/'

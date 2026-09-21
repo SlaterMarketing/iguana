@@ -172,6 +172,10 @@ class TicketType(models.Model):
     max_per_order = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Blank = 20')
     pay_at_door = models.BooleanField(
         default=False, help_text='Reserve online, pay at the door. No online payment is taken for this type.')
+    is_addon = models.BooleanField(
+        default=False,
+        help_text='Offered as an upsell AFTER the details are filled in, not as a thing to choose first. '
+                  'The open mic seat is free; drinks are the sale.')
     active = models.BooleanField(default=True)
     sort_order = models.IntegerField(default=0)
 

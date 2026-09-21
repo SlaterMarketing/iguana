@@ -1,18 +1,18 @@
-"""Put the weekly open mics on sale with paid seat reservations.
+"""Put the weekly open mics up with a FREE reserved seat, and sell drinks as the upsell.
 
     manage.py setup_open_mics --dry-run
     manage.py setup_open_mics --show-time 20:00 --doors 19:30
 
-Entry to an open mic is always free, but walk-ins can be turned away when the room is full. A reservation is paid
-online when booked (50 MXN for the Spanish night, 5 USD for the English one), guarantees a seat and includes one
-free drink. The room holds 80: 60 seats are sold as reservations and 20 are left for walk-ins.
+Entry is always free, but walk-ins can be turned away when the room is full. Reserving is free too and holds a
+seat. The room holds 80: 60 are reservable and 20 are kept for walk-ins.
 
-Reservations are charged through Stripe, so the command refuses to publish them while Stripe is not configured:
-a night nobody can pay for is worse than no Reserve button. `--pay-at-door` is the stopgap that takes the booking
-online and collects the money on arrival instead.
+The seat used to cost 50 MXN and include a drink. It did not sell: the first day of ads produced 44 landing page
+views and zero checkouts, because the thing the ad advertised as free asked for a card. The seat is now free and
+the drinks are the sale, offered only after the details are filled in, so the free thing is claimed before money
+is mentioned. Stripe is no longer a condition of publishing a night, only of the upsell appearing.
 
-Re-runnable. The reservation ticket type is updated in place and never duplicated, capacity is never set below seats
-already booked, and an event that already has orders keeps its currency.
+Re-runnable. The seat is matched by every name it has ever had and updated in place, never duplicated, capacity
+is never set below seats already booked, and an event that already has orders keeps its currency.
 """
 
 import datetime as dt
@@ -31,15 +31,28 @@ OPEN_MIC_TAG = 'open-mic'
 
 # One reservation type, in both languages, for both nights: an English speaker can book the Spanish night too.
 RESERVATION = {
-    'name': 'Reserved seat + 1 free drink',
-    'name_es': 'Lugar reservado + 1 bebida gratis',
+    'name': 'Free reserved seat',
+    'name_es': 'Lugar reservado gratis',
     'description': ('Entry is always free, but without a reservation we may have to turn you away when it is full. '
-                    'A reservation guarantees your seat and includes a free drink. Arrive when doors open.'),
+                    'Reserving costs nothing and holds your seat. Arrive when doors open.'),
     'description_es': ('La entrada siempre es gratis, pero sin reservación podemos negarte el paso si se llena. '
-                       'Tu reservación te garantiza un lugar e incluye una bebida gratis. '
-                       'Llega a la hora de apertura de puertas.'),
+                       'Reservar no cuesta nada y te aparta el lugar. Llega a la hora de apertura de puertas.'),
     'door_note': ' Pay at the door.',
     'door_note_es': ' Pagas en la puerta.',
+    # What this type has been called before. Without these the 31 nights already on sale would not be matched
+    # and every one would get a SECOND seat type instead of having its price dropped to zero.
+    'legacy_names': ['Reserved seat + 1 free drink', 'Lugar reservado + 1 bebida gratis'],
+}
+
+# The sale. Offered AFTER the details are filled in, because the reservation has to feel free to be worth
+# advertising as free; the drinks are what the night actually earns.
+DRINKS = {
+    'name': '2 drinks, ordered in advance',
+    'name_es': '2 bebidas, pedidas por adelantado',
+    'description': 'Waiting for you at your seat when you arrive, so you are not queuing at the bar.',
+    'description_es': 'Te esperan en tu lugar cuando llegues, para que no hagas fila en la barra.',
+    'prices': {'mxn': 10000, 'usd': 600},
+    'max_per_order': 6,
 }
 
 # Posters are made from hero video frames by scripts/make-banners.py: 16:9 for pages and Facebook, 4:5 for phones and
@@ -47,10 +60,10 @@ RESERVATION = {
 # Every night gets the same explanation, in both site languages, with the language of the night dropped in.
 BLURB = {
     'en': 'Free stand-up every week at Iguana Comedy, Playa del Carmen. Anyone can sign up for five minutes, or '
-          'just come and watch. Entry is free, and a reservation holds your seat and includes a free drink.',
+          'just come and watch. Entry is free, and reserving is free too: it just holds your seat.',
     'es': 'Stand-up gratis cada semana en Iguana Comedy, Playa del Carmen. Cualquiera puede anotarse para hacer '
-          'cinco minutos, o simplemente venir a ver. La entrada es gratis, y tu reservación te aparta el lugar e '
-          'incluye una bebida gratis.',
+          'cinco minutos, o simplemente venir a ver. La entrada es gratis, y reservar también: solo te aparta '
+          'el lugar.',
 }
 LONG_BLURB = {
     'en': ('{0}\n\nThe room holds 80 and the open mic fills up, so we reserve 60 seats online and keep the rest for '
@@ -70,7 +83,7 @@ SERIES = {
         'name_es': 'Noche de Open Mic en Español',
         'language': 'es',
         'currency': 'mxn',
-        'price_cents': 5000,
+        'price_cents': 0,
         # From the night's own flyer: sign-up list at 8, show at 9.
         'doors': '20:00',
         'show_time': '21:00',
@@ -84,7 +97,7 @@ SERIES = {
         'name_es': 'Noche de Open Mic en Inglés',
         'language': 'en',
         'currency': 'usd',
-        'price_cents': 500,
+        'price_cents': 0,
         # From the night's own flyer: doors at 8, show at 8:30.
         'doors': '20:00',
         'show_time': '20:30',
@@ -95,7 +108,7 @@ SERIES = {
 
 
 class Command(BaseCommand):
-    help = 'Publish the weekly open mics with paid seat reservations (seat + 1 free drink).'
+    help = 'Publish the weekly open mics with a free reserved seat and a drinks upsell.'
 
     def add_arguments(self, parser):
         parser.add_argument('--from', dest='start', help='First show day, YYYY-MM-DD (default: today in Cancun)')
@@ -108,9 +121,9 @@ class Command(BaseCommand):
         parser.add_argument('--dry-run', action='store_true', help='Print what would change and roll back')
 
     def handle(self, *args, **opts):
-        if not opts['pay_at_door'] and not stripe_enabled():
-            raise CommandError('Stripe is not configured, so nobody could pay for a reservation. Set the Stripe keys '
-                               'first, or pass --pay-at-door to take bookings now and collect at the door.')
+        if not stripe_enabled():
+            self.stdout.write(self.style.WARNING(
+                'Stripe is not configured. The free reservation still works; the drinks upsell will not appear.'))
         start = dt.date.fromisoformat(opts['start']) if opts['start'] else dt.datetime.now(CANCUN).date()
         since = dt.datetime.combine(start, dt.time.min, tzinfo=CANCUN)
         # Match on the tag this command sets, or on the names the series had before it was renamed. Tags are matched in
@@ -126,7 +139,7 @@ class Command(BaseCommand):
         with transaction.atomic():
             for event, series in found:
                 self.stdout.write(self.setup(event, series, opts))
-            mode = 'paid at the door' if opts['pay_at_door'] else 'paid online'
+            mode = 'paid at the door' if opts['pay_at_door'] else 'free, drinks sold as an upsell'
             self.stdout.write(f'{len(found)} open mic night(s) from {start}, reservations {mode}')
             if opts['dry_run']:
                 transaction.set_rollback(True)
@@ -171,8 +184,10 @@ class Command(BaseCommand):
             event.doors_open = doors
         event.save()
 
-        # Before names were bilingual the Spanish night's type was named in Spanish; match either so it is updated.
-        reservation = (event.ticket_types.filter(name__in=[RESERVATION['name'], RESERVATION['name_es']]).first()
+        # Match what the type is called now AND everything it has been called before: the Spanish-only name from
+        # before names were bilingual, and the paid "+ 1 free drink" name from before the seat became free.
+        known = [RESERVATION['name'], RESERVATION['name_es'], *RESERVATION['legacy_names']]
+        reservation = (event.ticket_types.filter(name__in=known, is_addon=False).first()
                        or TicketType(event=event))
         booked = sold_quantity(reservation) if reservation.pk else 0
         door = opts['pay_at_door']
@@ -187,13 +202,31 @@ class Command(BaseCommand):
         reservation.active = True
         reservation.save()
 
-        others = event.ticket_types.exclude(pk=reservation.pk).filter(active=True)
+        # The upsell. Only where a card can actually be taken, because an add-on nobody can pay for is worse
+        # than no add-on: it puts a price on a page that advertises the night as free.
+        drinks = None
+        if stripe_enabled():
+            drinks = (event.ticket_types.filter(name=DRINKS['name']).first() or TicketType(event=event))
+            drinks.name = DRINKS['name']
+            drinks.name_es = DRINKS['name_es']
+            drinks.description = DRINKS['description']
+            drinks.description_es = DRINKS['description_es']
+            drinks.price_cents = DRINKS['prices'][event.currency]
+            drinks.max_per_order = DRINKS['max_per_order']
+            drinks.is_addon = True
+            drinks.capacity = None
+            drinks.active = True
+            drinks.save()
+
+        keep = [reservation.pk] + ([drinks.pk] if drinks else [])
+        others = event.ticket_types.exclude(pk__in=keep).filter(active=True)
         if others.exists():
             notes.append(f'deactivated {", ".join(others.values_list("name", flat=True))}')
             others.update(active=False)
 
         venue = event.venue.name if event.venue else event.venue_label or 'no venue'
-        price = f'{reservation.price_cents / 100:g} {event.currency.upper()}'
+        price = 'free' if not reservation.price_cents else f'{reservation.price_cents / 100:g} {event.currency.upper()}'
+        addon = f'+ {drinks.price_cents / 100:g} {event.currency.upper()} drinks' if drinks else 'no drinks (no Stripe)'
         return (f'{event.date.astimezone(CANCUN):%a %Y-%m-%d} {event.name:26} {event.status:7} {venue:14} '
-                f'{price:>7} x {reservation.capacity} seats, {booked} booked'
+                f'{price:>5} x {reservation.capacity} seats, {booked} booked, {addon}'
                 + (f' | {"; ".join(notes)}' if notes else ''))

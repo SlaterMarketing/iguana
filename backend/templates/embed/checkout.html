@@ -14,6 +14,8 @@
   .type-meta { font-size: .85rem; margin-top: 2px; }
   .type-desc { font-size: .85rem; margin-top: 8px; line-height: 1.4; }
   .type-limit { font-size: .8rem; margin-top: 6px; color: var(--brand-hover); font-weight: 600; }
+  .addons { margin-top: 18px; border-top: 1px solid rgba(0,0,0,.1); padding-top: 14px; }
+  .addon-title { margin: 0 0 8px; font-weight: 700; }
   .qty { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
   .qty button { width: 44px; height: 44px; border-radius: 50%; border: 1px solid rgba(0,0,0,.25); background: #fff; color: var(--ink);
                 font-size: 1.4rem; line-height: 1; cursor: pointer; touch-action: manipulation; }
@@ -49,6 +51,12 @@
       <div class="grid2">
         <label>{% t lang "Email" %}<input name="email" type="email" autocomplete="email" inputmode="email" required></label>
         <label>{% t lang "Phone (optional)" %}<input name="phone" type="tel" autocomplete="tel"></label>
+      </div>
+      {# The seat is free, so this is the sale. It comes AFTER the details on purpose: asking for money before
+         the free thing is claimed is how a free offer stops feeling free. #}
+      <div class="addons" id="addons" hidden>
+        <p class="addon-title">{% t lang "Want to order your drinks in advance?" %}</p>
+        <div class="types" id="addon-types"></div>
       </div>
       <div id="payment-element" hidden></div>
     </div>
@@ -127,6 +135,9 @@
   }
 
   function totalQty() { return Object.keys(qty).reduce(function (n, k) { return n + qty[k]; }, 0); }
+  function seatCount() {
+    return Object.keys(qty).reduce(function (n, k) { return n + (typeById(k).isAddon ? 0 : qty[k]); }, 0);
+  }
   function typeById(id) { return ev.ticketTypes.filter(function (t) { return t.id === id; })[0]; }
   function selectionAtDoor() { return Object.keys(qty).some(function (k) { return qty[k] > 0 && typeById(k).payAtDoor; }); }
 
@@ -158,14 +169,18 @@
       form.hidden = true;
       return;
     }
+    // Add-ons are the upsell and belong under the details, not among the things you choose first.
+    var seats = ev.ticketTypes.filter(function (t) { return !t.isAddon; });
+    var addons = ev.ticketTypes.filter(function (t) { return t.isAddon; });
+    show($("addons"), addons.length > 0);
     // A show with one thing to buy starts at one. The widget otherwise opens on "0" with no button at all and
     // the words "choose how many with +", so an ad click lands on a puzzle rather than on a price and a button.
     // More than one ticket type is a real choice and still starts empty, because guessing which one is worse.
-    var single = ev.ticketTypes.length === 1 && !ev.ticketTypes[0].soldOut
-      && ev.ticketTypes[0].memberAccess !== "MEMBERS_ONLY";
+    // An add-on NEVER starts at one: a free reservation that quietly charges for drinks is a trap.
+    var single = seats.length === 1 && !seats[0].soldOut && seats[0].memberAccess !== "MEMBERS_ONLY";
     ev.ticketTypes.forEach(function (t) {
       var limit = Math.min(t.maxPerOrder || 20, t.remaining != null ? t.remaining : Infinity);
-      qty[t.id] = single && limit >= 1 ? 1 : 0;
+      qty[t.id] = (single && !t.isAddon && limit >= 1) ? 1 : 0;
       var row = document.createElement("div"); row.className = "type";
       var top = document.createElement("div"); top.className = "type-top";
       var info = document.createElement("div");
@@ -197,7 +212,7 @@
       minus.onclick = function () { qty[t.id] = Math.max(0, qty[t.id] - 1); reportEngaged(); changed(); };
       plus.onclick = function () { if (qty[t.id] < limit) qty[t.id] += 1; reportEngaged(); changed(); };
       sync();
-      box.appendChild(row);
+      (t.isAddon ? $("addon-types") : box).appendChild(row);
     });
     changed();
   }
@@ -210,8 +225,10 @@
       main = n === 1 ? T("Reserve 1 seat") : T("Reserve {0} seats", n);
       sub = quoted.totalCents ? T("Pay {0} at the door", money(quoted.totalCents)) : T("Free");
     } else if (quoted && quoted.totalCents === 0) {
-      main = n === 1 ? T("Get 1 ticket") : T("Get {0} tickets", n);
-      sub = T("Free");
+      // The open mic seat costs nothing, and the button has to say so in the words the ad used. "Get 1 ticket"
+      // reads like something is owed; "Reserve my free spot" is the promise the click was made on.
+      main = seatCount() === 1 ? T("Reserve my free spot") : T("Reserve {0} free spots", seatCount());
+      sub = T("Nothing to pay");
     } else {
       var total = quoted ? quoted.totalCents : 0;
       main = T("Pay {0}", money(total));
@@ -224,9 +241,13 @@
 
   function refresh() {
     var n = totalQty();
+    var seats = seatCount();
     show($("pick-hint"), n === 0);
     show($("details"), n > 0);
     show($("action"), n > 0);
+    // Drinks are for a seat you have reserved. Offering them without one is a basket nobody asked for.
+    var addonBox = $("addons");
+    if (addonBox) show(addonBox, seats > 0 && ev.ticketTypes.some(function (t) { return t.isAddon; }));
     $("submit").disabled = busy || !quoted;
     show($("dev-note"), !!B.devPayments && !!quoted && !quoted.payAtDoor && quoted.totalCents > 0);
     label();
