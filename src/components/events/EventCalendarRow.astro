@@ -5,7 +5,7 @@ import type { Locale } from "../../i18n/locale";
 import { localizePath } from "../../i18n/routes";
 import { t } from "../../i18n/ui";
 import { eventCalendarDate, eventLanguageLabel, formatEventTime, formatMinorUnitsPrice } from "../../lib/events";
-import { isOpenMic } from "../../lib/open-mics";
+import { isFreeToReserve, isOpenMic } from "../../lib/open-mics";
 
 interface Props {
   evt: KintanaPublicEvent;
@@ -19,7 +19,8 @@ const date = eventCalendarDate(evt.date);
 const weekday = date ? new Intl.DateTimeFormat(locale === "es" ? "es-MX" : "en-US", { weekday: "short" }).format(date) : "";
 const day = date ? String(date.getDate()) : "";
 
-const price = formatMinorUnitsPrice(evt, locale);
+// The same reason as EventRow: a free night reads as broken when it is priced at zero.
+const price = isFreeToReserve(evt) ? t(locale, "ui.free") : formatMinorUnitsPrice(evt, locale);
 const showTime = formatEventTime(evt.showTime, locale);
 const meta = [eventLanguageLabel(evt, locale), evt.venue?.name || evt.city, showTime].filter(Boolean).join(" · ");
 const action = isOpenMic(evt) ? t(locale, "ui.reserveSeat") : t(locale, "ui.getTickets");

@@ -2,7 +2,7 @@
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import { eventCitySlug, eventSupportsOnSiteCheckout, eventLanguageLabel, formatEventScheduleLine, formatMinorUnitsPrice } from "../lib/events";
 import { demandLine } from "../lib/demand";
-import { isOpenMic } from "../lib/open-mics";
+import { isFreeToReserve, isOpenMic } from "../lib/open-mics";
 import { t } from "../i18n/ui";
 import { localizePath } from "../i18n/routes";
 import type { Locale } from "../i18n/locale";
@@ -28,7 +28,12 @@ const posterMobileSrc = evt.imageUrlMobile?.trim() || evt.imageUrl;
 const posterDesktopSrc = evt.imageUrl?.trim() || evt.imageUrlMobile?.trim();
 
 const priceFormatted = formatMinorUnitsPrice(evt, locale);
-const priceLabel = priceFormatted ? t(locale, "events.priceStarting").replace("{price}", priceFormatted) : null;
+// "From $0 USD" is a worse advert for a free night than the word itself, and it reads like a broken price.
+const priceLabel = isFreeToReserve(evt)
+  ? t(locale, "ui.free")
+  : priceFormatted
+    ? t(locale, "events.priceStarting").replace("{price}", priceFormatted)
+    : null;
 const languageLabel = eventLanguageLabel(evt, locale);
 // Entry to an open mic is free, so the card offers a seat reservation, the same words the hero and the callout use.
 const ticketsLabel = isOpenMic(evt) ? t(locale, "ui.reserveSeat") : t(locale, "ui.buyTickets");
