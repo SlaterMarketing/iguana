@@ -63,6 +63,7 @@ function addRoute(
 const CORE_PAGES: Array<{ key: RouteKey; priority: number }> = [
   { key: "home", priority: 1 },
   { key: "events", priority: 0.8 },
+  { key: "openMic", priority: 0.85 },
   { key: "locations", priority: 0.8 },
   { key: "comedians", priority: 0.8 },
   { key: "membership", priority: 0.8 },

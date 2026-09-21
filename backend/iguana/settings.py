@@ -16,6 +16,13 @@ STRIPE_PUBLISHABLE_KEY = getattr(config, 'STRIPE_PUBLISHABLE_KEY', '')
 STRIPE_SECRET_KEY = getattr(config, 'STRIPE_SECRET_KEY', '')
 STRIPE_WEBHOOK_SECRET = getattr(config, 'STRIPE_WEBHOOK_SECRET', '')
 NOTIFY_EMAILS = getattr(config, 'NOTIFY_EMAILS', [])
+# Meta Conversions API: the only way Meta learns a ticket sold, since checkout is an iframe on this domain and a
+# pixel on the marketing site cannot see it. Blank means conversions simply are not reported; see crm/meta_capi.py.
+META_PIXEL_ID = getattr(config, 'META_PIXEL_ID', '')
+META_CAPI_TOKEN = getattr(config, 'META_CAPI_TOKEN', '')
+# Set only while watching Test Events in Events Manager; it keeps those events out of the real dataset.
+META_TEST_EVENT_CODE = getattr(config, 'META_TEST_EVENT_CODE', '')
+
 # DB-IP City Lite (.mmdb) for contact and order locations; see crm/geo.py. Blank or missing file = no lookups.
 GEOIP_DB = getattr(config, 'GEOIP_DB', '')
 

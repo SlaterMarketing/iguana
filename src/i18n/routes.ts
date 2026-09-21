@@ -5,6 +5,7 @@ export const routeMap = {
   en: {
     home: "/",
     events: "/events/",
+    openMic: "/open-mic/",
     eventDetail: "/events/:slug/",
     eventTickets: "/events/:slug/tickets/",
     locations: "/locations/",
@@ -31,6 +32,7 @@ export const routeMap = {
   es: {
     home: "/",
     events: "/eventos/",
+    openMic: "/open-mic/",
     eventDetail: "/eventos/:slug/",
     eventTickets: "/eventos/:slug/boletos/",
     locations: "/sedes/",

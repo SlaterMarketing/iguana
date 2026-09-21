@@ -39,6 +39,7 @@ const copy = {
       "Entry is always free, but walk-ins may be turned away when we are full. A reservation guarantees your seat and includes a free drink. Arrive when doors open.",
     venue: "At Iguana Comedy, Playa del Carmen",
     maps: "Directions",
+    more: "All about the open mics",
   },
   es: {
     kicker: "Cada semana",
@@ -55,6 +56,7 @@ const copy = {
       "La entrada siempre es gratis, pero sin reservación podemos negarte el paso si se llena. Tu reservación te garantiza un lugar e incluye una bebida gratis. Llega a la hora de apertura de puertas.",
     venue: "En Iguana Comedy, Playa del Carmen",
     maps: "Cómo llegar",
+    more: "Todo sobre los open mics",
   },
 }[locale];
 
@@ -121,6 +123,13 @@ const canReserve = copy.nights.some((night) => night.event);
     </ul>
 
     {canReserve && <p class="mx-auto mt-6 max-w-2xl text-sm leading-relaxed text-white/70">{copy.reserveNote}</p>}
+
+    <a
+      class="mt-6 inline-flex text-xs font-semibold uppercase tracking-[0.3em] text-white/80 underline-offset-4 transition hover:text-white hover:underline"
+      href={localizePath(locale, "openMic")}
+    >
+      {copy.more} →
+    </a>
   </div>
 
   <a

@@ -1,3 +1,4 @@
+import hashlib
 import json
 import re
 from datetime import timedelta
@@ -582,3 +583,97 @@ class SpanishCustomerTests(ApiTestCase):
         page = self.client.get(f'/checkin/{ticket.checkin_token}/', HTTP_ACCEPT_LANGUAGE='es-MX,es;q=0.9').content.decode()
         self.assertIn('Registro en la puerta', page)
         self.assertIn('Registrar', page)
+
+
+class MetaConversionTests(ApiTestCase):
+    """What Meta gets told about a sale, and that a booking survives Meta being broken."""
+
+    # Meta matches a server-side event on the browser that made it, so a real phone's header is part of the path.
+    UA = 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15'
+
+    def post(self, path, body):
+        return self.client.post(path, data=json.dumps(body), content_type='application/json',
+                                headers={'user-agent': self.UA})
+
+    def book(self, **body):
+        payload = {'items': {self.ga.id: 2}, 'name': 'Ada Lovelace', 'email': 'Ada@Example.com', **body}
+        return self.post(f'/api/checkout/{self.event.id}/start', payload).json()
+
+    def test_hashes_match_metas_normalisation(self):
+        from crm import meta_capi
+
+        # Meta hashes the trimmed, lowercased value; a mismatch here means every conversion goes unattributed.
+        self.assertEqual(meta_capi.hash_email('  Ada@Example.COM '),
+                         hashlib.sha256(b'ada@example.com').hexdigest())
+        self.assertEqual(meta_capi.hash_place('Playa del Carmen'),
+                         hashlib.sha256(b'playadelcarmen').hexdigest())
+        # Accents are stripped, not encoded: "Yucatán" and "Yucatan" must hash the same.
+        self.assertEqual(meta_capi.hash_place('Yucatán'), meta_capi.hash_place('Yucatan'))
+        self.assertEqual(meta_capi.hash_country('MX'), hashlib.sha256(b'mx').hexdigest())
+
+    def test_phone_without_a_country_code_is_dropped_rather_than_guessed(self):
+        from crm import meta_capi
+
+        self.assertEqual(meta_capi.hash_phone('+52 984 123 4567'),
+                         hashlib.sha256(b'529841234567').hexdigest())
+        # A bare 10-digit number is Mexican or American and there is no telling which. Sending a wrong hash is
+        # worse than sending none: it cannot match, and it drags the event match quality down.
+        self.assertEqual(meta_capi.hash_phone('984 123 4567'), '')
+        self.assertEqual(meta_capi.hash_phone(''), '')
+
+    @override_settings(META_PIXEL_ID='123', META_CAPI_TOKEN='tok')
+    def test_purchase_carries_the_click_ids_the_site_collected(self):
+        from sales import ad_reporting
+
+        sent = []
+        original = ad_reporting.meta_capi.send
+        ad_reporting.meta_capi.send = lambda name, **kw: sent.append((name, kw))
+        try:
+            start = self.book(attribution={'fbp': 'fb.1.123.456', 'fbc': 'fb.1.123.abc', 'pageUrl': f'{SITE}/en/open-mic/'})
+            with self.captureOnCommitCallbacks(execute=True):
+                self.post(f'/api/checkout/orders/{start["orderId"]}/confirm', {})
+        finally:
+            ad_reporting.meta_capi.send = original
+
+        names = [name for name, _ in sent]
+        self.assertEqual(names, ['InitiateCheckout', 'Purchase'])
+        purchase = dict(sent[-1][1])
+        # Without fbp/fbc Meta cannot tie the sale to the click, and the campaign reads as having sold nothing.
+        self.assertEqual(purchase['user']['fbp'], 'fb.1.123.456')
+        self.assertEqual(purchase['user']['fbc'], 'fb.1.123.abc')
+        self.assertEqual(purchase['user']['em'], [hashlib.sha256(b'ada@example.com').hexdigest()])
+        self.assertEqual(purchase['user']['client_user_agent'], self.UA)
+        self.assertEqual(purchase['custom']['value'], 20.0)
+        self.assertEqual(purchase['custom']['currency'], 'USD')
+        self.assertEqual(purchase['source_url'], f'{SITE}/en/open-mic/')
+        # Keyed on the order, so a Stripe webhook retry cannot report the same sale twice.
+        self.assertEqual(purchase['event_id'], f'purchase-{start["orderId"]}')
+
+    @override_settings(META_PIXEL_ID='123', META_CAPI_TOKEN='tok')
+    def test_a_sale_completes_even_when_meta_fails(self):
+        from crm import meta_capi
+
+        original = meta_capi._post
+        meta_capi._post = lambda payload: (_ for _ in ()).throw(OSError('graph.facebook.com is down'))
+        try:
+            start = self.book()
+            with self.captureOnCommitCallbacks(execute=True):
+                self.post(f'/api/checkout/orders/{start["orderId"]}/confirm', {})
+        finally:
+            meta_capi._post = original
+        order = Order.objects.get(pk=start['orderId'])
+        # The threads have their own try/except, but the point stands regardless: reporting is not the sale.
+        self.assertEqual(order.status, Order.COMPLETED)
+        self.assertEqual(order.tickets.count(), 2)
+
+    def test_nothing_is_sent_when_no_pixel_is_configured(self):
+        from crm import meta_capi
+
+        posted = []
+        original = meta_capi._post
+        meta_capi._post = posted.append
+        try:
+            meta_capi.send('Purchase', event_id='x', user={'em': ['abc']})
+        finally:
+            meta_capi._post = original
+        self.assertEqual(posted, [])

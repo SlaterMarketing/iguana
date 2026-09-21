@@ -32,13 +32,34 @@
     } catch (e) {}
   }
 
+  function cookie(name) {
+    try {
+      var hit = document.cookie.match("(^|;)\\s*" + name + "\\s*=\\s*([^;]+)");
+      return hit ? decodeURIComponent(hit[2]) : "";
+    } catch (e) {
+      return "";
+    }
+  }
+
   function utm() {
     var out = {};
     try {
-      new URLSearchParams(location.search).forEach(function (v, k) {
+      var params = new URLSearchParams(location.search);
+      params.forEach(function (v, k) {
         if (k.indexOf("utm_") === 0 || k === "fbclid" || k === "gclid" || k === "ttclid") out[k.replace("utm_", "")] = v;
       });
+      // Meta matches a server-side sale on these. The checkout iframe is on another origin and cannot read them,
+      // so they are collected here and posted with the order; see backend/sales/ad_reporting.py.
+      out.fbp = cookie("_fbp");
+      // The pixel normally writes _fbc from fbclid, but it is the first thing an ad blocker stops. Rebuilding it
+      // in Meta's own format keeps the click attributable when the pixel never ran.
+      out.fbc = cookie("_fbc") || (params.get("fbclid") ? "fb.1." + Date.now() + "." + params.get("fbclid") : "");
+      // The page the fan actually saw, rather than the iframe URL, so Meta reports results per landing page.
+      out.pageUrl = location.href.slice(0, 200);
     } catch (e) {}
+    for (var key in out) {
+      if (out[key] === "") delete out[key];
+    }
     return out;
   }
 

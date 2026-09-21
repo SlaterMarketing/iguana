@@ -1,0 +1,219 @@
+---
+/**
+ * The open mic landing page, and the destination every open mic ad points at.
+ *
+ * It exists because an ad URL has to outlive the show it sells. Event pages are dated (`/events/playa-del-carmen-
+ * 2026-09-22/`), so a weekly campaign aimed at one would need its link rewritten every Tuesday, and would keep
+ * spending on a dead page in the week nobody remembered. This page asks the API for the next bookable night in
+ * each language every time it is rendered, so the same URL is always current.
+ *
+ * It also carries the checkout itself rather than linking on to it. Every hop between the ad and the card form
+ * loses people, and at these prices the campaign cannot afford the leak.
+ */
+import type { KintanaPublicEvent } from "@kintana/sdk";
+
+import Base from "../layouts/Base.astro";
+import EventCheckoutWidget from "./EventCheckoutWidget.astro";
+import { site } from "../content/site";
+import { formatEventDate } from "../lib/events";
+import { loadEventsForCalendarPages } from "../lib/events-catalog";
+import { holidayNotice } from "../lib/holiday-notice";
+import { createLocalizedKintanaClient, getKintanaEnv } from "../lib/kintana-env";
+import { logKintanaError, logKintanaSuccess } from "../lib/kintana-error";
+import { formatSeatPrice, nextBookableOpenMics } from "../lib/open-mics";
+import type { Locale } from "../i18n/locale";
+import { localizePath } from "../i18n/routes";
+
+interface Props {
+  locale: Locale;
+}
+
+const { locale } = Astro.props;
+const { hasCredentials } = getKintanaEnv();
+
+let upcoming: KintanaPublicEvent[] = [];
+if (hasCredentials) {
+  try {
+    const loaded = await loadEventsForCalendarPages(createLocalizedKintanaClient(locale));
+    upcoming = loaded.upcoming;
+    logKintanaSuccess("listEvents /open-mic", upcoming.length);
+  } catch (err) {
+    logKintanaError("listEvents /open-mic", err);
+  }
+}
+
+const next = nextBookableOpenMics(upcoming);
+const notice = holidayNotice(locale);
+
+const copy = {
+  en: {
+    kicker: "Every Tuesday and Wednesday",
+    headline: "Open mic nights in Playa del Carmen",
+    lede: "Free stand-up every week at Iguana Comedy. Come and watch, or sign up at the door and do five minutes yourself.",
+    entry: "Free entry",
+    seatTitle: "Reserve a seat",
+    seatBody:
+      "The room holds 80 and the open mics fill up. Entry is always free, but without a reservation we may have to turn you away once we are full. A reservation guarantees your seat and includes a free drink.",
+    nights: [
+      { key: "es" as const, day: "Tuesday", show: "Open mic in Spanish", detail: "Sign-up list 8:00 pm · Show 9:00 pm", event: next.es },
+      { key: "en" as const, day: "Wednesday", show: "Open mic in English", detail: "Doors 8:00 pm · Show 8:30 pm", event: next.en },
+    ],
+    nextNight: "Next",
+    perSeat: "per seat, includes a free drink",
+    soon: "Dates for this night go up shortly. Check the calendar for what else is on.",
+    allEvents: "See every show",
+    performTitle: "Want to perform?",
+    performBody:
+      "Sign up at the door when you arrive. Five minutes, any style, first time or hundredth. No booking needed, and nothing to pay.",
+    performLink: "Perform with us",
+    findTitle: "Where to find us",
+    maps: "Directions",
+  },
+  es: {
+    kicker: "Cada martes y miércoles",
+    headline: "Noches de open mic en Playa del Carmen",
+    lede: "Stand-up gratis cada semana en Iguana Comedy. Ven a ver, o anótate en la puerta y haz cinco minutos tú.",
+    entry: "Entrada gratis",
+    seatTitle: "Reserva tu lugar",
+    seatBody:
+      "La sala es de 80 lugares y los open mics se llenan. La entrada siempre es gratis, pero sin reservación podemos negarte el paso si se llena. Tu reservación te garantiza un lugar e incluye una bebida gratis.",
+    nights: [
+      { key: "es" as const, day: "Martes", show: "Open mic en español", detail: "Lista 8:00 pm · Show 9:00 pm", event: next.es },
+      { key: "en" as const, day: "Miércoles", show: "Open mic en inglés", detail: "Puertas 8:00 pm · Show 8:30 pm", event: next.en },
+    ],
+    nextNight: "Próximo",
+    perSeat: "por lugar, incluye una bebida gratis",
+    soon: "Las fechas de esta noche se publican en breve. Mira el calendario para ver qué más hay.",
+    allEvents: "Ver toda la cartelera",
+    performTitle: "¿Quieres presentarte?",
+    performBody:
+      "Anótate en la puerta al llegar. Cinco minutos, el estilo que quieras, sea tu primera vez o la número cien. No hace falta reservar ni pagar nada.",
+    performLink: "Actúa con nosotros",
+    findTitle: "Dónde encontrarnos",
+    maps: "Cómo llegar",
+  },
+}[locale];
+
+// ViewContent names the night the visitor can actually book now, so the pixel and the page agree.
+const headlineEvent = copy.nights.find((night) => night.event)?.event;
+const pixelContent = headlineEvent
+  ? {
+      id: headlineEvent.id,
+      name: headlineEvent.name,
+      ...(headlineEvent.priceFrom != null ? { value: headlineEvent.priceFrom / 100 } : {}),
+      ...(headlineEvent.priceCurrency ? { currency: headlineEvent.priceCurrency } : {}),
+    }
+  : undefined;
+---
+
+<Base
+  title={`${copy.headline} · Iguana Comedy`}
+  description={copy.lede}
+  narrow={false}
+  pixelContent={pixelContent}
+>
+  <section class="bg-neutral-950 text-white">
+    {
+      notice && (
+        <div class="space-y-1 bg-amber-400 px-6 py-5 text-center text-neutral-950">
+          <p class="text-sm font-semibold uppercase tracking-[0.25em]">{notice.headline}</p>
+          <p class="text-sm leading-relaxed">{notice.detail}</p>
+        </div>
+      )
+    }
+    <div class="mx-auto max-w-page px-6 py-16 text-center sm:py-20">
+      <p class="text-xs font-semibold uppercase tracking-[0.45em] text-white/60">{copy.kicker}</p>
+      <h1
+        class="mx-auto mt-4 max-w-3xl leading-none"
+        style="font-family: var(--font-display); font-size: clamp(2.5rem, 4vw + 1.25rem, 4rem);"
+      >
+        {copy.headline}
+      </h1>
+      <p class="mx-auto mt-5 max-w-2xl text-base leading-relaxed text-white/75">{copy.lede}</p>
+      <p class="mt-6 inline-flex rounded-full bg-brand px-5 py-2 text-sm font-semibold uppercase tracking-[0.2em]">
+        {copy.entry}
+      </p>
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-page px-6 py-16">
+    <div class="mx-auto max-w-2xl text-center">
+      <h2 class="leading-none" style="font-family: var(--font-display); font-size: clamp(1.9rem, 2vw + 1rem, 2.6rem);">
+        {copy.seatTitle}
+      </h2>
+      <p class="mt-4 text-sm leading-relaxed text-neutral-600">{copy.seatBody}</p>
+    </div>
+
+    <div class="mt-12 grid gap-10 lg:grid-cols-2">
+      {
+        copy.nights.map((night) => (
+          <div class="flex flex-col rounded-[2rem] border border-black/10 bg-white">
+            <div class="border-b border-black/10 px-8 py-6 text-center">
+              <p class="text-xs font-semibold uppercase tracking-[0.35em] text-neutral-500">{night.day}</p>
+              <p class="mt-2 text-xl font-semibold">{night.show}</p>
+              <p class="mt-2 text-sm text-neutral-600">{night.detail}</p>
+              {night.event ? (
+                <p class="mt-3 text-sm font-semibold text-neutral-900">
+                  {copy.nextNight}: {formatEventDate(night.event.date, locale)}
+                  <br />
+                  <span class="font-normal text-neutral-600">
+                    {formatSeatPrice(night.event, locale)} {copy.perSeat}
+                  </span>
+                </p>
+              ) : null}
+            </div>
+            {night.event ? (
+              <EventCheckoutWidget
+                eventId={night.event.id}
+                locale={locale}
+                class="!min-h-0 !rounded-none !rounded-b-[2rem] !border-0 !bg-white !px-4 !py-6 sm:!px-6"
+              />
+            ) : (
+              <p class="px-8 py-10 text-center text-sm text-neutral-500">{copy.soon}</p>
+            )}
+          </div>
+        ))
+      }
+    </div>
+
+    <p class="mt-10 text-center">
+      <a
+        class="text-sm font-semibold uppercase tracking-[0.3em] text-neutral-900 underline-offset-4 hover:underline"
+        href={localizePath(locale, "events")}
+      >
+        {copy.allEvents} →
+      </a>
+    </p>
+  </section>
+
+  <section class="border-t border-black/10 bg-neutral-50">
+    <div class="mx-auto grid max-w-page gap-10 px-6 py-16 sm:grid-cols-2">
+      <div>
+        <h2 class="leading-none" style="font-family: var(--font-display); font-size: clamp(1.6rem, 1.5vw + 1rem, 2.1rem);">
+          {copy.performTitle}
+        </h2>
+        <p class="mt-4 text-sm leading-relaxed text-neutral-600">{copy.performBody}</p>
+        <a
+          class="mt-5 inline-flex text-sm font-semibold uppercase tracking-[0.3em] text-neutral-900 underline-offset-4 hover:underline"
+          href={localizePath(locale, "performWithUs")}
+        >
+          {copy.performLink} →
+        </a>
+      </div>
+      <div>
+        <h2 class="leading-none" style="font-family: var(--font-display); font-size: clamp(1.6rem, 1.5vw + 1rem, 2.1rem);">
+          {copy.findTitle}
+        </h2>
+        <p class="mt-4 text-sm leading-relaxed text-neutral-600">{site.venueAddress}</p>
+        <a
+          class="mt-5 inline-flex text-sm font-semibold uppercase tracking-[0.3em] text-neutral-900 underline-offset-4 hover:underline"
+          href={site.venueMapsUrl}
+          rel="noopener"
+          target="_blank"
+        >
+          {copy.maps} →
+        </a>
+      </div>
+    </div>
+  </section>
+</Base>

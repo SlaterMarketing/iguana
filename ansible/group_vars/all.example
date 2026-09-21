@@ -31,6 +31,18 @@ db_password: "{{ lookup('file', creds + '/db_password') }}"
 django_secret_key: "{{ lookup('file', creds + '/django_secret_key') }}"
 public_api_key: "{{ lookup('file', creds + '/public_api_key') }}"
 secret_api_key: "{{ lookup('file', creds + '/secret_api_key') }}"
+# Stripe live keys for the account that charges for tickets and memberships.
+stripe_creds: "~/.credentials/stripe/iguanacomedy"
+stripe_publishable_key: "{{ lookup('file', stripe_creds + '/publishable_key') }}"
+stripe_secret_key: "{{ lookup('file', stripe_creds + '/secret_key') }}"
+stripe_webhook_secret: "{{ lookup('file', stripe_creds + '/webhook_secret') }}"
+
+# Meta Conversions API. The pixel is "andrew new pixel" on business IguanaComedy; the token is the
+# system user token that scripts/meta-ads.py also uses. Blank test code = events count for real.
+meta_pixel_id: "2122037578734069"
+meta_capi_token: "{{ lookup('file', '~/.credentials/meta/iguanacomedy/token') }}"
+meta_test_event_code: ""
+
 notify_emails: ["hello@iguanacomedy.com"]
 # DNS is live (ns1-3.vps.org) since 2026-09-14. Set false only to serve by IP (site :80, API :8080).
 dns_live: true

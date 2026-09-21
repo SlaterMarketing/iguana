@@ -9,6 +9,7 @@ import dmSansLatinItalic from "@fontsource-variable/dm-sans/files/dm-sans-latin-
 import dmSansLatinExtItalic from "@fontsource-variable/dm-sans/files/dm-sans-latin-ext-wght-italic.woff2?url";
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
+import MetaPixel from "../components/MetaPixel.astro";
 import { site } from "../content/site";
 import { getKintanaEnv } from "../lib/kintana-env";
 import { getLocale, getCanonicalUrl, getAlternateUrls, type Locale } from "../i18n/locale";
@@ -25,6 +26,8 @@ interface Props {
   flushMain?: boolean;
   ogImage?: string;
   noindex?: boolean;
+  /** Fires a Meta ViewContent for this show as well as PageView. Set it on pages that sell something. */
+  pixelContent?: { id: string; name: string; value?: number; currency?: string };
 }
 
 const locale = getLocale(Astro);
@@ -37,6 +40,7 @@ const {
   flushMain = false,
   ogImage,
   noindex = false,
+  pixelContent,
 } = Astro.props;
 
 function escapeAttr(v: string) {
@@ -137,6 +141,7 @@ const trackerMarkup =
     <link rel="preload" href={dmSansLatin} as="font" type="font/woff2" crossorigin />
     <style is:inline set:html={fontFaces} />
     {clickySiteId && clickyScriptPath ? <script is:inline async data-id={clickySiteId} src={clickyScriptPath}></script> : null}
+    <MetaPixel content={pixelContent} />
   </head>
   <body class="relative bg-white text-neutral-900 antialiased">
     <Header transparent={transparentHeader} pathname={Astro.url.pathname} locale={locale} />

@@ -28,3 +28,8 @@ EMAIL_PORT = 25
 NOTIFY_EMAILS = ['hello@iguanacomedy.com']
 # Path to a DB-IP City Lite .mmdb for contact/order locations (ansible puts it at /var/lib/iguana/). Blank = off.
 GEOIP_DB = ''
+
+# Meta Conversions API (server-side Purchase and InitiateCheckout). Blank locally: nothing is reported.
+META_PIXEL_ID = ''
+META_CAPI_TOKEN = ''
+META_TEST_EVENT_CODE = ''

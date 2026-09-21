@@ -3,3 +3,4 @@ PUBLIC_KINTANA_API_KEY=kpa_live_xxxxxxxxxxxxxxxxxxxxxxxx
 PUBLIC_KINTANA_BASE_URL=https://kintana.app
 KINTANA_SECRET_API_KEY=kpa_secret_xxxxxxxxxxxxxxxxxxxxxxxx
 # PUBLIC_KINTANA_TRACKER_TOKEN=
+PUBLIC_META_PIXEL_ID=

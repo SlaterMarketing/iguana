@@ -9,6 +9,7 @@ from django.utils import formats, timezone, translation
 from api.serializers import remaining
 from catalog.models import TicketType
 from crm.models import Contact
+from sales.ad_reporting import report_purchase
 from sales.i18n import normalize, tr
 from sales.models import Membership, Order, OrderItem, Ticket
 
@@ -195,6 +196,9 @@ def complete_order(order, charge_id=''):
         for _ in range(item.quantity):
             Ticket.objects.create(order=order, ticket_type_name=item.name)
     transaction.on_commit(lambda: send_order_confirmation(order))
+    # Meta only learns an ad sold a seat if we say so: the checkout iframe is on another origin, so no pixel on
+    # the marketing pages can see this. Fires after commit, on its own thread, and cannot fail the sale.
+    transaction.on_commit(lambda: report_purchase(order))
     return order, True
 
 

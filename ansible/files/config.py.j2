@@ -10,11 +10,14 @@ DATABASE = {
 }
 PUBLIC_API_KEYS = ['{{ public_api_key }}']
 SECRET_API_KEYS = ['{{ secret_api_key }}']
-STRIPE_PUBLISHABLE_KEY = ''
-STRIPE_SECRET_KEY = ''
-STRIPE_WEBHOOK_SECRET = ''
+STRIPE_PUBLISHABLE_KEY = '{{ stripe_publishable_key }}'
+STRIPE_SECRET_KEY = '{{ stripe_secret_key }}'
+STRIPE_WEBHOOK_SECRET = '{{ stripe_webhook_secret }}'
 DEFAULT_FROM_EMAIL = '"Iguana Comedy" <no-reply@{{ site_domain }}>'
 EMAIL_HOST = 'localhost'
 EMAIL_PORT = 25
 NOTIFY_EMAILS = {{ notify_emails | to_json }}
+META_PIXEL_ID = '{{ meta_pixel_id }}'
+META_CAPI_TOKEN = '{{ meta_capi_token }}'
+META_TEST_EVENT_CODE = '{{ meta_test_event_code }}'
 GEOIP_DB = '{{ geoip_db }}'

@@ -71,6 +71,9 @@ SERIES = {
         'language': 'es',
         'currency': 'mxn',
         'price_cents': 5000,
+        # From the night's own flyer: sign-up list at 8, show at 9.
+        'doors': '20:00',
+        'show_time': '21:00',
         'images': {'en': ('/media/events/open-mic-es-en-16x9.jpg', '/media/events/open-mic-es-en-4x5.jpg'),
                    'es': ('/media/events/open-mic-es-16x9.jpg', '/media/events/open-mic-es-4x5.jpg')},
     },
@@ -82,6 +85,9 @@ SERIES = {
         'language': 'en',
         'currency': 'usd',
         'price_cents': 500,
+        # From the night's own flyer: doors at 8, show at 8:30.
+        'doors': '20:00',
+        'show_time': '20:30',
         'images': {'en': ('/media/events/open-mic-en-16x9.jpg', '/media/events/open-mic-en-4x5.jpg'),
                    'es': ('/media/events/open-mic-en-es-16x9.jpg', '/media/events/open-mic-en-es-4x5.jpg')},
     },
@@ -95,8 +101,8 @@ class Command(BaseCommand):
         parser.add_argument('--from', dest='start', help='First show day, YYYY-MM-DD (default: today in Cancun)')
         parser.add_argument('--capacity', type=int, default=60, help='Reserved seats per night (default 60 of 80)')
         parser.add_argument('--max-per-order', type=int, default=6)
-        parser.add_argument('--show-time', default='', help='24h clock, e.g. 20:00; blank leaves it unchanged')
-        parser.add_argument('--doors', default='', help='24h clock, e.g. 19:30; blank leaves it unchanged')
+        parser.add_argument('--show-time', default='', help="24h clock, e.g. 20:00; blank uses each series' own time")
+        parser.add_argument('--doors', default='', help="24h clock, e.g. 19:30; blank uses each series' own time")
         parser.add_argument('--pay-at-door', action='store_true',
                             help='Book online but collect the money on arrival (stopgap while Stripe is not set up)')
         parser.add_argument('--dry-run', action='store_true', help='Print what would change and roll back')
@@ -156,10 +162,13 @@ class Command(BaseCommand):
                             ('image_url_es', series['images']['es'][0]), ('image_url_mobile_es', series['images']['es'][1])):
             if not getattr(event, attr):
                 setattr(event, attr, value)
-        if opts['show_time']:
-            event.show_time = opts['show_time']
-        if opts['doors']:
-            event.doors_open = opts['doors']
+        # The two nights keep their own clocks; --show-time / --doors override both when they are passed.
+        show_time = opts['show_time'] or series.get('show_time', '')
+        doors = opts['doors'] or series.get('doors', '')
+        if show_time:
+            event.show_time = show_time
+        if doors:
+            event.doors_open = doors
         event.save()
 
         # Before names were bilingual the Spanish night's type was named in Spanish; match either so it is updated.

@@ -1,0 +1,40 @@
+---
+/**
+ * Meta pixel, for the marketing pages only.
+ *
+ * It deliberately does NOT send Purchase. Checkout runs in an iframe served from api.iguanacomedy.com, so this
+ * pixel could never see a sale anyway, and the backend reports Purchase and InitiateCheckout through the
+ * Conversions API instead (backend/crm/meta_capi.py). Because only one side ever sends a given event, there is no
+ * deduplication to get wrong.
+ *
+ * What it is really here for is the `_fbp` cookie and, on an ad click, `_fbc`. Those are what let Meta tie a
+ * server-side sale back to the ad that caused it, and they can only be written on this origin. `k.js` reads them
+ * and posts them with the order.
+ */
+interface Props {
+  /** Fires ViewContent as well as PageView: an event page or the open mic page, not the home page. */
+  content?: { id: string; name: string; value?: number; currency?: string };
+}
+
+const { content } = Astro.props;
+const pixelId = import.meta.env.PUBLIC_META_PIXEL_ID?.trim();
+
+const viewContent = content
+  ? `fbq('track','ViewContent',${JSON.stringify({
+      content_type: "product",
+      content_ids: [content.id],
+      content_name: content.name,
+      ...(content.value != null ? { value: content.value } : {}),
+      ...(content.currency ? { currency: content.currency.toUpperCase() } : {}),
+    })});`
+  : "";
+---
+
+{
+  pixelId ? (
+    <script
+      is:inline
+      set:html={`!function(f,b,e,v,n,t,s){if(f.fbq)return;n=f.fbq=function(){n.callMethod?n.callMethod.apply(n,arguments):n.queue.push(arguments)};if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';n.queue=[];t=b.createElement(e);t.async=!0;t.src=v;s=b.getElementsByTagName(e)[0];s.parentNode.insertBefore(t,s)}(window,document,'script','https://connect.facebook.net/en_US/fbevents.js');fbq('init','${pixelId}');fbq('track','PageView');${viewContent}`}
+    />
+  ) : null
+}

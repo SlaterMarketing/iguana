@@ -14,6 +14,7 @@ from catalog.models import Event
 from crm.geo import remember_on_contact, visitor_profile
 from crm.models import Contact, TrackedEvent
 from crm.unsubscribe import email_from_token, resume_marketing, stop_marketing
+from sales.ad_reporting import report_checkout_started
 from sales.i18n import lang_from_request, normalize, tr
 from sales.models import Membership, MembershipPlan, Order, Ticket
 from sales.services import (DATE_FORMATS, CheckoutError, complete_order, create_order, current_membership, price_cart,
@@ -140,6 +141,9 @@ def checkout_start(request, event_id):
     client = body.get('client') if isinstance(body.get('client'), dict) else {}
     attribution['visitor'] = visitor_profile(request, locale=lang, browser_language=client.get('browserLanguage', ''),
                                              time_zone=client.get('timeZone', ''))
+    # Meta matches a server-side conversion on the browser that made it. The fan is in this iframe, so the header
+    # is theirs; `_fbp` and `_fbc` belong to the site origin and arrive in attribution from k.js.
+    attribution['userAgent'] = request.headers.get('User-Agent', '')[:500]
 
     if any(ticket_type.pay_at_door for ticket_type, _, _ in cart.lines):
         try:
@@ -154,6 +158,7 @@ def checkout_start(request, event_id):
     order = create_order(event, cart, name=name, email=email, phone=phone, contact=contact, attribution=attribution,
                          locale=lang)
     remember_on_contact(order.contact, attribution['visitor'])
+    report_checkout_started(order)
     success_url = f'{settings.BACKEND_URL}/orders/{order.public_view_token}/'
 
     if cart.total_cents == 0:
