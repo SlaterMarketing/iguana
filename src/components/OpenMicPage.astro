@@ -22,6 +22,7 @@ import Base from "../layouts/Base.astro";
 import EventCheckoutWidget from "./EventCheckoutWidget.astro";
 import NewsletterSignup from "./NewsletterSignup.astro";
 import { site } from "../content/site";
+import { eventVenueMapEmbedUrl } from "../lib/event-hero";
 import { formatEventDate } from "../lib/events";
 import { loadEventsForCalendarPages } from "../lib/events-catalog";
 import { holidayNotice } from "../lib/holiday-notice";
@@ -127,6 +128,9 @@ const copy = {
 }[locale];
 
 const night = copy.nights[shownKey];
+// Somebody deciding whether to come out tonight wants to see WHERE, not read an address and take it on
+// trust. The event pages have had the map all along; the page the ads actually pay for did not.
+const mapEmbedUrl = selected ? eventVenueMapEmbedUrl(selected) : null;
 ---
 
 <Base title={`${copy.headline} · Iguana Comedy`} description={copy.lede} narrow={false} pixelContent={selected
@@ -288,6 +292,23 @@ const night = copy.nights[shownKey];
           {copy.findTitle}
         </h2>
         <p class="mt-4 text-sm leading-relaxed text-neutral-600">{site.venueAddress}</p>
+        {
+          mapEmbedUrl ? (
+            <div class="mt-4 overflow-hidden rounded-2xl border border-black/10">
+              <iframe
+                title={copy.findTitle}
+                src={mapEmbedUrl}
+                width="100%"
+                height="240"
+                style="border: 0;"
+                allowfullscreen
+                loading="lazy"
+                referrerpolicy="no-referrer-when-downgrade"
+                class="block w-full"
+              />
+            </div>
+          ) : null
+        }
         <a
           class="mt-5 inline-flex text-sm font-semibold uppercase tracking-[0.3em] text-neutral-900 underline-offset-4 hover:underline"
           href={site.venueMapsUrl}
