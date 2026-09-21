@@ -36,10 +36,12 @@ const VIEWPORTS = [
   { name: "phone", width: 390, height: 844, isMobile: true },
 ];
 const PAGES = [
-  // The button says "Pay 50 MXN / 1 ticket" for a paid seat and "Reserve 1 seat" for a pay-at-the-door one, so
-  // both count: what matters is that it is a real call to action carrying the price, not a bare plus sign.
-  { lang: "en", path: "/en/open-mic/", reserve: /reserve|pay/i, later: /which night/i, price: /5 USD/ },
-  { lang: "es", path: "/es/open-mic/", reserve: /reservar|pagar/i, later: /qué noche/i, price: /50 MXN/ },
+  // The seat is free, so the button says "Reserve my free spot" / "Reserva mi lugar gratis". A paid show still
+  // says "Pay ...", and a pay-at-the-door one "Reserve N seats", so all three shapes count: what matters is
+  // that it is a real call to action and not a bare plus sign.
+  // `offer` is what the ad promised, and it has to be on the first screen: the word free, not a price.
+  { lang: "en", path: "/en/open-mic/", reserve: /reserv|pay/i, later: /which night/i, offer: /free/i },
+  { lang: "es", path: "/es/open-mic/", reserve: /reserv|pagar/i, later: /qué noche/i, offer: /gratis/i },
 ];
 
 // nginx and gunicorn error bodies, which is exactly what an ad click found inside the checkout on 2026-09-20.
@@ -132,11 +134,14 @@ async function checkPage(browser, entry, viewport) {
   note(iframeBox !== null && iframeBox.y < viewport.height,
     `the checkout starts on the first screen (${iframeBox ? Math.round(iframeBox.y) : "?"}px vs ${viewport.height}px)`);
 
-  const priceAbove = await page.evaluate(({ fold, price }) => {
-    const nodes = [...document.querySelectorAll("p, span")];
-    return nodes.some((n) => new RegExp(price).test(n.textContent || "") && n.getBoundingClientRect().top < fold);
-  }, { fold: viewport.height, price: entry.price.source });
-  note(priceAbove, "the price is on the first screen");
+  // An ad that says "free" and a page that does not is the leak that cost the paid version every click it
+  // bought: 44 landing page views, zero checkouts.
+  const offerAbove = await page.evaluate(({ fold, offer }) => {
+    const nodes = [...document.querySelectorAll("p, span, h1, h2, button")];
+    return nodes.some((n) => new RegExp(offer, "i").test(n.textContent || "")
+      && n.getBoundingClientRect().top < fold);
+  }, { fold: viewport.height, offer: entry.offer.source });
+  note(offerAbove, "the offer the ad promised is on the first screen");
 
   // The pay button's absolute position is deliberately NOT an assertion, and pinning it was a mistake worth
   // recording. Between the price and the button sit a name, an email, a phone, a card number, an expiry, a CVC
