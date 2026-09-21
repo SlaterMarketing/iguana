@@ -50,6 +50,14 @@ upstream iguana_api { server 127.0.0.1:8001; }
 {% endmacro %}
 
 {% macro site_locations() %}
+    # Apple Pay will not render at all unless Apple can fetch this, and Stripe re-checks ANNUALLY: when the
+    # file goes missing it flips apple_pay to inactive silently and wallets just stop appearing. It is one
+    # universal Stripe file (Stripe is the merchant on Apple's side), kept in the repo so it cannot quietly
+    # vanish, and served on BOTH domains because the Payment Element runs inside the iframe on the API host.
+    location = /.well-known/apple-developer-merchantid-domain-association {
+        alias /var/www/wallet/apple-developer-merchantid-domain-association;
+        default_type text/plain;
+    }
     client_max_body_size 10m;
     gzip on;
     gzip_types text/css application/javascript application/json image/svg+xml;
@@ -74,6 +82,14 @@ upstream iguana_api { server 127.0.0.1:8001; }
 
 {% macro api_locations() %}
     client_max_body_size 10m;
+    # Apple Pay will not render at all unless Apple can fetch this, and Stripe re-checks ANNUALLY: when the
+    # file goes missing it flips apple_pay to inactive silently and wallets just stop appearing. It is one
+    # universal Stripe file (Stripe is the merchant on Apple's side), kept in the repo so it cannot quietly
+    # vanish, and served on BOTH domains because the Payment Element runs inside the iframe on the API host.
+    location = /.well-known/apple-developer-merchantid-domain-association {
+        alias /var/www/wallet/apple-developer-merchantid-domain-association;
+        default_type text/plain;
+    }
     location ^~ /static/ { alias {{ app_dir }}/backend/staticfiles/; expires 7d; }
     location ^~ /media/ { alias {{ app_dir }}/backend/media/; expires 7d; }
     location / {

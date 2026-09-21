@@ -234,6 +234,15 @@
       changed_when: true
 
     # ----------------------------------------------------------- nginx/procs
+    - name: Wallet verification directory
+      file: {path: /var/www/wallet, state: directory, mode: '0755'}
+
+    - name: Apple Pay domain verification file
+      copy:
+        src: files/apple-developer-merchantid-domain-association
+        dest: /var/www/wallet/apple-developer-merchantid-domain-association
+        mode: '0644'
+
     - name: nginx
       include_tasks: tasks/nginx.yml
 
