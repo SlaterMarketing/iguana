@@ -638,6 +638,41 @@ class MetaConversionTests(ApiTestCase):
         self.assertEqual(meta_capi.hash_phone(''), '')
 
     @override_settings(META_PIXEL_ID='123', META_CAPI_TOKEN='tok')
+    def test_starting_to_fill_the_form_is_what_reports_initiatecheckout(self):
+        """The reservation ad sets optimise on InitiateCheckout because it should be commoner than Purchase.
+        It was first wired to the submit, which made it nearly as rare and left the campaigns nothing to learn
+        from: 44 landing page views produced 0 of them on the first day live."""
+        from sales import ad_reporting
+
+        sent = []
+        original = ad_reporting.meta_capi.send
+        ad_reporting.meta_capi.send = lambda name, **kw: sent.append((name, kw))
+        try:
+            response = self.client.post(
+                f'/api/checkout/{self.event.id}/engaged', content_type='application/json',
+                headers={'user-agent': self.UA},
+                data=json.dumps({'lang': 'es', 'valueCents': 5000, 'key': 'abc',
+                                 'attribution': {'fbp': 'fb.1.9.9', 'fbc': 'fb.1.9.click',
+                                                 'pageUrl': f'{SITE}/es/open-mic/'}}))
+        finally:
+            ad_reporting.meta_capi.send = original
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual([n for n, _ in sent], ['InitiateCheckout'])
+        kw = sent[0][1]
+        self.assertEqual(kw['user']['fbc'], 'fb.1.9.click')
+        self.assertEqual(kw['user']['client_user_agent'], self.UA)
+        self.assertEqual(kw['custom']['value'], 50.0)
+        self.assertEqual(kw['event_id'], 'ic-abc', 'keyed so retyping is not three separate events')
+
+    def test_the_engaged_beacon_never_breaks_and_never_500s(self):
+        # It sits on the path to a sale. A bad body, an unknown show or a dead Meta must all be a quiet 204.
+        for body in ('{}', '{"valueCents": "not a number"}', 'not json at all'):
+            self.assertEqual(self.client.post(f'/api/checkout/{self.event.id}/engaged',
+                                              content_type='application/json', data=body).status_code, 204)
+        self.assertEqual(self.client.post('/api/checkout/does-not-exist/engaged',
+                                          content_type='application/json', data='{}').status_code, 204)
+
+    @override_settings(META_PIXEL_ID='123', META_CAPI_TOKEN='tok')
     def test_purchase_carries_the_click_ids_the_site_collected(self):
         from sales import ad_reporting
 
@@ -652,7 +687,7 @@ class MetaConversionTests(ApiTestCase):
             ad_reporting.meta_capi.send = original
 
         names = [name for name, _ in sent]
-        self.assertEqual(names, ['InitiateCheckout', 'Purchase'])
+        self.assertEqual(names, ['AddPaymentInfo', 'Purchase'])
         purchase = dict(sent[-1][1])
         # Without fbp/fbc Meta cannot tie the sale to the click, and the campaign reads as having sold nothing.
         self.assertEqual(purchase['user']['fbp'], 'fb.1.123.456')
@@ -939,6 +974,20 @@ class NewsletterOptInTests(ApiTestCase):
         self.client.get(f'/newsletter/confirm/{token_for("tulum@example.com")}')
         contact = Contact.objects.get(email='tulum@example.com')
         self.assertTrue(ContactList.objects.filter(name='City alerts: Tulum', contacts=contact).exists())
+
+    def test_a_filled_honeypot_sends_no_confirmation_at_all(self):
+        """The opt-in gate alone keeps a scraped address off the list, but still puts our name in a stranger's
+        inbox once. On its first night live the bot filled the contact form's honeypot 3 times out of 3, so it
+        renders forms and fills hidden inputs: catching it here costs it the email too."""
+        from catalog.models import FormSubmission
+        from catalog.spam import HONEYPOT_FIELD
+
+        mail.outbox.clear()
+        self.sign_up('scraped@example.com', {'locale': 'en', HONEYPOT_FIELD: 'http://spam.example'})
+        self.assertEqual(mail.outbox, [], 'a scraped address must not be emailed at all')
+        self.assertEqual(FormSubmission.objects.latest('created_at').context.get('spam'), 'honeypot')
+        self.assertFalse(Contact.objects.filter(email='scraped@example.com').exists(),
+                         'a rejected sign-up should not even create a contact')
 
     def test_asking_again_does_not_unsubscribe_someone_already_confirmed(self):
         from crm.optin import token_for

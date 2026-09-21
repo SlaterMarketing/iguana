@@ -45,6 +45,7 @@ urlpatterns = [
     path('unsubscribe/<str:token>/', embed_views.unsubscribe),
     path('api/checkout/<str:event_id>/quote', embed_views.checkout_quote),
     path('api/checkout/<str:event_id>/start', embed_views.checkout_start),
+    path('api/checkout/<str:event_id>/engaged', embed_views.checkout_engaged),
     path('api/checkout/orders/<str:order_id>/confirm', embed_views.checkout_confirm),
     path('orders/<str:token>/', embed_views.order_page),
     path('checkin/<str:token>/', embed_views.checkin, name='checkin'),

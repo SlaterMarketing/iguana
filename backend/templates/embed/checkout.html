@@ -80,6 +80,9 @@
   var stripe = null, elements = null;
   var $ = function (id) { return document.getElementById(id); };
   var form = $("checkout");
+  // Typing a name or an email is the commonest way somebody starts a checkout; the quantity stepper is the
+  // other. `once` so a long name is still one event.
+  form.addEventListener("input", function () { reportEngaged(); }, { once: true });
   // Translated on the server (CHECKOUT_JS_STRINGS); {0} slots are filled here.
   function T(key) {
     var args = Array.prototype.slice.call(arguments, 1);
@@ -102,6 +105,27 @@
   }
   function show(el, on) { el.hidden = !on; }
   function setError(msg) { $("error").textContent = msg || ""; show($("error"), !!msg); reportHeight(); }
+  // Fired once, the first time somebody actually types into the checkout. This is what the reservation ad
+  // sets optimise on, so it has to mean "started the checkout" rather than "finished it": reporting it at
+  // submit time made it as rare as a purchase and the campaigns had nothing to learn from.
+  var engagedSent = false;
+  function reportEngaged() {
+    if (engagedSent) return;
+    engagedSent = true;
+    try {
+      var payload = JSON.stringify({
+        lang: B.lang,
+        attribution: attribution,
+        client: { browserLanguage: navigator.language, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone },
+        valueCents: (quoted && quoted.totalCents) || 0,
+        key: ev.id + ":" + (attribution.fbp || "anon")
+      });
+      var url = B.apiBase + "/api/checkout/" + ev.id + "/engaged";
+      if (navigator.sendBeacon) navigator.sendBeacon(url, new Blob([payload], { type: "text/plain" }));
+      else fetch(url, { method: "POST", body: payload, keepalive: true, mode: "cors", credentials: "omit" });
+    } catch (e) {}
+  }
+
   function totalQty() { return Object.keys(qty).reduce(function (n, k) { return n + qty[k]; }, 0); }
   function typeById(id) { return ev.ticketTypes.filter(function (t) { return t.id === id; })[0]; }
   function selectionAtDoor() { return Object.keys(qty).some(function (k) { return qty[k] > 0 && typeById(k).payAtDoor; }); }
@@ -170,8 +194,8 @@
         cap.hidden = !capByOrder || qty[t.id] < limit;
       }
       syncers.push(sync);
-      minus.onclick = function () { qty[t.id] = Math.max(0, qty[t.id] - 1); changed(); };
-      plus.onclick = function () { if (qty[t.id] < limit) qty[t.id] += 1; changed(); };
+      minus.onclick = function () { qty[t.id] = Math.max(0, qty[t.id] - 1); reportEngaged(); changed(); };
+      plus.onclick = function () { if (qty[t.id] < limit) qty[t.id] += 1; reportEngaged(); changed(); };
       sync();
       box.appendChild(row);
     });

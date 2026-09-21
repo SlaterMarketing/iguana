@@ -38,6 +38,13 @@ const inputId = `newsletter-email-${city?.slug ?? "all"}`;
       data-msg-failed={t(locale, "newsletter.failed")}
       data-msg-sending={t(locale, "newsletter.sending")}
     >
+      {/* Same trap as the contact form, which caught this bot 3 times out of 3 on its first night. Without it
+          a scraped address still costs us one unsolicited confirmation email, which is our name in a stranger's
+          inbox even though the opt-in gate keeps them off the list. */}
+      <div aria-hidden="true" class="absolute left-[-9999px] h-px w-px overflow-hidden">
+        <label for={`${inputId}-company`}>Leave this field empty</label>
+        <input id={`${inputId}-company`} name="company_website" type="text" tabindex="-1" autocomplete="off" />
+      </div>
       <label
         for={inputId}
         class:list={["block text-xs font-semibold uppercase tracking-[0.2em] sm:tracking-[0.3em]", dark ? "text-white/90" : "text-neutral-500"]}
@@ -120,7 +127,11 @@ const inputId = `newsletter-email-${city?.slug ?? "all"}`;
             },
             body: JSON.stringify({
               email,
-              fields: { locale: d.locale },
+              fields: {
+                locale: d.locale,
+                // A browser leaves this empty; the bot filling this form does not.
+                company_website: form.querySelector<HTMLInputElement>("input[name=company_website]")?.value ?? "",
+              },
               context: {
                 source: d.citySlug ? "city-page" : "home",
                 citySlug: d.citySlug,

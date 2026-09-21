@@ -18,7 +18,7 @@ from crm.models import Contact, TrackedEvent
 from crm.optin import confirm as confirm_optin
 from crm.optin import email_from_token as email_from_optin_token
 from crm.unsubscribe import email_from_token, resume_marketing, stop_marketing
-from sales.ad_reporting import report_checkout_started
+from sales.ad_reporting import report_checkout_engaged, report_payment_info_added
 from sales.i18n import lang_from_request, normalize, tr
 from sales.models import Membership, MembershipPlan, Order, Ticket
 from sales.services import (DATE_FORMATS, CheckoutError, complete_order, create_order, current_membership, price_cart,
@@ -127,6 +127,42 @@ def checkout_quote(request, event_id):
 
 @csrf_exempt
 @require_POST
+def checkout_engaged(request, event_id):
+    """Fired once when somebody starts filling the checkout in, from the widget itself.
+
+    This is the mid-funnel event the reservation ad sets optimise on, so it has to mean what Meta means by it:
+    entering a checkout, not completing one. It was previously reported at submit time, which made it nearly as
+    rare as a purchase and left the campaigns with nothing to learn from.
+
+    Answers 204 whatever happens. It is a beacon on the path to a sale and must never be able to interrupt one.
+    """
+    event = public_events().filter(pk=event_id).first()
+    if event is None:
+        return HttpResponse(status=204)
+    body = json_body(request) or {}
+    lang = normalize(body.get('lang'))
+    attribution = body.get('attribution') if isinstance(body.get('attribution'), dict) else {}
+    client = body.get('client') if isinstance(body.get('client'), dict) else {}
+    try:
+        report_checkout_engaged(
+            event=event,
+            attribution={k: str(v)[:200] for k, v in attribution.items() if k != 'visitor'},
+            visitor=visitor_profile(request, locale=lang, browser_language=client.get('browserLanguage', ''),
+                                    time_zone=client.get('timeZone', '')),
+            user_agent=request.headers.get('User-Agent', '')[:500],
+            value_cents=int(body.get('valueCents') or 0),
+            currency=event.currency,
+            # The widget sends one key per mounted checkout, so a person who types, deletes and types again is
+            # one InitiateCheckout rather than three.
+            key=str(body.get('key') or '')[:60] or event.id,
+        )
+    except Exception:  # noqa: BLE001
+        log.warning('could not report checkout engagement for %s', event_id, exc_info=True)
+    return HttpResponse(status=204)
+
+
+@csrf_exempt
+@require_POST
 def checkout_start(request, event_id):
     event = get_object_or_404(public_events(), pk=event_id)
     lang = _body_lang(request)
@@ -165,7 +201,7 @@ def checkout_start(request, event_id):
     order = create_order(event, cart, name=name, email=email, phone=phone, contact=contact, attribution=attribution,
                          locale=lang)
     remember_on_contact(order.contact, attribution['visitor'])
-    report_checkout_started(order)
+    report_payment_info_added(order)
     success_url = f'{settings.BACKEND_URL}/orders/{order.public_view_token}/'
 
     if cart.total_cents == 0:

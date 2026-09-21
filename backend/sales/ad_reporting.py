@@ -70,9 +70,32 @@ def _source_url(order):
     return _attribution(order).get('pageUrl', '')
 
 
-def report_checkout_started(order):
-    meta_capi.send('InitiateCheckout', event_id=f'ic-{order.id}', user=_user(order), custom=_custom(order),
+def report_payment_info_added(order):
+    """They filled the form in and we made them a payment intent. This used to be reported as InitiateCheckout,
+    which was wrong twice over: Meta means that event for entering a checkout, not finishing one, and the ad
+    sets optimise on it precisely because it should be commoner than Purchase. Fired here it was almost as rare,
+    so the campaigns had nothing to learn from. `report_checkout_engaged` is the real one now."""
+    meta_capi.send('AddPaymentInfo', event_id=f'api-{order.id}', user=_user(order), custom=_custom(order),
                    source_url=_source_url(order))
+
+
+def report_checkout_engaged(*, event, attribution, visitor, user_agent, value_cents, currency, key):
+    """Somebody started filling the checkout in. No order exists yet, so the identity is only what the browser
+    carried in: the click ids, the IP and the user agent. That is enough for Meta to match on, and this is the
+    one mid-funnel event with real volume behind it."""
+    attribution = attribution if isinstance(attribution, dict) else {}
+    user = meta_capi.user_data(
+        city=visitor.get('city', ''), region=visitor.get('region', ''), country=visitor.get('country', ''),
+        ip=visitor.get('ip', ''), user_agent=user_agent,
+        fbp=attribution.get('fbp', ''), fbc=attribution.get('fbc', ''),
+    )
+    meta_capi.send('InitiateCheckout', event_id=f'ic-{key}', user=user, custom={
+        'currency': (currency or 'mxn').upper(),
+        'value': round((value_cents or 0) / 100, 2),
+        'content_type': 'product',
+        'content_ids': [event.id],
+        'content_name': event.name,
+    }, source_url=attribution.get('pageUrl', ''))
 
 
 def report_purchase(order):
