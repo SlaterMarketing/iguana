@@ -175,6 +175,17 @@ ES = {
     'Details: {0}': 'Más información: {0}',
     'Everything that is on: {0}': 'Toda la cartelera: {0}',
     'See you at the club,': 'Nos vemos en el club,',
+    # Confirmed opt-in (crm/optin.py, templates/embed/newsletter_confirmed.html)
+    'Confirm your email': 'Confirma tu correo',
+    'Confirm you want our weekly email about what is on at Iguana Comedy:':
+        'Confirma que quieres nuestro correo semanal con lo que hay en Iguana Comedy:',
+    'If you did not ask for this, ignore this email and nothing else will be sent.':
+        'Si no lo pediste, ignora este correo y no te mandaremos nada más.',
+    'Every Monday morning we send {0} one email with what is on that week.':
+        'Cada lunes por la mañana mandamos a {0} un correo con lo que hay esa semana.',
+    'It may have expired. Sign up again on the site and we will send a new one.':
+        'Quizá caducó. Vuelve a registrarte en el sitio y te mandamos otro.',
+    'Back to the site': 'Volver al sitio',
 }
 
 

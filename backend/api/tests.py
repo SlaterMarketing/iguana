@@ -125,7 +125,11 @@ class EventLanguageTests(ApiTestCase):
 
 
 class NewsletterTests(ApiTestCase):
-    """Home page sign-ups join "Newsletter"; empty city pages also join that city's alert list. No alert emails."""
+    """Sign-ups ask for confirmation; confirming joins "Newsletter", and a city page also joins its alert list.
+
+    Joining used to be immediate. It is not any more: a bot filled this form 59 times with scraped addresses
+    and nothing about the requests could be told from a person's. See NewsletterOptInTests.
+    """
 
     @classmethod
     def setUpTestData(cls):
@@ -136,24 +140,36 @@ class NewsletterTests(ApiTestCase):
         return self.api('post', '/api/public/v1/endpoints/newsletter/submit',
                         {'email': email, 'fields': {'locale': 'es'}, 'context': context or {}})
 
-    def test_signup_joins_newsletter_without_an_alert_email(self):
+    def confirm(self, email):
+        from crm.optin import token_for
+
+        return self.client.get(f'/newsletter/confirm/{token_for(email)}')
+
+    def test_signup_asks_for_confirmation_and_never_alerts_the_owner(self):
         from crm.models import ContactList
 
+        mail.outbox.clear()
         with self.settings(NOTIFY_EMAILS=['hello@example.com']):
             self.assertTrue(self.signup('Fan@Example.com').json()['ok'])
             self.signup('fan@example.com')  # signing up twice is harmless
+        # One confirmation to the reader, and nothing at all to the owner: a sign-up is not an enquiry.
+        self.assertEqual([m.to for m in mail.outbox], [['fan@example.com'], ['fan@example.com']])
+        self.assertFalse(ContactList.objects.filter(name='Newsletter', contacts__email='fan@example.com').exists())
+
+        self.confirm('fan@example.com')
         members = ContactList.objects.get(name='Newsletter').contacts.all()
         self.assertEqual([c.email for c in members], ['fan@example.com'])
         self.assertEqual(Contact.objects.get(email='fan@example.com').source, 'NEWSLETTER')
-        self.assertEqual(mail.outbox, [])
 
     def test_city_signup_also_joins_that_citys_alert_list(self):
         from crm.models import ContactList
 
         self.signup('cancun@example.com', {'citySlug': 'cancun', 'cityLabel': 'Cancún'})
+        self.confirm('cancun@example.com')
         self.assertEqual(sorted(ContactList.objects.filter(contacts__email='cancun@example.com').values_list('name', flat=True)),
                          ['City alerts: Cancún', 'Newsletter'])
         self.signup('bad@example.com', {'citySlug': '<script>', 'cityLabel': 'x'})
+        self.confirm('bad@example.com')
         self.assertEqual(list(ContactList.objects.filter(contacts__email='bad@example.com').values_list('name', flat=True)),
                          ['Newsletter'])
 
@@ -848,3 +864,86 @@ class FormSpamTests(ApiTestCase):
         FormEndpoint.objects.create(slug='newsletter', intent='newsletter')
         self.submit('newsletter', {}, email='reader@example.com')
         self.assertFalse(FormSubmission.objects.latest('created_at').handled)
+
+
+class NewsletterOptInTests(ApiTestCase):
+    """An address joins the list only when somebody proves they can read it.
+
+    Every newsletter sign-up this site ever received came from one bot: `Europe/Moscow` on all 59, arriving
+    through Tor exits, paced so the rate never looked like a burst, carrying scraped addresses belonging to
+    real strangers. It sent exactly what the real form sends, so no check on the request could tell them
+    apart. The Monday send was hours from being this domain's first bulk mail, to 59 people who never asked.
+    """
+
+    def sign_up(self, email='reader@example.com', fields=None):
+        from catalog.models import FormEndpoint
+
+        FormEndpoint.objects.get_or_create(slug='newsletter', defaults={'intent': 'newsletter'})
+        return self.api('post', '/api/public/v1/endpoints/newsletter/submit',
+                        {'email': email, 'fields': fields or {'locale': 'en'}})
+
+    def test_signing_up_does_not_put_you_on_the_list(self):
+        from crm.models import ContactList
+
+        mail.outbox.clear()
+        self.assertEqual(self.sign_up().status_code, 200)
+        contact = Contact.objects.get(email='reader@example.com')
+        self.assertFalse(contact.subscribed, 'an unconfirmed address must never be mailable')
+        self.assertFalse(contact.email_marketing_eligible)
+        self.assertFalse(ContactList.objects.filter(name='Newsletter', contacts=contact).exists())
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Confirm', mail.outbox[0].subject)
+
+    def test_the_unconfirmed_are_not_in_the_weekly_send(self):
+        from crm.mail import marketing_recipients
+
+        self.sign_up()
+        contact = Contact.objects.get(email='reader@example.com')
+        self.assertEqual(marketing_recipients([contact]), [])
+
+    def test_clicking_the_link_is_what_subscribes_you(self):
+        from crm.models import ContactList
+        from crm.optin import token_for
+
+        self.sign_up()
+        response = self.client.get(f'/newsletter/confirm/{token_for("reader@example.com")}')
+        self.assertEqual(response.status_code, 200)
+        contact = Contact.objects.get(email='reader@example.com')
+        self.assertTrue(contact.subscribed)
+        self.assertTrue(ContactList.objects.filter(name='Newsletter', contacts=contact).exists())
+
+    def test_a_forged_or_expired_token_subscribes_nobody(self):
+        self.sign_up()
+        for bad in ('not-a-token', 'YnJva2Vu:fake:sig'):
+            self.assertEqual(self.client.get(f'/newsletter/confirm/{bad}').status_code, 200)
+        self.assertFalse(Contact.objects.get(email='reader@example.com').subscribed)
+
+    def test_an_unsubscribe_token_cannot_be_used_to_subscribe(self):
+        """Different salts, so a link from the foot of an old newsletter cannot re-add a person who left."""
+        from crm.unsubscribe import token_for as unsub_token
+
+        self.sign_up()
+        self.client.get(f'/newsletter/confirm/{unsub_token("reader@example.com")}')
+        self.assertFalse(Contact.objects.get(email='reader@example.com').subscribed)
+
+    def test_a_city_alert_signup_lands_on_the_city_list_after_confirming(self):
+        from crm.models import ContactList
+        from crm.optin import token_for
+
+        from catalog.models import FormEndpoint
+
+        FormEndpoint.objects.get_or_create(slug='newsletter', defaults={'intent': 'newsletter'})
+        self.api('post', '/api/public/v1/endpoints/newsletter/submit',
+                 {'email': 'tulum@example.com', 'fields': {'locale': 'en'},
+                  'context': {'citySlug': 'tulum', 'cityLabel': 'Tulum'}})
+        self.client.get(f'/newsletter/confirm/{token_for("tulum@example.com")}')
+        contact = Contact.objects.get(email='tulum@example.com')
+        self.assertTrue(ContactList.objects.filter(name='City alerts: Tulum', contacts=contact).exists())
+
+    def test_asking_again_does_not_unsubscribe_someone_already_confirmed(self):
+        from crm.optin import token_for
+
+        self.sign_up()
+        self.client.get(f'/newsletter/confirm/{token_for("reader@example.com")}')
+        self.sign_up()
+        self.assertTrue(Contact.objects.get(email='reader@example.com').subscribed)

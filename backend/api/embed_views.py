@@ -15,6 +15,8 @@ from catalog.models import Event
 from crm.email_links import remember_click
 from crm.geo import remember_on_contact, visitor_profile
 from crm.models import Contact, TrackedEvent
+from crm.optin import confirm as confirm_optin
+from crm.optin import email_from_token as email_from_optin_token
 from crm.unsubscribe import email_from_token, resume_marketing, stop_marketing
 from sales.ad_reporting import report_checkout_started
 from sales.i18n import lang_from_request, normalize, tr
@@ -24,6 +26,7 @@ from sales.services import (DATE_FORMATS, CheckoutError, complete_order, create_
 
 from .auth import contact_from_fan_token, error, json_body
 from .fan_views import fan_event_json
+from .public_views import _add_to_lists as add_to_lists
 from .public_views import _by_id_or_slug, public_events
 
 log = logging.getLogger(__name__)
@@ -299,3 +302,24 @@ def ingest(request, kind):
     except Exception:  # noqa: BLE001 - tracking must stay a 204 whatever happens
         log.warning('could not record the language of a click on %s', url[:120], exc_info=True)
     return HttpResponse(status=204)
+
+
+def newsletter_confirm(request, token):
+    """The link in the confirmation email. Clicking it is the only way onto the mailing list.
+
+    Deliberately a GET with no form: a person clicking a link in their own inbox is the proof we wanted, and
+    asking them to press a second button loses the ones who assume the click was enough.
+    """
+    email = email_from_optin_token(token)
+    lang = lang_from_request(request)
+    contact = Contact.objects.filter(email=email).first() if email else None
+    if contact is not None:
+        confirm_optin(contact)
+        pending = (contact.custom_data or {}).get('pending_lists') or ['Newsletter']
+        add_to_lists(contact, names=pending)
+    return render(request, 'embed/newsletter_confirmed.html', {
+        'lang': lang,
+        'email': email or '',
+        'confirmed': contact is not None,
+        'site_url': settings.SITE_URLS[0] if settings.SITE_URLS else settings.BACKEND_URL,
+    })

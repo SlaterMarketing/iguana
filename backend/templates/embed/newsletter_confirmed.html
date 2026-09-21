@@ -1,0 +1,18 @@
+{% extends "embed/base.html" %}
+{% load showtime %}
+
+{% block content %}
+<div class="stack" style="text-align:center">
+  <p class="eyebrow">Iguana Comedy</p>
+
+  {% if confirmed %}
+    <h1>{% t lang "You are on the list" %}</h1>
+    <p class="muted">{% t lang "Every Monday morning we send {0} one email with what is on that week." email %}</p>
+  {% else %}
+    <h1>{% t lang "That link is not valid" %}</h1>
+    <p class="muted">{% t lang "It may have expired. Sign up again on the site and we will send a new one." %}</p>
+  {% endif %}
+
+  <p><a class="btn" href="{{ site_url }}">{% t lang "Back to the site" %}</a></p>
+</div>
+{% endblock %}

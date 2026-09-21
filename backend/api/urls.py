@@ -41,6 +41,7 @@ urlpatterns = [
     path('_t/k.js', embed_views.tracker_js),
     path('embed/event/<str:key>', embed_views.event_checkout),
     path('unsubscribe/<str:token>', embed_views.unsubscribe),
+    path('newsletter/confirm/<str:token>', embed_views.newsletter_confirm),
     path('unsubscribe/<str:token>/', embed_views.unsubscribe),
     path('api/checkout/<str:event_id>/quote', embed_views.checkout_quote),
     path('api/checkout/<str:event_id>/start', embed_views.checkout_start),

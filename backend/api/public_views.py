@@ -8,9 +8,10 @@ from django.db.models import Prefetch, Q
 from django.http import Http404, JsonResponse
 
 from catalog.spam import rejection_reason
+from crm.optin import send_confirmation
 from crm.geo import remember_on_contact, visitor_profile
 from sales.i18n import normalize
-from crm.models import ContactList, ContactListMember
+from crm.models import Contact, ContactList, ContactListMember
 from catalog.models import Artist, Event, FormEndpoint, FormSubmission, LineupEntry, SiteFile, StoreCollection, StoreProduct, Venue
 from sales.services import upsert_contact
 
@@ -161,7 +162,7 @@ def endpoint_submit(request, slug):
         return JsonResponse({'ok': True, 'successMessage': endpoint.success_message or None,
                              'redirectUrl': None, 'id': submission.pk})
     if endpoint.intent == 'newsletter':
-        remember_on_contact(_join_newsletter(email, context), visitor)
+        remember_on_contact(_join_newsletter(email, context, lang=fields.get('locale') or 'en'), visitor)
         # A sign-up is not an enquiry: no alert email per subscriber.
         return JsonResponse({'ok': True, 'successMessage': endpoint.success_message or None, 'redirectUrl': None, 'id': submission.pk})
     contact = upsert_contact(email, 'CONTACT_FORM', fields.get('firstName', '') or fields.get('first_name', ''),
@@ -174,14 +175,42 @@ def endpoint_submit(request, slug):
     return JsonResponse({'ok': True, 'successMessage': endpoint.success_message or None, 'redirectUrl': None, 'id': submission.pk})
 
 
-def _join_newsletter(email, context):
-    """Add the subscriber to "Newsletter", plus "City alerts: <city>" when they asked to hear about one city's shows."""
-    contact = upsert_contact(email, 'NEWSLETTER')
+def _join_newsletter(email, context, lang='en'):
+    """Record the request and ask them to confirm it. The address does NOT join the list here.
+
+    A bot sends exactly what the real form sends, so nothing about the request can tell them apart; what it
+    cannot do is read the mail. Until the link in that mail is clicked the contact stays unsubscribed, off
+    every list, and out of the Monday send.
+    """
+    # get_or_create rather than upsert_contact, because whether this address is NEW is the whole decision and
+    # `subscribed` cannot answer it: the model defaults it to True, so a brand-new contact looks confirmed.
+    contact, created = Contact.objects.get_or_create(
+        email=email, defaults={'source': 'NEWSLETTER', 'subscribed': False, 'email_marketing_eligible': False})
+    if not created and contact.subscribed and contact.email_marketing_eligible:
+        # Already on the list, for whatever reason. Asking again must never take somebody off it.
+        _add_to_lists(contact, context)
+        return contact
+    if not created:
+        contact.subscribed = False
+        contact.email_marketing_eligible = False
+        contact.save(update_fields=['subscribed', 'email_marketing_eligible'])
+    # Remembered so confirming puts them on the right city list without asking again.
+    contact.custom_data = dict(contact.custom_data or {}, pending_lists=_list_names(context))
+    contact.save(update_fields=['custom_data'])
+    send_confirmation(email, lang)
+    return contact
+
+
+def _list_names(context):
     names = ['Newsletter']
     city_slug = context.get('citySlug', '')
     if re.fullmatch(r'[a-z0-9-]{2,40}', city_slug):
         names.append(f'City alerts: {(context.get("cityLabel") or city_slug)[:60]}')
-    for name in names:
+    return names
+
+
+def _add_to_lists(contact, context=None, names=None):
+    for name in (names or _list_names(context or {})):
         contact_list, _ = ContactList.objects.get_or_create(name=name)
         ContactListMember.objects.get_or_create(contact_list=contact_list, contact=contact)
     return contact
