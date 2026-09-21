@@ -59,6 +59,9 @@ mail_forwards: [someone@example.com, someone-else@example.com]
 mail_test_recipient: someone-else@example.com
 
 # DB-IP "IP to City Lite" (CC BY 4.0), refreshed monthly by iguana-geoip-refresh; read by backend/crm/geo.py.
+# A one-off announcement the next scheduled newsletter carries, then renames aside. Missing is normal.
+newsletter_lede: /var/lib/iguana/newsletter-lede.json
+
 geoip_db: /var/lib/iguana/dbip-city-lite.mmdb
 
 # Clicky analytics through a first-party proxy (https://clicky.com/help/proxy). Paths are random per site.

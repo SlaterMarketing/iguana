@@ -780,3 +780,11 @@ class WeeklyEmailTests(ApiTestCase):
 
         Event.objects.all().update(status=Event.DRAFT)
         self.assertEqual(week_events(), [])
+
+    def test_an_empty_lede_file_option_is_not_the_working_directory(self):
+        """`pathlib.Path('') == Path('.')`, which exists and is a directory, so an empty default would make every
+        hand-run of the command die on "Is a directory". Found by running it on production."""
+        from crm.management.commands.send_whats_on import Command
+
+        parser = Command().create_parser('manage.py', 'send_whats_on')
+        self.assertIsNone(parser.parse_args([]).lede_file)

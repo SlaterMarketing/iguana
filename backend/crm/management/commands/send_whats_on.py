@@ -3,6 +3,7 @@
     manage.py send_whats_on                              dry run: prints the mail and who would get it
     manage.py send_whats_on --send                       deliver it
     manage.py send_whats_on --lede-en "We are open!" --lede-es "¡Ya abrimos!" --send
+    manage.py send_whats_on --lede-file /var/lib/iguana/newsletter-lede.json --send
     manage.py send_whats_on --list Newsletter --send     only that list, instead of everyone subscribed
 
 Dry run by default, like `send_newsletter`: `--send` is the only thing that delivers, so a cron that fires twice
@@ -11,9 +12,16 @@ or a hand-run rehearsal cannot mail the club's whole list by accident.
 Two refusals worth knowing about. It will not send a week with nothing on it, because an empty newsletter is how
 people learn to ignore the ones that matter. And it will not send the same week twice: each run is recorded as a
 Campaign named for its Monday, and a second run of the same week needs `--again` said out loud.
+
+`--lede-file` is how a one-off announcement rides along with the next scheduled send, rather than somebody having
+to remember to run the command by hand that morning. It holds `{"en": "...", "es": "..."}`, it is used once, and
+after a successful send it is renamed out of the way so the following week goes out plain. A missing file is the
+normal case and is not an error: that is what every week after the announcement looks like.
 """
 
 import datetime as dt
+import json
+import pathlib
 
 from django.core.management.base import BaseCommand, CommandError
 
@@ -31,6 +39,10 @@ class Command(BaseCommand):
         parser.add_argument('--days', type=int, default=7, help='How far ahead to include (default 7)')
         parser.add_argument('--lede-en', default='', help='An extra line at the top, English')
         parser.add_argument('--lede-es', default='', help='An extra line at the top, Spanish')
+        # default=None, not '': argparse skips `type` on a default, and pathlib.Path('') is Path('.'), which
+        # exists and is a directory, so an empty default would read the working directory as the announcement.
+        parser.add_argument('--lede-file', default=None, type=pathlib.Path,
+                            help='JSON {"en": "...", "es": "..."} used once, then renamed aside. Missing is fine.')
         parser.add_argument('--send', action='store_true', help='Actually deliver (otherwise it is a dry run)')
         parser.add_argument('--again', action='store_true', help='Send even though this week already went out')
         parser.add_argument('--rate', type=float, default=0.2,
@@ -71,6 +83,18 @@ class Command(BaseCommand):
                           f'{known} with a language recorded')
 
         lede = {'lede_en': opts['lede_en'], 'lede_es': opts['lede_es']}
+        lede_file = opts['lede_file']
+        if lede_file and lede_file.exists():
+            try:
+                announcement = json.loads(lede_file.read_text())
+            except (OSError, ValueError) as exc:
+                raise CommandError(f'{lede_file} is not readable JSON: {exc}')
+            # Whatever was passed on the command line wins, so a hand-run can still override the file.
+            lede['lede_en'] = lede['lede_en'] or str(announcement.get('en', ''))
+            lede['lede_es'] = lede['lede_es'] or str(announcement.get('es', ''))
+            self.stdout.write(f'one-off announcement from {lede_file}')
+        elif lede_file:
+            self.stdout.write(f'no announcement waiting at {lede_file}, sending the plain weekly mail')
         if not opts['send']:
             sample = eligible[0] if eligible else None
             self.stdout.write('\n' + '=' * 78)
@@ -91,6 +115,11 @@ class Command(BaseCommand):
         )
         campaign.status = 'SENT'
         campaign.save(update_fields=['status'])
+        if sent and lede_file and lede_file.exists():
+            # Renamed rather than deleted: next week goes out plain, and what was announced stays on the box.
+            used = lede_file.with_suffix(f'{lede_file.suffix}.sent-{monday}')
+            lede_file.rename(used)
+            self.stdout.write(f'announcement used once; moved to {used}')
         self.stdout.write(self.style.SUCCESS(f'sent {sent}, skipped {skipped} unsubscribed, recorded as '
                                              f'{campaign_name}'))
         if sent:

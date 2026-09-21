@@ -252,6 +252,22 @@
         # crm/geo.py reopens the file when it changes, so no restart; results go to syslog (journalctl -t iguana-geoip).
         job: "timeout 30m /usr/local/bin/iguana-geoip-refresh {{ geoip_db }} 2>&1 | logger -t iguana-geoip"
 
+    - name: Weekly what-is-on email, Monday morning in Playa
+      become: true
+      cron:
+        name: iguana weekly newsletter
+        user: "{{ deploy_user }}"
+        weekday: "1"
+        # The box runs UTC and Quintana Roo is UTC-5 with no daylight saving, so 14:00 here is 09:00 there,
+        # every week of the year.
+        hour: "14"
+        minute: "0"
+        # It refuses a week with nothing on and refuses to send the same week twice, so a double fire or a
+        # rerun is safe. 30m against a send that takes about three minutes at 683 recipients and 0.2s apart.
+        job: >-
+          timeout 30m {{ app_dir }}/backend/venv/bin/python {{ app_dir }}/backend/manage.py send_whats_on
+          --send --lede-file {{ newsletter_lede }} 2>&1 | logger -t iguana-newsletter
+
     - name: Restart app
       become: true
       command: "supervisorctl restart {{ projectname }}:"
