@@ -199,6 +199,17 @@ ES = {
     '{0} people reserved {1}': '{0} personas reservaron {1}',
     'Only {0} seats left of {1}': 'Solo quedan {0} lugares de {1}',
     '{0} of {1} seats taken': '{0} de {1} lugares apartados',
+    # Invite a friend, after reserving (sales/sharing.py, templates/embed/order.html)
+    'Bringing someone?': '¿Vienes con alguien?',
+    'These nights fill up. Send this to whoever you want to bring and they can reserve their own free seat.':
+        'Estas noches se llenan. Manda esto a quien quieras traer y aparta su lugar gratis.',
+    'Invite on WhatsApp': 'Invitar por WhatsApp',
+    'Copy the link': 'Copiar el enlace',
+    'Link copied': 'Enlace copiado',
+    'Bringing someone? Send them this and they can reserve their own free seat:':
+        '¿Vienes con alguien? Mándale esto y aparta su lugar gratis:',
+    'I am going to the open mic at Iguana Comedy. Entry is free, reserve a seat here: {0}':
+        'Voy al open mic de Iguana Comedy. La entrada es gratis, aparta tu lugar aquí: {0}',
 }
 
 

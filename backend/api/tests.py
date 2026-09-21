@@ -1355,3 +1355,72 @@ class DemandLineTests(ApiTestCase):
         page = self.client.get(f'/embed/event/{self.mic.id}?embedded=1&lang=es').content.decode()
         self.assertIn('"recent": 2', page)
         self.assertIn('personas reservaron', page)
+
+
+class InviteAFriendTests(ApiTestCase):
+    """After reserving, the one moment where asking somebody to bring a friend costs nothing.
+
+    They have already decided, the seat they would be recommending is free, and they are about to tell
+    somebody anyway. The link has to land on the night they just booked, not on a generic page.
+    """
+
+    def setUp(self):
+        from catalog.models import Event, TicketType
+
+        self.mic = Event.objects.create(name='Open Mic Night in Spanish', slug='mic-share', status=Event.ACTIVE,
+                                        venue=self.venue, currency='mxn', language='es',
+                                        date=timezone.now() + timedelta(days=2), tags=['open-mic'])
+        self.seat = TicketType.objects.create(event=self.mic, name='Free reserved seat', price_cents=0, capacity=60)
+
+    def reserve(self, lang='es'):
+        with self.captureOnCommitCallbacks(execute=True):
+            body = self.client.post(f'/api/checkout/{self.mic.id}/start', content_type='application/json',
+                                    data=json.dumps({'items': {self.seat.id: 1}, 'name': 'Ada',
+                                                     'email': 'fan@example.com', 'lang': lang})).json()
+        from sales.models import Order
+
+        return Order.objects.get(pk=body['orderId'])
+
+    def test_the_link_points_at_the_night_they_just_booked(self):
+        from sales.sharing import share_url
+
+        url = share_url(self.reserve())
+        self.assertIn('/es/open-mic/', url)
+        self.assertIn('night=es', url, 'a friend must land on this show, not a choice of two')
+        self.assertIn(f'date={self.mic.date.astimezone().date().isoformat()}', url)
+        self.assertIn('ref=share', url, 'shared traffic has to be tellable from bought traffic')
+
+    def test_the_order_page_offers_whatsapp_and_a_copyable_link(self):
+        order = self.reserve()
+        page = self.client.get(f'/orders/{order.public_view_token}/').content.decode()
+        self.assertIn('¿Vienes con alguien?', page)
+        self.assertIn('https://wa.me/?text=', page)
+        # The message rides in the href, so it only appears percent-encoded.
+        self.assertIn('Voy%20al%20open%20mic%20de%20Iguana%20Comedy', page)
+        self.assertIn('id="copy-invite"', page)
+        # The script has to sit in a block the base template actually renders: it was first written into
+        # {% block scripts_extra %}, which the base does not define, so it silently rendered nothing at all.
+        self.assertIn('navigator.share', page)
+        # And the ask comes after the tickets. Somebody who just booked wants their QR code first.
+        self.assertGreater(page.index('¿Vienes con alguien?'), page.index('data-qr'))
+
+    def test_the_confirmation_email_carries_it_too(self):
+        self.reserve()
+        body = mail.outbox[0].body
+        self.assertIn('¿Vienes con alguien?', body)
+        self.assertIn('/es/open-mic/?night=es', body)
+
+    def test_an_english_booker_shares_an_english_page(self):
+        from sales.sharing import share_url
+
+        url = share_url(self.reserve(lang='en'))
+        self.assertIn('/en/open-mic/', url, 'the path follows the sharer, who writes the message')
+        self.assertIn('night=es', url, 'the night follows the show, which is in Spanish')
+
+    def test_a_normal_ticketed_show_gets_no_open_mic_invite(self):
+        from sales.sharing import share_url
+        from sales.models import Order
+
+        order = Order.objects.create(event=self.event, event_name=self.event.name, customer_email='a@example.com',
+                                     currency='usd', status=Order.COMPLETED)
+        self.assertEqual(share_url(order), '', 'the invite is for the free open mic, not for paid shows')

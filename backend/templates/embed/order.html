@@ -7,6 +7,11 @@
   .qr { width: 132px; height: 132px; background: #fff; }
   .qr img, .qr canvas { width: 132px !important; height: 132px !important; }
   @media (max-width: 420px) { .ticket { grid-template-columns: 1fr; } }
+  .invite h2 { font-size: 1.3rem; margin-bottom: 6px; }
+  .invite-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+  .invite-actions .btn { width: auto; flex: 1 1 180px; }
+  .btn.ghost { background: #fff; color: var(--ink); border: 1px solid rgba(0,0,0,.25); }
+  .btn.ghost:hover { background: var(--brand-soft); color: var(--ink); }
   .status { display: inline-block; font-size: .7rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; padding: 6px 10px; border-radius: 999px; background: var(--brand-soft); }
 </style>
 {% endblock %}
@@ -40,6 +45,19 @@
         <div class="qr" data-qr="{{ request.scheme }}://{{ request.get_host }}{% url 'checkin' ticket.checkin_token %}" aria-label="{% t lang 'Check-in code' %}"></div>
       </section>
     {% endfor %}
+    {% if share_url %}
+      <section class="card invite">
+        <h2>{% t lang "Bringing someone?" %}</h2>
+        <p class="muted">{% t lang "These nights fill up. Send this to whoever you want to bring and they can reserve their own free seat." %}</p>
+        <div class="invite-actions">
+          {% if whatsapp_url %}
+            <a class="btn" href="{{ whatsapp_url }}" target="_blank" rel="noopener">{% t lang "Invite on WhatsApp" %}</a>
+          {% endif %}
+          <button class="btn ghost" type="button" id="copy-invite" data-link="{{ share_url }}"
+                  data-copied="{% t lang 'Link copied' %}">{% t lang "Copy the link" %}</button>
+        </div>
+      </section>
+    {% endif %}
   {% endif %}
   {% if site_url %}<a class="btn" href="{{ site_url }}/{{ lang }}/">{% t lang "Back to Iguana Comedy" %}</a>{% endif %}
 </div>
@@ -50,5 +68,19 @@
   document.querySelectorAll("[data-qr]").forEach(function (el) {
     if (window.QRCode) new QRCode(el, { text: el.getAttribute("data-qr"), width: 132, height: 132, correctLevel: QRCode.CorrectLevel.M });
   });
+
+  // Invite a friend: the phone's own share sheet where there is one, the clipboard otherwise, and a prompt
+  // with the link in it if neither works. The button must never be a button that does nothing.
+  (function () {
+    var b = document.getElementById("copy-invite");
+    if (!b) return;
+    b.addEventListener("click", function () {
+      var link = b.dataset.link, done = b.dataset.copied, label = b.textContent;
+      var after = function () { b.textContent = done; setTimeout(function () { b.textContent = label; }, 2500); };
+      if (navigator.share) { navigator.share({ url: link }).then(after).catch(function () {}); return; }
+      if (navigator.clipboard) { navigator.clipboard.writeText(link).then(after).catch(function () { window.prompt(label, link); }); return; }
+      window.prompt(label, link);
+    });
+  })();
 </script>
 {% endblock %}

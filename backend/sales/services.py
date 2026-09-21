@@ -12,6 +12,7 @@ from catalog.models import TicketType
 from crm.models import Contact
 from sales.ad_reporting import report_purchase
 from sales.i18n import normalize, tr
+from sales.sharing import share_url
 from sales.models import Membership, Order, OrderItem, Ticket
 
 
@@ -293,6 +294,12 @@ def send_order_confirmation(order):
     else:
         lines += ['', tr(lang, 'Your tickets (show this at the door): {0}', link)]
         subject = tr(lang, 'Your tickets: {0}', order.event_name)
+    # The invite. In the email as well as on the order page, because the page is seen once and the email is
+    # the thing still in their pocket on the night they are deciding who to bring.
+    invite = share_url(order)
+    if invite:
+        lines += ['', tr(lang, 'Bringing someone? Send them this and they can reserve their own free seat:'),
+                  invite]
     lines += ['', tr(lang, 'See you there,'), 'Iguana Comedy', 'iguanacomedy.com']
     # fail_silently, because this runs on_commit and therefore inside the request: an address the mail server
     # refuses would otherwise raise SMTPRecipientsRefused straight through a checkout that had ALREADY created
