@@ -6,8 +6,16 @@ export const site = {
   name: "Iguana Comedy",
   email: "hello@iguanacomedy.com",
   venueAddress: "Calle 6 Nte 189, Centro, 77710 Playa del Carmen, Q.R., Mexico",
+  /**
+   * Pinned to the Google listing's place id, NOT a text search. The search URL landed on a results page
+   * headed "Resultados" rather than on the club, which is a worse answer than the map already gave.
+   *
+   * `ChIJTTE8rE8tTI8Rgg7boGKlXno` is the "Club de comedia" listing at 20.62685,-87.0765827, the coordinates
+   * the venue record holds. There is a SECOND Google listing for Iguana Comedy at the same street address
+   * filed as "Recinto para eventos" (ChIJWclm9lJDTo8RWOLGr5gRYJM); it is a duplicate and splits reviews.
+   */
   venueMapsUrl:
-    "https://www.google.com/maps/search/?api=1&query=Iguana%20Comedy%2C%20Calle%206%20Nte%20189%2C%20Centro%2C%2077710%20Playa%20del%20Carmen%2C%20Q.R.%2C%20Mexico",
+    "https://www.google.com/maps/search/?api=1&query=Iguana%20Comedy&query_place_id=ChIJTTE8rE8tTI8Rgg7boGKlXno",
   /** Full international display (WhatsApp widget text) */
   whatsappDisplay: "+52 998 937 0209",
   /**

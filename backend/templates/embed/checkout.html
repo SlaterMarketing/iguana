@@ -193,7 +193,8 @@
       var name = document.createElement("div"); name.className = "type-name"; name.textContent = t.name;
       var meta = document.createElement("div"); meta.className = "type-meta muted";
       var price = t.yourPriceCents != null ? t.yourPriceCents : t.priceCents;
-      meta.textContent = t.soldOut ? T("Sold out") : money(price) + (t.payAtDoor ? " · " + T("pay at the door") : "") +
+      // Free is a word, not "$0.00 MXN". A reservation that costs nothing must not display like a price of zero.
+      meta.textContent = t.soldOut ? T("Sold out") : (price ? money(price) : T("Free")) + (t.payAtDoor ? " · " + T("pay at the door") : "") +
         (t.memberAccess === "MEMBERS_ONLY" ? " · " + T("members only") : "") +
         (t.remaining != null && t.remaining <= 20 ? " · " + T("{0} left", t.remaining) : "");
       info.appendChild(name); info.appendChild(meta);
