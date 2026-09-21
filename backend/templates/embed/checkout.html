@@ -14,6 +14,11 @@
   .type-meta { font-size: .85rem; margin-top: 2px; }
   .type-desc { font-size: .85rem; margin-top: 8px; line-height: 1.4; }
   .type-limit { font-size: .8rem; margin-top: 6px; color: var(--brand-hover); font-weight: 600; }
+  .demand { display: grid; gap: 6px; margin: 0 0 4px; }
+  .demand-track { height: 6px; border-radius: 999px; background: rgba(0,0,0,.08); overflow: hidden; }
+  .demand-fill { height: 100%; background: var(--brand); border-radius: 999px; transition: width .4s ease; }
+  .demand-line { font-size: .85rem; margin: 0; font-weight: 600; color: var(--brand-hover); }
+  .demand-line.tight { color: var(--danger); }
   .addons { margin-top: 18px; border-top: 1px solid rgba(0,0,0,.1); padding-top: 14px; }
   .addon-title { margin: 0 0 8px; font-weight: 700; }
   .qty { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
@@ -44,6 +49,10 @@
   {% endif %}
   <noscript><p class="error">{% t lang "Checkout needs JavaScript enabled." %}</p></noscript>
   <form class="card checkout" id="checkout" novalidate>
+    <div class="demand" id="demand" hidden>
+      <div class="demand-track" id="demand-track" hidden><div class="demand-fill" id="demand-fill"></div></div>
+      <p class="demand-line" id="demand-line"></p>
+    </div>
     <div class="types" id="types"></div>
     <p class="hint muted" id="pick-hint" hidden>{% t lang "Choose how many with +" %}</p>
     <div class="fields" id="details" hidden>
@@ -165,6 +174,29 @@
     } else {
       window.location.assign(url);
     }
+  }
+
+  // How full the night is, and how fast. Every number here is counted from completed orders, and the phrasing
+  // is picked to fit the numbers rather than the other way round: see sales/demand.py.
+  function renderDemand() {
+    var d = ev.demand;
+    if (!d || !d.capacity) return;
+    var line = "";
+    if (d.left > 0 && d.left <= 10) {
+      line = T("Only {0} seats left of {1}", d.left, d.capacity);          // genuinely nearly gone
+    } else if (d.recent >= 2) {
+      line = T("{0} people reserved {1}", d.recent, T(d.recentWindow));    // somebody else is coming
+    } else if (d.showBar) {
+      line = T("{0} of {1} seats taken", d.taken, d.capacity);
+    }
+    if (!line) return;   // an empty room is not an argument for coming; say nothing rather than something weak
+    $("demand-line").textContent = line;
+    if (d.left > 0 && d.left <= 10) $("demand-line").classList.add("tight");
+    if (d.showBar) {
+      $("demand-fill").style.width = Math.min(100, Math.round((d.taken / d.capacity) * 100)) + "%";
+      show($("demand-track"), true);
+    }
+    show($("demand"), true);
   }
 
   function renderTypes() {
@@ -362,6 +394,7 @@
   });
 
   renderTypes();
+  renderDemand();
   reportHeight();
 })();
 </script>

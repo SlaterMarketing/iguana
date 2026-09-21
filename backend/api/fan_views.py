@@ -14,6 +14,7 @@ from crm.geo import remember_locale
 from crm.models import Contact
 from sales.i18n import locale_from_request, normalize, tr
 from sales.models import CreditTransfer, LoginToken, Membership, MembershipPlan, Order, RedeemCode
+from sales.demand import demand
 from sales.services import current_membership, member_unit_price, stripe_client, stripe_enabled, upsert_contact
 
 from .auth import api_view, error, fan_contact, fan_required, issue_fan_token
@@ -268,7 +269,7 @@ def fan_event_json(event, contact, lang='en'):
         'city': venue.city if venue else '', 'country': venue.country if venue else '',
         'venueTimeZone': venue.time_zone if venue else 'America/Cancun', 'currency': event.currency,
         'language': event.language, 'embedUrl': f'{ticket_url}?embedded=1', 'checkoutUrl': ticket_url,
-        'ticketTypes': types, 'isMember': membership is not None,
+        'ticketTypes': types, 'isMember': membership is not None, 'demand': demand(event),
     }
     if event.ticketing_type == 'EXTERNAL' and event.external_ticket_url:
         data['externalTicketUrl'] = event.external_ticket_url

@@ -206,10 +206,57 @@ def complete_order(order, charge_id=''):
         for _ in range(item.quantity):
             Ticket.objects.create(order=order, ticket_type_name=item.name)
     transaction.on_commit(lambda: send_order_confirmation(order))
+    transaction.on_commit(lambda: notify_new_reservation(order))
     # Meta only learns an ad sold a seat if we say so: the checkout iframe is on another origin, so no pixel on
     # the marketing pages can see this. Fires after commit, on its own thread, and cannot fail the sale.
     transaction.on_commit(lambda: report_purchase(order))
     return order, True
+
+
+def notify_new_reservation(order):
+    """Tell the club a seat just went. Contact-form enquiries have always alerted hello@; bookings never did,
+    so the first two reservations this club ever took online were found by someone querying the database.
+
+    Everything the door needs is in the subject line, because that is all a phone shows.
+    """
+    if not settings.NOTIFY_EMAILS:
+        return 0
+    event = order.event
+    when = ''
+    if event:
+        with translation.override('en'):
+            when = formats.date_format(timezone.localtime(event.date), 'D j M')
+    seats = sum(i.quantity for i in order.items.all() if not (i.ticket_type and i.ticket_type.is_addon))
+    extras = [f'{i.quantity} x {i.name}' for i in order.items.all() if i.ticket_type and i.ticket_type.is_addon]
+    paid = order.total_amount_cents - order.pay_at_door_cents
+    subject = f'{seats} seat{"s" if seats != 1 else ""} reserved for {order.event_name} ({when})'
+    if paid:
+        subject += f' + {format_money(paid, order.currency)}'
+    lines = [
+        f'{order.customer_name or "(no name)"} <{order.customer_email}>',
+        f'Phone: {order.customer_phone or "-"}',
+        '',
+        f'Show: {order.event_name}{" on " + when if when else ""}',
+        f'Seats: {seats}',
+    ]
+    if extras:
+        lines.append('Also ordered: ' + ', '.join(extras))
+    lines += [
+        f'Paid online: {format_money(paid, order.currency) if paid else "nothing, the seat is free"}',
+        '',
+        f'Door check-in and tickets: {settings.BACKEND_URL}/orders/{order.public_view_token}/',
+        f'Total reserved for this night so far: {_seats_reserved(event)}' if event else '',
+    ]
+    # fail_silently for the same reason the customer's confirmation is: an alert that cannot be delivered must
+    # never undo a booking that already happened.
+    return send_mail(subject, '\n'.join(l for l in lines if l is not None),
+                     settings.DEFAULT_FROM_EMAIL, settings.NOTIFY_EMAILS, fail_silently=True)
+
+
+def _seats_reserved(event):
+    """How full the night is now, which is the thing the club actually wants to know from an alert."""
+    rows = OrderItem.objects.filter(order__event=event, order__status=Order.COMPLETED).select_related('ticket_type')
+    return sum(i.quantity for i in rows if not (i.ticket_type and i.ticket_type.is_addon))
 
 
 def send_order_confirmation(order):

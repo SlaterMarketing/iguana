@@ -1211,3 +1211,147 @@ class StaleBlurbTests(ApiTestCase):
         self.run_setup()
         night.refresh_from_db()
         self.assertEqual(night.description_es, mine)
+
+
+class ReservationAlertTests(ApiTestCase):
+    """The club is told when a seat goes.
+
+    Contact enquiries have always emailed hello@; bookings never did. The first two reservations this club
+    ever took online were found by querying the database by hand, half an hour after they happened.
+    """
+
+    def setUp(self):
+        from catalog.models import Event, TicketType
+
+        self.mic = Event.objects.create(name='Open Mic Night in Spanish', slug='mic-alert', status=Event.ACTIVE,
+                                        venue=self.venue, currency='mxn',
+                                        date=timezone.now() + timedelta(days=2), tags=['open-mic'])
+        self.seat = TicketType.objects.create(event=self.mic, name='Free reserved seat', price_cents=0, capacity=60)
+        self.drinks = TicketType.objects.create(event=self.mic, name='2 drinks', price_cents=10000, is_addon=True)
+
+    def book(self, items, email='fan@example.com'):
+        return self.client.post(f'/api/checkout/{self.mic.id}/start', content_type='application/json',
+                                data=json.dumps({'items': items, 'name': 'Ada Lovelace', 'email': email}))
+
+    def alert(self):
+        return next(m for m in mail.outbox if 'hello@example.com' in m.to)
+
+    def test_a_free_reservation_alerts_the_club_with_what_the_door_needs(self):
+        mail.outbox.clear()
+        with self.settings(NOTIFY_EMAILS=['hello@example.com']):
+            with self.captureOnCommitCallbacks(execute=True):
+                self.book({self.seat.id: 2})
+        alert = self.alert()
+        # The subject is all a phone shows, so it has to carry the count and the night.
+        self.assertIn('2 seats reserved', alert.subject)
+        self.assertIn('Open Mic Night in Spanish', alert.subject)
+        self.assertIn('fan@example.com', alert.body)
+        self.assertIn('nothing, the seat is free', alert.body)
+        self.assertIn('Total reserved for this night so far: 2', alert.body)
+
+    def test_drinks_ordered_in_advance_are_named_in_the_alert(self):
+        mail.outbox.clear()
+        with self.settings(NOTIFY_EMAILS=['hello@example.com']):
+            with self.captureOnCommitCallbacks(execute=True):
+                start = self.book({self.seat.id: 1, self.drinks.id: 2}).json()
+                self.client.post(f'/api/checkout/orders/{start["orderId"]}/confirm', content_type='application/json',
+                                 data='{}')
+        alert = self.alert()
+        self.assertIn('1 seat reserved', alert.subject)
+        self.assertIn('200 MXN', alert.subject, 'the bar needs to know money came in')
+        self.assertIn('2 x 2 drinks', alert.body)
+
+    def test_the_customer_still_gets_their_own_confirmation(self):
+        mail.outbox.clear()
+        with self.settings(NOTIFY_EMAILS=['hello@example.com']):
+            with self.captureOnCommitCallbacks(execute=True):
+                self.book({self.seat.id: 1})
+        self.assertEqual(sorted(sum((m.to for m in mail.outbox), [])), ['fan@example.com', 'hello@example.com'])
+
+    def test_an_undeliverable_alert_cannot_undo_a_booking(self):
+        import smtplib
+        from unittest import mock
+
+        from sales.models import Order
+
+        refused = smtplib.SMTPRecipientsRefused({'hello@example.com': (550, b'nope')})
+        with self.settings(NOTIFY_EMAILS=['hello@example.com'],
+                           EMAIL_BACKEND='django.core.mail.backends.smtp.EmailBackend'), \
+                mock.patch('smtplib.SMTP') as smtp:
+            smtp.return_value.sendmail.side_effect = refused
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.book({self.seat.id: 1})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(Order.objects.get(pk=response.json()['orderId']).status, Order.COMPLETED)
+
+
+class DemandLineTests(ApiTestCase):
+    """The line above the reserve button has to be true, and worth saying.
+
+    Urgency that overstates is worse than none: the visitor either notices and stops trusting the page, or
+    does not and we have taught ourselves to read a number that means nothing.
+    """
+
+    def setUp(self):
+        from catalog.models import Event, TicketType
+
+        self.mic = Event.objects.create(name='Open Mic', slug='mic-demand', status=Event.ACTIVE, venue=self.venue,
+                                        currency='mxn', date=timezone.now() + timedelta(days=2), tags=['open-mic'])
+        self.seat = TicketType.objects.create(event=self.mic, name='Free reserved seat', price_cents=0, capacity=60)
+        self.drinks = TicketType.objects.create(event=self.mic, name='2 drinks', price_cents=10000, is_addon=True)
+
+    def reserve(self, seats, email, ago=timedelta(0), drinks=0):
+        from sales.models import Order, OrderItem
+
+        order = Order.objects.create(event=self.mic, event_name=self.mic.name, customer_email=email,
+                                     currency='mxn', status=Order.COMPLETED,
+                                     completed_at=timezone.now() - ago)
+        OrderItem.objects.create(order=order, ticket_type=self.seat, name='seat', quantity=seats, unit_price_cents=0)
+        if drinks:
+            OrderItem.objects.create(order=order, ticket_type=self.drinks, name='drinks', quantity=drinks,
+                                     unit_price_cents=10000)
+        return order
+
+    def test_the_window_named_is_the_tightest_one_that_is_true(self):
+        from sales.demand import demand
+
+        self.reserve(1, 'a@example.com', timedelta(minutes=20))
+        self.reserve(1, 'b@example.com', timedelta(minutes=40))
+        self.assertEqual(demand(self.mic)['recentWindow'], 'in the last hour')
+
+    def test_an_older_pair_is_described_as_older(self):
+        from sales.demand import demand
+
+        self.reserve(1, 'a@example.com', timedelta(hours=9))
+        self.reserve(1, 'b@example.com', timedelta(hours=10))
+        d = demand(self.mic)
+        self.assertEqual(d['recent'], 2)
+        self.assertEqual(d['recentWindow'], 'in the last day',
+                         'two bookings from yesterday must never be called "the last hour"')
+
+    def test_a_single_booking_says_nothing(self):
+        from sales.demand import demand
+
+        self.reserve(1, 'a@example.com')
+        self.assertEqual(demand(self.mic)['recent'], 0, 'one reservation is not social proof')
+
+    def test_drinks_do_not_count_as_seats(self):
+        from sales.demand import demand
+
+        self.reserve(1, 'a@example.com', drinks=4)
+        self.assertEqual(demand(self.mic)['taken'], 1, 'a round of drinks is not four more people in the room')
+
+    def test_the_bar_stays_hidden_while_the_room_looks_empty(self):
+        from sales.demand import demand
+
+        self.reserve(2, 'a@example.com')
+        self.assertFalse(demand(self.mic)['showBar'], '2 of 60 tells somebody not to bother coming')
+        self.reserve(20, 'b@example.com')
+        self.assertTrue(demand(self.mic)['showBar'])
+
+    def test_it_is_in_the_json_the_widget_reads(self):
+        self.reserve(1, 'a@example.com', timedelta(minutes=5))
+        self.reserve(1, 'b@example.com', timedelta(minutes=6))
+        page = self.client.get(f'/embed/event/{self.mic.id}?embedded=1&lang=es').content.decode()
+        self.assertIn('"recent": 2', page)
+        self.assertIn('personas reservaron', page)
