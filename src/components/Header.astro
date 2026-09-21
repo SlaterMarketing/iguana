@@ -30,13 +30,13 @@ function matches(href: string) {
 }
 
 const links: {
-  key: "events" | "locations" | "comedians" | "membership" | "contact";
+  key: "events" | "locations" | "comedians" | "store" | "contact";
   external?: boolean;
 }[] = [
   { key: "events" },
   { key: "locations" },
   { key: "comedians" },
-  { key: "membership" },
+  { key: "store" },
   { key: "contact" },
 ];
 
@@ -48,8 +48,8 @@ function navLabel(key: (typeof links)[number]["key"]): string {
       return t(locale, "nav.events");
     case "comedians":
       return t(locale, "nav.comedians");
-    case "membership":
-      return t(locale, "nav.membership");
+    case "store":
+      return t(locale, "nav.merch");
     case "contact":
       return t(locale, "nav.contact");
   }

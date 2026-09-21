@@ -36,15 +36,14 @@ const copy = {
     flashJoined: "You’re in. Your membership is active.",
     loadingMembership: "Loading membership…",
     loadMembershipFail: "Could not load your membership.",
-    notMember: "You’re not a member yet.",
-    joinNow: "Join now",
+    notMember: "Memberships are not on sale right now.",
     manageBilling: "Manage billing",
     opening: "Opening…",
     billingUnavailable: "Billing is not available for your membership.",
     creditsTitle: "Iguana credits",
     creditsNote: "Credits stay with Iguana Comedy and can be used on tickets.",
     creditsPending: (amount: string) =>
-      `You have ${amount} in credits waiting. Join to unlock them.`,
+      `You have ${amount} in credits waiting.`,
     creditsPendingLand: (amount: string) => `${amount} still waiting to land on your membership.`,
     sendTo: "Send to",
     amount: "Amount",
@@ -92,15 +91,14 @@ const copy = {
     flashJoined: "Listo: tu membresía está activa.",
     loadingMembership: "Cargando membresía…",
     loadMembershipFail: "No se pudo cargar tu membresía.",
-    notMember: "Aún no eres miembro.",
-    joinNow: "Únete ahora",
+    notMember: "Las membresías no están a la venta por ahora.",
     manageBilling: "Administrar facturación",
     opening: "Abriendo…",
     billingUnavailable: "La facturación no está disponible para tu membresía.",
     creditsTitle: "Créditos Iguana",
     creditsNote: "Los créditos se quedan en Iguana Comedy y se pueden usar en boletos.",
     creditsPending: (amount: string) =>
-      `Tienes ${amount} en créditos en espera. Únete para desbloquearlos.`,
+      `Tienes ${amount} en créditos en espera.`,
     creditsPendingLand: (amount: string) =>
       `${amount} aún esperando llegar a tu membresía.`,
     sendTo: "Enviar a",
@@ -324,7 +322,6 @@ function AccountShell({
 
 function MembershipView({ locale, returnUrl }: { locale: Locale; returnUrl: string }) {
   const t = copy[locale];
-  const paths = membershipPaths(locale);
   const { client } = useKintanaAuth();
   const [membership, setMembership] = useState<KintanaFanMembershipStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -407,10 +404,9 @@ function MembershipView({ locale, returnUrl }: { locale: Locale; returnUrl: stri
         </ul>
       ) : (
         <div className="account-empty">
+          {/* No join button: the subscription is not being sold from the site, so offering one here would be a
+              button that goes nowhere. An activation code from the Kintana era still redeems, below. */}
           <p>{t.notMember}</p>
-          <a href={`${paths.membership}#join`} className="btn-brand account-action">
-            {t.joinNow}
-          </a>
         </div>
       )}
 

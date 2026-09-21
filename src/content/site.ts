@@ -33,7 +33,6 @@ export const site = {
   instagramUrl: "https://www.instagram.com/iguanacomedy/",
   facebookUrl: "https://www.facebook.com/IguanaComedy",
   linkedInUrl: "https://www.linkedin.com/company/iguanacomedy",
-  merchantShopUrl: "https://shop.iguanacomedy.com/",
   faviconUrl:
     "/media/favicon.webp",
   heroImage:

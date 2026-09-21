@@ -94,14 +94,28 @@ if (hasCredentials) {
           {t(locale, "store.noCredentials")}
         </p>
       ) : catalogFailed ? (
-        <p class="mt-16 rounded-3xl border border-red-200 bg-red-50 px-8 py-6 text-neutral-900">
-          {t(locale, "store.error")}
-        </p>
+        <div class="mt-16 space-y-4 rounded-3xl border border-red-200 bg-red-50 px-8 py-6 text-neutral-900">
+          <p>{t(locale, "store.error")}</p>
+          {/* The copy says to message us, so it has to be possible to message us from here. */}
+          <a
+            class="inline-block text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-4 hover:underline"
+            href={`https://wa.me/${site.whatsappE164}`}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            {t(locale, "store.askUs")}
+          </a>
+        </div>
       ) : products.length === 0 ? (
         <div class="mt-16 max-w-2xl space-y-6 rounded-3xl border border-neutral-200 px-8 py-8">
           <p class="text-lg text-neutral-700">{t(locale, "store.empty")}</p>
-          <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-4 hover:underline" href={site.merchantShopUrl}>
-            {t(locale, "store.visitLegacy")}
+          <a
+            class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-4 hover:underline"
+            href={`https://wa.me/${site.whatsappE164}`}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            {t(locale, "store.askUs")}
           </a>
         </div>
       ) : (
