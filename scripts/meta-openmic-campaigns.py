@@ -48,9 +48,10 @@ TOKEN_FILE = os.environ.get('META_TOKEN_FILE', '~/.credentials/meta/iguanacomedy
 CREATIVE_DIR = pathlib.Path(os.environ.get('IGUANA_CREATIVE_DIR', '~/iguana-ads/creative')).expanduser()
 
 # Playa del Carmen. The club is in the centre, so the wide radius is for the reservation ads (worth a drive) and
-# the tight one for walk-ins, who will not cross the highway for a free show.
+# the tight one for walk-ins, who will not cross the highway for a free show. 17km is Meta's floor for a city
+# radius (10 miles); anything smaller is refused outright, so the walk-in ad set cannot be drawn tighter.
 PLAYA = 1540930
-WIDE_KM, NEAR_KM = 25, 12
+WIDE_KM, NEAR_KM = 25, 17
 # The interest every campaign this account ever won on used.
 STANDUP_INTEREST = {'id': '6003273904571', 'name': 'Comedia stand up (comedia)'}
 ENGLISH_LOCALES = [6, 24]              # English (US), English (UK)
@@ -124,36 +125,70 @@ class GraphError(Exception):
     """A Graph API refusal. Raised rather than exited so one blocked ad cannot abandon the rest of the build."""
 
 
+class RateLimited(GraphError):
+    pass
+
+
+# Meta's several ways of saying the same thing. Building four campaigns takes enough calls to hit this, and a
+# half-built account is worse than a slow one, so the caller waits rather than gives up.
+RATE_LIMIT_CODES = {4, 17, 32, 613}
+RATE_LIMIT_SUBCODES = {2446079, 1487742}
+
+
 def _fail(path, exc):
     body = exc.read().decode(errors='replace')
     try:
         error = json.loads(body)['error']
         message = error.get('error_user_msg') or error.get('message', '')
         detail = error.get('error_user_title', '')
+        code, subcode = error.get('code'), error.get('error_subcode')
     except Exception:
-        message, detail = body[:400], ''
-    raise GraphError(f'Graph API {exc.code} on {path}: {detail} {message}'.strip())
+        message, detail, code, subcode = body[:400], '', None, None
+    text = f'Graph API {exc.code} on {path}: {detail} {message}'.strip()
+    if code in RATE_LIMIT_CODES or subcode in RATE_LIMIT_SUBCODES:
+        raise RateLimited(text)
+    raise GraphError(text)
+
+
+def with_backoff(call, *, tries=6, first_wait=60):
+    """Retry a rate-limited call, doubling the wait. Meta's ad account limit clears on a rolling window, so the
+    only thing that helps is waiting; retrying immediately makes it worse."""
+    wait = first_wait
+    for attempt in range(1, tries + 1):
+        try:
+            return call()
+        except RateLimited as exc:
+            if attempt == tries:
+                raise
+            print(f'  rate limited, waiting {wait}s before retry {attempt} of {tries - 1}')
+            time.sleep(wait)
+            wait = min(wait * 2, 600)
 
 
 def get(path, **params):
-    params['access_token'] = token()
-    url = f'{API}/{path}?' + urllib.parse.urlencode(params)
-    try:
-        with urllib.request.urlopen(url, timeout=60) as response:
-            return json.load(response)
-    except urllib.error.HTTPError as exc:
-        _fail(path, exc)
+    def once():
+        url = f'{API}/{path}?' + urllib.parse.urlencode(dict(params, access_token=token()))
+        try:
+            with urllib.request.urlopen(url, timeout=60) as response:
+                return json.load(response)
+        except urllib.error.HTTPError as exc:
+            _fail(path, exc)
+
+    return with_backoff(once)
 
 
 def post(path, **params):
-    params['access_token'] = token()
-    data = urllib.parse.urlencode({k: (json.dumps(v) if isinstance(v, (dict, list)) else v)
-                                   for k, v in params.items()}).encode()
-    try:
-        with urllib.request.urlopen(urllib.request.Request(f'{API}/{path}', data=data), timeout=120) as response:
-            return json.load(response)
-    except urllib.error.HTTPError as exc:
-        _fail(path, exc)
+    def once():
+        body = dict(params, access_token=token())
+        data = urllib.parse.urlencode({k: (json.dumps(v) if isinstance(v, (dict, list)) else v)
+                                       for k, v in body.items()}).encode()
+        try:
+            with urllib.request.urlopen(urllib.request.Request(f'{API}/{path}', data=data), timeout=120) as response:
+                return json.load(response)
+        except urllib.error.HTTPError as exc:
+            _fail(path, exc)
+
+    return with_backoff(once)
 
 
 def post_file(path, field, file_path, **params):
@@ -271,20 +306,34 @@ def creative_spec(lang, kind, *, video_id=None, thumbnail=None, image_hash=None,
 
 # ------------------------------------------------------------------------------------------------- the work
 
+# One listing per edge per run. Without this the account is paged once for every lookup, and Meta answers
+# "demasiadas llamadas a la API" partway through the build, leaving half the structure made.
+_INDEX = {}
+
+
 def existing(edge, name, fields='id,name,status'):
-    for row in pages(f'{AD_ACCOUNT}/{edge}', fields=fields):
-        if row.get('name') == name:
-            return row
-    return None
+    if edge not in _INDEX:
+        _INDEX[edge] = list(pages(f'{AD_ACCOUNT}/{edge}',
+                                  fields='id,name,status,effective_status,objective,daily_budget'))
+    return next((row for row in _INDEX[edge] if row.get('name') == name), None)
+
+
+def remember(edge, row):
+    """Keep the cache honest about what this run just created."""
+    _INDEX.setdefault(edge, []).append(row)
 
 
 def upload_video(path):
     """Uploaded once and reused: Meta keeps them on the ad account, keyed by our own name."""
-    for row in pages(f'{AD_ACCOUNT}/advideos', fields='id,title'):
+    if 'advideos' not in _INDEX:
+        _INDEX['advideos'] = list(pages(f'{AD_ACCOUNT}/advideos', fields='id,title'))
+    for row in _INDEX['advideos']:
         if row.get('title') == path.name:
             return row['id']
     print(f'  uploading {path.name} ({path.stat().st_size / 1e6:.1f} MB)')
-    return post_file(f'{AD_ACCOUNT}/advideos', 'source', path, title=path.name, name=path.name)['id']
+    video_id = post_file(f'{AD_ACCOUNT}/advideos', 'source', path, title=path.name, name=path.name)['id']
+    _INDEX['advideos'].append({'id': video_id, 'title': path.name})
+    return video_id
 
 
 def wait_for_video(video_id, timeout=600):
@@ -329,6 +378,7 @@ def ensure_campaign(lang, kind, objective, live):
                 # The budget lives on the ad set, and each campaign holds exactly one, so there is nothing to
                 # share. Meta refuses to create the campaign unless this is stated either way.
                 is_adset_budget_sharing_enabled=False)
+    remember('campaigns', {'id': made['id'], 'name': name, 'status': want})
     print(f'  campaign {made["id"]}  {name}  [{want}] (created)')
     return made['id']
 
@@ -342,6 +392,7 @@ def ensure_adset(lang, kind, campaign_id, live):
         print(f'  ad set   {found["id"]}  {spec["name"]}  {int(spec["daily_budget"]) / 100:.2f} MXN/day (updated)')
         return found['id']
     made = post(f'{AD_ACCOUNT}/adsets', **spec)
+    remember('adsets', {'id': made['id'], 'name': spec['name'], 'status': spec['status']})
     print(f'  ad set   {made["id"]}  {spec["name"]}  {int(spec["daily_budget"]) / 100:.2f} MXN/day (created)')
     return made['id']
 
@@ -356,6 +407,7 @@ def ensure_ad(lang, kind, adset_id, creative, ad_name, live):
         return found['id']
     ad = post(f'{AD_ACCOUNT}/ads', name=ad_name, adset_id=adset_id, creative={'creative_id': made['id']},
               status=status)
+    remember('ads', {'id': ad['id'], 'name': ad_name, 'status': status})
     print(f'  ad       {ad["id"]}  {ad_name} (created)')
     return ad['id']
 
