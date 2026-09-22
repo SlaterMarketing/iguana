@@ -1431,6 +1431,18 @@ class DemandLineTests(ApiTestCase):
         with self.assertNumQueries(2):
             demand_for(events)
 
+    def test_a_host_page_can_take_the_line_over_without_it_showing_twice(self):
+        """The open mic lander prints it in its own header, beside the date, rather than under the night pills.
+        Two copies of the same sentence on one page reads as a glitch."""
+        self.reserve(1, 'a@example.com', timedelta(minutes=5))
+        self.reserve(1, 'b@example.com', timedelta(minutes=6))
+        on = self.client.get(f'/embed/event/{self.mic.id}?embedded=1&lang=es').content.decode()
+        off = self.client.get(f'/embed/event/{self.mic.id}?embedded=1&lang=es&demand=0').content.decode()
+        self.assertIn('id="demand-line"', on)
+        self.assertNotIn('id="demand-line"', off)
+        # The numbers still travel, so the host page has something to print.
+        self.assertIn('"recent": 2', off)
+
     def test_it_is_in_the_json_the_widget_reads(self):
         self.reserve(1, 'a@example.com', timedelta(minutes=5))
         self.reserve(1, 'b@example.com', timedelta(minutes=6))

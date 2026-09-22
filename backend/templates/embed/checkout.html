@@ -53,10 +53,12 @@
   {% endif %}
   <noscript><p class="error">{% t lang "Checkout needs JavaScript enabled." %}</p></noscript>
   <form class="card checkout" id="checkout" novalidate>
-    <div class="demand" id="demand" hidden>
-      <div class="demand-track" id="demand-track" hidden><div class="demand-fill" id="demand-fill"></div></div>
-      <p class="demand-line" id="demand-line"></p>
-    </div>
+    {% if show_demand %}
+      <div class="demand" id="demand" hidden>
+        <div class="demand-track" id="demand-track" hidden><div class="demand-fill" id="demand-fill"></div></div>
+        <p class="demand-line" id="demand-line"></p>
+      </div>
+    {% endif %}
     <div class="types" id="types"></div>
     <p class="hint muted" id="pick-hint" hidden>{% t lang "Choose how many with +" %}</p>
     <div class="fields" id="details" hidden>
@@ -188,7 +190,7 @@
   // is picked to fit the numbers rather than the other way round: see sales/demand.py.
   function renderDemand() {
     var d = ev.demand;
-    if (!d || !d.capacity) return;
+    if (!d || !d.capacity || !$("demand")) return;   // the host page is printing it instead
     var line = "";
     if (d.left > 0 && d.left <= 10) {
       line = T("Only {0} seats left of {1}", d.left, d.capacity);          // genuinely nearly gone

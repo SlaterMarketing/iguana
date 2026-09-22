@@ -22,6 +22,7 @@ import Base from "../layouts/Base.astro";
 import EventCheckoutWidget from "./EventCheckoutWidget.astro";
 import NewsletterSignup from "./NewsletterSignup.astro";
 import { site } from "../content/site";
+import { demandLine } from "../lib/demand";
 import { eventVenueMapEmbedUrl } from "../lib/event-hero";
 import { formatEventDate } from "../lib/events";
 import { loadEventsForCalendarPages } from "../lib/events-catalog";
@@ -131,6 +132,8 @@ const night = copy.nights[shownKey];
 // Somebody deciding whether to come out tonight wants to see WHERE, not read an address and take it on
 // trust. The event pages have had the map all along; the page the ads actually pay for did not.
 const mapEmbedUrl = selected ? eventVenueMapEmbedUrl(selected) : null;
+// Rendered here rather than inside the checkout iframe, which is told to stop drawing its own copy.
+const pressure = selected ? demandLine(selected, locale) : null;
 ---
 
 <Base title={`${copy.headline} · Iguana Comedy`} description={copy.lede} narrow={false} pixelContent={selected
@@ -205,6 +208,15 @@ const mapEmbedUrl = selected ? eventVenueMapEmbedUrl(selected) : null;
             </p>
           ) : null
         }
+        {/* Somebody else is already coming. It belongs beside the date it is about, where the eye already is,
+            rather than below the night pills where it read as a note on the pills. */}
+        {
+          pressure ? (
+            <p class:list={["mt-1.5 text-sm font-semibold", pressure.tight ? "text-red-700" : "text-brand"]}>
+              {pressure.text}
+            </p>
+          ) : null
+        }
       </div>
 
       {
@@ -240,6 +252,7 @@ const mapEmbedUrl = selected ? eventVenueMapEmbedUrl(selected) : null;
           <EventCheckoutWidget
             eventId={selected.id}
             locale={locale}
+            ownDemandLine
             class="!min-h-0 !rounded-none !border-0 !bg-white !px-4 !py-5 sm:!px-6"
           />
         ) : (

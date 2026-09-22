@@ -6,10 +6,12 @@ interface Props {
   eventId: string;
   locale?: Locale;
   blocked?: boolean;
+  /** The host page is already showing "N people reserved recently", so the iframe must not say it again. */
+  ownDemandLine?: boolean;
   class?: string;
 }
 
-const { eventId, locale = "en", blocked = false, class: className } = Astro.props;
+const { eventId, locale = "en", blocked = false, ownDemandLine = false, class: className } = Astro.props;
 ---
 
 {
@@ -24,6 +26,7 @@ const { eventId, locale = "en", blocked = false, class: className } = Astro.prop
       ]}
       data-kintana-widget={`event:${eventId}`}
       data-kintana-locale={locale}
+      data-kintana-demand={ownDemandLine ? "off" : undefined}
       aria-label={t(locale, "aria.ticketCheckout")}
     >
       <p class="px-8 py-10 text-center text-sm text-neutral-500">{t(locale, "tickets.loading")}</p>

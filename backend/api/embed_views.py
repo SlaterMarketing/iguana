@@ -60,6 +60,9 @@ def event_checkout(request, key):
         'event_name': event.label(lang),
         'lang': lang,
         'embedded': request.GET.get('embedded') == '1',
+        # The open mic lander prints the demand line in its own header, above the form rather than below
+        # the date pills. Saying it twice on one page reads as a glitch.
+        'show_demand': request.GET.get('demand') != '0',
         'bootstrap': {
             'lang': lang,
             'strings': {text: tr(lang, text) for text in CHECKOUT_JS_STRINGS},

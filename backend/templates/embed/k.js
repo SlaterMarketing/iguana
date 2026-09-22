@@ -95,7 +95,9 @@
       var iframe = document.createElement("iframe");
       // The page language rides along so the checkout, order page and email match the site the fan is on.
       var lang = el.getAttribute("data-kintana-locale") || document.documentElement.lang || "en";
-      iframe.src = A + "/embed/event/" + encodeURIComponent(id) + "?embedded=1&lang=" + encodeURIComponent(lang);
+      // A host page that prints the demand line itself turns the iframe's copy off, so it is not said twice.
+      var demand = el.getAttribute("data-kintana-demand") === "off" ? "&demand=0" : "";
+      iframe.src = A + "/embed/event/" + encodeURIComponent(id) + "?embedded=1&lang=" + encodeURIComponent(lang) + demand;
       iframe.title = el.getAttribute("aria-label") || "Ticket checkout";
       iframe.setAttribute("allow", "payment *");
       iframe.style.cssText = "width:100%;border:0;display:block;min-height:200px;background:transparent";
