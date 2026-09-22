@@ -323,6 +323,19 @@ digits; a dropped submission gets the SAME success response as a real one, becau
 bot to pass it. The rows were never the cost: the cost is the owner learning to ignore the alert that a real
 enquiry arrives in.
 
+🚨 **A migration that adds a NOT NULL column 500s live checkouts until the workers reload, and the deploy used
+to leave ten minutes between the two.** `migrate` ran at line 163 and the gunicorn HUP sat down beside the site
+restart, on the far side of `npm install` and the Astro build. In between, the database has the new schema and
+the workers are still running the old code, which inserts without the column. Measured 2026-09-21 on
+`OrderItem.is_addon`: two `POST /api/checkout/<id>/start` from a Facebook in-app browser on Android, both 500,
+both a real ad click that did not become a reservation. **Nothing is written on that path, so the DB cannot show
+you the loss and neither can an order count** — the only trace is `/var/log/iguana/api.out.log`, and the
+traceback in `api.err.log` carries no timestamp of its own, only the nearest gunicorn line.
+Two fixes, both in place: the API now reloads **directly after the migration**, before the long site build; and
+`0006_orderitem_is_addon_db_default` restores the database default Django drops, so an insert from an old worker
+gets `false` rather than an `IntegrityError`. **Give any new NOT NULL column a DB default in a follow-up
+migration** (Postgres only — SQLite cannot ALTER it and does not need to).
+
 🚨 **The deploy used to break live traffic twice over, and both were invisible to every log check.** Gunicorn
 was hard-restarted, so the checkout iframe served **502 inside the ad landing page** for the ~2s window; it is
 now a graceful `supervisorctl signal HUP`, which keeps the listening socket, and only a dependency change

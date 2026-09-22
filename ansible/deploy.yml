@@ -171,6 +171,29 @@
       args: {chdir: "{{ app_dir }}/backend"}
       changed_when: false
 
+    # 🚨 This runs HERE, directly after the migration, not down beside the site restart. It used to sit after
+    # the npm install and the Astro build, which is minutes, and in those minutes the database has the new
+    # schema while the workers are still running the old code. On 2026-09-21 that window was about ten minutes
+    # and a real ad click landed in it: two POSTs to /api/checkout/.../start from a Facebook in-app browser,
+    # both 500, because the old code inserted an order line without the column the migration had just made NOT
+    # NULL. Nothing was written, so the only trace is the access log.
+    #
+    # The API serves the checkout iframe and k.js, so a hard restart of it shows a 502 inside the checkout on a
+    # live ad click. Gunicorn's master keeps the listening socket across a HUP and rolls its workers, which
+    # re-import the code, so a code deploy costs no dropped requests. A dependency change needs the real restart,
+    # because the master itself has to come back on the new environment.
+    - name: Reload the API gracefully, straight after the migration (no dropped requests)
+      become: true
+      command: "supervisorctl signal HUP {{ projectname }}:{{ projectname }}-api"
+      when: not (venv.changed | default(false))
+      changed_when: true
+
+    - name: Restart the API (dependencies changed, so a reload is not enough)
+      become: true
+      command: "supervisorctl restart {{ projectname }}:{{ projectname }}-api"
+      when: venv.changed | default(false)
+      changed_when: true
+
     - name: Load data fixture (contains customer data; always removed afterwards)
       tags: [load_data, never]
       block:
@@ -302,22 +325,6 @@
         job: >-
           timeout 30m {{ app_dir }}/backend/venv/bin/python {{ app_dir }}/backend/manage.py send_whats_on
           --send --lede-file {{ newsletter_lede }} 2>&1 | logger -t iguana-newsletter
-
-    # The API serves the checkout iframe and k.js, so a hard restart of it shows a 502 inside the checkout on a
-    # live ad click. Gunicorn's master keeps the listening socket across a HUP and rolls its workers, which
-    # re-import the code, so a code deploy costs no dropped requests. A dependency change needs the real restart,
-    # because the master itself has to come back on the new environment.
-    - name: Reload the API gracefully (no dropped requests)
-      become: true
-      command: "supervisorctl signal HUP {{ projectname }}:{{ projectname }}-api"
-      when: not (venv.changed | default(false))
-      changed_when: true
-
-    - name: Restart the API (dependencies changed, so a reload is not enough)
-      become: true
-      command: "supervisorctl restart {{ projectname }}:{{ projectname }}-api"
-      when: venv.changed | default(false)
-      changed_when: true
 
     - name: Restart the site
       become: true
