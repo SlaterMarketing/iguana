@@ -1,8 +1,8 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import (Artist, Event, FormEndpoint, FormSubmission, LineupEntry, SiteFile, StoreCollection, StoreProduct,
-                     StoreProductImage, StoreVariant, TicketType, Tour, Venue)
+from .models import (Artist, Event, FormEndpoint, FormSubmission, LineupEntry, MenuCategory, MenuItem, SiteFile,
+                     StoreCollection, StoreProduct, StoreProductImage, StoreVariant, TicketType, Tour, Venue)
 
 
 def thumb(url):
@@ -115,3 +115,31 @@ class FormSubmissionAdmin(admin.ModelAdmin):
     list_editable = ('handled',)
     search_fields = ('email', 'phone')
     readonly_fields = ('endpoint', 'email', 'phone', 'fields', 'context', 'visitor_key', 'ip', 'created_at')
+
+
+class MenuItemInline(admin.TabularInline):
+    model = MenuItem
+    extra = 1
+    fields = ('name', 'name_es', 'description', 'description_es', 'price_cents', 'currency', 'available', 'sort_order')
+
+
+@admin.register(MenuCategory)
+class MenuCategoryAdmin(admin.ModelAdmin):
+    """Where the club edits the bar menu. Prices change on the night, so this is the point of keeping the menu
+    in the database instead of in the site's code."""
+
+    list_display = ('name', 'name_es', 'active', 'sort_order', 'how_many')
+    list_editable = ('active', 'sort_order')
+    inlines = [MenuItemInline]
+
+    @admin.display(description='items')
+    def how_many(self, obj):
+        return obj.items.filter(available=True).count()
+
+
+@admin.register(MenuItem)
+class MenuItemAdmin(admin.ModelAdmin):
+    list_display = ('name', 'name_es', 'category', 'price_cents', 'currency', 'available', 'sort_order')
+    list_editable = ('price_cents', 'available', 'sort_order')
+    list_filter = ('category', 'available')
+    search_fields = ('name', 'name_es')

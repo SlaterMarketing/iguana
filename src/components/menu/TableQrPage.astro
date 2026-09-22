@@ -1,0 +1,62 @@
+---
+import QRCode from "qrcode";
+
+import Base from "../../layouts/Base.astro";
+import { site } from "../../content/site";
+import type { Locale } from "../../i18n/locale";
+
+/**
+ * One table's QR code, sized and laid out to be printed and stuck to that table.
+ *
+ * The code points at the UNPREFIXED `/menu/<n>/`, which the middleware sends to the visitor's own language. A
+ * printed sticker cannot be re-printed because the club changed a URL, so the one thing this page must never
+ * do is bake `/es/` into a hundred pieces of paper.
+ *
+ * Generated here rather than by a service: a QR fetched from an image API stops working the day that API does,
+ * and these are meant to outlive it on the underside of a table.
+ */
+
+interface Props {
+  locale: Locale;
+  table: number;
+}
+
+const { locale, table } = Astro.props;
+const origin = Astro.site?.origin ?? "https://iguanacomedy.com";
+const target = `${origin}/menu/${table}/`;
+// Error correction M: a sticker on a bar table gets wet and scratched, and M recovers about 15% of the code.
+const svg = await QRCode.toString(target, { type: "svg", margin: 1, errorCorrectionLevel: "M" });
+
+const copy = {
+  en: { scan: "Scan for the menu", order: "Order from your table", table: "Table", printAll: "All tables" },
+  es: { scan: "Escanea para el menú", order: "Pide desde tu mesa", table: "Mesa", printAll: "Todas las mesas" },
+}[locale];
+---
+
+<Base title={`${copy.table} ${table} · QR`} description={target} narrow noindex>
+  <section class="mx-auto max-w-md print:max-w-none">
+    <!-- On paper: just the card. Everything else is for whoever is doing the printing. -->
+    <div class="rounded-[2rem] border-2 border-neutral-950 px-8 py-10 text-center print:rounded-none print:border-4">
+      <p class="font-display text-3xl text-neutral-950" style="font-family: var(--font-display);">{site.name}</p>
+      <p class="mt-1 text-xs font-semibold uppercase tracking-[0.45em] text-neutral-600">{copy.order}</p>
+
+      <div class="mx-auto mt-6 w-full max-w-[16rem] [&>svg]:h-auto [&>svg]:w-full" set:html={svg} />
+
+      <p class="mt-6 font-display text-6xl leading-none text-neutral-950" style="font-family: var(--font-display);">
+        {copy.table} {table}
+      </p>
+      <p class="mt-4 text-sm font-semibold uppercase tracking-[0.3em] text-neutral-700">{copy.scan}</p>
+      <p class="mt-2 break-all text-[0.7rem] text-neutral-500">{target}</p>
+    </div>
+
+    <div class="mt-8 flex flex-wrap items-center justify-center gap-6 text-xs font-semibold uppercase tracking-[0.3em] text-brand print:hidden">
+      <button type="button" class="underline-offset-4 hover:underline" data-print>Print →</button>
+      {table > 1 ? <a class="underline-offset-4 hover:underline" href={`/menu/${table - 1}/qr/`}>← {copy.table} {table - 1}</a> : null}
+      <a class="underline-offset-4 hover:underline" href={`/menu/${table + 1}/qr/`}>{copy.table} {table + 1} →</a>
+    </div>
+  </section>
+</Base>
+
+<script>
+  document.querySelector("[data-print]")?.addEventListener("click", () => window.print());
+</script>

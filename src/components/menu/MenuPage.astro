@@ -1,0 +1,110 @@
+---
+import Base from "../../layouts/Base.astro";
+import { TableOrderIsland } from "./TableOrderIsland";
+import { site } from "../../content/site";
+import type { Locale } from "../../i18n/locale";
+import { localizePath } from "../../i18n/routes";
+import { formatMenuPrice, loadMenu } from "../../lib/menu";
+import { getKintanaEnv, hasKintanaCredentials } from "../../lib/kintana-env";
+
+interface Props {
+  locale: Locale;
+  /** Set when the visitor scanned the QR on a table, which is what lets an order say where to go. */
+  table?: number;
+}
+
+const { locale, table } = Astro.props;
+const { apiKey, baseUrl } = getKintanaEnv();
+const hasCredentials = hasKintanaCredentials();
+const menu = hasCredentials && apiKey && baseUrl ? await loadMenu(baseUrl, apiKey, locale) : null;
+
+const copy = {
+  en: {
+    eyebrow: "At the bar",
+    title: "Menu",
+    atTable: (n: number) => `Table ${n}`,
+    intro: "Beer, cocktails and something to pick at, from the bar downstairs.",
+    introTable: "Order from your seat and we will bring it over, so you do not miss a punchline.",
+    empty: "The menu is being updated. Ask at the bar and they will look after you.",
+    noOrdering: "Scan the code on your table to order without getting up.",
+    shows: "See what is on",
+    directions: "Directions",
+  },
+  es: {
+    eyebrow: "En la barra",
+    title: "Menú",
+    atTable: (n: number) => `Mesa ${n}`,
+    intro: "Cerveza, cócteles y algo para picar, de la barra.",
+    introTable: "Pide desde tu lugar y te lo llevamos, para que no te pierdas el remate.",
+    empty: "Estamos actualizando el menú. Pregunta en la barra y te atienden.",
+    noOrdering: "Escanea el código de tu mesa para pedir sin levantarte.",
+    shows: "Ver la cartelera",
+    directions: "Cómo llegar",
+  },
+}[locale];
+
+const title = table ? `${copy.title} · ${copy.atTable(table)}` : `${copy.title} · ${site.name}`;
+---
+
+<Base
+  title={title}
+  description={copy.intro}
+  narrow
+  noindex={Boolean(table)}
+>
+  <section class="mx-auto max-w-2xl">
+    <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{copy.eyebrow}</p>
+    <h1 class="mt-4 font-display text-5xl text-neutral-950" style="font-family: var(--font-display);">
+      {copy.title}
+    </h1>
+    {
+      table ? (
+        <p class="mt-4 inline-flex rounded-full bg-brand px-5 py-2 text-sm font-bold uppercase tracking-[0.3em] text-neutral-950">
+          {copy.atTable(table)}
+        </p>
+      ) : null
+    }
+    <p class="mt-6 text-lg leading-relaxed text-neutral-700">{table ? copy.introTable : copy.intro}</p>
+
+    {
+      !menu || menu.categories.length === 0 ? (
+        <p class="mt-12 rounded-3xl border border-neutral-200 px-8 py-8 text-neutral-700">{copy.empty}</p>
+      ) : table && apiKey && baseUrl ? (
+        <div class="mt-12">
+          <TableOrderIsland client:load locale={locale} table={table} menu={menu} baseUrl={baseUrl} apiKey={apiKey} />
+        </div>
+      ) : (
+        <>
+          {/* No table number, so no ordering: a "send to the bar" button with nowhere to send it is worse than
+              a printed menu. The page says where the button lives instead. */}
+          <div class="mt-12 space-y-8">
+            {menu.categories.map((category) => (
+              <section class="space-y-3">
+                <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-500">{category.name}</h2>
+                <ul class="divide-y divide-black/10 border-y border-black/10">
+                  {category.items.map((item) => (
+                    <li class="flex items-baseline justify-between gap-6 py-3 text-left">
+                      <div class="min-w-0">
+                        <p class="font-semibold text-neutral-950">{item.name}</p>
+                        {item.description ? <p class="text-sm text-neutral-600">{item.description}</p> : null}
+                      </div>
+                      <p class="shrink-0 text-sm font-semibold text-neutral-800">{formatMenuPrice(item, locale)}</p>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            ))}
+          </div>
+          <p class="mt-10 rounded-3xl bg-neutral-100 px-6 py-5 text-sm text-neutral-700">{copy.noOrdering}</p>
+        </>
+      )
+    }
+
+    <div class="mt-12 flex flex-wrap gap-6 text-xs font-semibold uppercase tracking-[0.35em] text-brand">
+      <a class="underline-offset-4 hover:underline" href={localizePath(locale, "events")}>{copy.shows} →</a>
+      <a class="underline-offset-4 hover:underline" href={site.venueMapsUrl} target="_blank" rel="noreferrer noopener">
+        {copy.directions} →
+      </a>
+    </div>
+  </section>
+</Base>

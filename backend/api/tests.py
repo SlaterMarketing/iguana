@@ -2,6 +2,7 @@ import hashlib
 import json
 import pathlib
 import re
+from unittest.mock import patch
 from datetime import timedelta
 
 from django.conf import settings
@@ -467,10 +468,11 @@ class ReservationTests(ApiTestCase):
         seat = spanish.ticket_types.get(is_addon=False)
         self.assertEqual((seat.name, seat.name_es, seat.price_cents, seat.capacity, seat.max_per_order, seat.pay_at_door),
                          ('Free reserved seat', 'Lugar reservado gratis', 0, 60, 6, False))
-        # The sale. Priced in the night's own currency and never auto-selected.
+        # The sale. Priced per drink in the night's own currency and never auto-selected: the stepper beside it
+        # counts whatever this row is, so a bundle of two made "2 bebidas" next to a 4 mean eight drinks.
         drinks = spanish.ticket_types.get(is_addon=True)
-        self.assertEqual((drinks.price_cents, drinks.max_per_order), (10000, 6))
-        self.assertIn('bebidas', drinks.name_es)
+        self.assertEqual((drinks.price_cents, drinks.max_per_order), (5000, 12))
+        self.assertIn('Bebida', drinks.name_es)
         # Posters carry words, so each night has one per site language; the Spanish night's English-worded poster is
         # the default and its Spanish-worded one is the _es field.
         self.assertEqual((spanish.image_url, spanish.image_url_es),
@@ -1528,6 +1530,87 @@ class OpenMicSetupTests(TestCase):
 
         for name in (DRINKS['name'], DRINKS['name_es']):
             self.assertNotRegex(name, r'^\s*\d', f'{name!r} names a quantity the stepper already shows')
+
+
+class TableMenuTests(ApiTestCase):
+    """The bar menu, and a round ordered from a table by its QR code."""
+
+    def setUp(self):
+        from catalog.models import MenuCategory, MenuItem
+
+        self.beer = MenuCategory.objects.create(name='Beer', name_es='Cerveza', sort_order=0)
+        self.draught = MenuItem.objects.create(category=self.beer, name='Draught beer', name_es='Cerveza de barril',
+                                               price_cents=5000, currency='mxn')
+        self.gone = MenuItem.objects.create(category=self.beer, name='Sold out lager', price_cents=5000,
+                                            currency='mxn', available=False)
+
+    def test_the_menu_comes_back_in_the_visitor_s_language(self):
+        rows = self.api('get', '/api/public/v1/menu?locale=es').json()
+        self.assertEqual(rows['categories'][0]['name'], 'Cerveza')
+        self.assertEqual(rows['categories'][0]['items'][0]['name'], 'Cerveza de barril')
+
+    def test_an_item_turned_off_for_the_night_is_not_offered(self):
+        """Turned off rather than deleted, so it comes back without being retyped and an old order still names
+        what it was. It must not appear on the menu while it is off."""
+        rows = self.api('get', '/api/public/v1/menu').json()
+        names = [i['name'] for c in rows['categories'] for i in c['items']]
+        self.assertIn('Draught beer', names)
+        self.assertNotIn('Sold out lager', names)
+
+    def test_an_empty_category_is_not_an_empty_heading(self):
+        from catalog.models import MenuCategory
+
+        MenuCategory.objects.create(name='Wine', sort_order=1)
+        rows = self.api('get', '/api/public/v1/menu').json()
+        self.assertEqual([c['name'] for c in rows['categories']], ['Beer'])
+
+    def test_a_round_knows_which_table_it_goes_to(self):
+        """That is the entire feature: the QR carries the table, so nobody has to catch a waiter's eye."""
+        from sales.models import TableOrder
+
+        res = self.api('post', '/api/public/v1/table-orders',
+                       {'table': 7, 'lang': 'es', 'items': {self.draught.id: 2}, 'note': 'sin hielo'})
+        self.assertEqual(res.status_code, 200)
+        order = TableOrder.objects.get(pk=res.json()['id'])
+        self.assertEqual(order.table_number, 7)
+        self.assertEqual(order.total_cents, 10000)
+        self.assertEqual(order.note, 'sin hielo')
+        self.assertEqual(order.items.get().name, 'Cerveza de barril', 'snapshotted in the language they read')
+
+    def test_a_table_that_does_not_exist_is_refused(self):
+        for table in (0, 101, 'seven', None):
+            res = self.api('post', '/api/public/v1/table-orders', {'table': table, 'items': {self.draught.id: 1}})
+            self.assertEqual(res.status_code, 400, table)
+
+    def test_an_empty_round_is_refused(self):
+        self.assertEqual(self.api('post', '/api/public/v1/table-orders', {'table': 7, 'items': {}}).status_code, 400)
+
+    def test_an_unavailable_item_cannot_be_ordered_by_id(self):
+        """The page will not offer it, so anyone sending it is sending an id they kept from earlier."""
+        res = self.api('post', '/api/public/v1/table-orders', {'table': 7, 'items': {self.gone.id: 1}})
+        self.assertEqual(res.status_code, 400)
+
+    def test_the_price_is_the_menu_s_and_never_the_browser_s(self):
+        res = self.api('post', '/api/public/v1/table-orders',
+                       {'table': 7, 'items': {self.draught.id: 1}, 'priceCents': 1, 'totalCents': 1})
+        self.assertEqual(res.json()['totalCents'], 5000)
+
+    def test_it_tells_the_bar(self):
+        with self.settings(NOTIFY_EMAILS=['hello@iguanacomedy.com']), self.captureOnCommitCallbacks(execute=True):
+            self.api('post', '/api/public/v1/table-orders', {'table': 12, 'items': {self.draught.id: 3}})
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertIn('Table 12', mail.outbox[0].subject)
+        self.assertIn('3 x Draught beer', mail.outbox[0].subject)
+
+    def test_a_mail_server_having_a_bad_night_cannot_lose_the_round(self):
+        from sales.models import TableOrder
+
+        with self.settings(NOTIFY_EMAILS=['hello@iguanacomedy.com']), \
+                patch('django.core.mail.EmailMessage.send', side_effect=OSError('smtp down')), \
+                self.captureOnCommitCallbacks(execute=True):
+            res = self.api('post', '/api/public/v1/table-orders', {'table': 3, 'items': {self.draught.id: 1}})
+        self.assertEqual(res.status_code, 200)
+        self.assertTrue(TableOrder.objects.filter(table_number=3).exists())
 
 
 class WalletTests(ApiTestCase):

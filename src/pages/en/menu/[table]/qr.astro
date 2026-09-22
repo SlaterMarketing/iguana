@@ -1,0 +1,9 @@
+---
+import TableQrPage from "../../../../components/menu/TableQrPage.astro";
+import { isTableNumber } from "../../../../lib/menu";
+
+const { table } = Astro.params;
+if (!isTableNumber(table)) return Astro.redirect("/en/menu/", 302);
+---
+
+<TableQrPage locale="en" table={Number(table)} />

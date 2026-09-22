@@ -176,6 +176,48 @@ def _login_expiry():
     return timezone.now() + timedelta(minutes=30)
 
 
+class TableOrder(models.Model):
+    """A round ordered from the table, by the person sitting at it.
+
+    The QR on the table carries the table number, so the order knows where to go: the whole point is that
+    nobody has to catch a waiter's eye during a set. Payment happens at the table as it always has; this
+    replaces the waiting, not the till.
+    """
+
+    OPEN, DELIVERED, CANCELLED = 'OPEN', 'DELIVERED', 'CANCELLED'
+    STATUS_CHOICES = [(s, s.title()) for s in (OPEN, DELIVERED, CANCELLED)]
+
+    id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
+    table_number = models.PositiveSmallIntegerField()
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=OPEN)
+    total_cents = models.PositiveIntegerField(default=0)
+    currency = models.CharField(max_length=3, default='mxn')
+    note = models.CharField(max_length=300, blank=True)
+    locale = models.CharField(max_length=5, default='en')
+    created_at = models.DateTimeField(default=timezone.now)
+    delivered_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Table {self.table_number}: {self.status}'
+
+    @property
+    def summary(self):
+        return ', '.join(f'{i.quantity} x {i.name}' for i in self.items.all())
+
+
+class TableOrderItem(models.Model):
+    id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
+    order = models.ForeignKey(TableOrder, on_delete=models.CASCADE, related_name='items')
+    menu_item = models.ForeignKey('catalog.MenuItem', null=True, blank=True, on_delete=models.SET_NULL)
+    # Snapshotted, in the customer's language: a price change tonight must not rewrite what they ordered.
+    name = models.CharField(max_length=120)
+    quantity = models.PositiveSmallIntegerField()
+    unit_price_cents = models.PositiveIntegerField()
+
+
 class LoginToken(models.Model):
     email = models.EmailField(db_index=True)
     token = models.CharField(max_length=60, default=new_token, unique=True)

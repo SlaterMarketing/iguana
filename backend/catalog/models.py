@@ -264,6 +264,57 @@ class StoreVariant(models.Model):
         ordering = ['sort_order', 'price_cents']
 
 
+class MenuCategory(models.Model):
+    """A section of the bar menu: beers, cocktails, snacks.
+
+    The menu lives in the database rather than in the site's code so the club can change a price the night it
+    changes, without a deploy and without asking anybody.
+    """
+
+    id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
+    name = models.CharField(max_length=80)
+    name_es = models.CharField(max_length=80, blank=True, help_text='Spanish name; blank falls back to the name.')
+    active = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+        verbose_name_plural = 'menu categories'
+
+    def __str__(self):
+        return self.name
+
+    def label(self, lang):
+        return self.name_es if lang == 'es' and self.name_es else self.name
+
+
+class MenuItem(models.Model):
+    id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
+    category = models.ForeignKey(MenuCategory, on_delete=models.CASCADE, related_name='items')
+    name = models.CharField(max_length=120)
+    name_es = models.CharField(max_length=120, blank=True, help_text='Spanish name; blank falls back to the name.')
+    description = models.CharField(max_length=300, blank=True)
+    description_es = models.CharField(max_length=300, blank=True, help_text='Spanish; blank falls back.')
+    price_cents = models.PositiveIntegerField()
+    currency = models.CharField(max_length=3, default='mxn')
+    # Turned off for the night rather than deleted, so it comes back without being retyped and an old order
+    # still names what it was.
+    available = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+
+    class Meta:
+        ordering = ['sort_order', 'name']
+
+    def __str__(self):
+        return f'{self.name} ({self.price_cents / 100:.2f} {self.currency.upper()})'
+
+    def label(self, lang):
+        return self.name_es if lang == 'es' and self.name_es else self.name
+
+    def details(self, lang):
+        return self.description_es if lang == 'es' and self.description_es else self.description
+
+
 class FormEndpoint(models.Model):
     INTENTS = [(i, i) for i in ('show_request', 'contact', 'newsletter', 'external_lead', 'custom')]
 

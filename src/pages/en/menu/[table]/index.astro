@@ -1,0 +1,10 @@
+---
+import MenuPage from "../../../../components/menu/MenuPage.astro";
+import { isTableNumber } from "../../../../lib/menu";
+
+// A table number that is not a table number is a 404, not a menu with a nonsense heading.
+const { table } = Astro.params;
+if (!isTableNumber(table)) return Astro.redirect("/en/menu/", 302);
+---
+
+<MenuPage locale="en" table={Number(table)} />

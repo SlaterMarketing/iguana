@@ -193,6 +193,12 @@ ES = {
     'Want to order your drinks in advance?': '¿Quieres pedir tus bebidas por adelantado?',
     'or pay by card': 'o paga con tarjeta',
     'plus drinks': 'y bebidas',
+    # The bar menu ordered from a table (api/menu_views.py)
+    'That table number does not exist.': 'Ese número de mesa no existe.',
+    'Choose something first.': 'Elige algo primero.',
+    'Those items are not available right now.': 'Esos productos no están disponibles ahora.',
+    'Order sent to the bar. Someone will bring it to table {0}.':
+        'Pedido enviado a la barra. Alguien lo lleva a la mesa {0}.',
     'Reserve a free seat: {0}': 'Reserva un lugar gratis: {0}',
     # The demand line above the reserve button (sales/demand.py)
     'in the last hour': 'en la última hora',

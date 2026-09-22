@@ -66,6 +66,7 @@ const CORE_PAGES: Array<{ key: RouteKey; priority: number }> = [
   { key: "openMic", priority: 0.85 },
   { key: "locations", priority: 0.8 },
   { key: "comedians", priority: 0.8 },
+  { key: "menu", priority: 0.7 },
   { key: "contact", priority: 0.8 },
   { key: "about", priority: 0.8 },
   { key: "workWithUs", priority: 0.8 },

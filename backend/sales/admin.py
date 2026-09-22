@@ -2,7 +2,8 @@ from django.contrib import admin
 from django.conf import settings
 from django.utils.html import format_html
 
-from .models import CreditTransfer, LoginToken, Membership, MembershipPlan, Order, OrderItem, RedeemCode, Ticket
+from .models import (CreditTransfer, LoginToken, Membership, MembershipPlan, Order, OrderItem, RedeemCode,
+                     TableOrder, TableOrderItem, Ticket)
 
 
 class OrderItemInline(admin.TabularInline):
@@ -68,3 +69,21 @@ class CreditTransferAdmin(admin.ModelAdmin):
 class LoginTokenAdmin(admin.ModelAdmin):
     list_display = ('email', 'created_at', 'expires_at', 'used_at', 'attempts')
     exclude = ('token', 'code')
+
+
+class TableOrderItemInline(admin.TabularInline):
+    model = TableOrderItem
+    extra = 0
+    fields = ('name', 'quantity', 'unit_price_cents')
+
+
+@admin.register(TableOrder)
+class TableOrderAdmin(admin.ModelAdmin):
+    """The bar's view of what has been ordered from the tables. Newest first, because that is the only order
+    that matters when a set is running."""
+
+    list_display = ('created_at', 'table_number', 'summary', 'total_cents', 'currency', 'status')
+    list_filter = ('status', 'table_number')
+    list_editable = ('status',)
+    inlines = [TableOrderItemInline]
+    readonly_fields = ('created_at',)
