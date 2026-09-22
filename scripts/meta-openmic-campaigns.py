@@ -100,6 +100,7 @@ NIGHTS = {
         'daily_reach': 4300,           #           43.00 MXN, so 1,000 MXN a week on the night
         'videos': ['openmic-es-long-9x16.mp4', 'openmic-es-short-9x16.mp4'],
         'image': 'openmic-es-flyer-4x5.jpg',
+        'story_image': 'openmic-es-flyer-9x16-safe.jpg',
         'copy': {
             'message': ('Stand-up gratis cada martes en Playa del Carmen. Lista a las 8, show a las 9.\n\n'
                         'La sala es de 80 lugares y se llena. Aparta tu lugar gratis en treinta segundos y '
@@ -123,6 +124,7 @@ NIGHTS = {
         'daily_reach': 4300,
         'videos': ['openmic-en-long-9x16.mp4'],
         'image': 'openmic-en-flyer-4x5.jpg',
+        'story_image': 'openmic-en-flyer-9x16-safe.jpg',
         'copy': {
             'message': ('Free stand-up every Wednesday in Playa del Carmen. Doors at 8, show at 8:30.\n\n'
                         'The room holds 80 and it fills up. Reserve your spot free in thirty seconds and walk '
@@ -323,6 +325,52 @@ def adset_spec(lang, kind, campaign_id):
             'destination_type': 'WEBSITE'}
 
 
+# Where a 9:16 asset is used instead of the 4:5 one. Everything else falls through to the catch-all rule below,
+# which Meta requires: a placement no rule covers makes the whole creative invalid.
+STORY_PLACEMENTS = {
+    'publisher_platforms': ['facebook', 'instagram'],
+    'facebook_positions': ['story', 'facebook_reels'],
+    'instagram_positions': ['story', 'reels'],
+}
+
+
+def flyer_creative_spec(lang, kind, *, feed_hash, story_hash, name):
+    """The flyer ad, with a Story-shaped asset for the Story-shaped placements.
+
+    Meta was handed only the 4:5 flyer and zoomed it to fill a 9:16 Story, which cut "Stand Up in Playa!" off
+    the top and put "Iguana Comedy Club" under the Registrarte button. The flyer carries the times and the
+    address as artwork, so a cropped flyer is not a smaller ad, it is a wrong one.
+    """
+    night = NIGHTS[lang]
+    copy = night['copy'] if kind == 'reservations' else night['reach_copy']
+    cta = 'SIGN_UP' if kind == 'reservations' else 'LEARN_MORE'
+    return {
+        'name': name,
+        'object_story_spec': {'page_id': PAGE_ID, 'instagram_user_id': INSTAGRAM_ID},
+        'asset_feed_spec': {
+            'images': [
+                {'hash': feed_hash, 'adlabels': [{'name': f'{name} feed'}]},
+                {'hash': story_hash, 'adlabels': [{'name': f'{name} story'}]},
+            ],
+            'bodies': [{'text': copy['message']}],
+            'titles': [{'text': copy['title']}],
+            'descriptions': [{'text': copy['description']}],
+            'link_urls': [{'website_url': night['link']}],
+            'call_to_action_types': [cta],
+            'ad_formats': ['SINGLE_IMAGE'],
+            'asset_customization_rules': [
+                {'customization_spec': STORY_PLACEMENTS, 'image_label': {'name': f'{name} story'}, 'priority': 1},
+                # The default rule comes last and its spec must be genuinely EMPTY. Meta refuses the creative
+                # outright otherwise ("la regla de personalización de activos predeterminada ... con
+                # especificaciones de personalización vacías es obligatoria"), and an age range is not empty.
+                {'customization_spec': {}, 'image_label': {'name': f'{name} feed'}, 'priority': 2},
+            ],
+        },
+        'degrees_of_freedom_spec': {'creative_features_spec':
+                                    {f: {'enroll_status': 'OPT_OUT'} for f in OPT_OUT_FEATURES}},
+    }
+
+
 def creative_spec(lang, kind, *, video_id=None, thumbnail=None, image_hash=None, name=''):
     night = NIGHTS[lang]
     copy = night['copy'] if kind == 'reservations' else night['reach_copy']
@@ -481,7 +529,8 @@ def try_ad(blocked, lang, kind, adset_id, creative, ad_name, live):
 def cmd_apply(args):
     global PATIENT
     PATIENT = True
-    missing = [f for lang in NIGHTS for f in [*NIGHTS[lang]['videos'], NIGHTS[lang]['image']]
+    missing = [f for lang in NIGHTS
+               for f in [*NIGHTS[lang]['videos'], NIGHTS[lang]['image'], NIGHTS[lang]['story_image']]
                if not (CREATIVE_DIR / f).exists()]
     if missing:
         sys.exit(f'creative missing from {CREATIVE_DIR}: {", ".join(missing)}')
@@ -503,8 +552,9 @@ def cmd_apply(args):
             if kind == 'reservations':
                 # The flyer carries the times and the address in the artwork, which a video cannot do at a glance.
                 image_hash = upload_image(CREATIVE_DIR / night['image'])
-                creative = creative_spec(lang, kind, image_hash=image_hash,
-                                         name=f'{campaign_name(lang, kind)} · flyer')
+                story_hash = upload_image(CREATIVE_DIR / night['story_image'])
+                creative = flyer_creative_spec(lang, kind, feed_hash=image_hash, story_hash=story_hash,
+                                               name=f'{campaign_name(lang, kind)} · flyer')
                 try_ad(blocked, lang, kind, adset_id, creative, f'{adset_name(lang, kind)} · flyer', args.live)
 
     if blocked:
@@ -564,6 +614,8 @@ def cmd_plan(args):
         print(f'  targeting  Playa del Carmen {WIDE_KM}km / {NEAR_KM}km, home+recent, 18 to 65'
               + (f', locales {night["locales"]}' if night['locales'] else ''))
         print(f'  creative   {", ".join(night["videos"])}, {night["image"]}')
+        print(f'             {night["story_image"]} for Story and Reels, so nothing is cut off by the '
+              'account bar or the CTA')
         print(f'  weekly     {weekly:,.2f} MXN')
     total = sum((n['daily_conversions'] + n['daily_reach']) for n in NIGHTS.values()) * 7 / 100
     print(f'\ntotal {total:,.2f} MXN a week across both nights')
