@@ -1532,6 +1532,53 @@ class OpenMicSetupTests(TestCase):
             self.assertNotRegex(name, r'^\s*\d', f'{name!r} names a quantity the stepper already shows')
 
 
+class RevenuePageTests(ApiTestCase):
+    """The staff revenue page. Its whole job is to be true, so the tests are about what it must never say."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+
+        self.staff = get_user_model().objects.create_user('till', password='x', is_staff=True)
+
+    def test_it_is_staff_only(self):
+        """It lists customer names and what the club is taking. A logged-out request must not see it."""
+        response = self.client.get('/revenue/')
+        self.assertIn(response.status_code, (302, 403))
+        self.assertNotIn(b'Revenue', response.content)
+
+    def test_it_renders_for_staff(self):
+        self.client.force_login(self.staff)
+        response = self.client.get('/revenue/')
+        self.assertEqual(response.status_code, 200)
+        self.assertIn(b'Where it is lost', response.content)
+
+    def test_a_pay_at_the_door_reservation_is_not_revenue_yet(self):
+        """It is a real booking and worth optimising for, but the club has not been paid. Counting it as taken
+        online would flatter every number on the page."""
+        order = Order.objects.create(event=self.event, event_name=self.event.name, customer_email='a@example.com',
+                                     currency='mxn', status=Order.COMPLETED, completed_at=timezone.now(),
+                                     total_amount_cents=5000, pay_at_door_cents=5000)
+        self.client.force_login(self.staff)
+        page = self.client.get('/revenue/').content.decode()
+        self.assertIn('0.00 MXN', page, 'nothing has been taken online')
+        self.assertIn('50.00 MXN', page, 'and the door is owed the 50')
+        self.assertEqual(order.pay_at_door_cents, 5000)
+
+    def test_the_funnel_never_prints_an_impossible_percentage(self):
+        """The beacon that counts the first step was added after orders already existed, so for a while the top
+        is narrower than the bottom. It must say so rather than print 400%."""
+        Order.objects.create(event=self.event, event_name=self.event.name, customer_email='b@example.com',
+                             currency='mxn', status=Order.COMPLETED, completed_at=timezone.now())
+        self.client.force_login(self.staff)
+        page = self.client.get('/revenue/').content.decode()
+        self.assertIn('only been counted since', page)
+
+    def test_the_window_cannot_be_driven_out_of_range(self):
+        self.client.force_login(self.staff)
+        for value in ('0', '-5', '99999', 'lots'):
+            self.assertEqual(self.client.get(f'/revenue/?days={value}').status_code, 200)
+
+
 class TableMenuTests(ApiTestCase):
     """The bar menu, and a round ordered from a table by its QR code."""
 

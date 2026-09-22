@@ -1,0 +1,126 @@
+{% extends "embed/base.html" %}
+{% block title %}Revenue · Iguana Comedy{% endblock %}
+{% block head %}
+<style>
+  /* Wider than the customer pages: this one is read on a laptop, with a table on it. */
+  .wrap { max-width: 1040px; }
+  .row { display: flex; flex-wrap: wrap; gap: 12px; }
+  .tile { flex: 1 1 180px; background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 16px 18px; }
+  .tile .n { font-family: "Bebas Neue", sans-serif; font-size: 2.1rem; line-height: 1; }
+  .tile .k { font-size: .7rem; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+  .tile .sub { font-size: .8rem; color: var(--muted); margin-top: 4px; }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { font-size: .68rem; font-weight: 600; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); }
+  td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; }
+  .bar { height: 8px; border-radius: 999px; background: rgba(0,0,0,.08); overflow: hidden; min-width: 60px; }
+  .bar span { display: block; height: 100%; background: var(--brand); }
+  .pill { display: inline-block; font-size: .68rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
+          border-radius: 999px; padding: 3px 9px; background: var(--brand-soft); color: var(--brand-hover); }
+  .pill.paid { background: #fdf0d5; color: #8a5a00; }
+  .spark { display: flex; align-items: flex-end; gap: 2px; height: 56px; }
+  .spark i { flex: 1; background: var(--brand); border-radius: 2px 2px 0 0; min-height: 1px; }
+  .tabs a { font-size: .75rem; font-weight: 600; letter-spacing: .1em; text-transform: uppercase;
+            text-decoration: none; color: var(--muted); margin-right: 14px; }
+  .tabs a.on { color: var(--ink); text-decoration: underline; text-underline-offset: 5px; }
+  .note { font-size: .82rem; color: var(--muted); }
+</style>
+{% endblock %}
+{% block content %}
+<div class="stack">
+  <div>
+    <p class="eyebrow">Iguana Comedy</p>
+    <h1>Revenue</h1>
+    <p class="tabs" style="margin-top:10px">
+      {% for r in ranges %}<a class="{% if r == days %}on{% endif %}" href="?days={{ r }}">Last {{ r }} days</a>{% endfor %}
+    </p>
+  </div>
+
+  {# Free seats and ticketed shows are different businesses; adding them into one number hides both. #}
+  <div class="row">
+    <div class="tile"><p class="k">Taken online</p><p class="n">{{ online }}</p><p class="sub">tickets and drinks paid here</p></div>
+    <div class="tile"><p class="k">To collect at the door</p><p class="n">{{ door }}</p><p class="sub">reserved, not yet paid</p></div>
+    <div class="tile"><p class="k">Seats reserved</p><p class="n">{{ seats }}</p><p class="sub">across every show</p></div>
+    <div class="tile"><p class="k">Drinks pre-ordered</p><p class="n">{{ drinks }}</p><p class="sub">{{ drinks_money }}</p></div>
+    <div class="tile"><p class="k">Drink attach rate</p><p class="n">{{ attach_rate }}%</p><p class="sub">{{ orders_with_drinks }} of the bookings</p></div>
+  </div>
+
+  <div class="card">
+    <h2>Where it is lost</h2>
+    {% if partial_funnel %}
+      <p class="note">The first step has only been counted since the checkout beacon was added, so it is narrower
+        than the steps below it. Percentages against it are left blank until it catches up.</p>
+    {% endif %}
+    <table>
+      <tr><th>Step</th><th class="n">People</th><th class="n">Of the step above</th></tr>
+      {% for label, count, share in funnel %}
+        <tr><td>{{ label }}</td><td class="n">{{ count }}</td><td class="n">{% if share is not None %}{{ share }}%{% else %}·{% endif %}</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>Bookings a day</h2>
+    <div class="spark">
+      {% for day, n in daily_orders.items %}<i style="height: {% widthratio n max_daily 100 %}%" title="{{ day }}: {{ n }}"></i>{% endfor %}
+    </div>
+    <p class="note" style="margin-top:8px">{{ daily_orders|length }} days to {{ today }}</p>
+  </div>
+
+  <div class="card">
+    <h2>By show</h2>
+    <table>
+      <tr><th>Night</th><th></th><th class="n">Seats</th><th class="n">Full</th><th class="n">Drinks</th><th class="n">Taken</th></tr>
+      {% for row in shows %}
+        <tr>
+          <td>{{ row.event.date|date:"D j M" }} · {{ row.event.name }}</td>
+          <td>{% if row.free %}<span class="pill">Free</span>{% else %}<span class="pill paid">Ticketed</span>{% endif %}</td>
+          <td class="n">{{ row.seats }}{% if row.capacity %} / {{ row.capacity }}{% endif %}</td>
+          <td class="n">
+            {% if row.full is not None %}
+              <span class="bar" style="display:inline-block;width:70px;vertical-align:middle"><span style="width: {{ row.full }}%"></span></span>
+              {{ row.full }}%
+            {% else %}·{% endif %}
+          </td>
+          <td class="n">{{ row.drinks }}</td>
+          <td class="n">{% if row.revenue_cents %}{{ row.revenue }}{% else %}·{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="6" class="muted">Nothing on the calendar in this window.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+  <div class="card">
+    <h2>From the tables</h2>
+    <p>{{ tables_count }} order(s), {{ tables_total }}.</p>
+    {% if open_tables %}
+      <table>
+        <tr><th>Placed</th><th class="n">Table</th><th>Ordered</th><th class="n">Total</th></tr>
+        {% for o in open_tables %}
+          <tr><td>{{ o.created_at|date:"j M H:i" }}</td><td class="n">{{ o.table_number }}</td><td>{{ o.summary }}</td>
+              <td class="n">{{ o.total_cents|floatformat:0 }}</td></tr>
+        {% endfor %}
+      </table>
+      <p class="note" style="margin-top:8px">Open orders only. Mark them delivered in the admin.</p>
+    {% endif %}
+  </div>
+
+  <div class="card">
+    <h2>Latest bookings</h2>
+    <table>
+      <tr><th>When</th><th>Who</th><th>Night</th><th class="n">Paid</th></tr>
+      {% for o in recent %}
+        <tr>
+          <td>{{ o.completed_at|date:"j M H:i" }}</td>
+          <td>{{ o.customer_name|default:o.customer_email }}</td>
+          <td>{{ o.event_name }}</td>
+          <td class="n">{% if o.total_amount_cents %}{{ o.total_amount_cents|floatformat:0 }} {{ o.currency|upper }}{% else %}free{% endif %}</td>
+        </tr>
+      {% empty %}
+        <tr><td colspan="4" class="muted">No bookings in this window.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+</div>
+{% endblock %}

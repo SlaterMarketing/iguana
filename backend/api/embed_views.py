@@ -145,6 +145,15 @@ def checkout_engaged(request, event_id):
         return HttpResponse(status=204)
     body = json_body(request) or {}
     lang = normalize(body.get('lang'))
+    # Kept here as well as sent to Meta, so /revenue can show what happened after the click. Meta reports a cost
+    # per reservation and nothing about the step before it, which is where a funnel is actually lost.
+    try:
+        TrackedEvent.objects.create(kind='checkout', name='checkout_engaged',
+                                    visitor_key=str(body.get('key', ''))[:100],
+                                    url=str((body.get('attribution') or {}).get('pageUrl', ''))[:1000],
+                                    properties={'event': event.id, 'lang': lang})
+    except Exception:
+        pass
     attribution = body.get('attribution') if isinstance(body.get('attribution'), dict) else {}
     client = body.get('client') if isinstance(body.get('client'), dict) else {}
     try:

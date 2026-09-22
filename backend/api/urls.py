@@ -1,6 +1,6 @@
 from django.urls import path, re_path
 
-from . import embed_views, fan_views, menu_views, public_views
+from . import embed_views, fan_views, menu_views, public_views, revenue_views
 
 urlpatterns = [
     # Public catalogue (@kintana/sdk KintanaClient)
@@ -20,6 +20,8 @@ urlpatterns = [
     path('api/public/v1/store/collections/<str:key>', public_views.store_collection_detail),
     # The bar menu, and a round ordered from a table. One path for both languages, because a printed QR can
     # never be re-printed with a different URL: the page picks its own language.
+    # Staff, on the API domain so it shares the admin session rather than inventing a login.
+    path('revenue/', revenue_views.revenue),
     path('api/public/v1/menu', menu_views.menu),
     path('api/public/v1/table-orders', menu_views.table_order),
     path('api/public/v1/site', public_views.site),
