@@ -9,11 +9,14 @@ import { getKintanaEnv, hasKintanaCredentials } from "../../lib/kintana-env";
 
 interface Props {
   locale: Locale;
-  /** Set when the visitor scanned the QR on a table, which is what lets an order say where to go. */
+  /** Set when the code was stuck to one table. Without it the customer types the number instead. */
   table?: number;
+  /** Show the order form. `/menu/` alone is just the menu; `/menu/show/` and `/menu/7/` take an order. */
+  ordering?: boolean;
 }
 
-const { locale, table } = Astro.props;
+const { locale, table, ordering = false } = Astro.props;
+const takesOrders = ordering || Boolean(table);
 const { apiKey, baseUrl } = getKintanaEnv();
 const hasCredentials = hasKintanaCredentials();
 const menu = hasCredentials && apiKey && baseUrl ? await loadMenu(baseUrl, apiKey, locale) : null;
@@ -23,10 +26,11 @@ const copy = {
     eyebrow: "At the bar",
     title: "Menu",
     atTable: (n: number) => `Table ${n}`,
-    intro: "Beer, cocktails and something to pick at, from the bar downstairs.",
-    introTable: "Order from your seat and we will bring it over, so you do not miss a punchline.",
+    intro: "Beer, cocktails and shots, from the bar.",
+    introTable: "Order from your seat and a waiter brings it over, so you do not miss a punchline.",
     empty: "The menu is being updated. Ask at the bar and they will look after you.",
     noOrdering: "Scan the code on your table to order without getting up.",
+    orderHere: "Order without getting up →",
     shows: "See what is on",
     directions: "Directions",
   },
@@ -34,16 +38,18 @@ const copy = {
     eyebrow: "En la barra",
     title: "Menú",
     atTable: (n: number) => `Mesa ${n}`,
-    intro: "Cerveza, cócteles y algo para picar, de la barra.",
-    introTable: "Pide desde tu lugar y te lo llevamos, para que no te pierdas el remate.",
+    intro: "Cerveza, cócteles y shots, de la barra.",
+    introTable: "Pide desde tu lugar y un mesero te lo lleva, para que no te pierdas el remate.",
     empty: "Estamos actualizando el menú. Pregunta en la barra y te atienden.",
     noOrdering: "Escanea el código de tu mesa para pedir sin levantarte.",
+    orderHere: "Pide sin levantarte →",
     shows: "Ver la cartelera",
     directions: "Cómo llegar",
   },
 }[locale];
 
 const title = table ? `${copy.title} · ${copy.atTable(table)}` : `${copy.title} · ${site.name}`;
+const orderHref = `/${locale}/menu/show/`;
 ---
 
 <Base
@@ -64,12 +70,12 @@ const title = table ? `${copy.title} · ${copy.atTable(table)}` : `${copy.title}
         </p>
       ) : null
     }
-    <p class="mt-6 text-lg leading-relaxed text-neutral-700">{table ? copy.introTable : copy.intro}</p>
+    <p class="mt-6 text-lg leading-relaxed text-neutral-700">{takesOrders ? copy.introTable : copy.intro}</p>
 
     {
       !menu || menu.categories.length === 0 ? (
         <p class="mt-12 rounded-3xl border border-neutral-200 px-8 py-8 text-neutral-700">{copy.empty}</p>
-      ) : table && apiKey && baseUrl ? (
+      ) : takesOrders && apiKey && baseUrl ? (
         <div class="mt-12">
           <TableOrderIsland client:load locale={locale} table={table} menu={menu} baseUrl={baseUrl} apiKey={apiKey} />
         </div>
@@ -95,7 +101,13 @@ const title = table ? `${copy.title} · ${copy.atTable(table)}` : `${copy.title}
               </section>
             ))}
           </div>
-          <p class="mt-10 rounded-3xl bg-neutral-100 px-6 py-5 text-sm text-neutral-700">{copy.noOrdering}</p>
+          {/* The read-only menu still has to offer the thing the menu is for. */}
+          <a
+            class="mt-10 flex min-h-14 items-center justify-center rounded-full bg-brand px-8 text-sm font-semibold uppercase tracking-[0.2em] text-neutral-950"
+            href={orderHref}
+          >
+            {copy.orderHere}
+          </a>
         </>
       )
     }

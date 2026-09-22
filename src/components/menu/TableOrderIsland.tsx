@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 
 import type { Locale } from "../../i18n/locale";
-import { formatMenuPrice, type Menu } from "../../lib/menu";
+import { formatMenuPrice, MAX_TABLE, type Menu } from "../../lib/menu";
 
 /**
  * Order a round from the table.
@@ -14,6 +14,9 @@ import { formatMenuPrice, type Menu } from "../../lib/menu";
 const copy = {
   en: {
     at: (table: number) => `Table ${table}`,
+    whichTable: "Which table are you at?",
+    tablePlaceholder: "Table number",
+    needTable: "Put your table number in so we know where to bring it.",
     note: "Anything we should know?",
     notePlaceholder: "No ice, extra lime…",
     send: (total: string) => `Send to the bar · ${total}`,
@@ -26,6 +29,9 @@ const copy = {
   },
   es: {
     at: (table: number) => `Mesa ${table}`,
+    whichTable: "¿En qué mesa estás?",
+    tablePlaceholder: "Número de mesa",
+    needTable: "Pon tu número de mesa para saber a dónde llevarlo.",
     note: "¿Algo que debamos saber?",
     notePlaceholder: "Sin hielo, con limón de más…",
     send: (total: string) => `Enviar a la barra · ${total}`,
@@ -38,10 +44,17 @@ const copy = {
   },
 } as const;
 
-type Props = { locale: Locale; table: number; menu: Menu; baseUrl: string; apiKey: string };
+type Props = { locale: Locale; table?: number; menu: Menu; baseUrl: string; apiKey: string };
 
-export function TableOrderIsland({ locale, table, menu, baseUrl, apiKey }: Props) {
+/**
+ * `table` comes from the URL when the code was stuck to one table. Without it the customer types the number,
+ * which is why a single printed code can serve the whole room: one poster instead of a hundred stickers, and
+ * nothing to reprint when the furniture moves.
+ */
+export function TableOrderIsland({ locale, table: fixedTable, menu, baseUrl, apiKey }: Props) {
   const t = copy[locale];
+  const [typedTable, setTypedTable] = useState("");
+  const table = fixedTable ?? (/^[0-9]{1,3}$/.test(typedTable) ? Number(typedTable) : 0);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -67,6 +80,10 @@ export function TableOrderIsland({ locale, table, menu, baseUrl, apiKey }: Props
 
   async function send() {
     if (!chosen || busy) return;
+    if (!table || table < 1 || table > MAX_TABLE) {
+      setError(t.needTable);
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -142,6 +159,24 @@ export function TableOrderIsland({ locale, table, menu, baseUrl, apiKey }: Props
         </section>
       ))}
 
+      {fixedTable ? null : (
+        <label className="block text-left">
+          <span className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500">{t.whichTable}</span>
+          <input
+            className="mt-2 min-h-12 w-full rounded-2xl border border-black/20 px-4 text-lg font-semibold"
+            value={typedTable}
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={3}
+            placeholder={t.tablePlaceholder}
+            onChange={(event) => {
+              setError("");
+              setTypedTable(event.target.value.replace(/[^0-9]/g, "").slice(0, 3));
+            }}
+          />
+        </label>
+      )}
+
       <label className="block text-left">
         <span className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500">{t.note}</span>
         <input
@@ -166,7 +201,7 @@ export function TableOrderIsland({ locale, table, menu, baseUrl, apiKey }: Props
           {busy ? t.sending : chosen ? t.send(total) : t.empty}
         </button>
         <p className="mt-2 text-center text-xs text-neutral-600">
-          {t.at(table)} · {t.payAtTable}
+          {table ? `${t.at(table)} · ` : ""}{t.payAtTable}
         </p>
       </div>
     </div>

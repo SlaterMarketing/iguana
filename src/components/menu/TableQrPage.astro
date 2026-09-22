@@ -24,13 +24,15 @@ interface Props {
 
 const { locale, table } = Astro.props;
 const origin = Astro.site?.origin ?? "https://iguanacomedy.com";
-const target = table ? `${origin}/menu/${table}/` : `${origin}/menu/`;
+const target = table ? `${origin}/menu/${table}/` : `${origin}/menu/show/`;
 // Error correction M: a sticker on a bar table gets wet and scratched, and M recovers about 15% of the code.
 const svg = await QRCode.toString(target, { type: "svg", margin: 1, errorCorrectionLevel: "M" });
 
 const copy = {
-  en: { scan: "Scan for the menu", order: "Order from your table", menu: "Drinks menu", table: "Table" },
-  es: { scan: "Escanea para el menú", order: "Pide desde tu mesa", menu: "Menú de bebidas", table: "Mesa" },
+  en: { scan: "Scan it, pick your drinks, put in your table number", order: "Order from your table",
+        menu: "Drinks menu", table: "Table" },
+  es: { scan: "Escanéalo, elige tus bebidas, pon tu número de mesa", order: "Pide desde tu mesa",
+        menu: "Menú de bebidas", table: "Mesa" },
 }[locale];
 ---
 
@@ -52,7 +54,7 @@ const copy = {
           </p>
         ) : null
       }
-      <p class:list={["text-sm font-semibold uppercase tracking-[0.3em] text-neutral-700", table ? "mt-4" : "mt-6"]}>
+      <p class:list={["text-sm font-semibold text-neutral-700", table ? "mt-4 uppercase tracking-[0.3em]" : "mt-6 leading-snug"]}>
         {copy.scan}
       </p>
       <p class="mt-2 break-all text-[0.7rem] text-neutral-500">{target}</p>
