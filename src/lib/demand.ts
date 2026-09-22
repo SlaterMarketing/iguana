@@ -77,3 +77,28 @@ export function demandLine(evt: KintanaPublicEvent, locale: Locale): DemandLine 
 
   return { text, tight, fill: d.showBar ? Math.min(100, Math.round((d.taken / d.capacity) * 100)) : null };
 }
+
+/** Tightest first, matching WINDOWS in `backend/sales/demand.py`. */
+const WINDOW_ORDER = ["in the last hour", "in the last few hours", "in the last day"];
+
+/**
+ * One sentence about the open mics as a whole, rather than one per night.
+ *
+ * The hero offers two nights side by side, and a line under each of them ("Tue · 2 people reserved in the last
+ * few hours", "Wed · 3 people reserved in the last few hours") says the same thing twice and reads as filler.
+ * Added together it is a bigger number, one line, and the same fact.
+ *
+ * When the nights sit in different windows the WIDER one is used, which understates rather than overstates: two
+ * people who booked in the last hour also booked in the last day, so the sentence stays true.
+ */
+export function combinedRecentLine(events: KintanaPublicEvent[], locale: Locale): string | null {
+  const counted = events
+    .map(eventDemand)
+    .filter((d): d is EventDemand => Boolean(d) && d!.recent >= 2 && WINDOW_ORDER.includes(d!.recentWindow));
+  if (!counted.length) return null;
+
+  const total = counted.reduce((sum, d) => sum + d.recent, 0);
+  const widest = counted.reduce((worst, d) => Math.max(worst, WINDOW_ORDER.indexOf(d.recentWindow)), 0);
+  const window = t(locale, WINDOW_KEYS[WINDOW_ORDER[widest] as keyof typeof WINDOW_KEYS]);
+  return t(locale, "demand.recent", { count: String(total), window });
+}

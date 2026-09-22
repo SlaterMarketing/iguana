@@ -4,7 +4,7 @@ import type { KintanaPublicEvent } from "@kintana/sdk";
 import type { Locale } from "../../i18n/locale";
 import { localizePath } from "../../i18n/routes";
 import { t } from "../../i18n/ui";
-import { demandLine } from "../../lib/demand";
+import { combinedRecentLine, demandLine } from "../../lib/demand";
 import { formatSeatPrice, nextBookableOpenMics } from "../../lib/open-mics";
 
 interface Props {
@@ -37,10 +37,14 @@ const nights = [
     ? [{ ...night, event: night.event, price: formatSeatPrice(night.event, locale), demand: demandLine(night.event, locale) }]
     : [],
 );
-// Somebody else is already coming. Each line names its night, because two buttons sit above them and an
-// unattributed count would be read as belonging to whichever one the eye landed on last. A night with nothing
-// true to say says nothing: see src/lib/demand.ts.
-const pressure = nights.flatMap((night) => (night.demand ? [{ day: night.dayShort, demand: night.demand }] : []));
+// Somebody else is already coming. Normally that is one line about both nights added together, because a line
+// per night says the same sentence twice under two buttons. A night that is genuinely nearly full is the
+// exception: that has to be named, or the visitor cannot tell which night to hurry for.
+const tight = nights.filter((night) => night.demand?.tight);
+const combined = tight.length ? null : combinedRecentLine(nights.map((night) => night.event), locale);
+const pressure = combined
+  ? [{ day: "", text: combined, tight: false }]
+  : nights.flatMap((night) => (night.demand ? [{ day: night.dayShort, text: night.demand.text, tight: night.demand.tight }] : []));
 const buttonClass =
   "inline-flex items-center gap-2 sm:gap-3 whitespace-nowrap rounded-2xl border border-white/40 bg-black/30 px-3 py-2 text-left font-semibold uppercase text-white backdrop-blur transition hover:bg-white hover:text-neutral-950 sm:px-5";
 
@@ -95,10 +99,10 @@ const [beforeFree, afterFree = ""] = t(locale, "openMic.hero.title").split("{fre
           <p
             class:list={[
               "text-[0.62rem] font-semibold uppercase tracking-[0.18em] sm:text-[0.7rem] sm:tracking-[0.22em]",
-              row.demand.tight ? "text-amber-300" : "text-white/75",
+              row.tight ? "text-amber-300" : "text-white/75",
             ]}
           >
-            {row.day} · {row.demand.text}
+            {row.day ? `${row.day} · ` : ""}{row.text}
           </p>
         ))}
       </div>
