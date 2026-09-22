@@ -170,36 +170,6 @@
     if (window.parent === window) return;
     window.parent.postMessage({ type: "kintana-embed-height", height: Math.ceil(document.documentElement.scrollHeight) }, "*");
   }
-
-  // The form is taller than a phone, so its button sits below the fold on the page that an ad click lands on.
-  // The iframe cannot make it sticky itself: it has no scrollport of its own, the host page does the scrolling.
-  // So it publishes the button, the host draws a copy that stays on screen, and a press comes back here and
-  // submits the real form. Every rule about what the button says and when it is disabled stays in one place.
-  var lastCta = "";
-  function reportCta() {
-    if (window.parent === window) return;
-    var button = $("submit");
-    var visible = !!button && !$("action").hidden;
-    var payload = {
-      type: "kintana-embed-cta",
-      visible: visible,
-      disabled: !visible || button.disabled,
-      main: visible ? button.querySelector(".main").textContent : "",
-      sub: visible ? button.querySelector(".sub").textContent : "",
-    };
-    var key = JSON.stringify(payload);
-    if (key === lastCta) return;          // the label is recomputed constantly; only speak when it changes
-    lastCta = key;
-    window.parent.postMessage(payload, "*");
-  }
-
-  window.addEventListener("message", function (e) {
-    if (!e.data || e.data.type !== "kintana-embed-submit") return;
-    if (B.siteOrigins.indexOf(e.origin) === -1) return;
-    var button = $("submit");
-    // requestSubmit, not click: it runs the same handler and the same validation as pressing the real button.
-    if (button && !button.disabled) form.requestSubmit(button);
-  });
   if (window.ResizeObserver) new ResizeObserver(reportHeight).observe(document.body);
 
   var parentOrigin = "";
@@ -320,7 +290,6 @@
     if (busy) { main = selectionAtDoor() ? T("Reserving...") : T("Processing..."); }
     $("submit").querySelector(".main").textContent = main;
     $("submit").querySelector(".sub").textContent = sub;
-    reportCta();
   }
 
   function refresh() {
@@ -335,7 +304,6 @@
     $("submit").disabled = busy || !quoted;
     show($("dev-note"), !!B.devPayments && !!quoted && !quoted.payAtDoor && quoted.totalCents > 0);
     label();
-    reportCta();
     reportHeight();
   }
 
