@@ -50,7 +50,9 @@ const {
   pickerChoices,
   rotatorCities = heroCityChoices.filter((entry) => entry.slug !== "").map((entry) => entry.label),
   pickerNavigateTo = "home",
-  ctaLabel = t(locale, "locations.cta.buyTicket"),
+  // It goes to the calendar, so it says so. "Buy ticket" promised a checkout that the next page does not open,
+  // and on a home page whose whole offer is a FREE open mic it asked for money twice over.
+  ctaLabel = t(locale, "home.hero.seeEvents"),
   spotlightLabel = t(locale, "home.hero.spotlightLabel"),
   rotatorFallback = t(locale, "home.heroFallbackRegion"),
 } = Astro.props;

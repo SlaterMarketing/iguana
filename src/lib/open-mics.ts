@@ -35,9 +35,14 @@ export function bookableOpenMics(events: KintanaPublicEvent[]): { es: KintanaPub
 }
 
 /** 5000 MXN -> "50 MXN". The shared formatMinorUnitsPrice prints the currency twice ("MX$50MXN"). */
-/** True when reserving costs nothing, which is the whole offer the ads are built on. */
+/**
+ * True when reserving costs nothing, which is the whole offer the ads are built on.
+ *
+ * A null price is NOT free. It means the show has no ticket types yet, so nobody knows what it costs, and
+ * treating the two the same advertised a paid show as "Gratis" on the events index.
+ */
 export function isFreeToReserve(evt: KintanaPublicEvent): boolean {
-  return evt.priceFrom == null || evt.priceFrom === 0;
+  return evt.priceFrom === 0;
 }
 
 export function formatSeatPrice(evt: KintanaPublicEvent, locale: Locale): string {
