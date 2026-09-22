@@ -1394,6 +1394,49 @@ class DemandLineTests(ApiTestCase):
 CHECKOUT_TEMPLATE = pathlib.Path(__file__).resolve().parent.parent / 'templates' / 'embed' / 'checkout.html'
 
 
+class DrinksAreNotSeatsTests(ApiTestCase):
+    """A round of drinks ordered ahead is not a person at the door, and every count has to agree about that."""
+
+    def setUp(self):
+        self.mic = Event.objects.create(name='Open Mic', slug='mic-drinks', status=Event.ACTIVE, venue=self.venue,
+                                        currency='mxn', date=timezone.now() + timedelta(days=2), tags=['open-mic'])
+        self.seat = TicketType.objects.create(event=self.mic, name='Free reserved seat', price_cents=0, capacity=60)
+        self.drinks = TicketType.objects.create(event=self.mic, name='2 drinks', price_cents=10000, is_addon=True)
+
+    def test_a_drink_never_gets_a_ticket(self):
+        """One seat and three rounds used to produce four QR codes, four lines in the confirmation email and
+        three things at the door that cannot be checked in."""
+        from sales.models import Order, OrderItem
+        from sales.services import complete_order
+
+        order = Order.objects.create(event=self.mic, event_name=self.mic.name, customer_email='a@example.com',
+                                     currency='mxn', total_amount_cents=30000)
+        OrderItem.objects.create(order=order, ticket_type=self.seat, name='seat', quantity=1, unit_price_cents=0,
+                                 is_addon=False)
+        OrderItem.objects.create(order=order, ticket_type=self.drinks, name='2 drinks', quantity=3,
+                                 unit_price_cents=10000, is_addon=True)
+        complete_order(order)
+        self.assertEqual(order.tickets.count(), 1)
+        self.assertEqual(order.tickets.first().ticket_type_name, 'seat')
+
+    def test_checkout_records_which_lines_are_add_ons(self):
+        """`is_addon` is snapshotted rather than read back off the ticket type, which is nullable. Without it a
+        deleted drinks type turns every old drink into a seat."""
+        from sales.services import create_order, price_cart
+
+        cart = price_cart(self.mic, {self.seat.id: 1, self.drinks.id: 2}, contact=None)
+        order = create_order(self.mic, cart, name='A', email='a@example.com', phone='', contact=None, locale='en')
+        by_name = {item.name: item for item in order.items.all()}
+        self.assertFalse(by_name['Free reserved seat'].is_addon)
+        self.assertTrue(by_name['2 drinks'].is_addon)
+
+    def test_the_button_counts_seats_and_the_drinks_are_named_separately(self):
+        page = CHECKOUT_TEMPLATE.read_text()
+        self.assertNotIn('sub = n === 1 ? T("1 ticket")', page, 'the basket total is not a ticket count')
+        self.assertIn('var seats = seatCount();', page)
+        self.assertIn('T("plus drinks")', page)
+
+
 class WalletTests(ApiTestCase):
     """Apple Pay and Google Pay, which are the whole point of a phone-first checkout with a paid upsell."""
 

@@ -174,7 +174,7 @@ def create_order(event, cart, *, name, email, phone, contact, attribution=None, 
     for ticket_type, qty, unit in cart.lines:
         # Snapshot the name in the customer's language: tickets, the order page and the email all show it.
         OrderItem.objects.create(order=order, ticket_type=ticket_type, name=ticket_type.label(lang), quantity=qty,
-                                 unit_price_cents=unit)
+                                 unit_price_cents=unit, is_addon=ticket_type.is_addon)
     return order
 
 
@@ -215,7 +215,10 @@ def complete_order(order, charge_id=''):
     if charge_id:
         order.stripe_charge_id = charge_id
     order.save()
-    for item in order.items.all():
+    # Seats only. A round of drinks ordered ahead is not somebody at the door: issuing a ticket for it gave the
+    # customer four QR codes for one person, printed four lines in the confirmation email, and asked the door to
+    # scan a beer.
+    for item in order.items.exclude(is_addon=True):
         for _ in range(item.quantity):
             Ticket.objects.create(order=order, ticket_type_name=item.name)
     transaction.on_commit(lambda: send_order_confirmation(order))

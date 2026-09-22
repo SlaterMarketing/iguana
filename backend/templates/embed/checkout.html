@@ -277,9 +277,13 @@
       main = seatCount() === 1 ? T("Reserve my free spot") : T("Reserve {0} free spots", seatCount());
       sub = T("Nothing to pay");
     } else {
+      // Count seats, never the basket. A seat plus three rounds of drinks is one person, and calling it "4
+      // tickets" told the customer they had bought four of something they had bought one of.
+      var seats = seatCount();
       var total = quoted ? quoted.totalCents : 0;
       main = T("Pay {0}", money(total));
-      sub = n === 1 ? T("1 ticket") : T("{0} tickets", n);
+      sub = seats === 1 ? T("1 ticket") : T("{0} tickets", seats);
+      if (n > seats) sub += " " + T("plus drinks");
     }
     if (busy) { main = selectionAtDoor() ? T("Reserving...") : T("Processing..."); }
     $("submit").querySelector(".main").textContent = main;

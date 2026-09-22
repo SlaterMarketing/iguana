@@ -51,6 +51,9 @@ class OrderItem(models.Model):
     name = models.CharField(max_length=120)
     quantity = models.PositiveIntegerField()
     unit_price_cents = models.PositiveIntegerField()
+    # Snapshotted rather than read back off `ticket_type`, which is nullable: a drink must still be a drink
+    # after its ticket type is deleted, or an old order starts issuing seat tickets for a round of beers.
+    is_addon = models.BooleanField(default=False)
 
 
 class Ticket(models.Model):
