@@ -55,8 +55,9 @@ site_urls: "{{ ([site_url, 'https://www.' + site_domain] + (redirect_domains | m
 # the local copy is what survives if a forward is rejected. DMARC reports go to the local `dmarc` user.
 mail_human_aliases: [hello, info, bills, andrew, john, will, will.slater]
 mail_role_aliases: [noreply, no-reply, postmaster, abuse, mailer-daemon]
+# Real addresses live in the gitignored group_vars/all, never here: this file is public.
 mail_forwards: [someone@example.com, someone-else@example.com]
-mail_test_recipient: someone-else@example.com
+mail_test_recipient: someone@example.com
 
 # DB-IP "IP to City Lite" (CC BY 4.0), refreshed monthly by iguana-geoip-refresh; read by backend/crm/geo.py.
 # A one-off announcement the next scheduled newsletter carries, then renames aside. Missing is normal.
