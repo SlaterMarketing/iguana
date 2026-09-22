@@ -120,6 +120,13 @@ def event_urls(event):
     return embed, f'{embed}?embedded=1'
 
 
+def _wallets():
+    # Imported here, not at module level: sales.services imports this module back.
+    from sales.services import wallets_available
+
+    return wallets_available()
+
+
 def _demand(event):
     # Imported here: sales imports catalog, so a module-level import the other way is a cycle.
     from sales.demand import demand
@@ -250,5 +257,5 @@ def order_ticket_json(order):
         ],
         'ticketsPageUrl': f'{settings.BACKEND_URL}/orders/{order.public_view_token}/',
         'publicViewToken': order.public_view_token,
-        'wallets': {'google': False, 'apple': False},
+        'wallets': _wallets(),
     }

@@ -38,6 +38,10 @@
   #submit { flex-direction: column; gap: 4px; min-height: 60px; padding: 12px 20px; letter-spacing: 0; text-transform: none; font-size: 1.05rem; line-height: 1.2; background: var(--brand); }
   #submit:hover { background: var(--brand-hover); }
   #submit .sub { font-size: .85rem; font-weight: 500; opacity: .9; }
+  /* Wallet buttons sit above the card fields, because a tap beats typing a card number on a phone. */
+  .express { display: grid; gap: 10px; }
+  .express-or { display: flex; align-items: center; gap: 10px; margin: 0; font-size: .85rem; color: var(--muted, #666); }
+  .express-or::before, .express-or::after { content: ""; flex: 1; height: 1px; background: rgba(0,0,0,.12); }
   .dev { border: 1px dashed #b7791f; background: #fffaf0; border-radius: 12px; padding: 8px 12px; font-size: .8rem; margin: 0; }
 </style>
 {% endblock %}
@@ -73,6 +77,10 @@
         <p class="addon-title">{% t lang "Want to order your drinks in advance?" %}</p>
         <div class="types" id="addon-types"></div>
       </div>
+      <div class="express" id="express" hidden>
+        <div id="express-checkout"></div>
+        <p class="express-or">{% t lang "or pay by card" %}</p>
+      </div>
       <div id="payment-element" hidden></div>
     </div>
     <div class="action" id="action" hidden>
@@ -100,7 +108,7 @@
   var quoted = null;     // last server quote for the current selection
   var order = null;      // set once /start created an order; the selection is locked from then on
   var busy = false;
-  var stripe = null, elements = null;
+  var stripe = null, elements = null, express = null, hasWallet = false;
   var $ = function (id) { return document.getElementById(id); };
   var form = $("checkout");
   // Typing a name or an email is the commonest way somebody starts a checkout; the quantity stepper is the
@@ -315,19 +323,62 @@
       .catch(function (err) { if (seq === quoteSeq) { refresh(); setError(err.message); } });
   }
 
-  // Card details live in the same card, under name and email, and the same button pays.
+  // Card details live in the same card, under name and email, and the same button pays. Above them, Apple Pay
+  // and Google Pay, because on a phone a tap beats typing a card number and this is a phone-first audience.
   function paymentElement(q) {
     var needed = !!B.stripeKey && !q.payAtDoor && q.totalCents > 0;
     show($("payment-element"), needed);
-    if (!needed || !window.Stripe) return;
+    if (!needed) { show($("express"), false); return; }
+    if (!window.Stripe) return;
     var opts = { mode: "payment", amount: q.totalCents, currency: ev.currency.toLowerCase() };
     if (!elements) {
       stripe = window.Stripe(B.stripeKey);
       elements = stripe.elements(Object.assign({ locale: B.lang, appearance: { variables: { colorPrimary: "#3f7d3e", borderRadius: "12px" } } }, opts));
       elements.create("payment").mount("#payment-element");
+      expressCheckout();
     } else {
       elements.update({ amount: q.totalCents });
+      show($("express"), hasWallet);
     }
+  }
+
+  // The wallet buttons only render on a browser that actually has a wallet, so the block stays hidden until
+  // Stripe says one is available. Anything else would leave an empty box and a lonely "or pay by card".
+  function expressCheckout() {
+    var node = $("express-checkout");
+    if (!node || express) return;
+    express = elements.create("expressCheckout", {
+      paymentMethods: { applePay: "always", googlePay: "always", link: "never", paypal: "never", amazonPay: "never", klarna: "never" },
+      emailRequired: true,
+      billingAddressRequired: true,
+    });
+    express.on("ready", function (e) {
+      hasWallet = !!(e && e.availablePaymentMethods);
+      show($("express"), hasWallet);
+      reportHeight();
+    });
+    express.on("click", function (e) { e.resolve(); });
+    express.on("cancel", function () { busy = false; refresh(); });
+    express.on("confirm", function (e) {
+      // The wallet knows who they are, so a blank name or email is filled from it rather than refused.
+      var details = (e && e.billingDetails) || {};
+      if (!form.elements.name.value.trim() && details.name) form.elements.name.value = details.name;
+      if (!form.elements.email.value.trim() && details.email) form.elements.email.value = details.email;
+      if (!validDetails()) { e.paymentFailed({ reason: "fail" }); return; }
+      busy = true; setError(""); refresh();
+      checkout()
+        .then(function (url) { if (url) success(url); })
+        .catch(function (err) { busy = false; refresh(); setError(err.message); e.paymentFailed({ reason: "fail" }); });
+    });
+    express.mount(node);
+  }
+
+  function validDetails() {
+    var name = form.elements.name, email = form.elements.email;
+    if (name.value.trim() && email.value.indexOf("@") > 0) return true;
+    setError(T("Enter your name and email."));
+    (name.value.trim() ? email : name).focus();
+    return false;
   }
 
   window.addEventListener("message", function (e) {
@@ -352,24 +403,19 @@
 
   form.addEventListener("input", function () { if (!busy && !$("error").hidden) setError(""); });
 
-  form.addEventListener("submit", function (e) {
-    e.preventDefault();
-    if (busy || !quoted) return;
-    var name = form.elements.name, email = form.elements.email;
-    if (!name.value.trim() || email.value.indexOf("@") < 1) {
-      setError(T("Enter your name and email."));
-      (name.value.trim() ? email : name).focus();
-      return;
-    }
+  // One chain for both ways of paying. The card button and the wallet sheet differ only in how the payment
+  // method is collected; everything after that — validate, create the order, confirm, hand back the order page —
+  // has to be identical, or one of the two quietly drifts and nobody notices until a customer is charged twice.
+  function checkout() {
     var online = !!B.stripeKey && !quoted.payAtDoor && quoted.totalCents > 0;
     var quotedTotal = quoted.totalCents;
 
-    // Stripe checks the card fields before every attempt, so a typo never creates an order.
+    // Stripe checks the payment details before every attempt, so a typo never creates an order.
     var ready = online && elements ? elements.submit().then(function (r) { if (r.error) throw new Error(r.error.message); }) : Promise.resolve();
 
-    finish(ready.then(function () {
+    return ready.then(function () {
       if (order) return order;
-      var body = { lang: B.lang, client: { browserLanguage: navigator.language, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }, items: qty, fanToken: fanToken, attribution: attribution, name: name.value, email: email.value, phone: form.elements.phone.value };
+      var body = { lang: B.lang, client: { browserLanguage: navigator.language, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone }, items: qty, fanToken: fanToken, attribution: attribution, name: form.elements.name.value, email: form.elements.email.value, phone: form.elements.phone.value };
       return postJSON(B.apiBase + "/api/checkout/" + ev.id + "/start", body).then(function (res) {
         order = res;
         lockDetails();
@@ -390,7 +436,13 @@
         if (r.error) throw new Error(r.error.message);
         return postJSON(B.apiBase + "/api/checkout/orders/" + res.orderId + "/confirm", { lang: B.lang });
       }).then(function (c) { return c.successUrl; });
-    }));
+    });
+  }
+
+  form.addEventListener("submit", function (e) {
+    e.preventDefault();
+    if (busy || !quoted || !validDetails()) return;
+    finish(checkout());
   });
 
   renderTypes();

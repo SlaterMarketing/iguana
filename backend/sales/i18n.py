@@ -191,6 +191,7 @@ ES = {
     'Reserve {0} free spots': 'Reserva {0} lugares gratis',
     'Nothing to pay': 'No pagas nada',
     'Want to order your drinks in advance?': '¿Quieres pedir tus bebidas por adelantado?',
+    'or pay by card': 'o paga con tarjeta',
     'Reserve a free seat: {0}': 'Reserva un lugar gratis: {0}',
     # The demand line above the reserve button (sales/demand.py)
     'in the last hour': 'en la última hora',

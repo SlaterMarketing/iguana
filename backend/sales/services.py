@@ -47,6 +47,18 @@ def stripe_enabled():
     return bool(settings.STRIPE_SECRET_KEY and settings.STRIPE_PUBLISHABLE_KEY)
 
 
+def wallets_available():
+    """Whether Apple Pay and Google Pay can appear at all.
+
+    They are enabled on the Stripe account and `api.iguanacomedy.com` is a registered payment method domain, so
+    from here it comes down to having keys: the Express Checkout Element does the rest, and hides itself on a
+    browser with no wallet. This used to be hardcoded `False`, which told the site a wallet was impossible while
+    the checkout was perfectly able to take one.
+    """
+    on = stripe_enabled()
+    return {'apple': on, 'google': on}
+
+
 def stripe_client():
     stripe.api_key = settings.STRIPE_SECRET_KEY
     return stripe

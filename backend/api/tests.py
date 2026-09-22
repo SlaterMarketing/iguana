@@ -1,8 +1,10 @@
 import hashlib
 import json
+import pathlib
 import re
 from datetime import timedelta
 
+from django.conf import settings
 from django.core import mail
 from django.test import TestCase, override_settings
 from django.utils import timezone
@@ -1387,6 +1389,40 @@ class DemandLineTests(ApiTestCase):
         page = self.client.get(f'/embed/event/{self.mic.id}?embedded=1&lang=es').content.decode()
         self.assertIn('"recent": 2', page)
         self.assertIn('personas reservaron', page)
+
+
+CHECKOUT_TEMPLATE = pathlib.Path(__file__).resolve().parent.parent / 'templates' / 'embed' / 'checkout.html'
+
+
+class WalletTests(ApiTestCase):
+    """Apple Pay and Google Pay, which are the whole point of a phone-first checkout with a paid upsell."""
+
+    @override_settings(STRIPE_SECRET_KEY='sk_test_x', STRIPE_PUBLISHABLE_KEY='pk_test_x')
+    def test_the_api_stops_claiming_a_wallet_is_impossible(self):
+        """These flags were hardcoded False while the account, the domain and the checkout were all ready for a
+        wallet. A site reading them had no way to know better."""
+        config = self.api('get', '/api/fan/v1/config').json()
+        self.assertEqual(config['wallets'], {'apple': True, 'google': True})
+
+    def test_and_says_no_when_there_are_no_keys(self):
+        self.assertEqual(self.api('get', '/api/fan/v1/config').json()['wallets'], {'apple': False, 'google': False})
+
+    def test_the_wallet_and_the_card_button_share_one_checkout(self):
+        """The two ways of paying differ only in how the payment method is collected. If they ever grow separate
+        order-creation paths, one of them drifts and the drift is discovered by a customer, not by us."""
+        page = CHECKOUT_TEMPLATE.read_text()
+        self.assertEqual(page.count('/api/checkout/" + ev.id + "/start'), 1,
+                         'the order is created in exactly one place')
+        self.assertEqual(page.count('stripe.confirmPayment('), 1, 'and confirmed in exactly one place')
+        self.assertIn('express.on("confirm"', page)
+        self.assertIn('finish(checkout())', page)
+
+    def test_the_wallet_never_takes_a_card_the_customer_cannot_be_reached_at(self):
+        """`emailRequired` is what lets a wallet booking fill in a blank email; without it the sheet completes and
+        we have a paid order with no way to send the tickets."""
+        page = CHECKOUT_TEMPLATE.read_text()
+        self.assertIn('emailRequired: true', page)
+        self.assertIn('validDetails()', page)
 
 
 class InviteAFriendTests(ApiTestCase):

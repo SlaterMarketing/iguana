@@ -15,7 +15,8 @@ from crm.models import Contact
 from sales.i18n import locale_from_request, normalize, tr
 from sales.models import CreditTransfer, LoginToken, Membership, MembershipPlan, Order, RedeemCode
 from sales.demand import demand
-from sales.services import current_membership, member_unit_price, stripe_client, stripe_enabled, upsert_contact
+from sales.services import (current_membership, member_unit_price, stripe_client, stripe_enabled,
+                            upsert_contact, wallets_available)
 
 from .auth import api_view, error, fan_contact, fan_required, issue_fan_token
 from .public_views import _by_id_or_slug, public_events
@@ -34,7 +35,7 @@ def config(request):
         'workspace': {'slug': 'iguana-comedy', 'name': 'Iguana Comedy'},
         'membershipsEnabled': MembershipPlan.objects.filter(active=True).exists(),
         'memberPortalEnabled': True,
-        'wallets': {'apple': False, 'google': False},
+        'wallets': wallets_available(),
     })
 
 
