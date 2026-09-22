@@ -1,7 +1,13 @@
 # Managed by ansible/deploy.yml (production). Secrets come from ~/.credentials on the deploy machine.
 DEBUG = False
 SECRET_KEY = '{{ django_secret_key }}'
-ALLOWED_HOSTS = {{ ([api_domain] + api_alias_domains + [server_ipv4, '127.0.0.1']) | to_json }}
+# The site domains are here as well as the API ones: nginx proxies /orders/, /checkin/, /unsubscribe/,
+# /newsletter/, /tables/, /revenue/ and /admin/ to this app on iguanacomedy.com too, so that a ticket link in
+# an email and the QR a door scans carry the domain people recognise. Django answers 400 for a Host it has not
+# been told about, which is what those pages did until this line included them.
+ALLOWED_HOSTS = {{ ([api_domain] + api_alias_domains + [site_domain, 'www.' + site_domain]
+                    + redirect_domains + (redirect_domains | map('regex_replace', '^', 'www.') | list)
+                    + [server_ipv4, '127.0.0.1']) | to_json }}
 BACKEND_URL = '{{ backend_url }}'
 SITE_URLS = {{ site_urls | to_json }}
 DATABASE = {

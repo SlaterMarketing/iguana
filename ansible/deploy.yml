@@ -314,6 +314,7 @@
       become: true
       cron:
         name: iguana weekly newsletter
+        disabled: "{{ not (newsletter_enabled | default(false) | bool) }}"
         user: "{{ deploy_user }}"
         weekday: "1"
         # The box runs UTC and Quintana Roo is UTC-5 with no daylight saving, so 14:00 here is 09:00 there,

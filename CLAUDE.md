@@ -350,6 +350,18 @@ NOTHING and a check reported the mailbox as a clean channel.** An unread channel
 now puts `deploy_user` in `mail` and sets the boxes 0640. Reading it is what found the Stripe "acción
 requerida" thread and the performer enquiry that had waited a month.
 
+🚨 **The weekly newsletter has never sent a single message, and it reported nothing.** `send_marketing` built
+each message with a connection and then called `message.send(fail_silently=True)`. Django refuses that
+combination and raises `TypeError: fail_silently cannot be used with a connection` on the FIRST recipient, so
+every Monday the cron woke up, resolved its 627 subscribers, wrote the campaign row and died having delivered
+none of them. The only evidence anywhere was a traceback under `journalctl -t iguana-newsletter`; the campaign
+row exists with zero recipients, which looks like "nobody was due" rather than "it crashed".
+Fixed 2026-09-22: the tolerance belongs on the connection, `get_connection(fail_silently=True)`.
+⚠ **The cron is DISABLED and stays that way until the owner says otherwise** (`newsletter_enabled: true` in
+`group_vars/all`, which `deploy.yml` reads). Turning it on now means a real send to 627 people, and the last
+instruction on the subject was to stop sending. The one bulk send this domain has ever made was the "Club
+Opening" campaign on 2026-09-14 to 722 addresses, which is what people are remembering.
+
 Marketing mail must go through `crm.mail.send_marketing` (or `manage.py send_newsletter`, a dry run without
 `--send`), which drops unsubscribed contacts and attaches the unsubscribe footer and `List-Unsubscribe` headers
 itself. `crm/unsubscribe.py` signs the per-address token; `/unsubscribe/<token>` serves the bilingual page and

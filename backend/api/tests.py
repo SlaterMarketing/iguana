@@ -1653,6 +1653,36 @@ class RevenuePageTests(ApiTestCase):
             self.assertEqual(self.client.get(f'/revenue/?days={value}').status_code, 200)
 
 
+class MarketingSendTests(ApiTestCase):
+    """`send_marketing` has to actually send. It did not, for as long as it has existed."""
+
+    def test_it_delivers_rather_than_raising_on_the_first_recipient(self):
+        """`fail_silently` belongs to the connection, not the message: passing it to a message that carries a
+        connection raises TypeError on the first recipient, so the run ends having sent nothing. The weekly
+        newsletter did exactly that every Monday, and the only evidence was a traceback in the journal."""
+        from crm.mail import send_marketing
+        from crm.models import Contact
+
+        people = [Contact.objects.create(email=f'reader{i}@example.com', subscribed=True) for i in range(3)]
+        sent, skipped = send_marketing('What is on', 'Three shows this week.', people)
+        self.assertEqual((sent, skipped), (3, 0))
+        self.assertEqual(len(mail.outbox), 3)
+
+    def test_the_tolerance_lives_on_the_connection(self):
+        """One refused address must not end the run, and that is the connection's job. Asserting on where the
+        flag is set rather than on a mocked backend, because a mock that swallows the error would pass whether
+        or not the code was right."""
+        from unittest.mock import patch
+
+        from crm.mail import send_marketing
+        from crm.models import Contact
+
+        person = Contact.objects.create(email='r@example.com', subscribed=True)
+        with patch('crm.mail.get_connection', wraps=__import__('django.core.mail', fromlist=['get_connection']).get_connection) as made:
+            send_marketing('What is on', 'body', [person])
+        made.assert_called_once_with(fail_silently=True)
+
+
 class PublicLinkTests(ApiTestCase):
     """A link a PERSON follows goes to iguanacomedy.com, not api.iguanacomedy.com.
 

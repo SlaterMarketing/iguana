@@ -42,8 +42,10 @@
           <h2>{{ ticket.ticket_type_name }}</h2>
           {% if ticket.checked_in_at %}<span class="status">{% t lang "Checked in" %}</span>{% endif %}
         </div>
-        {# Built from the host that served this page, so a ticket opened on iguanacomedy.com scans to
-           iguanacomedy.com and one opened on the API host still scans there. Both are served. #}
+        {% comment %}
+          Built from the host that served this page, so a ticket opened on iguanacomedy.com scans to
+          iguanacomedy.com and one opened on the API host still scans there. Both are served.
+        {% endcomment %}
         <div class="qr" data-qr="{{ request.scheme }}://{{ request.get_host }}{% url 'checkin' ticket.checkin_token %}" aria-label="{% t lang 'Check-in code' %}"></div>
       </section>
     {% endfor %}

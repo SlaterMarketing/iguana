@@ -63,7 +63,12 @@ def send_marketing(subject, body, contacts, dry_run=False, campaign=None, rate=0
         return 0, skipped
 
     sent = 0
-    connection = get_connection()
+    # 🚨 `fail_silently` belongs to the CONNECTION, not to the message. Django raises TypeError when a message
+    # built with a connection is sent with `fail_silently=True`, and it raises it on the FIRST recipient, so the
+    # whole run dies having sent nothing. That is not theoretical: the weekly newsletter was scheduled, ran every
+    # Monday, prepared its 627 contacts, and crashed here every single time. Nothing was ever delivered and no
+    # alert said so, because the only evidence was a traceback in journalctl under `iguana-newsletter`.
+    connection = get_connection(fail_silently=True)
     for index, contact in enumerate(recipients):
         lang = normalize(getattr(contact, 'locale', '') or 'en')
         message = EmailMessage(
@@ -76,7 +81,7 @@ def send_marketing(subject, body, contacts, dry_run=False, campaign=None, rate=0
             headers=bulk_headers(contact.email),
             connection=connection,
         )
-        delivered = message.send(fail_silently=True)
+        delivered = message.send()
         sent += delivered
         if campaign is not None:
             CampaignRecipient.objects.create(
