@@ -96,8 +96,11 @@ NIGHTS = {
         # the ad must not land on a page that offers it first.
         'link': f'{SITE}/es/open-mic/?night=es',
         'locales': None,               # Playa residents; a language filter would only shrink a local audience
-        'daily_conversions': 10000,    # centavos: 100.00 MXN
-        'daily_reach': 4300,           #           43.00 MXN, so 1,000 MXN a week on the night
+        # Measured 2026-09-21, first day of delivery: 53.06 MXN bought 4 reservations at 13.27 each, on an 8.66%
+        # CTR and a 28.90 CPM. The reach ad set spent 29.99 on 57 clicks and produced no checkout at all, so the
+        # money moved to where the reservations are. The weekly total per night is unchanged.
+        'daily_conversions': 14600,    # centavos: 146.00 MXN
+        'daily_reach': 2000,           #           20.00 MXN, just above Meta's minimum, to keep the pixel fed
         'videos': ['openmic-es-long-9x16.mp4', 'openmic-es-short-9x16.mp4'],
         'image': 'openmic-es-flyer-4x5.jpg',
         'story_image': 'openmic-es-flyer-9x16-safe.jpg',
@@ -120,8 +123,11 @@ NIGHTS = {
         'night': 'Wednesday',
         'link': f'{SITE}/en/open-mic/?night=en',
         'locales': ENGLISH_LOCALES,
+        # Same day: 78.43 MXN bought 3 reservations at 26.14 each. Twice the Spanish cost, on a 45.55 CPM against
+        # 28.90, which is the English locale filter shrinking the pool rather than the ad underperforming. Held
+        # at 100 rather than cut: 26 MXN a reservation is still well under this account's historic 55 to 220.
         'daily_conversions': 10000,
-        'daily_reach': 4300,
+        'daily_reach': 2000,
         'videos': ['openmic-en-long-9x16.mp4'],
         'image': 'openmic-en-flyer-4x5.jpg',
         'story_image': 'openmic-en-flyer-9x16-safe.jpg',
