@@ -34,7 +34,6 @@ const { event, locale } = Astro.props;
 const ticketingBlocked = Boolean(event?.status === "sold-out" || event?.status === "postponed");
 const onSiteCheckout = event ? eventSupportsOnSiteCheckout(event) : false;
 const posterMobileSrc = event?.imageUrlMobile?.trim() || event?.imageUrl;
-const posterDesktopSrc = event?.imageUrl?.trim() || event?.imageUrlMobile?.trim();
 const heroPoster = event ? eventHeroImageUrl(event) : null;
 const siteOrigin = Astro.site?.origin ?? "https://iguanacomedy.com";
 const socialDescription = event
@@ -50,10 +49,8 @@ const mapEmbedUrl = event ? eventVenueMapEmbedUrl(event) : null;
 // Open mics sell reservations, so every label says "reserve" rather than "buy".
 const checkoutLabel = event && isOpenMic(event) ? t(locale, "ui.reserveSeat") : t(locale, "ui.buyTickets");
 const externalTicketUrl = !onSiteCheckout && !ticketingBlocked ? event?.ticketUrl ?? null : null;
-// The hero CTA jumps to our checkout, or straight out to whoever is selling the tickets.
-const heroCtaHref = ticketingBlocked ? null : onSiteCheckout ? "#checkout" : externalTicketUrl;
 const hasIntro = Boolean(
-  event && (!heroPoster || (event.headliner && event.headliner.name !== headline) || event.description || event.longDescription),
+  event && ((event.headliner && event.headliner.name !== headline) || event.description || event.longDescription),
 );
 const faq = event ? getEventTicketingFaq(locale, event) : getEventTicketingFaq(locale);
 const reviews = event ? eventReviews(event) : [];
@@ -75,8 +72,8 @@ const pixelContent = event
   ogImage={socialImage}
   narrow={false}
   pixelContent={pixelContent}
-  transparentHeader={Boolean(event && heroPoster)}
-  flushMain={Boolean(event && heroPoster)}
+  transparentHeader={Boolean(event)}
+  flushMain={Boolean(event)}
 >
   {
     !event ? (
@@ -88,105 +85,106 @@ const pixelContent = event
       </section>
     ) : (
       <>
-        {
-          heroPoster ? (
-            <section class="relative isolate h-[100svh] w-full overflow-hidden bg-neutral-950">
-              <img src={heroPoster} alt="" class="absolute inset-0 hidden size-full object-cover md:block" loading="eager" />
-              <img src={posterMobileSrc ?? heroPoster} alt="" class="absolute inset-0 size-full object-cover md:hidden" loading="eager" />
-              <div class="absolute inset-0 bg-gradient-to-t from-neutral-950 via-neutral-950/55 to-neutral-950/25" aria-hidden="true" />
+        {/* The fold is the offer. The poster is the backdrop, not the thing that fills the screen: an ad click
+            arrives here to reserve a seat, and a full-height photo made them scroll past the title to find the
+            form. Phones get a compact band and the form right under it; desktop puts the form beside it. */}
+        <section class="relative isolate overflow-hidden bg-neutral-950">
+          {
+            heroPoster ? (
+              <>
+                <img src={heroPoster} alt="" class="absolute inset-0 hidden size-full object-cover md:block" loading="eager" fetchpriority="high" />
+                <img src={posterMobileSrc ?? heroPoster} alt="" class="absolute inset-0 size-full object-cover md:hidden" loading="eager" fetchpriority="high" />
+                {/* Darker on the left, where the words are, and heavier at the bottom so the card has something
+                    to sit against. The photo still reads as a photo. */}
+                <div class="absolute inset-0 bg-neutral-950/55 lg:bg-gradient-to-r lg:from-neutral-950/85 lg:via-neutral-950/65 lg:to-neutral-950/40" aria-hidden="true" />
+                <div class="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-neutral-950 to-transparent" aria-hidden="true" />
+              </>
+            ) : null
+          }
 
-              <div class="relative z-10 flex h-full flex-col justify-end px-4 pb-28 pt-24 sm:px-6 lg:px-10">
-                <a class="mb-8 inline-flex text-xs font-semibold uppercase tracking-[0.45em] text-white/85 hover:text-white" href={localizePath(locale, "events")}>
-                  {t(locale, "events.backToCalendar")}
-                </a>
+          <div class="relative z-10 mx-auto grid max-w-page gap-6 px-4 pb-12 pt-20 sm:gap-8 sm:px-6 sm:pt-24 lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)] lg:items-center lg:gap-14 lg:px-8 lg:pb-16 lg:pt-28">
+            <div class="min-w-0">
+              <a class="inline-flex text-xs font-semibold uppercase tracking-[0.45em] text-white/85 hover:text-white" href={localizePath(locale, "events")}>
+                {t(locale, "events.backToCalendar")}
+              </a>
 
-                <div class="flex items-end justify-between gap-4 sm:gap-6">
-                  <div class="min-w-0 flex-1">
-                    <h1 class="max-w-4xl font-display text-[clamp(2.75rem,6vw,4.5rem)] leading-[0.95] text-white" style="font-family: var(--font-display);">
-                      {headline}
-                    </h1>
-                    {subtitle ? <p class="mt-3 max-w-2xl text-xl text-white/90 md:text-2xl">{subtitle}</p> : null}
-                  </div>
+              <h1 class="mt-4 max-w-3xl font-display sm:mt-6 text-[clamp(2.1rem,5.2vw,4rem)] leading-[0.97] text-white" style="font-family: var(--font-display);">
+                {headline}
+              </h1>
+              {subtitle ? <p class="mt-3 max-w-2xl text-lg text-white/90 md:text-2xl">{subtitle}</p> : null}
 
+              {/* Date and place only. The doors and show times are printed again at the top of the card a few
+                  centimetres below, and saying them twice costs the fold two lines on a phone. */}
+              <div class="mt-4 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+                {/* Badge and venue share a row rather than stacking: on a phone two centred blocks cost a
+                    hundred pixels of fold, which is the difference between seeing the form and not. */}
+                <div class="flex items-center gap-3">
                   {
                     dateParts ? (
-                      <div class="flex shrink-0 flex-wrap items-end justify-end gap-3">
-                        <div class="flex min-w-[4.5rem] flex-col items-center rounded-lg bg-brand px-3 py-2.5 text-center text-neutral-950 shadow-lg">
-                          <span class="text-[10px] font-semibold uppercase tracking-wide">{dateParts.weekday}</span>
-                          <span class="font-display text-2xl leading-none" style="font-family: var(--font-display);">{dateParts.day}</span>
-                          <span class="text-[10px] font-semibold uppercase tracking-wide">{dateParts.month}</span>
-                          {event.city ? <span class="mt-1 max-w-[6rem] truncate text-[9px] font-medium opacity-90">{event.city}</span> : null}
-                        </div>
-                        {
-                          event.status === "sold-out" || event.status === "postponed" ? (
-                            <span class="rounded-full bg-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-white backdrop-blur-sm">
-                              {event.status === "sold-out" ? t(locale, "ui.soldOut") : t(locale, "ui.postponed")}
-                            </span>
-                          ) : null
-                        }
+                      <div class="flex min-w-[4.25rem] shrink-0 flex-col items-center rounded-lg bg-brand px-3 py-2 text-center text-neutral-950 shadow-lg">
+                        <span class="text-[10px] font-semibold uppercase tracking-wide">{dateParts.weekday}</span>
+                        <span class="font-display text-2xl leading-none" style="font-family: var(--font-display);">{dateParts.day}</span>
+                        <span class="text-[10px] font-semibold uppercase tracking-wide">{dateParts.month}</span>
                       </div>
                     ) : null
                   }
+                  {
+                    venueName ? (
+                      <p class="min-w-0 text-xs font-semibold uppercase tracking-[0.16em] text-white/85 sm:text-sm sm:tracking-[0.22em]">
+                        {venueName}{event.city ? ` · ${event.city}` : ""}
+                      </p>
+                    ) : null
+                  }
                 </div>
-
                 {
-                  heroCtaHref ? (
-                    <a
-                      href={heroCtaHref}
-                      target={externalTicketUrl ? "_blank" : undefined}
-                      rel={externalTicketUrl ? "noreferrer noopener" : undefined}
-                      class:list={[
-                        "mt-8 flex min-h-12 w-full items-center justify-center gap-3 rounded-full bg-brand px-8 py-3.5 text-sm font-semibold uppercase tracking-[0.2em] text-neutral-950 transition hover:brightness-110 sm:w-auto sm:self-start",
-                        // Our own checkout sits further down the page, so the jump is only useful on phones. An
-                        // external link is the only way to buy at all, so it stays visible at every width.
-                        externalTicketUrl ? "" : "lg:hidden",
-                      ]}
-                    >
-                      {checkoutLabel}
-                      <span aria-hidden="true">→</span>
-                    </a>
+                  event.status === "sold-out" || event.status === "postponed" ? (
+                    <span class="rounded-full bg-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-white backdrop-blur-sm">
+                      {event.status === "sold-out" ? t(locale, "ui.soldOut") : t(locale, "ui.postponed")}
+                    </span>
                   ) : null
                 }
               </div>
-            </section>
-          ) : (
-            <section class="border-b border-black/10 bg-neutral-50 px-6 pb-10 pt-24">
-              <a class="text-xs font-semibold uppercase tracking-[0.45em] text-brand underline-offset-[0.5rem] hover:underline" href={localizePath(locale, "events")}>
-                {t(locale, "events.backToCalendar")}
-              </a>
-              <h1 class="mt-10 font-display text-5xl text-neutral-950" style="font-family: var(--font-display);">{headline}</h1>
-              {subtitle ? <p class="mt-3 text-xl text-neutral-600">{subtitle}</p> : null}
+
               {
-                heroCtaHref ? (
+                /* Only when somebody else sells the tickets. Our own form is right there, so a button that
+                   scrolls to it would be a button that scrolls to itself. */
+                externalTicketUrl ? (
                   <a
-                    href={heroCtaHref}
-                    target={externalTicketUrl ? "_blank" : undefined}
-                    rel={externalTicketUrl ? "noreferrer noopener" : undefined}
-                    class:list={[
-                      "mt-8 flex min-h-12 w-full items-center justify-center gap-3 rounded-full bg-brand px-8 py-3.5 text-sm font-semibold uppercase tracking-[0.2em] text-neutral-950 transition hover:brightness-110 sm:inline-flex sm:w-auto",
-                      externalTicketUrl ? "" : "lg:hidden",
-                    ]}
+                    href={externalTicketUrl}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                    class="mt-7 flex min-h-12 w-full items-center justify-center gap-3 rounded-full bg-brand px-8 py-3.5 text-sm font-semibold uppercase tracking-[0.2em] text-neutral-950 transition hover:brightness-110 sm:w-auto sm:self-start"
                   >
                     {checkoutLabel}
                     <span aria-hidden="true">→</span>
                   </a>
                 ) : null
               }
-            </section>
-          )
-        }
+            </div>
 
-        <section class="relative bg-white pb-20 pt-8">
-          {/* Phones stack: about the show, then checkout, then venue and FAQ. Desktop keeps checkout in a sticky column. */}
-          <div class="mx-auto grid max-w-page gap-10 px-4 sm:px-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start lg:gap-x-14 lg:gap-y-10 lg:px-8">
-            {hasIntro ? (
-            <div class="min-w-0 space-y-10 text-neutral-950 lg:col-start-1 lg:row-start-1">
+            <aside id="checkout" class="min-w-0 scroll-mt-24 lg:justify-self-end lg:w-full">
               {
-                !heroPoster ? (
-                  <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{formatEventScheduleLine(event, locale)}</p>
+                onSiteCheckout ? (
+                  <div class="overflow-visible rounded-xl border-t-4 border-brand bg-white shadow-[0_18px_50px_-18px_rgba(0,0,0,0.7)] ring-1 ring-black/10">
+                    {/* A plain heading, not a green bar: it must not look like a second button. */}
+                    <div class="border-b border-black/10 px-4 pb-3 pt-4 sm:px-5">
+                      <h2 class="text-sm font-bold uppercase tracking-[0.2em] text-neutral-950">{checkoutLabel}</h2>
+                      <p class="mt-1 text-sm text-neutral-600">{formatEventScheduleLine(event, locale)}</p>
+                    </div>
+                    <EventCheckoutWidget eventId={event.id} locale={locale} blocked={ticketingBlocked} class="!min-h-0 !rounded-none !border-0 !bg-white !px-4 !py-4 sm:!px-5" />
+                  </div>
+                ) : ticketingBlocked ? (
+                  <p class="rounded-xl border border-white/15 bg-white/10 px-6 py-10 text-center text-sm text-white backdrop-blur-sm">{t(locale, "events.ticketsUnavailable")}</p>
                 ) : null
               }
+            </aside>
+          </div>
+        </section>
 
+        <section class="relative bg-white pb-20 pt-12">
+          <div class="mx-auto grid max-w-3xl gap-10 px-4 sm:px-6 lg:px-8">
+            {hasIntro ? (
+            <div class="min-w-0 space-y-10 text-neutral-950">
               {
                 event.headliner && event.headliner.name !== headline ? (
                   <p class="text-sm font-semibold uppercase tracking-[0.38em] text-neutral-500">
@@ -216,37 +214,7 @@ const pixelContent = event
             </div>
             ) : null}
 
-            <aside id="checkout" class="relative z-50 min-w-0 scroll-mt-24 lg:sticky lg:top-6 lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:self-start">
-              {
-                onSiteCheckout ? (
-                  <div class="overflow-visible rounded-xl border-t-4 border-brand bg-white shadow-[0_18px_50px_-24px_rgba(0,0,0,0.45)] ring-1 ring-black/10">
-                    {/* A plain heading, not a green bar: it must not look like a second button. The date is repeated only
-                        when the page shows no schedule line of its own (poster hero). */}
-                    <div class="border-b border-black/10 px-4 pb-3 pt-4 sm:px-5">
-                      <h2 class="text-sm font-bold uppercase tracking-[0.2em] text-neutral-950">{checkoutLabel}</h2>
-                      {heroPoster ? <p class="mt-1 text-sm text-neutral-600">{formatEventScheduleLine(event, locale)}</p> : null}
-                    </div>
-                    <EventCheckoutWidget eventId={event.id} locale={locale} blocked={ticketingBlocked} class="!min-h-0 !rounded-none !border-0 !bg-white !px-4 !py-4 sm:!px-5" />
-                  </div>
-                ) : ticketingBlocked ? (
-                  <p class="rounded-xl border border-black/10 bg-neutral-50 px-6 py-10 text-center text-sm text-neutral-600">{t(locale, "events.ticketsUnavailable")}</p>
-                ) : event.ticketUrl ? (
-                  <div>
-                    <a
-                      href={event.ticketUrl}
-                      target="_blank"
-                      rel="noreferrer noopener"
-                      class="flex min-h-14 items-center justify-center gap-3 rounded-full bg-brand px-8 py-4 text-center text-sm font-semibold uppercase tracking-[0.2em] text-neutral-950 shadow-lg shadow-black/10 transition hover:brightness-110"
-                    >
-                      {t(locale, "ui.buyTickets")}
-                      <span aria-hidden="true">→</span>
-                    </a>
-                  </div>
-                ) : null
-              }
-            </aside>
-
-            <div class:list={["min-w-0 space-y-10 text-neutral-950 lg:col-start-1", hasIntro ? "lg:row-start-2" : "lg:row-start-1"]}>
+            <div class="min-w-0 space-y-10 text-neutral-950">
               {
                 reviews.length > 0 ? (
                   <ul class="space-y-3 border-y border-black/10 py-8 text-sm text-neutral-700">
