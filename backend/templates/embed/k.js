@@ -88,6 +88,56 @@
       }
     });
 
+  // The sticky copy of the checkout button. It never decides anything: it shows whatever the checkout says it
+  // is showing, and a press is forwarded back so the real form and the real validation run. It hides itself
+  // while the real button is already on screen, so the two are never both visible saying the same thing.
+  function stickyCta(iframe) {
+    var bar = document.createElement("div");
+    bar.setAttribute("data-kintana-sticky-cta", "");
+    bar.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:2147483000;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-top:1px solid rgba(0,0,0,.1);display:none";
+    var button = document.createElement("button");
+    button.type = "button";
+    button.style.cssText = "display:flex;flex-direction:column;gap:2px;align-items:center;justify-content:center;width:100%;min-height:56px;border:0;border-radius:999px;background:#3f7d3e;color:#fff;font:600 1.05rem/1.2 inherit;cursor:pointer;padding:10px 20px";
+    var main = document.createElement("span");
+    var sub = document.createElement("span");
+    sub.style.cssText = "font-size:.85rem;font-weight:500;opacity:.9";
+    button.appendChild(main);
+    button.appendChild(sub);
+    bar.appendChild(button);
+    document.body.appendChild(bar);
+
+    var state = { visible: false, disabled: true };
+    button.addEventListener("click", function () {
+      if (state.disabled) return;
+      iframe.contentWindow.postMessage({ type: "kintana-embed-submit" }, A);
+    });
+
+    function realButtonOnScreen() {
+      // The iframe is as tall as its content, so the real button sits at its bottom edge.
+      var box = iframe.getBoundingClientRect();
+      return box.bottom <= (window.innerHeight || 0) + 8;
+    }
+
+    function paint() {
+      var showIt = state.visible && !realButtonOnScreen();
+      bar.style.display = showIt ? "block" : "none";
+      button.disabled = !!state.disabled;
+      button.style.opacity = state.disabled ? ".6" : "1";
+    }
+    window.addEventListener("scroll", paint, { passive: true });
+    window.addEventListener("resize", paint);
+
+    return {
+      update: function (d) {
+        state = d;
+        main.textContent = d.main || "";
+        sub.textContent = d.sub || "";
+        sub.style.display = d.sub ? "" : "none";
+        paint();
+      },
+    };
+  }
+
     document.querySelectorAll("[data-kintana-widget]").forEach(function (el) {
       var raw = el.getAttribute("data-kintana-widget") || "";
       var id = raw.indexOf("event:") === 0 ? raw.slice(6) : "";
@@ -103,12 +153,17 @@
       iframe.style.cssText = "width:100%;border:0;display:block;min-height:200px;background:transparent";
       el.innerHTML = "";
       el.appendChild(iframe);
+      // A host page can ask for a copy of the checkout button that stays on screen, for the very common case
+      // where the form is taller than the phone the ad was clicked on.
+      var bar = el.getAttribute("data-kintana-sticky-cta") === "on" ? stickyCta(iframe) : null;
       window.addEventListener("message", function (e) {
         var d = e.data;
-        if (d && d.type === "kintana-embed-height" && typeof d.height === "number" && e.source === iframe.contentWindow) {
+        if (!d || e.source !== iframe.contentWindow) return;
+        if (d.type === "kintana-embed-height" && typeof d.height === "number") {
           iframe.style.height = Math.max(160, d.height | 0) + "px";
           iframe.style.minHeight = "0";
         }
+        if (d.type === "kintana-embed-cta" && bar) bar.update(d);
       });
       iframe.addEventListener("load", function () {
         iframe.contentWindow.postMessage({ type: "kintana-fan-auth", token: fanToken(), attribution: utm() }, A);

@@ -1431,6 +1431,19 @@ class DemandLineTests(ApiTestCase):
         with self.assertNumQueries(2):
             demand_for(events)
 
+    def test_the_sticky_button_presses_the_real_one(self):
+        """The sticky copy must never be a second way to book: it forwards a press so the real form, the real
+        validation and the real submit handler run. Two submit paths drift, and the drift is a double charge."""
+        page = CHECKOUT_TEMPLATE.read_text()
+        self.assertIn('form.requestSubmit(button)', page, 'not .click(): requestSubmit runs the real validation')
+        self.assertEqual(page.count('form.addEventListener("submit"'), 1, 'one submit handler, one code path')
+        # And a press only from the site, never from any page that manages to frame the checkout.
+        self.assertIn("if (B.siteOrigins.indexOf(e.origin) === -1) return;", page)
+
+    def test_the_sticky_button_cannot_book_while_the_real_one_is_disabled(self):
+        page = CHECKOUT_TEMPLATE.read_text()
+        self.assertIn('if (button && !button.disabled) form.requestSubmit(button)', page)
+
     def test_a_host_page_can_take_the_line_over_without_it_showing_twice(self):
         """The open mic lander prints it in its own header, beside the date, rather than under the night pills.
         Two copies of the same sentence on one page reads as a glitch."""
