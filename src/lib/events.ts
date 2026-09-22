@@ -89,6 +89,23 @@ function ordinalDay(day: number): string {
   }
 }
 
+/**
+ * "Tue 23 Sep", for a row of choices rather than a heading.
+ *
+ * The full form carries the year, which four dates inside a month do not need, and it wrapped the night pills
+ * onto a second row. That row pushed the reserve button further down a page whose whole job is that button.
+ * The weekday earns its place: the choice being made is which night, not which date.
+ */
+export function formatEventDateShort(dateInput: string, locale: Locale = "en"): string {
+  const parsed = eventCalendarDate(dateInput);
+  if (!parsed) return formatEventDate(dateInput, locale);
+  return new Intl.DateTimeFormat(locale === "es" ? "es-MX" : "en-GB", {
+    weekday: "short",
+    day: "numeric",
+    month: "short",
+  }).format(parsed);
+}
+
 /** e.g. `2026-05-18` → `18th May, 2026` */
 export function formatEventDate(dateInput: string, locale: Locale = "en"): string {
   const raw = dateInput.trim();

@@ -24,7 +24,7 @@ import NewsletterSignup from "./NewsletterSignup.astro";
 import { site } from "../content/site";
 import { demandLine } from "../lib/demand";
 import { eventVenueMapEmbedUrl } from "../lib/event-hero";
-import { formatEventDate } from "../lib/events";
+import { formatEventDate, formatEventDateShort } from "../lib/events";
 import { loadEventsForCalendarPages } from "../lib/events-catalog";
 import { holidayNotice } from "../lib/holiday-notice";
 import { createLocalizedKintanaClient, getKintanaEnv } from "../lib/kintana-env";
@@ -225,12 +225,14 @@ const pressure = selected ? demandLine(selected, locale) : null;
             <p class="text-center text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-neutral-500">
               {copy.pickDate}
             </p>
-            <ul class="mt-1.5 flex flex-wrap justify-center gap-1.5">
+            {/* One row that scrolls, never two that wrap: a second row of pills costs the reserve button
+                forty-odd pixels of fold, and the page exists for that button. */}
+            <ul class="mt-1.5 flex snap-x snap-mandatory justify-start gap-1.5 overflow-x-auto pb-0.5 sm:justify-center [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {dateChoices.map((evt) => (
-                <li>
+                <li class="shrink-0 snap-start">
                   <a
                     class:list={[
-                      "inline-flex rounded-full border px-3 py-1.5 text-sm transition",
+                      "inline-flex whitespace-nowrap rounded-full border px-3 py-1.5 text-sm transition",
                       evt.id === selected?.id
                         ? "border-neutral-900 bg-neutral-900 text-white"
                         : "border-black/15 text-neutral-700 hover:border-neutral-900 hover:text-neutral-900",
@@ -238,7 +240,7 @@ const pressure = selected ? demandLine(selected, locale) : null;
                     href={href(shownKey, evt.date)}
                     aria-current={evt.id === selected?.id ? "true" : undefined}
                   >
-                    {formatEventDate(evt.date, locale)}
+                    {formatEventDateShort(evt.date, locale)}
                   </a>
                 </li>
               ))}
