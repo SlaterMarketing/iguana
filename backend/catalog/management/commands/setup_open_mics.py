@@ -47,14 +47,18 @@ RESERVATION = {
 # The sale. Offered AFTER the details are filled in, because the reservation has to feel free to be worth
 # advertising as free; the drinks are what the night actually earns.
 DRINKS = {
-    'name': '2 drinks, ordered in advance',
-    'name_es': '2 bebidas, pedidas por adelantado',
+    # Priced per drink, because the stepper beside it counts whatever this row is. Sold as a bundle of two it
+    # read "2 drinks" next to a 4, which is eight drinks, and nothing on the page said so.
+    'name': 'Drink, ordered in advance',
+    'name_es': 'Bebida, pedida por adelantado',
     # The benefit in the owner's own words: the wait here is for a waiter, not a queue at the bar. Guessing at
     # "so you are not queuing at the bar" described a friction this room does not have.
     'description': 'Waiting for you at your seat when you arrive, so you do not have to wait for a waiter.',
     'description_es': 'Te esperan en tu lugar cuando llegues, para que no tengas que esperar al mesero.',
-    'prices': {'mxn': 10000, 'usd': 600},
-    'max_per_order': 6,
+    'prices': {'mxn': 5000, 'usd': 300},
+    'max_per_order': 12,
+    # Matched so the nights already on sale are re-priced instead of getting a SECOND drinks row beside the old one.
+    'legacy_names': ['2 drinks, ordered in advance', '2 bebidas, pedidas por adelantado'],
 }
 
 # Posters are made from hero video frames by scripts/make-banners.py: 16:9 for pages and Facebook, 4:5 for phones and
@@ -224,7 +228,9 @@ class Command(BaseCommand):
         # than no add-on: it puts a price on a page that advertises the night as free.
         drinks = None
         if stripe_enabled():
-            drinks = (event.ticket_types.filter(name=DRINKS['name']).first() or TicketType(event=event))
+            known_drinks = [DRINKS['name'], DRINKS['name_es'], *DRINKS['legacy_names']]
+            drinks = (event.ticket_types.filter(name__in=known_drinks, is_addon=True).first()
+                      or TicketType(event=event))
             drinks.name = DRINKS['name']
             drinks.name_es = DRINKS['name_es']
             drinks.description = DRINKS['description']

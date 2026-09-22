@@ -1509,6 +1509,27 @@ class DrinksAreNotSeatsTests(ApiTestCase):
         self.assertIn('T("plus drinks")', page)
 
 
+class OpenMicSetupTests(TestCase):
+    """`setup_open_mics` is re-runnable, and the thing that breaks re-runnability is renaming a ticket type."""
+
+    def test_renaming_the_drinks_row_re_prices_it_instead_of_doubling_it(self):
+        """Matching on the current name alone would leave 31 nights each offering the old bundle AND the new
+        single drink, side by side, at two different prices."""
+        from catalog.management.commands.setup_open_mics import DRINKS
+
+        self.assertIn('2 drinks, ordered in advance', DRINKS['legacy_names'])
+        self.assertIn('2 bebidas, pedidas por adelantado', DRINKS['legacy_names'])
+        self.assertNotIn(DRINKS['name'], DRINKS['legacy_names'])
+
+    def test_a_drink_is_priced_one_at_a_time(self):
+        """The stepper beside the row counts whatever the row is. Sold as a bundle it showed "2 drinks" next to
+        a 4, which is eight drinks, and nothing on the page said so."""
+        from catalog.management.commands.setup_open_mics import DRINKS
+
+        for name in (DRINKS['name'], DRINKS['name_es']):
+            self.assertNotRegex(name, r'^\s*\d', f'{name!r} names a quantity the stepper already shows')
+
+
 class WalletTests(ApiTestCase):
     """Apple Pay and Google Pay, which are the whole point of a phone-first checkout with a paid upsell."""
 
