@@ -40,6 +40,13 @@ const siteOrigin = Astro.site?.origin ?? "https://iguanacomedy.com";
 // The show itself, for Google's event listings: date, venue, price, who is on. Built from the same fields the
 // page prints, because structured data that disagrees with the page is worse than none.
 const showSchema = event ? eventSchema(event, siteOrigin, new URL(Astro.url.pathname, siteOrigin).toString()) : null;
+
+// The hero draws one crop on a phone and another from `md` up, so each preload carries the matching query.
+// Without them a phone downloads both and the preload makes the page slower than having none.
+const heroPreloads = [
+  ...(posterMobileSrc ? [{ href: posterMobileSrc, media: "(max-width: 767px)" }] : []),
+  ...(heroPoster ? [{ href: heroPoster, media: "(min-width: 768px)" }] : []),
+];
 const socialDescription = event
   ? eventSocialDescription(event, locale, t(locale, "seo.defaultDescription"))
   : t(locale, "seo.defaultDescription");
@@ -77,7 +84,7 @@ const pixelContent = event
   narrow={false}
   pixelContent={pixelContent}
   schema={showSchema}
-  preloadImage={heroPoster ?? undefined}
+  preloadImage={heroPreloads}
   transparentHeader={Boolean(event)}
   flushMain={Boolean(event)}
 >

@@ -1638,6 +1638,25 @@ class RevenuePageTests(ApiTestCase):
             self.assertEqual(self.client.get(f'/revenue/?days={value}').status_code, 200)
 
 
+class MediaUrlTests(ApiTestCase):
+    """Posters are served from the site, not the API host."""
+
+    def test_an_uploaded_poster_is_same_origin_with_the_page_showing_it(self):
+        """It used to be absolute against BACKEND_URL, which put a DNS lookup and a TLS handshake in front of
+        the largest image on every show page."""
+        self.event.image_url = '/media/events/poster.jpg'
+        self.event.save()
+        row = next(e for e in self.api('get', '/api/public/v1/events').json()['events'] if e['id'] == self.event.id)
+        self.assertEqual(row['imageUrl'], f'{SITE}/media/events/poster.jpg')
+
+    def test_an_absolute_url_is_left_exactly_as_it_is(self):
+        """Archive images point at wherever they were recovered from; rewriting their host would break them."""
+        self.event.image_url = 'https://framerusercontent.com/images/abc.jpg'
+        self.event.save()
+        row = next(e for e in self.api('get', '/api/public/v1/events').json()['events'] if e['id'] == self.event.id)
+        self.assertEqual(row['imageUrl'], 'https://framerusercontent.com/images/abc.jpg')
+
+
 class TableMenuTests(ApiTestCase):
     """The bar menu, and a round ordered from a table by its QR code."""
 

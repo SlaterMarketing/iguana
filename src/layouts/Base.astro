@@ -31,8 +31,15 @@ interface Props {
   pixelContent?: { id: string; name: string; value?: number; currency?: string };
   /** Extra JSON-LD for this page, e.g. the Event on a show's page. Rendered beside the site-wide blocks. */
   schema?: unknown;
-  /** The page's largest image, preloaded so it is not discovered late. Set it on pages with a hero. */
-  preloadImage?: string;
+  /**
+   * The page's largest image, preloaded so it is not discovered late.
+   *
+   * 🚨 It MUST carry the same media query as the `<img>` that uses it. A hero with a separate desktop and
+   * phone crop renders one and hides the other, so a preload with no `media` makes every phone download both:
+   * measured on a show page, that pushed FCP from 1.5s to 3.7s and LCP from 6.8s to 9.3s. A preload is a
+   * promise that the file will be used, and a broken promise costs more than no preload at all.
+   */
+  preloadImage?: { href: string; media?: string } | Array<{ href: string; media?: string }>;
 }
 
 const locale = getLocale(Astro);
@@ -159,7 +166,11 @@ const trackerMarkup =
     <link rel="preconnect" href={apiOrigin} crossorigin />
     <link rel="dns-prefetch" href={apiOrigin} />
     {/* The page names its own biggest image, so the browser can start it before the CSS has even parsed. */}
-    {preloadImage ? <link rel="preload" as="image" href={preloadImage} fetchpriority="high" /> : null}
+    {
+      (Array.isArray(preloadImage) ? preloadImage : preloadImage ? [preloadImage] : []).map((img) => (
+        <link rel="preload" as="image" href={img.href} media={img.media} fetchpriority="high" />
+      ))
+    }
     <link rel="icon" type="image/webp" href={site.faviconUrl} />
     <link rel="apple-touch-icon" href={site.faviconUrl} />
     <link rel="preload" href={bebasLatin} as="font" type="font/woff2" crossorigin />

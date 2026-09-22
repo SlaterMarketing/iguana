@@ -12,10 +12,19 @@ CANCUN = ZoneInfo('America/Cancun')
 
 
 def media(value):
-    """Image fields hold absolute URLs or backend-relative /media/ paths."""
+    """Image fields hold absolute URLs or `/media/...` paths.
+
+    A relative path is made absolute against the SITE, not the API host: nginx serves the uploads tree under
+    iguanacomedy.com as well, so a poster is same-origin with the page showing it. It was on api.iguanacomedy.com
+    before, which put a DNS lookup and a TLS handshake in front of the largest image on every show page.
+    """
     if not value:
         return None
-    return f'{settings.BACKEND_URL}{value}' if value.startswith('/') else value
+    if not value.startswith('/'):
+        return value
+    base = settings.SITE_URLS[0] if settings.SITE_URLS else settings.BACKEND_URL
+    return f'{base}{value}'
+
 
 
 def iso(dt):

@@ -70,9 +70,18 @@ upstream iguana_api { server 127.0.0.1:8001; }
         expires 1y;
         add_header Cache-Control "public, immutable";
     }
+    {# Two trees behind one path. `dist/client/media/` is the brand's own files, shipped with the build;
+       `backend/media/` is what has been uploaded in the admin, which used to be reachable only on the API
+       host. Serving both from iguanacomedy.com means a poster is same-origin with the page showing it: no
+       second DNS lookup and no second TLS handshake in front of the largest image on the page. #}
     location ^~ /media/ {
-        alias {{ app_dir }}/dist/client/media/;
         expires 7d;
+        root {{ app_dir }}/dist/client;
+        try_files $uri @uploads;
+    }
+    location @uploads {
+        expires 7d;
+        root {{ app_dir }}/backend;
     }
     location / {
         proxy_pass http://iguana_web;
