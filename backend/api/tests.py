@@ -1394,6 +1394,32 @@ class DemandLineTests(ApiTestCase):
 CHECKOUT_TEMPLATE = pathlib.Path(__file__).resolve().parent.parent / 'templates' / 'embed' / 'checkout.html'
 
 
+class CheckoutJsStringsTests(TestCase):
+    """Every `T("...")` in the checkout script has to be in `CHECKOUT_JS_STRINGS`, or it is not translated.
+
+    `T()` falls back to the key, so a string left off that tuple renders the English to a Spanish customer and
+    nothing anywhere fails. That is exactly how "plus drinks" shipped in the middle of "Pagar $300.00 MXN ·
+    1 boleto". TranslationTests cannot catch it: it scans `tr()` and `{% t %}`, and this list is neither.
+    """
+
+    def test_every_js_string_is_bootstrapped_and_translated(self):
+        import re
+
+        from api.embed_views import CHECKOUT_JS_STRINGS
+        from sales.i18n import normalize, tr
+
+        used = set(re.findall(r'\bT\("((?:[^"\\]|\\.)*)"', CHECKOUT_TEMPLATE.read_text()))
+        # T(d.recentWindow) passes a value through, so the window labels are used without appearing literally.
+        self.assertGreater(len(used), 20, 'the scan must actually be finding strings')
+
+        missing = sorted(used - set(CHECKOUT_JS_STRINGS))
+        self.assertEqual(missing, [], f'not bootstrapped, so these render in English: {missing}')
+
+        no_spanish = sorted(text for text in CHECKOUT_JS_STRINGS if tr('es', text) == text and text != tr('en', text))
+        self.assertEqual(no_spanish, [], f'bootstrapped but untranslated: {no_spanish}')
+        self.assertEqual(normalize('es'), 'es')
+
+
 class DrinksAreNotSeatsTests(ApiTestCase):
     """A round of drinks ordered ahead is not a person at the door, and every count has to agree about that."""
 

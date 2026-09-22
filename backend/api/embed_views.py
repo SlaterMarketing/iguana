@@ -48,7 +48,7 @@ CHECKOUT_JS_STRINGS = ('Sold out', 'pay at the door', 'members only', '{0} left'
                        'Get {0} tickets', 'Pay {0}', '1 ticket', '{0} tickets', 'Reserving...', 'Processing...',
                        'Reserve my free spot', 'Reserve {0} free spots', 'Nothing to pay',
                        'Enter your name and email.', 'The total is now {0}. Press the button again to pay it.',
-                       'Something went wrong.')
+                       'Something went wrong.', 'plus drinks')
 
 
 @xframe_options_exempt
