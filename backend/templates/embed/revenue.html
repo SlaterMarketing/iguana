@@ -83,7 +83,7 @@
             {% else %}·{% endif %}
           </td>
           <td class="n">{{ row.drinks }}</td>
-          <td class="n">{% if row.revenue_cents %}{{ row.revenue }}{% else %}·{% endif %}</td>
+          <td class="n">{% if row.earned %}{{ row.revenue }}{% else %}·{% endif %}</td>
         </tr>
       {% empty %}
         <tr><td colspan="6" class="muted">Nothing on the calendar in this window.</td></tr>
@@ -99,7 +99,7 @@
         <tr><th>Placed</th><th class="n">Table</th><th>Ordered</th><th class="n">Total</th></tr>
         {% for o in open_tables %}
           <tr><td>{{ o.created_at|date:"j M H:i" }}</td><td class="n">{{ o.table_number }}</td><td>{{ o.summary }}</td>
-              <td class="n">{{ o.total_cents|floatformat:0 }}</td></tr>
+              <td class="n">{{ o.money }}</td></tr>
         {% endfor %}
       </table>
       <p class="note" style="margin-top:8px">Open orders only. Mark them delivered in the admin.</p>
@@ -115,7 +115,7 @@
           <td>{{ o.completed_at|date:"j M H:i" }}</td>
           <td>{{ o.customer_name|default:o.customer_email }}</td>
           <td>{{ o.event_name }}</td>
-          <td class="n">{% if o.total_amount_cents %}{{ o.total_amount_cents|floatformat:0 }} {{ o.currency|upper }}{% else %}free{% endif %}</td>
+          <td class="n">{% if o.total_amount_cents %}{{ o.paid }}{% else %}free{% endif %}</td>
         </tr>
       {% empty %}
         <tr><td colspan="4" class="muted">No bookings in this window.</td></tr>

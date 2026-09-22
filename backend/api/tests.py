@@ -1573,6 +1573,19 @@ class RevenuePageTests(ApiTestCase):
         page = self.client.get('/revenue/').content.decode()
         self.assertIn('only been counted since', page)
 
+    def test_pesos_are_never_added_to_dollars(self):
+        """The English nights sell in USD and the Spanish ones in MXN. One combined total is not a rounding
+        problem, it is a wrong number, and it printed a ten dollar order as "10.00 MXN"."""
+        for currency, cents in (('mxn', 30000), ('usd', 1000)):
+            Order.objects.create(event=self.event, event_name=self.event.name, customer_email=f'{currency}@example.com',
+                                 currency=currency, status=Order.COMPLETED, completed_at=timezone.now(),
+                                 total_amount_cents=cents)
+        self.client.force_login(self.staff)
+        page = self.client.get('/revenue/').content.decode()
+        self.assertIn('300.00 MXN', page)
+        self.assertIn('10.00 USD', page)
+        self.assertNotIn('310.00', page, 'the two currencies must never be summed')
+
     def test_the_window_cannot_be_driven_out_of_range(self):
         self.client.force_login(self.staff)
         for value in ('0', '-5', '99999', 'lots'):
