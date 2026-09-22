@@ -1653,6 +1653,36 @@ class RevenuePageTests(ApiTestCase):
             self.assertEqual(self.client.get(f'/revenue/?days={value}').status_code, 200)
 
 
+class NewsletterLinkTests(ApiTestCase):
+    """Each line in the weekly mail has to open the night it names."""
+
+    def _mic(self, when, language, name):
+        return Event.objects.create(name=name, slug=f'mic-{when:%Y-%m-%d}-{language}', status=Event.ACTIVE,
+                                    venue=self.venue, currency='mxn', language=language, date=when,
+                                    tags=['open-mic'], doors_open='20:00', show_time='21:00')
+
+    def test_an_open_mic_link_pins_its_own_night(self):
+        """The lander offers four dates and defaults to the next one, so an unpinned link sent on a Monday about
+        Wednesday put the reader in front of Tuesday. They book the wrong night and find out at the door."""
+        tuesday = timezone.now() + timedelta(days=1)
+        wednesday = timezone.now() + timedelta(days=2)
+        self._mic(tuesday, 'es', 'Noche de Open Mic')
+        self._mic(wednesday, 'en', 'Open Mic Night')
+        from crm.whats_on import body as weekly_body, week_events
+
+        body = weekly_body(week_events())
+        self.assertIn(f'night=es&date={timezone.localtime(tuesday).date().isoformat()}', body)
+        self.assertIn(f'night=en&date={timezone.localtime(wednesday).date().isoformat()}', body)
+
+    def test_the_click_marker_survives_the_query_it_is_added_to(self):
+        """`tag` joins with & when the URL already has a query. Getting that wrong makes every link 404."""
+        from crm.email_links import tag
+        from crm.models import Contact
+
+        contact = Contact.objects.create(email='reader@example.com')
+        self.assertIn('?night=es&date=2026-09-22&ic=', tag('https://x/es/open-mic/?night=es&date=2026-09-22', contact))
+
+
 class MarketingSendTests(ApiTestCase):
     """`send_marketing` has to actually send. It did not, for as long as it has existed."""
 

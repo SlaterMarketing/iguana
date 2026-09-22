@@ -94,9 +94,16 @@ def _open_mic_block(event, lang, contact=None):
         opens = tr(lang, 'Sign-up list {0}, show {1}. Free entry.', doors, show) if event.language == 'es' \
             else tr(lang, 'Doors {0}, show {1}. Free entry.', doors, show)
         lines.append(opens)
-    # The seat is free now, so the link is the whole offer. A price here would be the drinks, which are an
-    # upsell inside the checkout and not something to advertise in a weekly what-is-on.
-    lines.append(tr(lang, 'Reserve a free seat: {0}', site_url(PATHS['openMic'][lang], contact)))
+    # The seat is free now, so the link is the whole offer. A price here would be the drinks, and those are
+    # handled at the show.
+    #
+    # The link pins THIS night. The lander offers four dates and defaults to the next one, so an unpinned link
+    # sent on a Monday about Wednesday put the reader in front of Tuesday: a line that names a night and then
+    # opens a different one is worse than no link, because they book the wrong night and find out at the door.
+    # `night` is the language the show is in; `date` is the night itself.
+    day = when.date().isoformat()
+    path = f"{PATHS['openMic'][lang]}?night={event.language or lang}&date={day}"
+    lines.append(tr(lang, 'Reserve a free seat: {0}', site_url(path, contact)))
     return '\n'.join(lines)
 
 
