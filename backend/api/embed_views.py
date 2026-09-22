@@ -21,6 +21,7 @@ from crm.unsubscribe import email_from_token, resume_marketing, stop_marketing
 from sales.ad_reporting import report_checkout_engaged, report_payment_info_added
 from sales.sharing import is_open_mic, share_message, share_url, whatsapp_url
 from sales.i18n import lang_from_request, normalize, tr
+from sales.links import order_url
 from sales.models import Membership, MembershipPlan, Order, Ticket
 from sales.services import (DATE_FORMATS, CheckoutError, complete_order, create_order, current_membership, price_cart,
                             reserve_at_door, stripe_client, stripe_enabled)
@@ -212,7 +213,7 @@ def checkout_start(request, event_id):
             return error(exc.translated(lang))
         remember_on_contact(order.contact, attribution['visitor'])
         return JsonResponse({'orderId': order.id, 'complete': True,
-                             'successUrl': f'{settings.BACKEND_URL}/orders/{order.public_view_token}/'})
+                             'successUrl': order_url(order)})
 
     try:
         order = create_order(event, cart, name=name, email=email, phone=phone, contact=contact,
@@ -223,7 +224,7 @@ def checkout_start(request, event_id):
         return error(exc.translated(lang))
     remember_on_contact(order.contact, attribution['visitor'])
     report_payment_info_added(order)
-    success_url = f'{settings.BACKEND_URL}/orders/{order.public_view_token}/'
+    success_url = order_url(order)
 
     if cart.total_cents == 0:
         complete_order(order)
@@ -261,7 +262,7 @@ def checkout_confirm(request, order_id):
             complete_order(order)  # local development: no Stripe keys, simulate a successful payment
         else:
             return error(tr(lang, 'Payment has not completed yet.'), 409)
-    return JsonResponse({'ok': True, 'successUrl': f'{settings.BACKEND_URL}/orders/{order.public_view_token}/'})
+    return JsonResponse({'ok': True, 'successUrl': order_url(order)})
 
 
 def order_page(request, token):

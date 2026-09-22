@@ -83,6 +83,24 @@ upstream iguana_api { server 127.0.0.1:8001; }
         expires 7d;
         root {{ app_dir }}/backend;
     }
+
+    {# The pages a person is sent to, on the domain they know. A ticket link in a confirmation email, the QR a
+       door scans, an unsubscribe link and the staff boards were all on api.iguanacomedy.com, which reads as
+       somebody else's domain in an inbox and is the first thing a phishing filter looks at.
+
+       api.* keeps serving all of these too, so every QR already printed and every link in an email already
+       sent still works. Only what we generate from now on uses the short host. The checkout iframe, k.js and
+       /api/ stay there on purpose: they are a separate origin by design. #}
+    location ^~ /orders/      { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
+    location ^~ /checkin/     { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
+    location ^~ /unsubscribe/ { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
+    location ^~ /newsletter/  { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
+    location ^~ /tables/      { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
+    location ^~ /revenue/     { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
+    location ^~ /admin/       { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
+    {# Django's own CSS and JS, for the admin login those pages redirect to. #}
+    location ^~ /static/      { alias {{ app_dir }}/backend/staticfiles/; expires 7d; }
+
     location / {
         proxy_pass http://iguana_web;
         include /etc/nginx/iguana_proxy_params;

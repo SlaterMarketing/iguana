@@ -15,6 +15,7 @@ from collections import OrderedDict
 from datetime import timedelta
 
 from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import user_passes_test
 from django.db.models import Count, Q, Sum
 from django.db.models.functions import TruncDate
 from django.shortcuts import render
@@ -63,6 +64,20 @@ def _daily(queryset, field, days, value=None):
     return buckets
 
 
+# 🚨 `staff_member_required` alone is NOT enough here, and that is not obvious.
+#
+# It checks `is_staff` and nothing else, so every staff account reaches every page guarded by it. The bar has
+# its own account with a password its staff can type on a phone in a dark room, and that account has no business
+# reading customer names, email addresses or what the club is taking. This page asks for more: a superuser, or
+# somebody explicitly given `sales.view_order`.
+#
+# The board at /tables/ deliberately keeps the weaker gate, because it shows table numbers and drinks and no
+# person at all.
+def can_see_the_money(user):
+    return user.is_active and user.is_staff and (user.is_superuser or user.has_perm('sales.view_order'))
+
+
+@user_passes_test(can_see_the_money, login_url='/admin/login/')
 @staff_member_required
 def revenue(request):
     try:

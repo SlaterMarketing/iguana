@@ -10,6 +10,7 @@ from django.http import Http404, JsonResponse
 from catalog.spam import rejection_reason
 from crm.optin import send_confirmation
 from crm.geo import remember_on_contact, visitor_profile
+from sales.links import public_base
 from sales.demand import demand_for
 from sales.i18n import normalize
 from crm.models import Contact, ContactList, ContactListMember
@@ -232,7 +233,7 @@ def file_json(f):
     return {
         'id': f.id,
         'name': f.name,
-        'url': f'{settings.BACKEND_URL}{f.file.url}',
+        'url': f'{public_base()}{f.file.url}',
         'contentType': f.content_type or 'application/octet-stream',
         'size': f.file.size if f.file else 0,
         'createdAt': f.created_at.isoformat(),

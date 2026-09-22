@@ -17,6 +17,7 @@ from django.views.decorators.http import require_POST
 
 from catalog.models import MenuCategory, MenuItem
 from sales.i18n import normalize, tr
+from sales.links import public_base
 from sales.models import TableOrder, TableOrderItem
 from sales.services import format_money
 
@@ -133,7 +134,7 @@ def notify_table_order(order):
     ]
     if order.note:
         lines += ['', f'Note: {order.note}']
-    lines += ['', f'{settings.BACKEND_URL}/admin/sales/tableorder/{order.id}/change/']
+    lines += ['', f'{public_base()}/tables/']
     try:
         return EmailMessage(subject, '\n'.join(lines), settings.DEFAULT_FROM_EMAIL,
                             list(settings.NOTIFY_EMAILS)).send(fail_silently=True)

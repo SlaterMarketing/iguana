@@ -1,4 +1,5 @@
 from django.contrib import admin
+from sales.links import order_url
 from django.conf import settings
 from django.utils.html import format_html
 
@@ -35,7 +36,7 @@ class OrderAdmin(admin.ModelAdmin):
         return f'{obj.total_amount_cents / 100:,.2f} {obj.currency.upper()}'
 
     def tickets_page(self, obj):
-        return format_html('<a href="{}/orders/{}/" target="_blank">view</a>', settings.BACKEND_URL, obj.public_view_token)
+        return format_html('<a href="{}" target="_blank">view</a>', order_url(obj))
 
 
 @admin.register(MembershipPlan)

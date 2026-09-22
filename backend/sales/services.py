@@ -12,6 +12,7 @@ from catalog.models import TicketType
 from crm.models import Contact
 from sales.ad_reporting import report_purchase
 from sales.i18n import normalize, tr
+from sales.links import order_url
 from sales.sharing import share_url
 from sales.models import Membership, Order, OrderItem, Ticket
 
@@ -260,7 +261,7 @@ def notify_new_reservation(order):
     lines += [
         f'Paid online: {format_money(paid, order.currency) if paid else "nothing, the seat is free"}',
         '',
-        f'Door check-in and tickets: {settings.BACKEND_URL}/orders/{order.public_view_token}/',
+        f'Door check-in and tickets: {order_url(order)}',
         f'Total reserved for this night so far: {_seats_reserved(event)}' if event else '',
     ]
     # fail_silently for the same reason the customer's confirmation is: an alert that cannot be delivered must
@@ -277,7 +278,7 @@ def _seats_reserved(event):
 
 def send_order_confirmation(order):
     lang = normalize(order.locale)
-    link = f'{settings.BACKEND_URL}/orders/{order.public_view_token}/'
+    link = order_url(order)
     event = order.event
     when = ''
     if event:

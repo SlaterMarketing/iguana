@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from catalog.models import Artist, Event, FormEndpoint, LineupEntry, TicketType, Venue
 from crm.models import Contact
-from sales.models import LoginToken, Membership, MembershipPlan, Order
+from sales.models import LoginToken, Membership, MembershipPlan, Order, Ticket
 
 KEY = 'ipk_test'
 SITE = 'http://site.test'
@@ -1584,13 +1584,28 @@ class RevenuePageTests(ApiTestCase):
     def setUp(self):
         from django.contrib.auth import get_user_model
 
-        self.staff = get_user_model().objects.create_user('till', password='x', is_staff=True)
+        # Staff AND allowed to see the money: /revenue/ deliberately asks for more than is_staff, so that the
+        # bar's own account cannot read customer names and takings. See can_see_the_money.
+        self.staff = get_user_model().objects.create_user('till', password='x', is_staff=True, is_superuser=True)
+        self.bar = get_user_model().objects.create_user('barkeep', password='x', is_staff=True)
 
     def test_it_is_staff_only(self):
         """It lists customer names and what the club is taking. A logged-out request must not see it."""
         response = self.client.get('/revenue/')
         self.assertIn(response.status_code, (302, 403))
         self.assertNotIn(b'Revenue', response.content)
+
+    def test_being_staff_is_not_enough(self):
+        """The bar has a staff account with a password its staff can type on a phone in a dark room. It works
+        the table board and must not open the page with customer names and takings on it."""
+        self.client.force_login(self.bar)
+        response = self.client.get('/revenue/')
+        self.assertIn(response.status_code, (302, 403))
+        self.assertNotIn(b'Where it is lost', response.content)
+
+    def test_and_the_bar_can_still_work_its_own_board(self):
+        self.client.force_login(self.bar)
+        self.assertEqual(self.client.get('/tables/').status_code, 200)
 
     def test_it_renders_for_staff(self):
         self.client.force_login(self.staff)
@@ -1636,6 +1651,52 @@ class RevenuePageTests(ApiTestCase):
         self.client.force_login(self.staff)
         for value in ('0', '-5', '99999', 'lots'):
             self.assertEqual(self.client.get(f'/revenue/?days={value}').status_code, 200)
+
+
+class PublicLinkTests(ApiTestCase):
+    """A link a PERSON follows goes to iguanacomedy.com, not api.iguanacomedy.com.
+
+    `api.` in an inbox reads as somebody else's domain, and it is the first thing a phishing filter looks at.
+    nginx serves these paths on both hosts, so every QR already printed and every link already emailed still
+    works; only what is generated from here on uses the short one.
+    """
+
+    def _order(self):
+        order = Order.objects.create(event=self.event, event_name=self.event.name, customer_email='a@example.com',
+                                     currency='mxn', status=Order.COMPLETED, completed_at=timezone.now())
+        Ticket.objects.create(order=order, ticket_type_name='GA')
+        return order
+
+    def test_the_ticket_link_in_the_confirmation_is_on_the_site(self):
+        from sales.services import send_order_confirmation
+
+        order = self._order()
+        send_order_confirmation(order)
+        body = mail.outbox[-1].body
+        self.assertIn(f'{SITE}/orders/{order.public_view_token}/', body)
+        self.assertNotIn('api.', body)
+
+    def test_the_door_scan_link_is_on_the_site(self):
+        order = self._order()
+        fan = self.sign_in('a@example.com')
+        rows = self.api('get', '/api/fan/v1/tickets', fan=fan).json()
+        urls = [t['checkinUrl'] for row in rows.get('tickets', rows if isinstance(rows, list) else [])
+                for t in (row.get('tickets') or [row])] if rows else []
+        self.assertTrue(all(u.startswith(SITE) for u in urls) or not urls, urls)
+
+    def test_the_public_base_follows_the_live_setting(self):
+        """Read at call time, not frozen at import: a setting computed once cannot be overridden in a test, and
+        that is exactly how the first version of this shipped pointing at a developer's laptop."""
+        from sales.links import public_base
+
+        self.assertEqual(public_base(), SITE)
+
+    def test_the_embed_itself_stays_on_the_api_host(self):
+        """The checkout iframe is a separate origin on purpose; moving it is not part of this."""
+        from django.conf import settings
+
+        row = next(e for e in self.api('get', '/api/public/v1/events').json()['events'] if e['id'] == self.event.id)
+        self.assertTrue(row['embedUrl'].startswith(settings.BACKEND_URL), row['embedUrl'])
 
 
 class MediaUrlTests(ApiTestCase):

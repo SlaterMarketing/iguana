@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from catalog.models import Event
 from sales.models import MembershipPlan, Order, OrderItem
+from sales.links import checkin_url, order_url
 
 CANCUN = ZoneInfo('America/Cancun')
 
@@ -259,12 +260,12 @@ def order_ticket_json(order):
             {
                 'id': t.id,
                 'ticketTypeName': t.ticket_type_name,
-                'checkinUrl': f'{settings.BACKEND_URL}/checkin/{t.checkin_token}/',
+                'checkinUrl': checkin_url(t),
                 'checkedInAt': iso(t.checked_in_at),
             }
             for t in order.tickets.all()
         ],
-        'ticketsPageUrl': f'{settings.BACKEND_URL}/orders/{order.public_view_token}/',
+        'ticketsPageUrl': order_url(order),
         'publicViewToken': order.public_view_token,
         'wallets': _wallets(),
     }
