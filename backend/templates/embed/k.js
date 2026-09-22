@@ -93,7 +93,7 @@
   // while the real button is already on screen, so the two are never both visible saying the same thing.
   function stickyCta(iframe) {
     var bar = document.createElement("div");
-    bar.setAttribute("data-kintana-sticky-cta", "");
+    bar.setAttribute("data-kintana-cta-bar", "");
     bar.style.cssText = "position:fixed;left:0;right:0;bottom:0;z-index:2147483000;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:rgba(255,255,255,.94);backdrop-filter:blur(8px);border-top:1px solid rgba(0,0,0,.1);display:none";
     var button = document.createElement("button");
     button.type = "button";
