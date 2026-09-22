@@ -36,6 +36,7 @@ export const ui = {
     "footer.privacy": "Privacy",
     "footer.terms": "Terms",
     "footer.copyright": "All laughs reserved",
+    "footer.locatedAt": "Located at",
     "footer.whatsappLabel": "whatsapp",
     "footer.whatsappSub": "available for shows and enquiries",
 
@@ -337,6 +338,7 @@ export const ui = {
     "footer.privacy": "Privacidad",
     "footer.terms": "Términos",
     "footer.copyright": "Todos los derechos reservados",
+    "footer.locatedAt": "Estamos en",
     "footer.whatsappLabel": "whatsapp",
     "footer.whatsappSub": "disponible para shows y consultas",
 

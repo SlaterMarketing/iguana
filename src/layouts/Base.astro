@@ -10,6 +10,7 @@ import dmSansLatinExtItalic from "@fontsource-variable/dm-sans/files/dm-sans-lat
 import Footer from "../components/Footer.astro";
 import Header from "../components/Header.astro";
 import MetaPixel from "../components/MetaPixel.astro";
+import { comedyClubSchema, jsonLd } from "../lib/structured-data";
 import { site } from "../content/site";
 import { getKintanaEnv } from "../lib/kintana-env";
 import { getLocale, getCanonicalUrl, getAlternateUrls, type Locale } from "../i18n/locale";
@@ -28,6 +29,8 @@ interface Props {
   noindex?: boolean;
   /** Fires a Meta ViewContent for this show as well as PageView. Set it on pages that sell something. */
   pixelContent?: { id: string; name: string; value?: number; currency?: string };
+  /** Extra JSON-LD for this page, e.g. the Event on a show's page. Rendered beside the site-wide blocks. */
+  schema?: unknown;
 }
 
 const locale = getLocale(Astro);
@@ -41,6 +44,7 @@ const {
   ogImage,
   noindex = false,
   pixelContent,
+  schema,
 } = Astro.props;
 
 function escapeAttr(v: string) {
@@ -126,14 +130,17 @@ const trackerMarkup =
     <meta name="twitter:image" content={shareImage} />
     <meta name="twitter:image:alt" content={title} />
 
-    <!-- JSON-LD -->
-    <script type="application/ld+json" set:html={JSON.stringify({
+    <!-- JSON-LD. The site, and the club as a place with an address: the second is what a local search needs,
+         and it was missing entirely. A page can add its own (a show adds an Event) through `schema`. -->
+    <script type="application/ld+json" set:html={jsonLd({
       "@context": "https://schema.org",
       "@type": "WebSite",
       name: t(locale, "seo.siteName"),
       url: siteOrigin,
       inLanguage: locale,
     })} />
+    <script type="application/ld+json" set:html={jsonLd(comedyClubSchema(siteOrigin, locale))} />
+    {schema ? <script type="application/ld+json" set:html={jsonLd(schema)} /> : null}
 
     <link rel="icon" type="image/webp" href={site.faviconUrl} />
     <link rel="apple-touch-icon" href={site.faviconUrl} />

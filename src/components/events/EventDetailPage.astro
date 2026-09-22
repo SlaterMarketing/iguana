@@ -23,6 +23,7 @@ import { t } from "../../i18n/ui";
 import { localizePath } from "../../i18n/routes";
 import type { Locale } from "../../i18n/locale";
 import { isOpenMic } from "../../lib/open-mics";
+import { eventSchema } from "../../lib/structured-data";
 
 interface Props {
   event: KintanaPublicEvent | null;
@@ -36,6 +37,9 @@ const onSiteCheckout = event ? eventSupportsOnSiteCheckout(event) : false;
 const posterMobileSrc = event?.imageUrlMobile?.trim() || event?.imageUrl;
 const heroPoster = event ? eventHeroImageUrl(event) : null;
 const siteOrigin = Astro.site?.origin ?? "https://iguanacomedy.com";
+// The show itself, for Google's event listings: date, venue, price, who is on. Built from the same fields the
+// page prints, because structured data that disagrees with the page is worse than none.
+const showSchema = event ? eventSchema(event, siteOrigin, new URL(Astro.url.pathname, siteOrigin).toString()) : null;
 const socialDescription = event
   ? eventSocialDescription(event, locale, t(locale, "seo.defaultDescription"))
   : t(locale, "seo.defaultDescription");
@@ -72,6 +76,7 @@ const pixelContent = event
   ogImage={socialImage}
   narrow={false}
   pixelContent={pixelContent}
+  schema={showSchema}
   transparentHeader={Boolean(event)}
   flushMain={Boolean(event)}
 >

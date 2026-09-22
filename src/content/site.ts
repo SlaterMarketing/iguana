@@ -7,6 +7,21 @@ export const site = {
   email: "hello@iguanacomedy.com",
   venueAddress: "Calle 6 Nte 189, Centro, 77710 Playa del Carmen, Q.R., Mexico",
   /**
+   * The same address in parts, because a search engine cannot be handed one string. Written out rather than
+   * parsed off `venueAddress`: a comma-splitting parser is one rename away from filing the club in a region
+   * called "Q.R." Coordinates are the venue record's own (`/api/public/v1/venues`, slug `iguana-comedy`).
+   */
+  venuePostal: {
+    streetAddress: "Calle 6 Nte 189",
+    neighbourhood: "Centro",
+    addressLocality: "Playa del Carmen",
+    addressRegion: "Quintana Roo",
+    postalCode: "77710",
+    addressCountry: "MX",
+    latitude: 20.62685,
+    longitude: -87.0765827,
+  },
+  /**
    * Pinned to the Google listing's place id, NOT a text search. The search URL landed on a results page
    * headed "Resultados" rather than on the club, which is a worse answer than the map already gave.
    *
@@ -14,6 +29,7 @@ export const site = {
    * the venue record holds. There is a SECOND Google listing for Iguana Comedy at the same street address
    * filed as "Recinto para eventos" (ChIJWclm9lJDTo8RWOLGr5gRYJM); it is a duplicate and splits reviews.
    */
+  venuePlaceId: "ChIJTTE8rE8tTI8Rgg7boGKlXno",
   venueMapsUrl:
     "https://www.google.com/maps/search/?api=1&query=Iguana%20Comedy&query_place_id=ChIJTTE8rE8tTI8Rgg7boGKlXno",
   /**

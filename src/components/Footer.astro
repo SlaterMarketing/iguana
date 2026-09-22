@@ -11,6 +11,8 @@ interface Props {
 
 const { locale } = Astro.props;
 const whatsappHref = `https://wa.me/${site.whatsappE164.replace(/\D+/g, "")}`;
+// Turn-by-turn from wherever they are, pinned to the club's own listing rather than to a text search.
+const directionsHref = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(site.venueAddress)}&destination_place_id=${site.venuePlaceId}`;
 ---
 
 <footer class="border-t border-black/10 bg-ink pb-16 pt-20 text-center text-neutral-300">
@@ -33,6 +35,29 @@ const whatsappHref = `https://wa.me/${site.whatsappE164.replace(/\D+/g, "")}`;
           <span class="block text-sm uppercase tracking-[0.45em] text-neutral-400">{t(locale, "footer.whatsappLabel")}</span>
           <span class="block text-sm lowercase text-neutral-500">{t(locale, "footer.whatsappSub")}</span>
         </a>
+
+        {/* Where the club is, on every page. It used to appear only at the bottom of the open mic callout, so a
+            visitor on any other page had nowhere to find the address. A link rather than an embedded map: the
+            map belongs on the pages about a night, and an iframe in the footer is one on every page load. */}
+        <address class="not-italic">
+          <span class="block text-sm uppercase tracking-[0.45em] text-neutral-500">{t(locale, "footer.locatedAt")}</span>
+          <a
+            class="mt-2 block text-base leading-relaxed text-white underline-offset-4 transition hover:underline"
+            href={site.venueMapsUrl}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            {site.venueAddress}
+          </a>
+          <a
+            class="mt-2 inline-block text-sm uppercase tracking-[0.35em] text-brand underline-offset-4 hover:underline"
+            href={directionsHref}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            {t(locale, "locations.directions")} →
+          </a>
+        </address>
       </div>
     </div>
 
