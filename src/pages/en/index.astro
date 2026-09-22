@@ -41,7 +41,7 @@ const cityPickerChoices = [
     headlineLine1={locale === "es" ? "Stand-up internacional" : "International stand-up"}
     headlineLine2Prefix={locale === "es" ? "comedia en " : "comedy in "}
     headlineLine2Static="Playa del Carmen"
-    ctaLabel={locale === "es" ? "Comprar boleto" : "Buy ticket"}
+    ctaLabel={t(locale, "home.hero.seeEvents")}
     spotlightLabel={locale === "es" ? "Ciudad destacada" : "Spotlight city"}
   >
     <OpenMicHeroBadge slot="announcement" locale={locale} events={pageData.eventsPool} />
