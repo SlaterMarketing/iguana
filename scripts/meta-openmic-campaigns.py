@@ -11,15 +11,17 @@ making a second one, so re-running it after changing the copy or the budget is s
     scripts/meta-openmic-campaigns.py status                what exists now, and what it is spending
     scripts/meta-openmic-campaigns.py pause                 stop all four campaigns
 
-Two campaigns per night, because one objective cannot do both jobs:
+One campaign per night: reservations (OUTCOME_SALES, optimised for INITIATED_CHECKOUT). It chases the 60
+bookable seats, it commits people, it captures an email, and it is the only ad set the Conversions API can
+teach.
 
-  reservations (OUTCOME_SALES, optimised for Purchase) chases the 60 bookable seats. It commits people, it
-  captures an email, and it is the only ad set the Conversions API can teach. It also costs more per head than a
-  50 MXN reservation brings in, which is the deal: the room pays for itself at the bar, not at the door.
-
-  local reach (OUTCOME_TRAFFIC, optimised for landing page views) fills the other 20 seats with walk-ins, who
-  pay nothing to get in and are therefore cheap. This account historically bought clicks at 0.36 to 0.48 MXN.
-  It also seeds the pixel: every visit it sends writes the _fbp the conversion campaign later matches on.
+🚨 There used to be a second, `local reach` (OUTCOME_TRAFFIC, landing page views), to fill the 20 walk-in seats
+cheaply and to seed the pixel. It is off, and `RUN_REACH` below keeps it off. Measured over its whole life:
+**71.63 MXN, 183 clicks, 104 landing page views, zero checkouts and zero reservations.** Both of its arguments
+had quietly expired. It was written when a seat cost 50 MXN and a conversion ad cost more per head than the
+door collected, so buying cheap clicks made sense; the seat is free now and reservations come in at 15 to 26
+MXN. And the pixel it was seeding is fed by the conversion campaign anyway. Turning it back on needs a reason
+better than the one it was created with.
 
 Why the ads point at /open-mic/ and not at an event page: an event URL carries its date, so a weekly campaign
 aimed at one would need rewriting every Tuesday and would keep spending on a dead show in between.
@@ -88,6 +90,10 @@ OPT_OUT_FEATURES = ['text_optimizations', 'text_generation', 'description_automa
                     'image_touchups', 'add_text_overlay', 'image_brightness_and_contrast', 'image_templates',
                     'image_background_gen', 'video_auto_crop']
 
+# Set to True only with evidence that a traffic ad set earns its place; see the note at the top of this file.
+RUN_REACH = False
+KINDS = [('reservations', 'OUTCOME_SALES')] + ([('local reach', 'OUTCOME_TRAFFIC')] if RUN_REACH else [])
+
 NIGHTS = {
     'es': {
         'label': 'Spanish',
@@ -99,7 +105,7 @@ NIGHTS = {
         # Measured 2026-09-21, first day of delivery: 53.06 MXN bought 4 reservations at 13.27 each, on an 8.66%
         # CTR and a 28.90 CPM. The reach ad set spent 29.99 on 57 clicks and produced no checkout at all, so the
         # money moved to where the reservations are. The weekly total per night is unchanged.
-        'daily_conversions': 14600,    # centavos: 146.00 MXN
+        'daily_conversions': 16600,    # centavos: 166.00 MXN, including the 20 reach gave back
         'daily_reach': 2000,           #           20.00 MXN, just above Meta's minimum, to keep the pixel fed
         'videos': ['openmic-es-long-9x16.mp4', 'openmic-es-short-9x16.mp4'],
         'image': 'openmic-es-flyer-4x5.jpg',
@@ -126,7 +132,8 @@ NIGHTS = {
         # Same day: 78.43 MXN bought 3 reservations at 26.14 each. Twice the Spanish cost, on a 45.55 CPM against
         # 28.90, which is the English locale filter shrinking the pool rather than the ad underperforming. Held
         # at 100 rather than cut: 26 MXN a reservation is still well under this account's historic 55 to 220.
-        'daily_conversions': 10000,
+        # Plus the 20 the reach ad set gave back when it was retired.
+        'daily_conversions': 12000,
         'daily_reach': 2000,
         'videos': ['openmic-en-long-9x16.mp4'],
         'image': 'openmic-en-flyer-4x5.jpg',
@@ -544,7 +551,7 @@ def cmd_apply(args):
 
     for lang, night in NIGHTS.items():
         print(f'\n{night["label"]} night ({night["night"]}s) -> {night["link"]}')
-        for kind, objective in (('reservations', 'OUTCOME_SALES'), ('local reach', 'OUTCOME_TRAFFIC')):
+        for kind, objective in KINDS:
             campaign_id = ensure_campaign(lang, kind, objective, args.live)
             adset_id = ensure_adset(lang, kind, campaign_id, args.live)
 
@@ -602,6 +609,7 @@ def cmd_status(args):
 
 def cmd_pause(args):
     for lang in NIGHTS:
+        # Both kinds, including the retired one: `pause` is the stop button and must stop everything.
         for kind in ('reservations', 'local reach'):
             found = existing('campaigns', campaign_name(lang, kind))
             if found:
@@ -611,19 +619,24 @@ def cmd_pause(args):
 
 def cmd_plan(args):
     for lang, night in NIGHTS.items():
-        weekly = (night['daily_conversions'] + night['daily_reach']) * 7 / 100
+        weekly = (night['daily_conversions'] + (night['daily_reach'] if RUN_REACH else 0)) * 7 / 100
         print(f'\n{night["label"]} night, {night["night"]}s -> {night["link"]}')
         print(f'  {campaign_name(lang, "reservations"):44} OUTCOME_SALES    '
               f'{night["daily_conversions"] / 100:6.2f} MXN/day  optimise {CONVERSION_EVENT} via pixel {PIXEL_ID}')
-        print(f'  {campaign_name(lang, "local reach"):44} OUTCOME_TRAFFIC  '
-              f'{night["daily_reach"] / 100:6.2f} MXN/day  optimise landing page views')
+        if RUN_REACH:
+            print(f'  {campaign_name(lang, "local reach"):44} OUTCOME_TRAFFIC  '
+                  f'{night["daily_reach"] / 100:6.2f} MXN/day  optimise landing page views')
+        else:
+            print(f'  {campaign_name(lang, "local reach"):44} OFF                '
+                  'retired: no reservation in its whole life, see the note at the top of this file')
         print(f'  targeting  Playa del Carmen {WIDE_KM}km / {NEAR_KM}km, home+recent, 18 to 65'
               + (f', locales {night["locales"]}' if night['locales'] else ''))
         print(f'  creative   {", ".join(night["videos"])}, {night["image"]}')
         print(f'             {night["story_image"]} for Story and Reels, so nothing is cut off by the '
               'account bar or the CTA')
         print(f'  weekly     {weekly:,.2f} MXN')
-    total = sum((n['daily_conversions'] + n['daily_reach']) for n in NIGHTS.values()) * 7 / 100
+    total = sum((n['daily_conversions'] + (n['daily_reach'] if RUN_REACH else 0))
+                for n in NIGHTS.values()) * 7 / 100
     print(f'\ntotal {total:,.2f} MXN a week across both nights')
 
 
