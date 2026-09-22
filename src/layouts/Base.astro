@@ -31,6 +31,8 @@ interface Props {
   pixelContent?: { id: string; name: string; value?: number; currency?: string };
   /** Extra JSON-LD for this page, e.g. the Event on a show's page. Rendered beside the site-wide blocks. */
   schema?: unknown;
+  /** The page's largest image, preloaded so it is not discovered late. Set it on pages with a hero. */
+  preloadImage?: string;
 }
 
 const locale = getLocale(Astro);
@@ -45,11 +47,21 @@ const {
   noindex = false,
   pixelContent,
   schema,
+  preloadImage,
 } = Astro.props;
 
 function escapeAttr(v: string) {
   return v.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/'/g, "&#39;");
 }
+
+// The checkout iframe, k.js, every poster and every venue photo come from here.
+const apiOrigin = (() => {
+  try {
+    return new URL(getKintanaEnv().baseUrl ?? '').origin;
+  } catch {
+    return 'https://api.iguanacomedy.com';
+  }
+})();
 
 const canonicalUrl = getCanonicalUrl(Astro);
 const alternateUrls = getAlternateUrls(Astro);
@@ -142,6 +154,12 @@ const trackerMarkup =
     <script type="application/ld+json" set:html={jsonLd(comedyClubSchema(siteOrigin, locale))} />
     {schema ? <script type="application/ld+json" set:html={jsonLd(schema)} /> : null}
 
+    {/* Every event poster is served from the API host, and the hero poster is the LCP element on a show page.
+        Without this the browser only starts the DNS lookup and the TLS handshake when it reaches the <img>. */}
+    <link rel="preconnect" href={apiOrigin} crossorigin />
+    <link rel="dns-prefetch" href={apiOrigin} />
+    {/* The page names its own biggest image, so the browser can start it before the CSS has even parsed. */}
+    {preloadImage ? <link rel="preload" as="image" href={preloadImage} fetchpriority="high" /> : null}
     <link rel="icon" type="image/webp" href={site.faviconUrl} />
     <link rel="apple-touch-icon" href={site.faviconUrl} />
     <link rel="preload" href={bebasLatin} as="font" type="font/woff2" crossorigin />
