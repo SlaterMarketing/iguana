@@ -357,10 +357,15 @@ every Monday the cron woke up, resolved its 627 subscribers, wrote the campaign 
 none of them. The only evidence anywhere was a traceback under `journalctl -t iguana-newsletter`; the campaign
 row exists with zero recipients, which looks like "nobody was due" rather than "it crashed".
 Fixed 2026-09-22: the tolerance belongs on the connection, `get_connection(fail_silently=True)`.
-⚠ **The cron is DISABLED and stays that way until the owner says otherwise** (`newsletter_enabled: true` in
-`group_vars/all`, which `deploy.yml` reads). Turning it on now means a real send to 627 people, and the last
-instruction on the subject was to stop sending. The one bulk send this domain has ever made was the "Club
-Opening" campaign on 2026-09-14 to 722 addresses, which is what people are remembering.
+**Enabled 2026-09-22** (`newsletter_enabled: true` in `group_vars/all`, which `deploy.yml` reads; set it to
+false to pause without editing a crontab by hand). Mondays 14:00 UTC, 09:00 in Playa, ~645 recipients paced
+0.2s apart, about two minutes inside a 30m timeout. Before the first live run: one was sent to hello@ by hand
+and read, and every link in it was opened in a browser.
+🔑 **Each open mic line pins `night` and `date`.** The lander offers four dates and defaults to the next one,
+so an unpinned link in a Monday mail naming Wednesday opened Tuesday: the reader books, gets a confirmation
+and finds out at the door. Verified per-link, not per-page.
+Before this the domain's only bulk send was the "Club Opening" campaign on 2026-09-14 to 722 addresses, which
+is what people remember when they say emails went out.
 
 Marketing mail must go through `crm.mail.send_marketing` (or `manage.py send_newsletter`, a dry run without
 `--send`), which drops unsubscribed contacts and attaches the unsubscribe footer and `List-Unsubscribe` headers
