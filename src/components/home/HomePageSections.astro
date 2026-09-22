@@ -81,8 +81,6 @@ const storyBody = cityLabel
     </p>
   </div>
 
-  {!activeCitySlug || activeCitySlug === "playa-del-carmen" ? <OpenMicCallout locale={locale} events={eventsPool} class="mt-16" /> : null}
-
   {
     !apiConfigured ? (
       <p class="mx-auto mt-14 max-w-2xl rounded-3xl border border-neutral-200 px-10 py-6 text-neutral-700">
@@ -107,6 +105,11 @@ const storyBody = cityLabel
       </div>
     )
   }
+
+  {/* After the shows, not before them. The hero two screens up already leads with the open mics, so putting the
+      callout at the top of this section said the same thing a third time before the visitor had seen a single
+      event. Here it reads as the answer to "and what about the other nights?". */}
+  {!activeCitySlug || activeCitySlug === "playa-del-carmen" ? <OpenMicCallout locale={locale} events={eventsPool} class="mt-20" /> : null}
 </section>
 
 <section class="mx-auto max-w-page px-6 py-20 lg:py-28">

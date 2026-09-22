@@ -97,8 +97,6 @@ const emptyMessage =
       />
     </div>
 
-    {!citySlugFilter || citySlugFilter === "playa-del-carmen" ? <OpenMicCallout locale={locale} events={upcoming} class="mt-12" /> : null}
-
     {!hasCredentials ? (
       <div class="mt-16 rounded-3xl border border-amber-200 bg-amber-50 px-6 py-6 text-neutral-950">
         {t(locale, "events.noCredentials")}
@@ -155,6 +153,10 @@ const emptyMessage =
             </>
           )}
         </div>
+
+        {/* Below the shows on sale, above the calendar. Leading the page with it pushed the actual line-up down
+            and repeated what the visitor has already read on the way here. */}
+        {!citySlugFilter || citySlugFilter === "playa-del-carmen" ? <OpenMicCallout locale={locale} events={upcoming} /> : null}
 
         {calendarCount > 0 ? (
           <details class="group border-t border-neutral-200 pt-10" data-events-calendar open>
