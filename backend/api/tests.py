@@ -468,11 +468,10 @@ class ReservationTests(ApiTestCase):
         seat = spanish.ticket_types.get(is_addon=False)
         self.assertEqual((seat.name, seat.name_es, seat.price_cents, seat.capacity, seat.max_per_order, seat.pay_at_door),
                          ('Free reserved seat', 'Lugar reservado gratis', 0, 60, 6, False))
-        # The sale. Priced per drink in the night's own currency and never auto-selected: the stepper beside it
-        # counts whatever this row is, so a bundle of two made "2 bebidas" next to a 4 mean eight drinks.
-        drinks = spanish.ticket_types.get(is_addon=True)
-        self.assertEqual((drinks.price_cents, drinks.max_per_order), (5000, 12))
-        self.assertIn('Bebida', drinks.name_es)
+        # No drinks in the checkout. Over the two days it ran on a free seat it was ordered by nobody, while
+        # sitting between the last form field and the reserve button, so every visitor paid for it in scroll.
+        # The menu goes out after the seat is held instead. `SELL_DRINKS_AT_CHECKOUT` turns it back on.
+        self.assertFalse(spanish.ticket_types.filter(is_addon=True, active=True).exists())
         # Posters carry words, so each night has one per site language; the Spanish night's English-worded poster is
         # the default and its Spanish-worded one is the _es field.
         self.assertEqual((spanish.image_url, spanish.image_url_es),
@@ -483,7 +482,7 @@ class ReservationTests(ApiTestCase):
         call_command('setup_open_mics', stdout=StringIO())
         spanish.refresh_from_db()
         self.assertEqual(spanish.image_url, '/media/events/custom.jpg')
-        self.assertEqual(spanish.ticket_types.count(), 2, 'the seat and the drinks, never duplicated')
+        self.assertEqual(spanish.ticket_types.count(), 1, 'the seat, and only ever one of it')
 
     @override_settings(STRIPE_SECRET_KEY='sk_test_x', STRIPE_PUBLISHABLE_KEY='pk_test_x')
     def test_setup_renames_a_spanish_named_type_instead_of_duplicating_it(self):
@@ -1718,6 +1717,43 @@ class TableMenuTests(ApiTestCase):
             res = self.api('post', '/api/public/v1/table-orders', {'table': 3, 'items': {self.draught.id: 1}})
         self.assertEqual(res.status_code, 200)
         self.assertTrue(TableOrder.objects.filter(table_number=3).exists())
+
+
+class DrinksMovedOutOfCheckoutTests(ApiTestCase):
+    """The upsell moved from before the reserve button to after the seat is held."""
+
+    def test_an_existing_drinks_row_is_switched_off_not_deleted(self):
+        """Deleting it would take its name off orders that already carry it. Off means the checkout stops
+        offering it while an old order still says what was bought."""
+        from catalog.management.commands.setup_open_mics import DRINKS, SELL_DRINKS_AT_CHECKOUT
+
+        self.assertFalse(SELL_DRINKS_AT_CHECKOUT)
+        mic = Event.objects.create(name='Open Mic Night in Spanish', slug='mic-drinks-off', status=Event.ACTIVE,
+                                   venue=self.venue, currency='mxn', language='es',
+                                   date=timezone.now() + timedelta(days=2), tags=['open-mic', 'open-mic-es'])
+        drinks = TicketType.objects.create(event=mic, name=DRINKS['name'], price_cents=5000, is_addon=True)
+        from django.core.management import call_command
+        call_command('setup_open_mics', verbosity=0)
+        drinks.refresh_from_db()
+        self.assertFalse(drinks.active)
+        self.assertTrue(TicketType.objects.filter(pk=drinks.pk).exists(), 'off, not gone')
+
+    def test_the_order_page_offers_the_menu_once_the_seat_is_held(self):
+        mic = Event.objects.create(name='Open Mic', slug='mic-menu', status=Event.ACTIVE, venue=self.venue,
+                                   currency='mxn', date=timezone.now() + timedelta(days=2), tags=['open-mic'])
+        order = Order.objects.create(event=mic, event_name=mic.name, customer_email='a@example.com',
+                                     currency='mxn', status=Order.COMPLETED, completed_at=timezone.now(),
+                                     locale='es')
+        page = self.client.get(f'/orders/{order.public_view_token}/').content.decode()
+        self.assertIn('¿Con sed?', page)
+        # Unprefixed, the same link the table codes carry, so it works in whichever language they read it.
+        self.assertIn(f'{SITE}/menu/', page)
+
+    def test_a_ticketed_show_is_not_sent_to_the_open_mic_bar_pitch(self):
+        order = Order.objects.create(event=self.event, event_name=self.event.name, customer_email='b@example.com',
+                                     currency='mxn', status=Order.COMPLETED, completed_at=timezone.now())
+        page = self.client.get(f'/orders/{order.public_view_token}/').content.decode()
+        self.assertNotIn('/menu/', page)
 
 
 class WalletTests(ApiTestCase):

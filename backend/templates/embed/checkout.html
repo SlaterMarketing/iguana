@@ -5,14 +5,14 @@
 <style>
   /* One card, one button: pick seats, fill in who you are, press the button that says what happens and what it costs. */
   [hidden] { display: none !important; }
-  .checkout { display: grid; gap: 18px; }
+  .checkout { display: grid; gap: 12px; }
   {% if embedded %}.checkout.card { border: 0; border-radius: 0; padding: 0; background: transparent; }{% endif %}
-  .types { display: grid; gap: 14px; }
+  .types { display: grid; gap: 10px; }
   .type + .type { border-top: 1px solid var(--line); padding-top: 14px; }
   .type-top { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
   .type-name { font-weight: 600; line-height: 1.25; }
   .type-meta { font-size: .85rem; margin-top: 2px; }
-  .type-desc { font-size: .85rem; margin-top: 8px; line-height: 1.4; }
+  .type-desc { font-size: .82rem; margin-top: 5px; line-height: 1.35; }
   .type-limit { font-size: .8rem; margin-top: 6px; color: var(--brand-hover); font-weight: 600; }
   .demand { display: grid; gap: 6px; margin: 0 0 4px; }
   .demand-track { height: 6px; border-radius: 999px; background: rgba(0,0,0,.08); overflow: hidden; }
@@ -27,15 +27,18 @@
   .qty button.plus { background: var(--ink); border-color: var(--ink); color: #fff; }
   .qty button[disabled] { opacity: .3; cursor: not-allowed; }
   .qty output { min-width: 2.2ch; text-align: center; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.15rem; }
-  .fields { display: grid; gap: 12px; }
-  .grid2 { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; }
-  @media (max-width: 480px) { .grid2 { grid-template-columns: 1fr; } }
-  input { min-height: 48px; font-size: 16px; }
+  .fields { display: grid; gap: 9px; }
+  .grid2 { display: grid; gap: 9px; grid-template-columns: 1fr 1fr; }
+  @media (max-width: 419px) { .grid2 { grid-template-columns: 1fr; } }
+  input { min-height: 42px; font-size: 16px; padding: 9px 12px; }
+  /* Tighter than the shared rule in base.html: this form is what an ad click is paying to reach, and every
+     row of slack is a row of scroll between the offer and the button. */
+  label { gap: 3px; font-size: .8rem; }
   .hint { font-size: .9rem; text-align: center; margin: 0; }
   .note { font-size: .85rem; margin: 0; }
-  .action { display: grid; gap: 10px; }
+  .action { display: grid; gap: 8px; }
   .action .error { margin: 0; }
-  #submit { flex-direction: column; gap: 4px; min-height: 60px; padding: 12px 20px; letter-spacing: 0; text-transform: none; font-size: 1.05rem; line-height: 1.2; background: var(--brand); }
+  #submit { flex-direction: column; gap: 2px; min-height: 52px; padding: 9px 20px; letter-spacing: 0; text-transform: none; font-size: 1.05rem; line-height: 1.2; background: var(--brand); }
   #submit:hover { background: var(--brand-hover); }
   #submit .sub { font-size: .85rem; font-weight: 500; opacity: .9; }
   /* Wallet buttons sit above the card fields, because a tap beats typing a card number on a phone. */

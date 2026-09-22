@@ -46,6 +46,18 @@ RESERVATION = {
 
 # The sale. Offered AFTER the details are filled in, because the reservation has to feel free to be worth
 # advertising as free; the drinks are what the night actually earns.
+# 🚨 OFF. Measured over the two days it ran on a free seat: 14 bookings, drinks pre-ordered by nobody, a 0%
+# attach rate. It also sat between the last form field and the reserve button, so every visitor paid for it in
+# scroll whether or not they wanted a drink.
+#
+# The offer was not wrong, the moment was. Somebody reserving a free seat three weeks out has not decided what
+# they are drinking. The menu now goes to them AFTER they reserve, on the order page and in the confirmation,
+# where they can also order from their table on the night.
+#
+# Turning it back on means flipping this and re-running the command; the existing rows are deactivated, not
+# deleted, so nothing already ordered loses its name.
+SELL_DRINKS_AT_CHECKOUT = False
+
 DRINKS = {
     # Priced per drink, because the stepper beside it counts whatever this row is. Sold as a bundle of two it
     # read "2 drinks" next to a 4, which is eight drinks, and nothing on the page said so.
@@ -227,7 +239,7 @@ class Command(BaseCommand):
         # The upsell. Only where a card can actually be taken, because an add-on nobody can pay for is worse
         # than no add-on: it puts a price on a page that advertises the night as free.
         drinks = None
-        if stripe_enabled():
+        if SELL_DRINKS_AT_CHECKOUT and stripe_enabled():
             known_drinks = [DRINKS['name'], DRINKS['name_es'], *DRINKS['legacy_names']]
             drinks = (event.ticket_types.filter(name__in=known_drinks, is_addon=True).first()
                       or TicketType(event=event))
@@ -241,6 +253,10 @@ class Command(BaseCommand):
             drinks.capacity = None
             drinks.active = True
             drinks.save()
+
+        if not SELL_DRINKS_AT_CHECKOUT:
+            known_drinks = [DRINKS['name'], DRINKS['name_es'], *DRINKS['legacy_names']]
+            event.ticket_types.filter(name__in=known_drinks, is_addon=True, active=True).update(active=False)
 
         keep = [reservation.pk] + ([drinks.pk] if drinks else [])
         others = event.ticket_types.exclude(pk__in=keep).filter(active=True)

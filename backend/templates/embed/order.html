@@ -45,6 +45,21 @@
         <div class="qr" data-qr="{{ request.scheme }}://{{ request.get_host }}{% url 'checkin' ticket.checkin_token %}" aria-label="{% t lang 'Check-in code' %}"></div>
       </section>
     {% endfor %}
+    {% comment %}
+      The bar, after the seat is held rather than before it. Selling drinks inside the checkout converted
+      nobody: somebody reserving a free seat three weeks out has not decided what they are drinking, and the
+      block sat between the last field and the reserve button, so every visitor paid for it in scroll.
+      Here it is a thing to look forward to, and on the night it is one tap from the table.
+    {% endcomment %}
+    {% if menu_url %}
+      <section class="card invite">
+        <h2>{% t lang "Thirsty?" %}</h2>
+        <p class="muted">{% t lang "Have a look at what is behind the bar. On the night you can order from your table with the code on it, so you do not have to get up during a set." %}</p>
+        <div class="invite-actions">
+          <a class="btn ghost" href="{{ menu_url }}">{% t lang "See the menu" %}</a>
+        </div>
+      </section>
+    {% endif %}
     {% if share_url %}
       <section class="card invite">
         <h2>{% t lang "Bringing someone?" %}</h2>

@@ -208,6 +208,13 @@ ES = {
     'Only {0} seats left of {1}': 'Solo quedan {0} lugares de {1}',
     '{0} of {1} seats taken': '{0} de {1} lugares apartados',
     # Invite a friend, after reserving (sales/sharing.py, templates/embed/order.html)
+    # The bar, offered after the seat is held rather than inside the checkout (templates/embed/order.html)
+    'Thirsty?': '¿Con sed?',
+    'Have a look at what is behind the bar. On the night you can order from your table with the code on it, so '
+    'you do not have to get up during a set.':
+        'Echa un ojo a lo que hay en la barra. La noche del show puedes pedir desde tu mesa con el código que '
+        'tiene, para no levantarte a media rutina.',
+    'See the menu': 'Ver el menú',
     'Bringing someone?': '¿Vienes con alguien?',
     'These nights fill up. Send this to whoever you want to bring and they can reserve their own free seat.':
         'Estas noches se llenan. Manda esto a quien quieras traer y aparta su lugar gratis.',
