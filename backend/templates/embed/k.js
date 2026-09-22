@@ -100,14 +100,18 @@
       iframe.src = A + "/embed/event/" + encodeURIComponent(id) + "?embedded=1&lang=" + encodeURIComponent(lang) + demand;
       iframe.title = el.getAttribute("aria-label") || "Ticket checkout";
       iframe.setAttribute("allow", "payment *");
-      iframe.style.cssText = "width:100%;border:0;display:block;min-height:200px;background:transparent";
+      // Reserve the height the checkout will actually be, not a 200px stub. The iframe grows to its content a
+      // second later, and on a page whose hero is sized by its contents that growth moved everything below it:
+      // it was 97% of this page's 0.213 CLS. A close estimate turns a 258px jump into a few pixels, and a host
+      // page can tune it with data-kintana-height when its checkout is taller or shorter than usual.
+      var reserved = parseInt(el.getAttribute("data-kintana-height") || "", 10) || 460;
+      iframe.style.cssText = "width:100%;border:0;display:block;background:transparent;height:" + reserved + "px";
       el.innerHTML = "";
       el.appendChild(iframe);
       window.addEventListener("message", function (e) {
         var d = e.data;
         if (d && d.type === "kintana-embed-height" && typeof d.height === "number" && e.source === iframe.contentWindow) {
           iframe.style.height = Math.max(160, d.height | 0) + "px";
-          iframe.style.minHeight = "0";
         }
       });
       iframe.addEventListener("load", function () {

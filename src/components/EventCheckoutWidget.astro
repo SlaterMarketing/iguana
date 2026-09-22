@@ -29,7 +29,10 @@ const { eventId, locale = "en", blocked = false, ownDemandLine = false, class: c
       data-kintana-demand={ownDemandLine ? "off" : undefined}
       aria-label={t(locale, "aria.ticketCheckout")}
     >
-      <p class="px-8 py-10 text-center text-sm text-neutral-500">{t(locale, "tickets.loading")}</p>
+      {/* Holds the height the checkout will be, so the page does not jump when the iframe replaces it. */}
+      <p class="flex min-h-[460px] items-center justify-center px-8 text-center text-sm text-neutral-500">
+        {t(locale, "tickets.loading")}
+      </p>
     </div>
   )
 }

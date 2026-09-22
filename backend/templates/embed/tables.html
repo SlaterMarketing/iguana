@@ -1,0 +1,61 @@
+{% extends "embed/base.html" %}
+{% load showtime %}
+{% block title %}{% t lang "Tables" %} · Iguana Comedy{% endblock %}
+{% block head %}
+<meta http-equiv="refresh" content="20">
+<style>
+  /* Read on a phone, in a dark room, by somebody holding a tray. Big numbers, one colour that means one thing. */
+  .wrap { max-width: 900px; }
+  .board { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .t { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: #fff; }
+  .t.open { border-color: var(--brand); background: var(--brand-soft); }
+  .t.late { border-color: #b7791f; background: #fdf6e7; }
+  .t .no { font-family: "Bebas Neue", sans-serif; font-size: 2rem; line-height: 1; }
+  .t .due { font-weight: 700; font-size: 1.05rem; margin-top: 2px; }
+  .t .what { font-size: .85rem; color: var(--muted); margin-top: 6px; line-height: 1.35; }
+  .t .when { font-size: .75rem; font-weight: 600; text-transform: uppercase; letter-spacing: .1em; margin-top: 6px; }
+  .t.late .when { color: #8a5a00; }
+  .t.quiet { opacity: .45; }
+  .t form { margin-top: 10px; }
+  .t button { width: 100%; min-height: 44px; border: 0; border-radius: 999px; background: var(--ink); color: #fff;
+              font: 700 .72rem/1 inherit; letter-spacing: .18em; text-transform: uppercase; cursor: pointer; }
+  .t button:hover { background: var(--brand-hover); }
+  .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="stack">
+  <div class="head">
+    <div>
+      <p class="eyebrow">Iguana Comedy</p>
+      <h1>{% t lang "Tables" %}</h1>
+    </div>
+    <p class="muted">
+      {% if open_count %}{% t lang "{0} waiting" open_count %}{% else %}{% t lang "Nothing waiting" %}{% endif %}
+    </p>
+  </div>
+
+  <div class="board">
+    {% for t in tables %}
+      <div class="t {% if t.orders %}open{% endif %} {% if t.late %}late{% endif %} {% if not t.orders %}quiet{% endif %}">
+        <p class="no">{% t lang "Table" %} {{ t.number }}</p>
+        {% if t.orders %}
+          <p class="due">{{ t.due }}</p>
+          <p class="what">{{ t.items }}</p>
+          <p class="when">{% if t.waited < 1 %}{% t lang "just now" %}{% else %}{% t lang "{0} min ago" t.waited %}{% endif %}</p>
+          <form method="post" action="{% url 'close-table' t.number %}">
+            {% csrf_token %}
+            <button type="submit">{% t lang "Delivered" %}</button>
+          </form>
+        {% else %}
+          <p class="what">{% t lang "Nothing ordered" %}</p>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <p class="muted" style="font-size:.8rem">
+    {% t lang "This page refreshes itself. A table disappears once it is marked delivered." %}
+  </p>
+</div>
+{% endblock %}

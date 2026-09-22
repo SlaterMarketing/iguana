@@ -22,7 +22,8 @@ const copy = {
     send: (total: string) => `Send to the bar · ${total}`,
     sending: "Sending…",
     empty: "Tap + on anything you want",
-    payAtTable: "You pay at the table, as usual.",
+    payAtTable: "You pay at the table at the end of the night, all together.",
+    houseRules: "Phones on silent please, and no recording during the show.",
     failed: "That did not send. Try again, or wave at the bar.",
     again: "Order something else",
     sentFallback: "Order sent to the bar.",
@@ -37,7 +38,8 @@ const copy = {
     send: (total: string) => `Enviar a la barra · ${total}`,
     sending: "Enviando…",
     empty: "Toca + en lo que quieras",
-    payAtTable: "Pagas en la mesa, como siempre.",
+    payAtTable: "Pagas en la mesa al final de la noche, todo junto.",
+    houseRules: "Pon el celular en silencio, por favor, y no grabes durante el show.",
     failed: "No se envió. Inténtalo otra vez o haz una señal en la barra.",
     again: "Pedir algo más",
     sentFallback: "Pedido enviado a la barra.",
@@ -109,6 +111,7 @@ export function TableOrderIsland({ locale, table: fixedTable, menu, baseUrl, api
       <div className="rounded-3xl border border-brand/40 bg-brand/10 px-6 py-8 text-center">
         <p className="text-lg font-semibold text-neutral-950">{sent}</p>
         <p className="mt-2 text-sm text-neutral-700">{t.payAtTable}</p>
+        <p className="mt-1 text-sm text-neutral-700">{t.houseRules}</p>
         <button
           type="button"
           className="mt-6 rounded-full bg-neutral-950 px-8 py-3 text-xs font-semibold uppercase tracking-[0.3em] text-white"
@@ -188,6 +191,10 @@ export function TableOrderIsland({ locale, table: fixedTable, menu, baseUrl, api
         />
       </label>
 
+      <p className="rounded-2xl bg-neutral-100 px-4 py-3 text-sm text-neutral-700">
+        {t.payAtTable} {t.houseRules}
+      </p>
+
       {error ? <p className="text-sm font-semibold text-red-700">{error}</p> : null}
 
       {/* Sticky, because the list is longer than a phone and the whole idea is one tap from anywhere in it. */}
@@ -200,9 +207,7 @@ export function TableOrderIsland({ locale, table: fixedTable, menu, baseUrl, api
         >
           {busy ? t.sending : chosen ? t.send(total) : t.empty}
         </button>
-        <p className="mt-2 text-center text-xs text-neutral-600">
-          {table ? `${t.at(table)} · ` : ""}{t.payAtTable}
-        </p>
+        {table ? <p className="mt-2 text-center text-xs text-neutral-600">{t.at(table)}</p> : null}
       </div>
     </div>
   );

@@ -215,6 +215,17 @@ ES = {
         'Echa un ojo a lo que hay en la barra. La noche del show puedes pedir desde tu mesa con el código que '
         'tiene, para no levantarte a media rutina.',
     'See the menu': 'Ver el menú',
+    # The bar's board (api/tables_views.py, templates/embed/tables.html)
+    'Tables': 'Mesas',
+    'Table': 'Mesa',
+    '{0} waiting': '{0} esperando',
+    'Nothing waiting': 'Nada esperando',
+    'Nothing ordered': 'Sin pedidos',
+    'just now': 'ahora mismo',
+    '{0} min ago': 'hace {0} min',
+    'Delivered': 'Entregado',
+    'This page refreshes itself. A table disappears once it is marked delivered.':
+        'Esta página se actualiza sola. Una mesa desaparece al marcarla como entregada.',
     'Bringing someone?': '¿Vienes con alguien?',
     'These nights fill up. Send this to whoever you want to bring and they can reserve their own free seat.':
         'Estas noches se llenan. Manda esto a quien quieras traer y aparta su lugar gratis.',
