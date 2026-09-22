@@ -75,6 +75,8 @@ def report_payment_info_added(order):
     which was wrong twice over: Meta means that event for entering a checkout, not finishing one, and the ad
     sets optimise on it precisely because it should be commoner than Purchase. Fired here it was almost as rare,
     so the campaigns had nothing to learn from. `report_checkout_engaged` is the real one now."""
+    if is_probe(order):
+        return
     meta_capi.send('AddPaymentInfo', event_id=f'api-{order.id}', user=_user(order), custom=_custom(order),
                    source_url=_source_url(order))
 
@@ -98,7 +100,20 @@ def report_checkout_engaged(*, event, attribution, visitor, user_agent, value_ce
     }, source_url=attribution.get('pageUrl', ''))
 
 
+# The end-to-end test books a real seat through the real checkout, which is the whole point of it: nothing else
+# proves the thing the ads are paying for actually works. But a test booking is not a sale, and Meta cannot be
+# told to forget one. Left unfiltered it taught the algorithm that a run of the test suite was a customer, and
+# it flattered the cost per reservation the campaigns are judged on.
+PROBE_EMAIL_PREFIX = 'e2e-'
+
+
+def is_probe(order):
+    return str(order.customer_email or '').lower().startswith(PROBE_EMAIL_PREFIX)
+
+
 def report_purchase(order):
     """One Purchase per order, keyed on the order id so a Stripe webhook retry cannot double-count it."""
+    if is_probe(order):
+        return
     meta_capi.send('Purchase', event_id=f'purchase-{order.id}', user=_user(order), custom=_custom(order),
                    source_url=_source_url(order))

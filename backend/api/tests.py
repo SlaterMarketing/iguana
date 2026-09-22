@@ -1532,6 +1532,41 @@ class OpenMicSetupTests(TestCase):
             self.assertNotRegex(name, r'^\s*\d', f'{name!r} names a quantity the stepper already shows')
 
 
+class ProbeOrderTests(ApiTestCase):
+    """The end-to-end test books a real seat, and a test booking must never reach Meta as a sale."""
+
+    def _order(self, email):
+        return Order.objects.create(event=self.event, event_name=self.event.name, customer_email=email,
+                                    currency='mxn', status=Order.COMPLETED, completed_at=timezone.now())
+
+    def test_a_test_booking_is_not_reported_as_a_sale(self):
+        """Meta cannot be told to forget a Purchase. Left unfiltered, a run of the suite taught the algorithm
+        that a robot was a customer and flattered the cost per reservation the campaigns are judged on."""
+        from sales.ad_reporting import report_purchase
+
+        with patch('crm.meta_capi.send') as send:
+            report_purchase(self._order('e2e-seat-123@iguanacomedy.com'))
+        send.assert_not_called()
+
+    def test_a_real_booking_still_is(self):
+        from sales.ad_reporting import report_purchase
+
+        with patch('crm.meta_capi.send') as send:
+            report_purchase(self._order('someone@example.com'))
+        send.assert_called_once()
+        self.assertEqual(send.call_args[0][0], 'Purchase')
+
+    def test_the_marker_matches_what_the_test_actually_sends(self):
+        """If the e2e script's address ever stops starting with the prefix, this filter silently stops working
+        and nothing fails: the only symptom is a slowly inflating purchase count."""
+        import pathlib
+
+        script = (pathlib.Path(__file__).resolve().parent.parent.parent / 'tests' / 'reserve-flow.mjs').read_text()
+        from sales.ad_reporting import PROBE_EMAIL_PREFIX
+
+        self.assertIn(f'`{PROBE_EMAIL_PREFIX}', script, 'the e2e booking address must carry the probe prefix')
+
+
 class RevenuePageTests(ApiTestCase):
     """The staff revenue page. Its whole job is to be true, so the tests are about what it must never say."""
 
