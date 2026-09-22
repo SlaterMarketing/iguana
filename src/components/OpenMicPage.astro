@@ -169,7 +169,7 @@ const pressure = selected ? demandLine(selected, locale) : null;
 
   {/* One column, one form. Two checkouts side by side made the visitor choose before they could act, and gave
       half the page to a night in a language they do not speak. */}
-  <section class="mx-auto max-w-xl px-4 pb-14 pt-3 sm:px-6 sm:pt-5">
+  <section class="mx-auto max-w-xl px-4 pb-14 pt-3 sm:px-6 sm:pt-4">
     <div class="overflow-hidden rounded-[1.75rem] border border-black/10 bg-white">
       <div class="grid grid-cols-2 border-b border-black/10">
         {
@@ -190,7 +190,7 @@ const pressure = selected ? demandLine(selected, locale) : null;
 
       {/* The tab already names the night, so this says only what the tab cannot: when it is, and what it costs.
           Every line here pushes the card form further from the ad click that paid for it. */}
-      <div class="border-b border-black/10 px-5 py-3 text-center">
+      <div class="border-b border-black/10 px-5 py-2 text-center sm:py-3">
         <p class="text-sm text-neutral-600">
           <span class="font-semibold text-neutral-900">{selected ? formatEventDate(selected.date, locale) : night.show}</span>
           <span> · {night.detail}</span>
@@ -221,7 +221,7 @@ const pressure = selected ? demandLine(selected, locale) : null;
 
       {
         dateChoices.length > 1 ? (
-          <div class="border-b border-black/10 px-4 py-2.5">
+          <div class="border-b border-black/10 px-4 py-1.5 sm:py-2.5">
             <p class="text-center text-[0.6rem] font-semibold uppercase tracking-[0.2em] text-neutral-500">
               {copy.pickDate}
             </p>

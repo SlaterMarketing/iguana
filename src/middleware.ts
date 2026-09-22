@@ -22,7 +22,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   // The menu QR codes are printed once and stuck to a table, so they carry no locale: `/menu/7/` picks a
   // language the same way `/` does and keeps working for a Spanish local and an English tourist at the same
   // table. Re-printing a hundred stickers to change a language prefix is not a thing anyone should have to do.
-  const unprefixedMenu = /^\/menu(?:\/(?:[0-9]{1,3}(?:\/qr)?)?)?\/?$/.exec(pathname);
+  const unprefixedMenu = /^\/menu(?:\/(?:qr|[0-9]{1,3}(?:\/qr)?)?)?\/?$/.exec(pathname);
   if (unprefixedMenu) {
     const locale = resolveRootLocale({
       preferenceCookie: context.cookies.get(LOCALE_PREFERENCE_COOKIE)?.value,

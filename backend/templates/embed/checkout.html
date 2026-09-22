@@ -5,9 +5,9 @@
 <style>
   /* One card, one button: pick seats, fill in who you are, press the button that says what happens and what it costs. */
   [hidden] { display: none !important; }
-  .checkout { display: grid; gap: 12px; }
+  .checkout { display: grid; gap: 10px; }
   {% if embedded %}.checkout.card { border: 0; border-radius: 0; padding: 0; background: transparent; }{% endif %}
-  .types { display: grid; gap: 10px; }
+  .types { display: grid; gap: 8px; }
   .type + .type { border-top: 1px solid var(--line); padding-top: 14px; }
   .type-top { display: flex; gap: 12px; align-items: center; justify-content: space-between; }
   .type-name { font-weight: 600; line-height: 1.25; }
@@ -36,9 +36,9 @@
   label { gap: 3px; font-size: .8rem; }
   .hint { font-size: .9rem; text-align: center; margin: 0; }
   .note { font-size: .85rem; margin: 0; }
-  .action { display: grid; gap: 8px; }
+  .action { display: grid; gap: 6px; }
   .action .error { margin: 0; }
-  #submit { flex-direction: column; gap: 2px; min-height: 52px; padding: 9px 20px; letter-spacing: 0; text-transform: none; font-size: 1.05rem; line-height: 1.2; background: var(--brand); }
+  #submit { flex-direction: column; gap: 2px; min-height: 50px; padding: 8px 20px; letter-spacing: 0; text-transform: none; font-size: 1.05rem; line-height: 1.2; background: var(--brand); }
   #submit:hover { background: var(--brand-hover); }
   #submit .sub { font-size: .85rem; font-weight: 500; opacity: .9; }
   /* Wallet buttons sit above the card fields, because a tap beats typing a card number on a phone. */

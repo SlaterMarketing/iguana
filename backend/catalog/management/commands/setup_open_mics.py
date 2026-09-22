@@ -169,7 +169,9 @@ class Command(BaseCommand):
         with transaction.atomic():
             for event, series in found:
                 self.stdout.write(self.setup(event, series, opts))
-            mode = 'paid at the door' if opts['pay_at_door'] else 'free, drinks sold as an upsell'
+            mode = ('paid at the door' if opts['pay_at_door'] else
+                    'free, drinks sold as an upsell' if SELL_DRINKS_AT_CHECKOUT else
+                    'free, menu sent after booking')
             self.stdout.write(f'{len(found)} open mic night(s) from {start}, reservations {mode}')
             if opts['dry_run']:
                 transaction.set_rollback(True)
@@ -266,7 +268,8 @@ class Command(BaseCommand):
 
         venue = event.venue.name if event.venue else event.venue_label or 'no venue'
         price = 'free' if not reservation.price_cents else f'{reservation.price_cents / 100:g} {event.currency.upper()}'
-        addon = f'+ {drinks.price_cents / 100:g} {event.currency.upper()} drinks' if drinks else 'no drinks (no Stripe)'
+        addon = (f'+ {drinks.price_cents / 100:g} {event.currency.upper()} drinks' if drinks else
+                 'no checkout drinks' if not SELL_DRINKS_AT_CHECKOUT else 'no drinks (no Stripe)')
         return (f'{event.date.astimezone(CANCUN):%a %Y-%m-%d} {event.name:26} {event.status:7} {venue:14} '
                 f'{price:>5} x {reservation.capacity} seats, {booked} booked, {addon}'
                 + (f' | {"; ".join(notes)}' if notes else ''))
