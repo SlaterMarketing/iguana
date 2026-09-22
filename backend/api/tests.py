@@ -1331,6 +1331,52 @@ class DemandLineTests(ApiTestCase):
         self.assertEqual(d['recentWindow'], 'in the last day',
                          'two bookings from yesterday must never be called "the last hour"')
 
+    def test_the_window_shown_is_the_one_holding_the_most(self):
+        """Two in the last hour and two more this afternoon is four people, not two.
+
+        Preferring the tightest window that cleared the floor threw the older pair away and advertised the
+        smaller number. Every window here is a true statement about the same orders; this picks the fullest.
+        """
+        from sales.demand import demand
+
+        self.reserve(2, 'a@example.com', timedelta(minutes=30))
+        self.reserve(2, 'b@example.com', timedelta(hours=4))
+        d = demand(self.mic)
+        self.assertEqual((d['recent'], d['recentWindow']), (4, 'in the last few hours'))
+
+    def test_a_window_can_never_claim_more_than_it_holds(self):
+        """The rule it replaced existed to stop "the last hour" describing something that took a day. It still
+        cannot: a window is only ever offered its own count."""
+        from sales.demand import demand
+
+        self.reserve(3, 'a@example.com', timedelta(hours=20))
+        d = demand(self.mic)
+        self.assertEqual(d['recentWindow'], 'in the last day')
+        self.assertEqual(d['recentByWindow']['in the last hour'], 0)
+
+    def test_every_window_is_published_so_a_page_can_add_nights_up(self):
+        """The home page shows one line for both nights. Without the per-window counts it had to sum each
+        night's own window and label the total with the widest, which undercounts: 4 and 3 came out as 5."""
+        from sales.demand import demand, demand_for
+
+        other = Event.objects.create(name='Other mic', slug='mic-demand-2', status=Event.ACTIVE, venue=self.venue,
+                                     currency='mxn', date=timezone.now() + timedelta(days=3), tags=['open-mic'])
+        seat = TicketType.objects.create(event=other, name='Free reserved seat', price_cents=0, capacity=60)
+        from sales.models import Order, OrderItem
+        for i, ago in enumerate((timedelta(hours=3), timedelta(hours=3), timedelta(hours=3))):
+            o = Order.objects.create(event=other, event_name=other.name, customer_email=f'o{i}@example.com',
+                                     currency='mxn', status=Order.COMPLETED, completed_at=timezone.now() - ago)
+            OrderItem.objects.create(order=o, ticket_type=seat, name='seat', quantity=1, unit_price_cents=0)
+
+        self.reserve(2, 'a@example.com', timedelta(minutes=30))   # this night narrows to the hour
+        self.reserve(2, 'b@example.com', timedelta(hours=4))
+
+        mine = demand(self.mic)
+        theirs = demand_for([self.mic, other])[other.id]
+        total = mine['recentByWindow']['in the last few hours'] + theirs['recentByWindow']['in the last few hours']
+        self.assertEqual(total, 7, 'four seats and three seats is seven, whatever each night calls its own window')
+        self.assertEqual(demand_for([self.mic, other])[self.mic.id], mine, 'and both code paths agree')
+
     def test_a_single_booking_says_nothing(self):
         from sales.demand import demand
 

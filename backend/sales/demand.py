@@ -3,9 +3,13 @@
 Urgency only works when it is true. Everything here is counted from completed orders, and the claim shown to a
 visitor is chosen to match the numbers rather than the numbers being chosen to suit a claim:
 
-  - the window for "N reserved recently" is the TIGHTEST of an hour, six hours or a day that genuinely holds
-    enough bookings to be worth saying. If two people booked in the last hour it says the last hour; if they
-    booked yesterday it says the last day. It never says "the last hour" about something that took a day.
+  - "N reserved recently" is counted over an hour, six hours and a day, and the window shown is the one that
+    holds the MOST bookings, ties going to the tighter one. All three are true statements about the same
+    orders, so this picks the most informative of them rather than the most flattering: a window can never
+    claim more than its own count, so "the last hour" can never describe something that took a day. Preferring
+    the tightest instead used to throw bookings away, and across two nights it threw them away twice: four
+    Tuesday seats and three Wednesday ones were being advertised as "5 in the last few hours" because
+    Tuesday's own window had narrowed to the hour. The real number was 7.
   - nothing is shown at all below a floor, because "1 reserved in the last day" is an advert for an empty room.
   - the progress bar appears only once a third of the seats have gone. A bar showing 2 of 60 tells somebody the
     room will be empty, which is the opposite of the thing we are trying to say, and it would be true.
@@ -19,7 +23,7 @@ from django.utils import timezone
 from catalog.models import TicketType
 from sales.models import Order, OrderItem
 
-# Tightest first. Each is (hours, the key the widget translates).
+# Tightest first, which is also the tie-break order. Each is (hours, the key the widget translates).
 WINDOWS = ((1, 'in the last hour'), (6, 'in the last few hours'), (24, 'in the last day'))
 # Below this a count is not social proof, it is an admission.
 MIN_RECENT = 2
@@ -45,13 +49,10 @@ def demand(event):
     completed = OrderItem.objects.filter(order__event=event, order__status=Order.COMPLETED)
     taken = _seats(completed)
 
-    recent, window = 0, ''
     now = timezone.now()
-    for hours, label in WINDOWS:
-        count = _seats(completed.filter(order__completed_at__gte=now - timedelta(hours=hours)))
-        if count >= MIN_RECENT:
-            recent, window = count, label
-            break
+    by_window = {label: _seats(completed.filter(order__completed_at__gte=now - timedelta(hours=hours)))
+                 for hours, label in WINDOWS}
+    recent, window = _best_window(by_window)
 
     return {
         'capacity': capacity,
@@ -61,7 +62,21 @@ def demand(event):
         'showBar': taken / capacity >= BAR_FROM,
         'recent': recent,
         'recentWindow': window,
+        # All three, so a page showing several nights can add them up over the SAME window. Summing each
+        # night's own chosen window and labelling the total with the widest of them undercounts, which is how
+        # 7 bookings were being advertised as 5.
+        'recentByWindow': by_window,
     }
+
+
+def _best_window(by_window):
+    """The window carrying the most bookings, ties to the tighter one, or nothing if none clears the floor."""
+    best, label = 0, ''
+    for _, candidate in WINDOWS:
+        count = by_window.get(candidate, 0)
+        if count >= MIN_RECENT and count > best:
+            best, label = count, candidate
+    return best, label
 
 
 def demand_for(events):
@@ -80,16 +95,16 @@ def demand_for(events):
             capacities[t.event_id] = capacities.get(t.event_id, 0) + t.capacity
 
     now = timezone.now()
-    taken, recent = {}, {h: {} for h, _ in WINDOWS}
+    taken, recent = {}, {label: {} for _, label in WINDOWS}
     rows = (OrderItem.objects
             .filter(order__event__in=events, order__status=Order.COMPLETED)
             .exclude(ticket_type__is_addon=True)
             .values_list('order__event_id', 'quantity', 'order__completed_at'))
     for event_id, quantity, completed in rows:
         taken[event_id] = taken.get(event_id, 0) + quantity
-        for hours, _ in WINDOWS:
+        for hours, label in WINDOWS:
             if completed and completed >= now - timedelta(hours=hours):
-                recent[hours][event_id] = recent[hours].get(event_id, 0) + quantity
+                recent[label][event_id] = recent[label].get(event_id, 0) + quantity
 
     out = {}
     for event in events:
@@ -97,13 +112,11 @@ def demand_for(events):
         if not capacity:
             continue
         got = taken.get(event.id, 0)
-        count, window = 0, ''
-        for hours, label in WINDOWS:
-            if recent[hours].get(event.id, 0) >= MIN_RECENT:
-                count, window = recent[hours][event.id], label
-                break
+        by_window = {label: recent[label].get(event.id, 0) for _, label in WINDOWS}
+        count, window = _best_window(by_window)
         out[event.id] = {
             'capacity': capacity, 'taken': got, 'left': max(0, capacity - got),
             'showBar': got / capacity >= BAR_FROM, 'recent': count, 'recentWindow': window,
+            'recentByWindow': by_window,
         }
     return out

@@ -21,6 +21,8 @@ export type EventDemand = {
   recent: number;
   /** The English window key the backend chose; both languages map it through `WINDOW_KEYS`. */
   recentWindow: string;
+  /** Every window's count, so several nights can be added up over the SAME window. */
+  recentByWindow: Record<string, number>;
 };
 
 /** The SDK's event type is fixed and does not know about this field, so read it off the payload by hand. */
@@ -36,6 +38,7 @@ export function eventDemand(evt: KintanaPublicEvent): EventDemand | null {
     showBar: Boolean(d.showBar),
     recent: Number(d.recent ?? 0),
     recentWindow: String(d.recentWindow ?? ""),
+    recentByWindow: (d.recentByWindow && typeof d.recentByWindow === "object" ? d.recentByWindow : {}) as Record<string, number>,
   };
 }
 
@@ -78,8 +81,10 @@ export function demandLine(evt: KintanaPublicEvent, locale: Locale): DemandLine 
   return { text, tight, fill: d.showBar ? Math.min(100, Math.round((d.taken / d.capacity) * 100)) : null };
 }
 
-/** Tightest first, matching WINDOWS in `backend/sales/demand.py`. */
+/** Tightest first, matching WINDOWS in `backend/sales/demand.py`; also the tie-break order. */
 const WINDOW_ORDER = ["in the last hour", "in the last few hours", "in the last day"];
+/** Matches MIN_RECENT there. Below this a count is not social proof, it is an admission. */
+const MIN_RECENT = 2;
 
 /**
  * One sentence about the open mics as a whole, rather than one per night.
@@ -88,17 +93,27 @@ const WINDOW_ORDER = ["in the last hour", "in the last few hours", "in the last 
  * few hours", "Wed · 3 people reserved in the last few hours") says the same thing twice and reads as filler.
  * Added together it is a bigger number, one line, and the same fact.
  *
- * When the nights sit in different windows the WIDER one is used, which understates rather than overstates: two
- * people who booked in the last hour also booked in the last day, so the sentence stays true.
+ * The nights are added up over the SAME window, which is the whole reason the API sends every window's count.
+ * Summing each night's own chosen window instead and labelling the total with the widest of them undercounts:
+ * four Tuesday seats and three Wednesday ones came out as "5 in the last few hours" because Tuesday's own
+ * window had narrowed to the hour. It was 7.
  */
 export function combinedRecentLine(events: KintanaPublicEvent[], locale: Locale): string | null {
-  const counted = events
-    .map(eventDemand)
-    .filter((d): d is EventDemand => Boolean(d) && d!.recent >= 2 && WINDOW_ORDER.includes(d!.recentWindow));
+  const counted = events.map(eventDemand).filter((d): d is EventDemand => Boolean(d));
   if (!counted.length) return null;
 
-  const total = counted.reduce((sum, d) => sum + d.recent, 0);
-  const widest = counted.reduce((worst, d) => Math.max(worst, WINDOW_ORDER.indexOf(d.recentWindow)), 0);
-  const window = t(locale, WINDOW_KEYS[WINDOW_ORDER[widest] as keyof typeof WINDOW_KEYS]);
-  return t(locale, "demand.recent", { count: String(total), window });
+  // Same rule as one night: the window holding the most bookings, ties to the tighter one.
+  let best = 0;
+  let window = "";
+  for (const candidate of WINDOW_ORDER) {
+    const total = counted.reduce((sum, d) => sum + (Number(d.recentByWindow[candidate]) || 0), 0);
+    if (total >= MIN_RECENT && total > best) {
+      best = total;
+      window = candidate;
+    }
+  }
+  if (!window) return null;
+
+  const when = t(locale, WINDOW_KEYS[window as keyof typeof WINDOW_KEYS]);
+  return t(locale, "demand.recent", { count: String(best), window: when });
 }
