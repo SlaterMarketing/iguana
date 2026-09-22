@@ -98,7 +98,9 @@ export function eventSchema(event: KintanaPublicEvent, origin: string, pageUrl: 
     name: event.name,
     url: pageUrl,
     startDate: start,
-    endDate: instant(event.date, event.endTime) ?? undefined,
+    // Only when there IS an end time. Without one `instant` returns the bare date, which is midnight, which is
+    // before the start and reads to a search engine as a show that ends four hours before it begins.
+    ...(event.endTime?.trim() ? { endDate: instant(event.date, event.endTime) ?? undefined } : {}),
     // Nothing here is streamed, and saying so is what keeps a listing out of the online-events bucket.
     eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
     eventStatus: STATUS[event.status as keyof typeof STATUS] ?? "https://schema.org/EventScheduled",
