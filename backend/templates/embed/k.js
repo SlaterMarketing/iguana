@@ -113,17 +113,18 @@
       iframe.style.cssText = "width:100%;border:0;display:block;background:transparent;height:" + reserved + "px";
       el.innerHTML = "";
       el.appendChild(iframe);
-      // The reserve is a floor as well as a starting point. What Stripe draws is not knowable from here: a
-      // wallet row appears only on a device that has a wallet, and Link only for an email it recognises. The
-      // reserve holds the tallest case, so on a device that draws less the iframe keeps the space rather than
-      // shrinking and pulling the page up. Once the content has actually reached the reserve the floor is
-      // released, because a change after that is the customer editing their order, not the form arriving.
+      // The reserve is a floor as well as a starting point, but only while the form is still arriving. What
+      // Stripe draws is not knowable from here: a wallet row appears only on a device that has a wallet, and
+      // Link only for an email it recognises. So the space is held until the checkout says it has settled,
+      // and then the box fits its contents exactly. Holding the floor after that would leave white space
+      // above the Pay button on any browser that drew a shorter form, which looks broken in a way a brief
+      // movement does not.
       var settled = false;
       window.addEventListener("message", function (e) {
         var d = e.data;
         if (d && d.type === "kintana-embed-height" && typeof d.height === "number" && e.source === iframe.contentWindow) {
           var h = Math.max(160, d.height | 0);
-          if (h >= reserved) settled = true;
+          if (d.settled || h >= reserved) settled = true;
           iframe.style.height = (settled ? h : Math.max(h, reserved)) + "px";
         }
       });

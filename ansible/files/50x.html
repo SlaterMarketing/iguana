@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <!-- The page brings itself back rather than waiting to be reloaded: most outages here are a restart. -->
+    <meta http-equiv="refresh" content="20" />
+    <title>Iguana Comedy</title>
+    <style>
+      :root { color-scheme: dark; --brand: #3f7d3e; }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+        padding: 24px; background: #0a0a0a; color: #fff; text-align: center;
+        font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      }
+      .card { width: 100%; max-width: 32rem; }
+      .mark {
+        font-size: clamp(1.6rem, 6vw, 2.4rem); font-weight: 800; letter-spacing: 0.22em;
+        text-transform: uppercase; margin: 0 0 28px;
+      }
+      .mark span { color: var(--brand); }
+      h1 { font-size: clamp(1.25rem, 4.5vw, 1.6rem); line-height: 1.25; margin: 0 0 10px; }
+      p { margin: 0 0 6px; color: rgba(255, 255, 255, 0.78); line-height: 1.55; }
+      .block + .block { margin-top: 26px; padding-top: 26px; border-top: 1px solid rgba(255, 255, 255, 0.14); }
+      .safe { color: #fff; font-weight: 600; }
+      .actions { margin-top: 30px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+      a.btn {
+        display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 22px;
+        border-radius: 999px; background: var(--brand); color: #0a0a0a; font-weight: 700; text-decoration: none;
+        font-size: 0.9rem; letter-spacing: 0.08em; text-transform: uppercase;
+      }
+      a.ghost { background: transparent; color: #fff; border: 1px solid rgba(255, 255, 255, 0.35); }
+      .foot { margin-top: 26px; font-size: 0.85rem; color: rgba(255, 255, 255, 0.6); }
+      .foot a { color: rgba(255, 255, 255, 0.85); }
+    </style>
+  </head>
+  <body>
+    <main class="card">
+      <p class="mark">Iguana <span>Comedy</span></p>
+
+      <div class="block">
+        <h1>Volvemos en un momento</h1>
+        <p>Estamos haciendo mantenimiento del sitio. Esta página se actualiza sola.</p>
+        <p class="safe">Tus boletos y reservaciones están a salvo.</p>
+      </div>
+
+      <div class="block" lang="en">
+        <h1>Back in a moment</h1>
+        <p>The site is being worked on. This page refreshes itself.</p>
+        <p class="safe">Your tickets and reservations are safe.</p>
+      </div>
+
+      <div class="actions">
+        <a class="btn" href="/">Reintentar / Try again</a>
+        <a class="ghost btn" href="https://www.instagram.com/iguanacomedy/" rel="noreferrer noopener">Instagram</a>
+      </div>
+
+      <p class="foot">
+        <a href="mailto:hello@iguanacomedy.com">hello@iguanacomedy.com</a>
+      </p>
+    </main>
+  </body>
+</html>

@@ -2171,13 +2171,15 @@ class CheckoutReserveTests(ApiTestCase):
         data = self.api('get', f'/api/public/v1/events/{self.event.id}').json()['event']
         self.assertFalse(data['collectsPayment'])
 
-    @override_settings(STRIPE_SECRET_KEY='sk_test_x', STRIPE_PUBLISHABLE_KEY='pk_test_x')
-    def test_checkout_reserves_the_card_form_height_from_first_paint(self):
-        """Without this the Pay button sits under the email field and drops most of a screen when Stripe draws."""
-        html = self.client.get(f'/embed/event/{self.event.id}?embedded=1&lang=en').content.decode()
-        self.assertIn('<div id="payment-element" class="reserve">', html)
-        self.assertIn('#payment-element.reserve { min-height:', html)
-
-    def test_free_checkout_reserves_nothing(self):
+    def test_the_card_form_is_never_pinned_to_a_height(self):
+        """Stripe sizes its own element. Anything we pin it to is a guess, and a guess that overshoots shows
+        up as a white hole above the Pay button, which looks broken in a way a brief movement does not."""
         html = self.client.get(f'/embed/event/{self.event.id}?embedded=1&lang=en').content.decode()
         self.assertIn('<div id="payment-element" hidden>', html)
+        self.assertNotIn('#payment-element.reserve', html)
+
+    def test_the_checkout_says_when_it_has_settled(self):
+        """That is the signal the page waits for before it stops holding space open."""
+        html = self.client.get(f'/embed/event/{self.event.id}?embedded=1&lang=en').content.decode()
+        self.assertIn('settled: settled', html)
+        self.assertIn('card.on("ready", settleWhenStable)', html)

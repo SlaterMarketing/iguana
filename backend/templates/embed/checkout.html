@@ -45,13 +45,6 @@
   .express { display: grid; gap: 10px; }
   .express-or { display: flex; align-items: center; gap: 10px; margin: 0; font-size: .85rem; color: var(--muted, #666); }
   .express-or::before, .express-or::after { content: ""; flex: 1; height: 1px; background: rgba(0,0,0,.12); }
-  /* Hold the card form's height from the first paint. It can only mount once the quote comes back, and
-     until it does there is nothing to size the space: without this the Pay button sits under the email
-     field and then drops most of a screen the moment Stripe draws, which is the worst possible moment to
-     move a button. Heights measured on the live checkout 2026-09-23, by the width the form wraps to. */
-  #payment-element.reserve { min-height: 710px; }
-  @media (min-width: 400px) { #payment-element.reserve { min-height: 650px; } }
-  @media (min-width: 600px) { #payment-element.reserve { min-height: 570px; } }
   .dev { border: 1px dashed #b7791f; background: #fffaf0; border-radius: 12px; padding: 8px 12px; font-size: .8rem; margin: 0; }
 </style>
 {% endblock %}
@@ -93,7 +86,7 @@
         <div id="express-checkout"></div>
         <p class="express-or">{% t lang "or pay by card" %}</p>
       </div>
-      <div id="payment-element"{% if collects_payment %} class="reserve"{% else %} hidden{% endif %}></div>
+      <div id="payment-element" hidden></div>
     </div>
     <div class="action" id="action" hidden>
       <p class="note ok" id="member-note" hidden>{% t lang "Member pricing applied." %}</p>
@@ -120,7 +113,7 @@
   var quoted = null;     // last server quote for the current selection
   var order = null;      // set once /start created an order; the selection is locked from then on
   var busy = false;
-  var stripe = null, elements = null, express = null, hasWallet = false;
+  var stripe = null, elements = null, express = null, hasWallet = false, stripeWait = 0;
   var $ = function (id) { return document.getElementById(id); };
   var form = $("checkout");
   // Typing a name or an email is the commonest way somebody starts a checkout; the quantity stepper is the
@@ -176,9 +169,42 @@
   function typeById(id) { return ev.ticketTypes.filter(function (t) { return t.id === id; })[0]; }
   function selectionAtDoor() { return Object.keys(qty).some(function (k) { return qty[k] > 0 && typeById(k).payAtDoor; }); }
 
+  // The form is never pinned to a height of our choosing: Stripe sizes its own element, collapses Link and
+  // drops the wallet row on a browser that has no wallet, and every one of those is a different height. What
+  // the host page needs is only to know WHEN that is finished, so it can stop holding space open and let the
+  // box fit its contents exactly. Until then it holds the reserve, which is what keeps the page from jumping
+  // most of a screen while the customer is reaching for the button.
+  var settled = false;
+  function contentHeight() {
+    // Measured from the content, never from scrollHeight. scrollHeight can never report less than the frame
+    // it is in, so once the page had reserved space the form could only ever agree with the reserve, and a
+    // form that drew shorter than that kept the difference as white space above the Pay button.
+    var wrap = document.querySelector(".wrap") || document.body;
+    var rect = wrap.getBoundingClientRect();
+    var style = window.getComputedStyle(document.body);
+    return Math.ceil(rect.bottom + (parseFloat(style.marginBottom) || 0));
+  }
   function reportHeight() {
     if (window.parent === window) return;
-    window.parent.postMessage({ type: "kintana-embed-height", height: Math.ceil(document.documentElement.scrollHeight) }, "*");
+    window.parent.postMessage({ type: "kintana-embed-height", height: contentHeight(), settled: settled }, "*");
+  }
+  function reportSettled() {
+    settled = true;
+    reportHeight();
+  }
+  // Stripe says "ready" when the element will accept input, which is before it has finished drawing: the
+  // wallet row and the Link line still land after it. Releasing the reserved space on that signal made the
+  // box drop to the half-built form and climb back up while the customer watched. So the space is held until
+  // the height has actually stopped moving, and then released once, exactly.
+  function settleWhenStable() {
+    if (settled) return;
+    var last = -1, still = 0;
+    var poll = setInterval(function () {
+      var h = contentHeight();
+      if (h === last) { if (++still >= 3) { clearInterval(poll); reportSettled(); } }
+      else { last = h; still = 0; }
+    }, 150);
+    setTimeout(function () { clearInterval(poll); if (!settled) reportSettled(); }, 5000);
   }
   if (window.ResizeObserver) new ResizeObserver(reportHeight).observe(document.body);
 
@@ -344,13 +370,28 @@
   function paymentElement(q) {
     var needed = !!B.stripeKey && !q.payAtDoor && q.totalCents > 0;
     show($("payment-element"), needed);
-    if (!needed) { show($("express"), false); return; }
-    if (!window.Stripe) return;
+    if (!needed) { show($("express"), false); reportSettled(); return; }
+    // Stripe.js is deferred, so on a fast quote it is not here yet. Saying "settled" now would tell the page
+    // to stop holding space open around a form that is about to triple in height, and it would then follow
+    // every step of that growth down the page. Wait for the script, and give up holding after five seconds so
+    // a blocked script cannot leave a tall empty box forever.
+    if (!window.Stripe) {
+      if (!stripeWait) {
+        var tries = 0;
+        stripeWait = setInterval(function () {
+          if (window.Stripe) { clearInterval(stripeWait); stripeWait = 0; if (quoted) paymentElement(quoted); }
+          else if (++tries > 40) { clearInterval(stripeWait); stripeWait = 0; reportSettled(); }
+        }, 120);
+      }
+      return;
+    }
     var opts = { mode: "payment", amount: q.totalCents, currency: ev.currency.toLowerCase() };
     if (!elements) {
       stripe = window.Stripe(B.stripeKey);
       elements = stripe.elements(Object.assign({ locale: B.lang, appearance: { variables: { colorPrimary: "#3f7d3e", borderRadius: "12px" } } }, opts));
-      elements.create("payment").mount("#payment-element");
+      var card = elements.create("payment");
+      card.on("ready", settleWhenStable);
+      card.mount("#payment-element");
       expressCheckout();
     } else {
       elements.update({ amount: q.totalCents });

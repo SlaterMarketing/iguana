@@ -13,6 +13,16 @@
   become: true
   copy: {src: files/iguana_proxy_params, dest: /etc/nginx/iguana_proxy_params, mode: "0644"}
 
+# What a visitor sees when gunicorn or the Node server is not answering. It has to be a file nginx can serve
+# by itself, with nothing loaded from the app: during an outage there is nothing to load it from.
+- name: Outage page directory
+  become: true
+  file: {path: /var/www/iguana-error, state: directory, mode: "0755"}
+
+- name: Outage page
+  become: true
+  copy: {src: files/50x.html, dest: /var/www/iguana-error/50x.html, mode: "0644"}
+
 - name: nginx site
   become: true
   template: {src: files/nginx.conf.j2, dest: "/etc/nginx/sites-available/{{ projectname }}.conf", mode: "0644"}

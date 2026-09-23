@@ -82,7 +82,7 @@ const esPath =
     >
       <div
         data-header-nav-cluster=""
-        class="header-nav-cluster flex min-w-0 flex-1 items-center justify-between gap-3 rounded-full bg-white px-4 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] sm:gap-x-8 sm:px-8 sm:py-3 md:flex-initial md:justify-start"
+        class="header-nav-cluster flex min-w-0 flex-1 items-center justify-between gap-3 rounded-full bg-white px-4 py-2.5 shadow-[0_8px_32px_rgba(0,0,0,0.12)] sm:gap-x-8 sm:px-8 sm:py-3 xl:flex-initial xl:justify-start"
       >
       <a href={localizePath(locale, "home")} class="shrink-0">
         <img
@@ -96,7 +96,7 @@ const esPath =
       </a>
 
       <nav
-        class="hidden flex-wrap items-center gap-x-2 gap-y-1 text-[0.62rem] font-semibold uppercase tracking-[0.2em] text-neutral-500 md:flex sm:text-[0.65rem] sm:tracking-[0.24em]"
+        class="hidden flex-nowrap items-center gap-x-2 whitespace-nowrap text-[0.62rem] font-semibold uppercase tracking-[0.2em] text-neutral-500 sm:text-[0.65rem] sm:tracking-[0.24em] xl:flex"
         aria-label={t(locale, "nav.aria.primary")}
       >
         {
@@ -127,7 +127,7 @@ const esPath =
 
         <button
           type="button"
-          class="mobile-menu-toggle inline-flex size-10 shrink-0 items-center justify-center rounded-full text-neutral-950 transition-colors hover:bg-neutral-100 md:hidden"
+          class="mobile-menu-toggle inline-flex size-10 shrink-0 items-center justify-center rounded-full text-neutral-950 transition-colors hover:bg-neutral-100 xl:hidden"
           aria-expanded="false"
           aria-controls="site-mobile-menu"
           data-mobile-menu-toggle=""
@@ -171,7 +171,7 @@ const esPath =
   <div
     id="site-mobile-menu"
     data-mobile-menu=""
-    class="mobile-menu-panel pointer-events-none fixed inset-0 z-50 md:hidden"
+    class="mobile-menu-panel pointer-events-none fixed inset-0 z-50 xl:hidden"
     aria-hidden="true"
     inert
   >

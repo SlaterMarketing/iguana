@@ -49,6 +49,49 @@ upstream iguana_api { server 127.0.0.1:8001; }
     }
 {% endmacro %}
 
+{% macro outage_pages() %}
+    {# When gunicorn or the Node server is not up, nginx answers for them. The status is preserved (a plain
+       error_page, never the `=` form), so monitoring and crawlers still see a 5xx: rewriting it to 200 would
+       tell Google the outage page IS the show page, and it is also what makes a browser parse an HTML body
+       that was requested as a script. Django's own 500s are not touched, because proxy_intercept_errors is
+       off: this is only for an upstream that is not answering at all. #}
+    error_page 502 503 504 /__outage.html;
+    location = /__outage.html {
+        internal;
+        root /var/www/iguana-error;
+        try_files /50x.html =503;
+        add_header Cache-Control "no-store" always;
+        add_header Retry-After 30 always;
+    }
+{% endmacro %}
+
+{% macro outage_assets() %}
+    {# Anything a page LOADS rather than navigates to must never receive that HTML. A <script src> answered
+       with a page throws SyntaxError at line 1, and fetch() parsing it gets a stranger error still. Both of
+       these live on api.* only, which is where the checkout, its tracker and the JSON API are served from. #}
+    location = /_t/k.js {
+        error_page 502 503 504 = @outage_js;
+        proxy_pass http://iguana_api;
+        include /etc/nginx/iguana_proxy_params;
+    }
+    location ^~ /api/ {
+        error_page 502 503 504 @outage_json;
+        proxy_pass http://iguana_api;
+        include /etc/nginx/iguana_proxy_params;
+    }
+    location @outage_js {
+        default_type application/javascript;
+        add_header Cache-Control "no-store" always;
+        return 200 "";
+    }
+    location @outage_json {
+        default_type application/json;
+        add_header Cache-Control "no-store" always;
+        add_header Retry-After 30 always;
+        return 200 '{"error":"The box office is restarting. Please try again in a moment. / La taquilla se esta reiniciando. Intenta de nuevo en un momento."}';
+    }
+{% endmacro %}
+
 {% macro site_locations() %}
     # Apple Pay will not render at all unless Apple can fetch this, and Stripe re-checks ANNUALLY: when the
     # file goes missing it flips apple_pay to inactive silently and wallets just stop appearing. It is one
@@ -61,6 +104,7 @@ upstream iguana_api { server 127.0.0.1:8001; }
     client_max_body_size 10m;
     gzip on;
     gzip_types text/css application/javascript application/json image/svg+xml;
+{{ outage_pages() }}
 {% if clicky_site_id | default('') %}
 {{ clicky_locations() }}
 {% endif %}
@@ -109,6 +153,8 @@ upstream iguana_api { server 127.0.0.1:8001; }
 
 {% macro api_locations() %}
     client_max_body_size 10m;
+{{ outage_pages() }}
+{{ outage_assets() }}
     # Apple Pay will not render at all unless Apple can fetch this, and Stripe re-checks ANNUALLY: when the
     # file goes missing it flips apple_pay to inactive silently and wallets just stop appearing. It is one
     # universal Stripe file (Stripe is the merchant on Apple's side), kept in the repo so it cannot quietly

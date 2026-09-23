@@ -119,28 +119,30 @@ const pixelContent = event
               <>
                 <img src={heroPoster} alt="" class="absolute inset-0 hidden size-full object-cover md:block" loading="eager" fetchpriority="high" />
                 <img src={posterMobileSrc ?? heroPoster} alt="" class="absolute inset-0 size-full object-cover md:hidden" loading="eager" fetchpriority="high" />
-                {/* Darker on the left, where the words are, and heavier at the bottom so the card has something
-                    to sit against. The photo still reads as a photo. */}
-                <div class="absolute inset-0 bg-neutral-950/55 lg:bg-gradient-to-r lg:from-neutral-950/85 lg:via-neutral-950/65 lg:to-neutral-950/40" aria-hidden="true" />
+                {/* Even, and heavier at the bottom so the card has something to sit against. It used to be
+                    darkest down the left, which is where the words were before they moved to the middle. */}
+                <div class="absolute inset-0 bg-neutral-950/60" aria-hidden="true" />
                 <div class="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-neutral-950 to-transparent" aria-hidden="true" />
               </>
             ) : null
           }
 
-          <div class="relative z-10 mx-auto grid max-w-page gap-6 px-4 pb-12 pt-20 sm:gap-8 sm:px-6 sm:pt-24 lg:grid-cols-[minmax(0,1fr)_minmax(0,27rem)] lg:items-center lg:gap-14 lg:px-8 lg:pb-16 lg:pt-28">
+          {/* One centred column, the form directly under the name of the show. The form used to sit in a
+              right-hand rail, which read as an aside to the page rather than the point of it. */}
+          <div class="relative z-10 mx-auto grid max-w-page gap-6 px-4 pb-12 pt-20 text-center sm:gap-8 sm:px-6 sm:pt-24 lg:gap-8 lg:px-8 lg:pb-16 lg:pt-24">
             <div class="min-w-0">
               <a class="inline-flex text-xs font-semibold uppercase tracking-[0.45em] text-white/85 hover:text-white" href={localizePath(locale, "events")}>
                 {t(locale, "events.backToCalendar")}
               </a>
 
-              <h1 class="mt-4 max-w-3xl font-display sm:mt-6 text-[clamp(2.1rem,5.2vw,4rem)] leading-[0.97] text-white" style="font-family: var(--font-display);">
+              <h1 class="mx-auto mt-4 max-w-3xl font-display sm:mt-6 text-[clamp(2.1rem,5.2vw,3.4rem)] leading-[0.97] text-white" style="font-family: var(--font-display);">
                 {headline}
               </h1>
-              {subtitle ? <p class="mt-3 max-w-2xl text-lg text-white/90 md:text-2xl">{subtitle}</p> : null}
+              {subtitle ? <p class="mx-auto mt-3 max-w-2xl text-lg text-white/90 md:text-2xl">{subtitle}</p> : null}
 
               {/* Date and place only. The doors and show times are printed again at the top of the card a few
                   centimetres below, and saying them twice costs the fold two lines on a phone. */}
-              <div class="mt-4 flex flex-wrap items-center justify-center gap-3 lg:justify-start">
+              <div class="mt-4 flex flex-wrap items-center justify-center gap-3">
                 {/* Badge and venue share a row rather than stacking: on a phone two centred blocks cost a
                     hundred pixels of fold, which is the difference between seeing the form and not. */}
                 <div class="flex items-center gap-3">
@@ -178,7 +180,7 @@ const pixelContent = event
                     href={externalTicketUrl}
                     target="_blank"
                     rel="noreferrer noopener"
-                    class="mt-7 flex min-h-12 w-full items-center justify-center gap-3 rounded-full bg-brand px-8 py-3.5 text-sm font-semibold uppercase tracking-[0.2em] text-neutral-950 transition hover:brightness-110 sm:w-auto sm:self-start"
+                    class="mt-7 flex min-h-12 w-full items-center justify-center gap-3 rounded-full bg-brand px-8 py-3.5 text-sm font-semibold uppercase tracking-[0.2em] text-neutral-950 transition hover:brightness-110 sm:mx-auto sm:w-auto"
                   >
                     {checkoutLabel}
                     <span aria-hidden="true">→</span>
@@ -187,7 +189,7 @@ const pixelContent = event
               }
             </div>
 
-            <aside id="checkout" class="min-w-0 scroll-mt-24 lg:justify-self-end lg:w-full">
+            <aside id="checkout" class="mx-auto w-full min-w-0 max-w-[28rem] scroll-mt-24">
               {
                 onSiteCheckout ? (
                   <div class="overflow-visible rounded-xl border-t-4 border-brand bg-white shadow-[0_18px_50px_-18px_rgba(0,0,0,0.7)] ring-1 ring-black/10">
@@ -202,6 +204,7 @@ const pixelContent = event
                       blocked={ticketingBlocked}
                       collectsPayment={eventCollectsPayment(event)}
                       ticketTypes={eventTicketTypeCount(event)}
+                      width="card"
                       class="!min-h-0 !rounded-none !border-0 !bg-white !px-4 !py-4 sm:!px-5"
                     />
                   </div>
