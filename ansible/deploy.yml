@@ -225,10 +225,32 @@
       tags: [first_run]
 
     # ------------------------------------------------------------------ site
-    - name: npm ci
+    # `npm ci` DELETES node_modules and rebuilds it, under a Node server that is still serving and still
+    # resolving Astro's imports lazily. So every deploy opened a window where a live request could throw
+    # ERR_MODULE_NOT_FOUND on a package that was there a second ago: it caught two real requests on
+    # 2026-09-23 (`Cannot find package 'piccolore'`). It is the same trap as rebuilding dist in place, one
+    # layer down, and almost every deploy ships no dependency change at all. So only reinstall when the
+    # lockfile actually differs from what is installed.
+    - name: Dependency manifest checksum
+      stat: {path: "{{ app_dir }}/package-lock.json", get_checksum: true}
+      register: lockfile
+
+    - name: Checksum of the installed dependencies
+      slurp: {src: "{{ app_dir }}/node_modules/.iguana-lock-checksum"}
+      register: installed_lock
+      failed_when: false
+
+    - name: npm ci (only when the lockfile changed)
       command: npm ci --no-audit --no-fund
       args: {chdir: "{{ app_dir }}"}
-      changed_when: false
+      when: (installed_lock.content | default('') | b64decode | trim) != lockfile.stat.checksum
+      changed_when: true
+
+    - name: Record which lockfile is installed
+      copy:
+        content: "{{ lockfile.stat.checksum }}"
+        dest: "{{ app_dir }}/node_modules/.iguana-lock-checksum"
+        mode: "0644"
 
     # Built BESIDE the live one, never over it. The Node adapter resolves Astro's route modules lazily, so
     # rebuilding dist/ under the running server makes every route it has not yet imported throw

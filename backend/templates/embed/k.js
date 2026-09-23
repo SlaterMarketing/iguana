@@ -119,11 +119,19 @@
       // and then the box fits its contents exactly. Holding the floor after that would leave white space
       // above the Pay button on any browser that drew a shorter form, which looks broken in a way a brief
       // movement does not.
-      var settled = false;
+      var settled = false, lastHeight = 0;
+      // The floor is only ever a loan. If the checkout never reports that it has settled, because its script
+      // died or Stripe never finished drawing, the reserved space would otherwise be held open forever around
+      // a short form. Give it ten seconds, then fit whatever the iframe last reported.
+      setTimeout(function () {
+        settled = true;
+        if (lastHeight) iframe.style.height = lastHeight + "px";
+      }, 10000);
       window.addEventListener("message", function (e) {
         var d = e.data;
         if (d && d.type === "kintana-embed-height" && typeof d.height === "number" && e.source === iframe.contentWindow) {
           var h = Math.max(160, d.height | 0);
+          lastHeight = h;
           if (d.settled || h >= reserved) settled = true;
           iframe.style.height = (settled ? h : Math.max(h, reserved)) + "px";
         }

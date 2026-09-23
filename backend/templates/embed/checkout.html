@@ -392,6 +392,11 @@
       var card = elements.create("payment");
       card.on("ready", settleWhenStable);
       card.mount("#payment-element");
+      // Ready is not a promise anyone owes us. On a slow connection it took 18 seconds, and if Stripe half
+      // loads it never arrives at all, leaving the page holding 800px of white above the Pay button for as
+      // long as the tab is open. After four seconds stop waiting and let the box fit what is actually there:
+      // it then grows as Stripe draws, and a moment of movement beats a hole that never closes.
+      setTimeout(function () { if (!settled) reportSettled(); }, 4000);
       expressCheckout();
     } else {
       elements.update({ amount: q.totalCents });
