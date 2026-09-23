@@ -357,6 +357,13 @@ every Monday the cron woke up, resolved its 627 subscribers, wrote the campaign 
 none of them. The only evidence anywhere was a traceback under `journalctl -t iguana-newsletter`; the campaign
 row exists with zero recipients, which looks like "nobody was due" rather than "it crashed".
 Fixed 2026-09-22: the tolerance belongs on the connection, `get_connection(fail_silently=True)`.
+⏱ **A one-off catch-up send is scheduled for Wed 2026-09-23 14:00 UTC** (09:00 Playa), because the list had
+never actually received one. `systemd-run --on-calendar`, transient, so it disappears after it fires:
+`systemctl list-timers iguana-newsletter-once`, and `sudo systemctl stop iguana-newsletter-once.timer` cancels
+it. Sent in the morning rather than the evening it was asked for, because at 19:00 the mail led with a show
+whose doors opened in forty-five minutes; by 09:00 the next day `week_events()` has dropped it and the mail
+leads with something the reader can still act on.
+
 **Enabled 2026-09-22** (`newsletter_enabled: true` in `group_vars/all`, which `deploy.yml` reads; set it to
 false to pause without editing a crontab by hand). Mondays 14:00 UTC, 09:00 in Playa, ~645 recipients paced
 0.2s apart, about two minutes inside a 30m timeout. Before the first live run: one was sent to hello@ by hand
