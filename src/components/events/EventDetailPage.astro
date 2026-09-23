@@ -208,8 +208,10 @@ const pixelContent = event
           <div class="mx-auto grid max-w-3xl gap-10 px-4 sm:px-6 lg:px-8">
             {hasIntro ? (
             <div class="min-w-0 space-y-10 text-neutral-950">
+              {/* Only when nothing further down introduces them. With a bio and a clip below, this line put the
+                  same name under two headings in the same column. */}
               {
-                event.headliner && event.headliner.name !== headline ? (
+                event.headliner && event.headliner.name !== headline && !billed.length ? (
                   <p class="text-sm font-semibold uppercase tracking-[0.38em] text-neutral-500">
                     {t(locale, "events.spotlight").replace("{name}", event.headliner.name)}
                   </p>
