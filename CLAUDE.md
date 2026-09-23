@@ -153,20 +153,32 @@ and a new string should go through one of them rather than be written inline:
 ### Open mic reservations
 
 Open mics are always free to walk into, but walk-ins can be turned away when full. The room holds 80: 60 seats are
-sold as reservations (50 MXN Tuesday en español, 5 USD Wednesday in English), each including one free drink, and 20
-stay for walk-ins. A reservation is an ordinary ticket type, so it uses the normal checkout, the per-seat QR codes,
-the confirmation email and `/checkin/`; the drink and "arrive when doors open" live in the ticket type description,
-which the confirmation email now prints.
+held as reservations and 20 stay for walk-ins. A reservation is an ordinary ticket type, so it uses the normal
+checkout, the per-seat QR codes, the confirmation email and `/checkin/`; "arrive when doors open" lives in the
+ticket type description, which the confirmation email prints.
+
+🚨 **What is LIVE is a FREE reservation with NOTHING included, on every night of both series.** The active type
+is `Free reserved seat` at 0.00, capacity 60, not pay-at-door, and its description says entry is always free and
+reserving costs nothing but holds the seat. There is no drink. The `Drink, ordered in advance` type (50 MXN /
+3 USD) exists on every night and is **inactive** on all of them: that is the drinks upsell, taken down 2026-09-22
+because it was not converting, and drinks are now handled at the table through `/menu/show/`.
+⚠ **The paid model this section used to describe is dormant code, not the product.** 50 MXN Tuesday, 5 USD
+Wednesday, a free drink included: the strings still exist (`sales/i18n.py` "Hold your seat for {0}, a free drink
+included", `OpenMicPage.astro` `perSeat`, several tests) and none of them render, because `isFreeToReserve()`
+prints "free to reserve" instead whenever `priceFrom` is 0. Do not quote that model as the economics: an open mic
+seat currently costs the club nothing to give away, so the ad spend per seat is the whole acquisition cost and
+the bar is where it comes back. (Checked against production 2026-09-23 after it was stated wrongly in a
+cost-per-booking summary.)
 
 `manage.py setup_open_mics [--show-time 20:00 --doors 19:30] [--dry-run]` publishes every upcoming night of the two
 series (`Noche de Open Mic - Espanol!`, `Open Mic Night - English!`), sets currency/language, turns off member
 benefits, tags them `open-mic`, and creates or updates the reservation type. It is re-runnable and never drops
 capacity below seats already booked.
 
-🚨 **Reservations are charged online, so they need Iguana's own Stripe keys, which production does not have yet.**
-Kintana charged on its own Stripe account, and without keys checkout answers "Online payment is not available yet".
-The command therefore refuses to publish while `stripe_enabled()` is false rather than put up nights nobody can pay
-for. `--pay-at-door` is the stopgap: `TicketType.pay_at_door` completes the booking with no charge, records
+**Stripe keys are configured now** (Privilegio sold at 300 MXN online on 2026-09-22), so the paid path works. It
+is simply not what the open mics use. The command still refuses to publish a PAID night while `stripe_enabled()`
+is false, rather than put up nights nobody can pay for. `--pay-at-door` is the stopgap: `TicketType.pay_at_door`
+completes the booking with no charge, records
 `Order.pay_at_door_cents`, and the check-in page tells the door what to collect. It is limited to one booking per
 email per night and locks the ticket types while booking, because nothing paid up front stops seat hoarding.
 
