@@ -306,7 +306,13 @@ def stripe_webhook(request):
                                                settings.STRIPE_WEBHOOK_SECRET)
     except (ValueError, stripe.SignatureVerificationError):
         return HttpResponse(status=400)
-    obj = event['data']['object']
+    # 🚨 `.to_dict()`, not the object. stripe-python stopped being a dict subclass, so `obj.get(...)` raises
+    # `AttributeError: 'get' is a dict method, but a PaymentIntent is not a dict` and the whole handler 500s.
+    # Every payment_intent.succeeded failed this way. It is a silent class of failure because the browser
+    # normally confirms the order itself: the webhook is the backstop for when it does not come back, which is
+    # exactly the case where nobody is watching, so a paid order sits PENDING with no ticket and no complaint.
+    raw = event['data']['object']
+    obj = raw.to_dict() if hasattr(raw, 'to_dict') else dict(raw)
     kind = event['type']
 
     if kind == 'payment_intent.succeeded':

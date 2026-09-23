@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from catalog.models import Artist, Event, FormEndpoint, LineupEntry, TicketType, Venue
 from crm.models import Contact
-from sales.models import LoginToken, Membership, MembershipPlan, Order, Ticket
+from sales.models import LoginToken, Membership, MembershipPlan, Order, OrderItem, Ticket
 
 KEY = 'ipk_test'
 SITE = 'http://site.test'
@@ -334,6 +334,45 @@ class CheckoutTests(ApiTestCase):
     def test_webhook_rejects_bad_signature(self):
         res = self.client.post('/api/stripe/webhook', data='{}', content_type='application/json', HTTP_STRIPE_SIGNATURE='t=1,v1=bad')
         self.assertEqual(res.status_code, 400)
+
+    @override_settings(STRIPE_WEBHOOK_SECRET='whsec_test')
+    def test_a_real_payment_webhook_completes_the_order(self):
+        """The one test that matters here, and the one that was missing.
+
+        Only the bad-signature path was covered, so nothing ever ran a real event through the handler. It
+        500'd on every single `payment_intent.succeeded` because `construct_event` hands back a Stripe object
+        and the code called `.get()` on it. The browser normally completes the order itself, so the webhook is
+        the backstop for when it does not come back: precisely the case where nobody is watching, and a paid
+        order sits PENDING with no ticket and nobody complaining.
+        """
+        order = Order.objects.create(event=self.event, event_name=self.event.name, customer_email='paid@example.com',
+                                     currency='mxn', total_amount_cents=30000, status=Order.PENDING)
+        OrderItem.objects.create(order=order, ticket_type=self.ga, name='GA', quantity=1, unit_price_cents=30000)
+        body = self._signed({
+            'id': 'evt_1', 'type': 'payment_intent.succeeded',
+            'data': {'object': {'id': 'pi_1', 'object': 'payment_intent', 'latest_charge': 'ch_1',
+                                'metadata': {'purpose': 'tickets', 'order_id': order.id}}},
+        })
+        with self.captureOnCommitCallbacks(execute=True):
+            res = self.client.post('/api/stripe/webhook', data=body['payload'], content_type='application/json',
+                                   HTTP_STRIPE_SIGNATURE=body['signature'])
+        self.assertEqual(res.status_code, 200)
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.COMPLETED)
+        self.assertEqual(order.stripe_charge_id, 'ch_1')
+        self.assertEqual(order.tickets.count(), 1)
+
+    def _signed(self, event):
+        """A payload signed the way Stripe signs one, so `construct_event` returns a real Stripe object and the
+        handler is exercised as it is in production rather than against a convenient dict."""
+        import hashlib
+        import hmac
+        import time
+
+        payload = json.dumps(event)
+        timestamp = int(time.time())
+        digest = hmac.new(b'whsec_test', f'{timestamp}.{payload}'.encode(), hashlib.sha256).hexdigest()
+        return {'payload': payload, 'signature': f't={timestamp},v1={digest}'}
 
     def test_tracker_script_served(self):
         res = self.client.get('/_t/k.js')
