@@ -302,11 +302,11 @@ const pixelContent = event
                     </h2>
                     {billed.map((member) => (
                       <div class="space-y-5">
-                        <div class="flex items-center gap-4">
+                        <div class="flex items-center justify-center gap-4">
                           {member.imageUrl ? (
                             <img src={member.imageUrl} alt="" class="size-20 rounded-2xl object-cover" loading="lazy" />
                           ) : null}
-                          <div class="min-w-0">
+                          <div class="min-w-0 text-left">
                             <a
                               class="font-display text-3xl text-neutral-950 hover:text-brand"
                               style="font-family: var(--font-display);"
@@ -319,10 +319,15 @@ const pixelContent = event
                         </div>
                         {member.bio ? <p class="text-lg leading-relaxed text-neutral-700">{member.bio}</p> : null}
                         {member.reels?.length ? (
-                          <div class="grid gap-4 sm:grid-cols-2">
+                          <div
+                            class:list={[
+                              "mx-auto grid gap-4",
+                              member.reels.length > 1 ? "sm:grid-cols-2" : "max-w-sm",
+                            ]}
+                          >
                             {member.reels.slice(0, 2).map((reel) => (
                               <video
-                                class="w-full rounded-2xl border border-black/10 bg-neutral-950"
+                                class="mx-auto w-full rounded-2xl border border-black/10 bg-neutral-950"
                                 src={reel.url}
                                 poster={reel.posterUrl ?? undefined}
                                 controls
