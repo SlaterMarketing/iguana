@@ -100,18 +100,31 @@
       iframe.src = A + "/embed/event/" + encodeURIComponent(id) + "?embedded=1&lang=" + encodeURIComponent(lang) + demand;
       iframe.title = el.getAttribute("aria-label") || "Ticket checkout";
       iframe.setAttribute("allow", "payment *");
-      // Reserve the height the checkout will actually be, not a 200px stub. The iframe grows to its content a
-      // second later, and on a page whose hero is sized by its contents that growth moved everything below it:
-      // it was 97% of this page's 0.213 CLS. A close estimate turns a 258px jump into a few pixels, and a host
-      // page can tune it with data-kintana-height when its checkout is taller or shorter than usual.
-      var reserved = parseInt(el.getAttribute("data-kintana-height") || "", 10) || 460;
+      // Take the height the host page has already painted. It reserves the space in CSS, per breakpoint,
+      // because the checkout wraps to the width it is given and a card form is three times the height of a
+      // name-and-email one. Reading it back means the iframe is inserted at exactly the size of the hole it
+      // fills, so the swap itself can never move the page. data-kintana-height still overrides it.
+      var box = el.getBoundingClientRect().height;
+      var cs = window.getComputedStyle(el);
+      var pad = (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0) +
+                (parseFloat(cs.borderTopWidth) || 0) + (parseFloat(cs.borderBottomWidth) || 0);
+      var reserved = parseInt(el.getAttribute("data-kintana-height") || "", 10) ||
+                     Math.max(160, Math.round(box - pad)) || 460;
       iframe.style.cssText = "width:100%;border:0;display:block;background:transparent;height:" + reserved + "px";
       el.innerHTML = "";
       el.appendChild(iframe);
+      // The reserve is a floor as well as a starting point. What Stripe draws is not knowable from here: a
+      // wallet row appears only on a device that has a wallet, and Link only for an email it recognises. The
+      // reserve holds the tallest case, so on a device that draws less the iframe keeps the space rather than
+      // shrinking and pulling the page up. Once the content has actually reached the reserve the floor is
+      // released, because a change after that is the customer editing their order, not the form arriving.
+      var settled = false;
       window.addEventListener("message", function (e) {
         var d = e.data;
         if (d && d.type === "kintana-embed-height" && typeof d.height === "number" && e.source === iframe.contentWindow) {
-          iframe.style.height = Math.max(160, d.height | 0) + "px";
+          var h = Math.max(160, d.height | 0);
+          if (h >= reserved) settled = true;
+          iframe.style.height = (settled ? h : Math.max(h, reserved)) + "px";
         }
       });
       iframe.addEventListener("load", function () {

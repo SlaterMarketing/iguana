@@ -25,6 +25,20 @@ export function eventSupportsOnSiteCheckout(
   return Boolean(event.id?.trim()) && event.status !== "sold-out" && event.status !== "postponed";
 }
 
+/** Whether the checkout will draw a card form, which decides how much height the page reserves for it.
+ *
+ * Only the backend can answer it: it depends on Stripe keys being configured and on the ticket types being
+ * paid online rather than at the door. The SDK's event type predates the field, hence the cast. */
+export function eventCollectsPayment(event: KintanaPublicEvent): boolean {
+  return (event as { collectsPayment?: boolean }).collectsPayment === true;
+}
+
+/** How many ticket rows the checkout will list; each one adds a row above the form. */
+export function eventTicketTypeCount(event: KintanaPublicEvent): number {
+  const n = (event as { ticketTypeCount?: number }).ticketTypeCount;
+  return typeof n === "number" && n > 0 ? n : 1;
+}
+
 /** `YYYY-MM-DD` for today in Quintana Roo, where every show happens; the API's `from` filter and "past" use it. */
 export function todayInCancun(now = new Date()): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Cancun" }).format(now);

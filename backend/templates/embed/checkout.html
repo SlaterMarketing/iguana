@@ -45,6 +45,13 @@
   .express { display: grid; gap: 10px; }
   .express-or { display: flex; align-items: center; gap: 10px; margin: 0; font-size: .85rem; color: var(--muted, #666); }
   .express-or::before, .express-or::after { content: ""; flex: 1; height: 1px; background: rgba(0,0,0,.12); }
+  /* Hold the card form's height from the first paint. It can only mount once the quote comes back, and
+     until it does there is nothing to size the space: without this the Pay button sits under the email
+     field and then drops most of a screen the moment Stripe draws, which is the worst possible moment to
+     move a button. Heights measured on the live checkout 2026-09-23, by the width the form wraps to. */
+  #payment-element.reserve { min-height: 710px; }
+  @media (min-width: 400px) { #payment-element.reserve { min-height: 650px; } }
+  @media (min-width: 600px) { #payment-element.reserve { min-height: 570px; } }
   .dev { border: 1px dashed #b7791f; background: #fffaf0; border-radius: 12px; padding: 8px 12px; font-size: .8rem; margin: 0; }
 </style>
 {% endblock %}
@@ -86,7 +93,7 @@
         <div id="express-checkout"></div>
         <p class="express-or">{% t lang "or pay by card" %}</p>
       </div>
-      <div id="payment-element" hidden></div>
+      <div id="payment-element"{% if collects_payment %} class="reserve"{% else %} hidden{% endif %}></div>
     </div>
     <div class="action" id="action" hidden>
       <p class="note ok" id="member-note" hidden>{% t lang "Member pricing applied." %}</p>

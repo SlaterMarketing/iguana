@@ -4,7 +4,9 @@ import EventCheckoutWidget from "../EventCheckoutWidget.astro";
 import EventFaq from "./EventFaq.astro";
 import type { KintanaPublicEvent } from "@kintana/sdk";
 import {
+  eventCollectsPayment,
   eventSupportsOnSiteCheckout,
+  eventTicketTypeCount,
   formatEventScheduleLine,
 } from "../../lib/events";
 import {
@@ -194,7 +196,14 @@ const pixelContent = event
                       <h2 class="text-sm font-bold uppercase tracking-[0.2em] text-neutral-950">{checkoutLabel}</h2>
                       <p class="mt-1 text-sm text-neutral-600">{formatEventScheduleLine(event, locale)}</p>
                     </div>
-                    <EventCheckoutWidget eventId={event.id} locale={locale} blocked={ticketingBlocked} class="!min-h-0 !rounded-none !border-0 !bg-white !px-4 !py-4 sm:!px-5" />
+                    <EventCheckoutWidget
+                      eventId={event.id}
+                      locale={locale}
+                      blocked={ticketingBlocked}
+                      collectsPayment={eventCollectsPayment(event)}
+                      ticketTypes={eventTicketTypeCount(event)}
+                      class="!min-h-0 !rounded-none !border-0 !bg-white !px-4 !py-4 sm:!px-5"
+                    />
                   </div>
                 ) : ticketingBlocked ? (
                   <p class="rounded-xl border border-white/15 bg-white/10 px-6 py-10 text-center text-sm text-white backdrop-blur-sm">{t(locale, "events.ticketsUnavailable")}</p>

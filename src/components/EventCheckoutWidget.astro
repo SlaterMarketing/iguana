@@ -8,10 +8,39 @@ interface Props {
   blocked?: boolean;
   /** The host page is already showing "N people reserved recently", so the iframe must not say it again. */
   ownDemandLine?: boolean;
+  /** True when the checkout will draw a card form, which is three times the height of name-and-email. */
+  collectsPayment?: boolean;
+  /** Each extra ticket type adds a row above the form. */
+  ticketTypes?: number;
   class?: string;
 }
 
-const { eventId, locale = "en", blocked = false, ownDemandLine = false, class: className } = Astro.props;
+const {
+  eventId,
+  locale = "en",
+  blocked = false,
+  ownDemandLine = false,
+  collectsPayment = false,
+  ticketTypes = 1,
+  class: className,
+} = Astro.props;
+
+/**
+ * The height to hold open while the iframe loads, measured on the live checkout (2026-09-23).
+ *
+ * It cannot be one number. The form wraps to the width it is given, and that width does not follow the
+ * viewport: below 1024px the checkout is full-bleed and gets wider as the screen does, at 1024px it drops
+ * into a 27rem hero column and is suddenly narrow again. So the reserve tracks the same breakpoints the
+ * layout uses, and holds the tallest case in each, which is the one with a wallet row. A device with no
+ * wallet is left a little extra grey inside a grey card, which nobody can see; getting it wrong the other
+ * way moves the whole page under the reader's thumb.
+ */
+const ROW = 78;
+const PAID = { base: 1330, mid: 1270, sm: 1030, lg: 1270 };
+const FREE = { base: 460, mid: 460, sm: 460, lg: 460 };
+const extra = Math.max(0, ticketTypes - 1) * ROW;
+const reserve = collectsPayment ? PAID : FREE;
+const vars = `--reserve-base:${reserve.base + extra}px;--reserve-mid:${reserve.mid + extra}px;--reserve-sm:${reserve.sm + extra}px;--reserve-lg:${reserve.lg + extra}px`;
 ---
 
 {
@@ -30,9 +59,30 @@ const { eventId, locale = "en", blocked = false, ownDemandLine = false, class: c
       aria-label={t(locale, "aria.ticketCheckout")}
     >
       {/* Holds the height the checkout will be, so the page does not jump when the iframe replaces it. */}
-      <p class="flex min-h-[460px] items-center justify-center px-8 text-center text-sm text-neutral-500">
+      <p class="checkout-reserve flex items-center justify-center px-8 text-center text-sm text-neutral-500" style={vars}>
         {t(locale, "tickets.loading")}
       </p>
     </div>
   )
 }
+
+<style>
+  .checkout-reserve {
+    min-height: var(--reserve-base);
+  }
+  @media (min-width: 480px) {
+    .checkout-reserve {
+      min-height: var(--reserve-mid);
+    }
+  }
+  @media (min-width: 640px) {
+    .checkout-reserve {
+      min-height: var(--reserve-sm);
+    }
+  }
+  @media (min-width: 1024px) {
+    .checkout-reserve {
+      min-height: var(--reserve-lg);
+    }
+  }
+</style>

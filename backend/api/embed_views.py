@@ -23,8 +23,8 @@ from sales.sharing import is_open_mic, share_message, share_url, whatsapp_url
 from sales.i18n import lang_from_request, normalize, tr
 from sales.links import order_url
 from sales.models import Membership, MembershipPlan, Order, Ticket
-from sales.services import (DATE_FORMATS, CheckoutError, complete_order, create_order, current_membership, price_cart,
-                            reserve_at_door, stripe_client, stripe_enabled)
+from sales.services import (DATE_FORMATS, CheckoutError, collects_payment, complete_order, create_order,
+                            current_membership, price_cart, reserve_at_door, stripe_client, stripe_enabled)
 
 from .auth import contact_from_fan_token, error, json_body
 from .fan_views import fan_event_json
@@ -61,6 +61,8 @@ def event_checkout(request, key):
         'event_name': event.label(lang),
         'lang': lang,
         'embedded': request.GET.get('embedded') == '1',
+        # Lets the card form hold its height from the first paint rather than after the quote round-trip.
+        'collects_payment': collects_payment(event),
         # The open mic lander prints the demand line in its own header, above the form rather than below
         # the date pills. Saying it twice on one page reads as a glitch.
         'show_demand': request.GET.get('demand') != '0',

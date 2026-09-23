@@ -24,7 +24,7 @@ import NewsletterSignup from "./NewsletterSignup.astro";
 import { site } from "../content/site";
 import { demandLine } from "../lib/demand";
 import { eventVenueMapEmbedUrl } from "../lib/event-hero";
-import { formatEventDate, formatEventDateShort } from "../lib/events";
+import { eventCollectsPayment, eventTicketTypeCount, formatEventDate, formatEventDateShort } from "../lib/events";
 import { loadEventsForCalendarPages } from "../lib/events-catalog";
 import { holidayNotice } from "../lib/holiday-notice";
 import { createLocalizedKintanaClient, getKintanaEnv } from "../lib/kintana-env";
@@ -255,6 +255,8 @@ const pressure = selected ? demandLine(selected, locale) : null;
             eventId={selected.id}
             locale={locale}
             ownDemandLine
+            collectsPayment={eventCollectsPayment(selected)}
+            ticketTypes={eventTicketTypeCount(selected)}
             class="!min-h-0 !rounded-none !border-0 !bg-white !px-4 !py-5 sm:!px-6"
           />
         ) : (

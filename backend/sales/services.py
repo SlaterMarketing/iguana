@@ -48,6 +48,19 @@ def stripe_enabled():
     return bool(settings.STRIPE_SECRET_KEY and settings.STRIPE_PUBLISHABLE_KEY)
 
 
+def collects_payment(event):
+    """Whether this event's checkout will draw a card form at all.
+
+    The page that hosts the checkout has to reserve its height before it exists, and a form that takes a card
+    is roughly three times the height of one that does not. Only the server knows which it will be: it depends
+    on having Stripe keys and on the ticket types being paid online rather than at the door.
+    """
+    if not stripe_enabled():
+        return False
+    return any(t.price_cents > 0 and not t.pay_at_door
+               for t in event.ticket_types.all() if t.active and not t.is_addon)
+
+
 def wallets_available():
     """Whether Apple Pay and Google Pay can appear at all.
 

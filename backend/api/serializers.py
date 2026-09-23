@@ -155,6 +155,12 @@ def _wallets():
     return wallets_available()
 
 
+def _collects_payment(event):
+    from sales.services import collects_payment
+
+    return collects_payment(event)
+
+
 def _demand(event):
     # Imported here: sales imports catalog, so a module-level import the other way is a cycle.
     from sales.demand import demand
@@ -197,6 +203,10 @@ def event_json(event, plan=None, lang='en', demand=None):
         'lineup': [lineup_entry_json(e, lang) for e in lineup],
         'headliner': lineup_entry_json(headliner, lang) if headliner else None,
         'ticketingType': event.ticketing_type,
+        # The site reserves the checkout's height before the iframe exists, and a card form is three times the
+        # height of a name-and-email one. Without this it has to guess, and a wrong guess is the jump itself.
+        'collectsPayment': _collects_payment(event),
+        'ticketTypeCount': len(types),
         'ageRestriction': event.age_restriction or None,
         'priceFrom': min((t.price_cents for t in types), default=None),
         'priceCurrency': event.currency.upper() if types else None,

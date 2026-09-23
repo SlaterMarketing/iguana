@@ -2145,3 +2145,39 @@ class InviteAFriendTests(ApiTestCase):
         order = Order.objects.create(event=self.event, event_name=self.event.name, customer_email='a@example.com',
                                      currency='usd', status=Order.COMPLETED)
         self.assertEqual(share_url(order), '', 'the invite is for the free open mic, not for paid shows')
+
+
+class CheckoutReserveTests(ApiTestCase):
+    """The page holds the checkout's height open before the iframe exists, and only the backend knows how much.
+
+    A card form is roughly three times the height of a name-and-email one, so getting this wrong is the jump
+    itself: the whole page moves under the reader a second after it loads, at the moment they are reaching for
+    the button. `collectsPayment` is the one fact the site cannot work out for itself.
+    """
+
+    def test_no_stripe_keys_means_no_card_form(self):
+        data = self.api('get', f'/api/public/v1/events/{self.event.id}').json()['event']
+        self.assertFalse(data['collectsPayment'])
+        self.assertEqual(data['ticketTypeCount'], 2)
+
+    @override_settings(STRIPE_SECRET_KEY='sk_test_x', STRIPE_PUBLISHABLE_KEY='pk_test_x')
+    def test_paid_event_collects_payment(self):
+        data = self.api('get', f'/api/public/v1/events/{self.event.id}').json()['event']
+        self.assertTrue(data['collectsPayment'])
+
+    @override_settings(STRIPE_SECRET_KEY='sk_test_x', STRIPE_PUBLISHABLE_KEY='pk_test_x')
+    def test_pay_at_door_draws_no_card_form(self):
+        self.event.ticket_types.all().update(pay_at_door=True)
+        data = self.api('get', f'/api/public/v1/events/{self.event.id}').json()['event']
+        self.assertFalse(data['collectsPayment'])
+
+    @override_settings(STRIPE_SECRET_KEY='sk_test_x', STRIPE_PUBLISHABLE_KEY='pk_test_x')
+    def test_checkout_reserves_the_card_form_height_from_first_paint(self):
+        """Without this the Pay button sits under the email field and drops most of a screen when Stripe draws."""
+        html = self.client.get(f'/embed/event/{self.event.id}?embedded=1&lang=en').content.decode()
+        self.assertIn('<div id="payment-element" class="reserve">', html)
+        self.assertIn('#payment-element.reserve { min-height:', html)
+
+    def test_free_checkout_reserves_nothing(self):
+        html = self.client.get(f'/embed/event/{self.event.id}?embedded=1&lang=en').content.decode()
+        self.assertIn('<div id="payment-element" hidden>', html)
