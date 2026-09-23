@@ -310,6 +310,19 @@
         # crm/geo.py reopens the file when it changes, so no restart; results go to syslog (journalctl -t iguana-geoip).
         job: "timeout 30m /usr/local/bin/iguana-geoip-refresh {{ geoip_db }} 2>&1 | logger -t iguana-geoip"
 
+    - name: Honour unsubscribes that arrive as email
+      become: true
+      become_user: "{{ deploy_user }}"
+      cron:
+        name: iguana emailed unsubscribes
+        user: "{{ deploy_user }}"
+        minute: "*/20"
+        # Every twenty minutes, because an unsubscribe that waits an hour can still be beaten by the next send,
+        # and a complaint costs the whole list's deliverability rather than one address.
+        job: >-
+          timeout 5m {{ app_dir }}/backend/venv/bin/python {{ app_dir }}/backend/manage.py
+          process_unsubscribe_mail --apply 2>&1 | logger -t iguana-unsubscribe
+
     - name: Weekly what-is-on email, Monday morning in Playa
       become: true
       cron:

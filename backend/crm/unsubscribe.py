@@ -47,8 +47,17 @@ def resume_marketing(contact):
 
 
 def bulk_headers(email):
-    """Headers every bulk send needs. The Post header is what makes Gmail's own one-click button work."""
+    """Headers every bulk send needs. The Post header is what makes Gmail's own one-click button work.
+
+    🚨 The URL is offered ALONE, with no `mailto:` beside it. Offering both let a client choose the mailto, and
+    Apple Mail did: on 2026-09-23 it sent "unsubscribe" to hello@, which nothing was reading, and the person
+    stayed subscribed having done everything right. A one-click URL unsubscribes them in the request itself;
+    a mailto only unsubscribes them if somebody is processing that mailbox.
+
+    `process_unsubscribe_mail` now processes it anyway, because people reply "unsubscribe" to mail whatever the
+    headers say. But the header should offer the route that works on its own.
+    """
     return {
-        'List-Unsubscribe': f'<{unsubscribe_url(email)}>, <mailto:hello@iguanacomedy.com?subject=unsubscribe>',
+        'List-Unsubscribe': f'<{unsubscribe_url(email)}>',
         'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
     }

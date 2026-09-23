@@ -357,6 +357,17 @@ every Monday the cron woke up, resolved its 627 subscribers, wrote the campaign 
 none of them. The only evidence anywhere was a traceback under `journalctl -t iguana-newsletter`; the campaign
 row exists with zero recipients, which looks like "nobody was due" rather than "it crashed".
 Fixed 2026-09-22: the tolerance belongs on the connection, `get_connection(fail_silently=True)`.
+🚨 **An unsubscribe that arrives as EMAIL is still an unsubscribe, and offering a `mailto:` beside the
+one-click URL is what makes clients send one.** `List-Unsubscribe` carried both; Apple Mail picked the mailto,
+sent "unsubscribe" to hello@ on 2026-09-23, and the person stayed on the list having done everything right.
+The header now offers the URL alone, because a one-click URL unsubscribes somebody in the request itself while
+a mailto only works if a human is reading that mailbox.
+`process_unsubscribe_mail --apply` runs every 20 minutes and honours them anyway, because people reply
+"unsubscribe" to mail whatever the headers say, and that is the commonest form of the request.
+⚠ **It matches on the SUBJECT only.** Every newsletter carries the word in its own footer and a copy of each
+send lands in that same mailbox, so a body match would unsubscribe whoever appears to have sent our own mail.
+Messages from our own domains are refused for the same reason.
+
 ⏱ **A one-off catch-up send is scheduled for Wed 2026-09-23 14:00 UTC** (09:00 Playa), because the list had
 never actually received one. `systemd-run --on-calendar`, transient, so it disappears after it fires:
 `systemctl list-timers iguana-newsletter-once`, and `sudo systemctl stop iguana-newsletter-once.timer` cancels

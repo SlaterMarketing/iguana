@@ -1683,6 +1683,73 @@ class NewsletterLinkTests(ApiTestCase):
         self.assertIn('?night=es&date=2026-09-22&ic=', tag('https://x/es/open-mic/?night=es&date=2026-09-22', contact))
 
 
+class EmailedUnsubscribeTests(ApiTestCase):
+    """An unsubscribe that arrives as an email has to work, and must not take innocent people with it."""
+
+    def _mbox(self, messages):
+        import pathlib
+        import tempfile
+
+        path = pathlib.Path(tempfile.mkdtemp()) / 'inbox'
+        path.write_text('\n'.join(
+            f'From someone Thu Sep 23 14:00:00 2026\nFrom: {frm}\nSubject: {subject}\n\n{body}\n'
+            for frm, subject, body in messages))
+        return str(path)
+
+    def test_it_honours_a_client_that_used_the_mailto(self):
+        """Apple Mail chose the mailto out of List-Unsubscribe, sent it to a mailbox nothing was reading, and
+        the person stayed on the list having done everything right."""
+        from django.core.management import call_command
+        from crm.models import Contact
+
+        person = Contact.objects.create(email='reader@example.com', subscribed=True)
+        box = self._mbox([('Reader <reader@example.com>', 'unsubscribe', 'Apple Mail sent this email to unsubscribe.')])
+        call_command('process_unsubscribe_mail', '--mailbox', box, '--apply', verbosity=0)
+        person.refresh_from_db()
+        self.assertFalse(person.subscribed)
+
+    def test_it_never_reads_the_body(self):
+        """Every newsletter carries the word in its own footer and a copy is delivered to this mailbox. A body
+        match would unsubscribe whoever appears to have sent our own mail."""
+        from django.core.management import call_command
+        from crm.models import Contact
+
+        person = Contact.objects.create(email='innocent@example.com', subscribed=True)
+        box = self._mbox([('innocent@example.com', 'Re: your show on Friday',
+                           'Looks great. PS the footer says I can unsubscribe here.')])
+        call_command('process_unsubscribe_mail', '--mailbox', box, '--apply', verbosity=0)
+        person.refresh_from_db()
+        self.assertTrue(person.subscribed, 'mentioning the word is not asking')
+
+    def test_it_refuses_a_message_that_looks_like_it_came_from_us(self):
+        from django.core.management import call_command
+        from crm.models import Contact
+
+        us = Contact.objects.create(email='hello@site.test', subscribed=True)
+        box = self._mbox([('no-reply@site.test', 'unsubscribe', 'x')])
+        call_command('process_unsubscribe_mail', '--mailbox', box, '--apply', verbosity=0)
+        us.refresh_from_db()
+        self.assertTrue(us.subscribed)
+
+    def test_a_dry_run_changes_nothing(self):
+        from django.core.management import call_command
+        from crm.models import Contact
+
+        person = Contact.objects.create(email='reader2@example.com', subscribed=True)
+        box = self._mbox([('reader2@example.com', 'Unsubscribe', 'please')])
+        call_command('process_unsubscribe_mail', '--mailbox', box, verbosity=0)
+        person.refresh_from_db()
+        self.assertTrue(person.subscribed)
+
+    def test_the_header_offers_only_the_link_that_works_by_itself(self):
+        """A mailto beside the URL lets a client pick the one that needs somebody to be reading a mailbox."""
+        from crm.unsubscribe import bulk_headers
+
+        headers = bulk_headers('reader@example.com')
+        self.assertNotIn('mailto:', headers['List-Unsubscribe'])
+        self.assertEqual(headers['List-Unsubscribe-Post'], 'List-Unsubscribe=One-Click')
+
+
 class MarketingSendTests(ApiTestCase):
     """`send_marketing` has to actually send. It did not, for as long as it has existed."""
 
