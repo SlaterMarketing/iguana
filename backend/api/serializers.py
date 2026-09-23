@@ -108,14 +108,26 @@ def listing_status(event, ticket_types=None):
     return 'on-sale'
 
 
-def lineup_entry_json(entry):
+def lineup_entry_json(entry, lang='en'):
+    """A name and a face for the list, plus enough for a show page to introduce its headliner.
+
+    The bio and the clip ride along because an event page selling a named act has to be about that act: the
+    poster says who is on and nothing on the page said a word about them. Everyone on the bill carries them,
+    not just the headliner, so a two-hander does not have to be a special case.
+    """
+    artist = entry.artist
+    reels = [{'title': r.get('title', ''), 'url': media(r.get('url')), 'posterUrl': media(r.get('posterUrl'))}
+             for r in (artist.reels or []) if r.get('url')]
     return {
-        'id': entry.artist.id,
-        'slug': entry.artist.slug,
-        'name': entry.artist.stage_name or entry.artist.name,
+        'id': artist.id,
+        'slug': artist.slug,
+        'name': artist.stage_name or artist.name,
         'role': entry.role or None,
         'sortOrder': entry.sort_order,
-        'imageUrl': media(entry.artist.image_url),
+        'imageUrl': media(artist.image_url),
+        'headliner': entry.headliner,
+        'bio': (artist.bio_es if lang == 'es' and artist.bio_es else artist.bio) or '',
+        'reels': reels,
     }
 
 
@@ -176,8 +188,8 @@ def event_json(event, plan=None, lang='en', demand=None):
         'language': event.language or 'en',
         'venue': venue,
         'tour': {'id': event.tour.id, 'slug': event.tour.slug, 'name': event.tour.name, 'imageUrl': media(event.tour.image_url)} if event.tour else None,
-        'lineup': [lineup_entry_json(e) for e in lineup],
-        'headliner': lineup_entry_json(headliner) if headliner else None,
+        'lineup': [lineup_entry_json(e, lang) for e in lineup],
+        'headliner': lineup_entry_json(headliner, lang) if headliner else None,
         'ticketingType': event.ticketing_type,
         'ageRestriction': event.age_restriction or None,
         'priceFrom': min((t.price_cents for t in types), default=None),

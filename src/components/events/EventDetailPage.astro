@@ -43,6 +43,16 @@ const showSchema = event ? eventSchema(event, siteOrigin, new URL(Astro.url.path
 
 // The hero draws one crop on a phone and another from `md` up, so each preload carries the matching query.
 // Without them a phone downloads both and the preload makes the page slower than having none.
+// Anyone the event bills with something to say about them gets an introduction; the rest stay a list. `bio`
+// and `reels` ride along on every lineup entry, so a two-hander is not a special case.
+type Billed = (typeof event extends null ? never : NonNullable<typeof event>)["lineup"][number] & {
+  bio?: string;
+  reels?: Array<{ title: string; url: string; posterUrl: string | null }>;
+};
+const lineup = (event?.lineup ?? []) as Billed[];
+const billed = lineup.filter((member) => member.bio || member.reels?.length);
+const supporting = lineup.filter((member) => !(member.bio || member.reels?.length));
+
 const heroPreloads = [
   ...(posterMobileSrc ? [{ href: posterMobileSrc, media: "(max-width: 767px)" }] : []),
   ...(heroPoster ? [{ href: heroPoster, media: "(min-width: 768px)" }] : []),
@@ -282,12 +292,59 @@ const pixelContent = event
                 ) : null
               }
 
+              {/* Who is on, before the list of who else is on. An event page selling a named act has to be
+                  about that act: the poster said who it was and the page said nothing about them. */}
               {
-                event.lineup.length ? (
+                billed.length ? (
+                  <section class="space-y-8">
+                    <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-400">
+                      {t(locale, "events.whoIsOn")}
+                    </h2>
+                    {billed.map((member) => (
+                      <div class="space-y-5">
+                        <div class="flex items-center gap-4">
+                          {member.imageUrl ? (
+                            <img src={member.imageUrl} alt="" class="size-20 rounded-2xl object-cover" loading="lazy" />
+                          ) : null}
+                          <div class="min-w-0">
+                            <a
+                              class="font-display text-3xl text-neutral-950 hover:text-brand"
+                              style="font-family: var(--font-display);"
+                              href={localizePath(locale, "comedianDetail", { slug: member.slug })}
+                            >
+                              {member.name}
+                            </a>
+                            {member.role ? <p class="text-sm text-neutral-500">{member.role}</p> : null}
+                          </div>
+                        </div>
+                        {member.bio ? <p class="text-lg leading-relaxed text-neutral-700">{member.bio}</p> : null}
+                        {member.reels?.length ? (
+                          <div class="grid gap-4 sm:grid-cols-2">
+                            {member.reels.slice(0, 2).map((reel) => (
+                              <video
+                                class="w-full rounded-2xl border border-black/10 bg-neutral-950"
+                                src={reel.url}
+                                poster={reel.posterUrl ?? undefined}
+                                controls
+                                playsinline
+                                preload="none"
+                                aria-label={reel.title || member.name}
+                              />
+                            ))}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))}
+                  </section>
+                ) : null
+              }
+
+              {
+                supporting.length ? (
                   <section class="space-y-6">
                     <h2 class="text-xs font-semibold uppercase tracking-[0.42em] text-neutral-400">{t(locale, "events.featuredVoices")}</h2>
                     <ul class="space-y-4">
-                      {event.lineup.map((member) => (
+                      {supporting.map((member) => (
                         <li class="flex items-center gap-4 border-b border-black/10 pb-4">
                           {member.imageUrl ? <img src={member.imageUrl} alt="" class="size-14 rounded-2xl object-cover" loading="lazy" /> : null}
                           <div class="min-w-0 flex-1">
