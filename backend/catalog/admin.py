@@ -33,8 +33,8 @@ class ArtistAdmin(admin.ModelAdmin):
 class TicketTypeInline(admin.TabularInline):
     model = TicketType
     extra = 0
-    fields = ('name', 'description', 'price_cents', 'member_price_cents', 'member_access', 'capacity', 'max_per_order',
-              'pay_at_door', 'active', 'sort_order')
+    fields = ('name', 'description', 'price_cents', 'member_price_cents', 'member_access', 'capacity',
+              'sold_elsewhere', 'max_per_order', 'pay_at_door', 'active', 'sort_order')
 
 
 class LineupInline(admin.TabularInline):

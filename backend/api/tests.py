@@ -1965,6 +1965,51 @@ class TableMenuTests(ApiTestCase):
         self.assertTrue(TableOrder.objects.filter(table_number=3).exists())
 
 
+class SoldElsewhereTests(ApiTestCase):
+    """A guest promoter selling the same night is selling the same chairs."""
+
+    def setUp(self):
+        self.show = Event.objects.create(name='Guest headliner', slug='guest-headliner', status=Event.ACTIVE,
+                                         venue=self.venue, currency='mxn',
+                                         date=timezone.now() + timedelta(days=3))
+        self.seat = TicketType.objects.create(event=self.show, name='General admission', price_cents=30000,
+                                              capacity=80, sold_elsewhere=25)
+
+    def test_the_checkout_cannot_sell_the_room_twice(self):
+        """Without this our checkout offers all eighty chairs while the promoter is selling the same eighty,
+        and the second person to arrive is turned away at the door having paid."""
+        from api.serializers import remaining
+
+        self.assertEqual(remaining(self.seat), 55)
+
+    def test_it_refuses_an_order_that_would_overfill_the_room(self):
+        # Squeezed to 10 left so the capacity guard is what refuses it, rather than the 20-per-order limit
+        # refusing it first and the test passing for the wrong reason.
+        self.seat.sold_elsewhere = 70
+        self.seat.save()
+        self.assertEqual(self.api('post', f'/api/checkout/{self.show.id}/quote',
+                                  {'items': {self.seat.id: 11}}).status_code, 400)
+        self.assertEqual(self.api('post', f'/api/checkout/{self.show.id}/quote',
+                                  {'items': {self.seat.id: 10}}).status_code, 200)
+
+    def test_the_page_counts_them_as_taken(self):
+        """Leaving them out told a visitor the night was emptier than it is, which is the opposite of what the
+        demand line exists to do."""
+        from sales.demand import demand, demand_for
+
+        d = demand(self.show)
+        self.assertEqual((d['taken'], d['left']), (25, 55))
+        self.assertEqual(demand_for([self.show])[self.show.id], d, 'and both code paths still agree')
+
+    def test_zero_changes_nothing_for_every_other_show(self):
+        from api.serializers import remaining
+        from sales.demand import demand
+
+        plain = TicketType.objects.create(event=self.show, name='Second tier', price_cents=10000, capacity=10)
+        self.assertEqual(remaining(plain), 10)
+        self.assertEqual(demand(self.show)['capacity'], 90)
+
+
 class DrinksMovedOutOfCheckoutTests(ApiTestCase):
     """The upsell moved from before the reserve button to after the seat is held."""
 

@@ -169,6 +169,11 @@ class TicketType(models.Model):
     member_price_cents = models.PositiveIntegerField(null=True, blank=True)
     member_access = models.CharField(max_length=14, choices=MEMBER_ACCESS_CHOICES, default='ALL')
     capacity = models.PositiveIntegerField(null=True, blank=True, help_text='Blank = unlimited')
+    sold_elsewhere = models.PositiveIntegerField(
+        default=0,
+        help_text='Seats already gone through another channel, e.g. a guest promoter selling the same night on '
+                  'their own site. Counted against capacity so this checkout cannot oversell the room, and '
+                  'counted as taken so the page tells the truth about how full it is.')
     max_per_order = models.PositiveSmallIntegerField(null=True, blank=True, help_text='Blank = 20')
     pay_at_door = models.BooleanField(
         default=False, help_text='Reserve online, pay at the door. No online payment is taken for this type.')

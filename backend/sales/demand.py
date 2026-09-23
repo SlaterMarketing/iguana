@@ -31,6 +31,10 @@ MIN_RECENT = 2
 BAR_FROM = 0.33
 
 
+def _sold_elsewhere(event):
+    return sum(t.sold_elsewhere or 0 for t in event.ticket_types.filter(active=True, is_addon=False))
+
+
 def _seats(rows):
     """Seats only. A round of drinks is not a seat and must never inflate how full the room looks."""
     total = rows.exclude(ticket_type__is_addon=True).aggregate(n=Sum('quantity'))['n']
@@ -47,7 +51,9 @@ def demand(event):
         return None
 
     completed = OrderItem.objects.filter(order__event=event, order__status=Order.COMPLETED)
-    taken = _seats(completed)
+    # Seats sold through a guest promoter are seats in this room. Leaving them out told a visitor the night was
+    # emptier than it is, which is the opposite of what this line exists to do.
+    taken = _seats(completed) + _sold_elsewhere(event)
 
     now = timezone.now()
     by_window = {label: _seats(completed.filter(order__completed_at__gte=now - timedelta(hours=hours)))
@@ -89,10 +95,11 @@ def demand_for(events):
     if not events:
         return {}
 
-    capacities = {}
+    capacities, elsewhere = {}, {}
     for t in TicketType.objects.filter(event__in=events, active=True, is_addon=False):
         if t.capacity is not None:
             capacities[t.event_id] = capacities.get(t.event_id, 0) + t.capacity
+        elsewhere[t.event_id] = elsewhere.get(t.event_id, 0) + (t.sold_elsewhere or 0)
 
     now = timezone.now()
     taken, recent = {}, {label: {} for _, label in WINDOWS}
@@ -111,7 +118,7 @@ def demand_for(events):
         capacity = capacities.get(event.id, 0)
         if not capacity:
             continue
-        got = taken.get(event.id, 0)
+        got = taken.get(event.id, 0) + elsewhere.get(event.id, 0)
         by_window = {label: recent[label].get(event.id, 0) for _, label in WINDOWS}
         count, window = _best_window(by_window)
         out[event.id] = {

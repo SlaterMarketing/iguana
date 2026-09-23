@@ -88,9 +88,15 @@ def sold_quantity(ticket_type):
 
 
 def remaining(ticket_type):
+    """Seats this checkout may still sell.
+
+    `sold_elsewhere` is subtracted because a guest promoter selling the same night on their own site is selling
+    the same eighty chairs. Without it our checkout happily sells the room twice and the second person to
+    arrive is turned away at the door having paid.
+    """
     if ticket_type.capacity is None:
         return None
-    return max(0, ticket_type.capacity - sold_quantity(ticket_type))
+    return max(0, ticket_type.capacity - sold_quantity(ticket_type) - (ticket_type.sold_elsewhere or 0))
 
 
 def listing_status(event, ticket_types=None):
