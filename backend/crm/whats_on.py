@@ -31,6 +31,11 @@ PATHS = {
 }
 
 DATE_FORMATS = {'en': '%A %-d %B', 'es': '%A %-d de %B'}
+
+# Which language to lead with for the 595 imported contacts who have never told us. Spanish, because the club
+# is in Playa del Carmen and the bookings say so: 31 of 47 completed orders were made in Spanish. English was
+# the old default and it was a guess in the other direction, made by `normalize('')` rather than by anyone.
+UNKNOWN_READS = 'es'
 WEEKDAYS_ES = {'Monday': 'lunes', 'Tuesday': 'martes', 'Wednesday': 'miércoles', 'Thursday': 'jueves',
                'Friday': 'viernes', 'Saturday': 'sábado', 'Sunday': 'domingo'}
 MONTHS_ES = {'January': 'enero', 'February': 'febrero', 'March': 'marzo', 'April': 'abril', 'May': 'mayo',
@@ -144,7 +149,7 @@ def body(events, contact=None, lede_en='', lede_es=''):
     Every link is marked with the contact, so whichever block they click from records the language they read and
     the blank locale on most of this list fills itself in over a few sends.
     """
-    known = normalize(getattr(contact, 'locale', '')) if getattr(contact, 'locale', '') else 'en'
+    known = normalize(getattr(contact, 'locale', '')) if getattr(contact, 'locale', '') else UNKNOWN_READS
     second = 'es' if known == 'en' else 'en'
     ledes = {'en': lede_en, 'es': lede_es}
     return '\n\n- - -\n\n'.join(body_for(events, lang, ledes[lang], contact) for lang in (known, second))

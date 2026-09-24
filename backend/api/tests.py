@@ -2321,3 +2321,125 @@ class AfterShowTests(ApiTestCase):
         self.assertEqual(mail.outbox, [])
         self.assertIn('Dry run', output)
         self.assertIn('¿Qué tal estuvo anoche?', output)
+
+
+class NewsletterLanguageTests(ApiTestCase):
+    """Which language the weekly mail leads with, and what the subject line says.
+
+    The body carries both languages, so nobody is ever locked out of the content. What the locale decides is
+    the order and the subject, and the subject is the only part of a bilingual email that cannot carry both.
+    595 of 666 mailable contacts came from the Kintana import and have never told us anything, and a blank
+    locale used to resolve to English by accident, through `normalize('')`, rather than by any decision.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.event.tags = ['open-mic', 'open-mic-es']
+        cls.event.language = 'es'
+        cls.event.date = timezone.now() + timedelta(days=2)
+        cls.event.save()
+
+    def week(self):
+        from crm.whats_on import week_events
+
+        return list(week_events())
+
+    def test_a_spanish_reader_gets_spanish_first(self):
+        from crm.whats_on import body
+
+        contact = Contact.objects.create(email='es@example.com', locale='es')
+        text = body(self.week(), contact)
+        self.assertLess(text.index('Hola'), text.index('Hi there'))
+
+    def test_an_english_reader_gets_english_first(self):
+        from crm.whats_on import body
+
+        contact = Contact.objects.create(email='en@example.com', locale='en')
+        text = body(self.week(), contact)
+        self.assertLess(text.index('Hi there'), text.index('Hola'))
+
+    def test_a_reader_we_know_nothing_about_gets_spanish_first(self):
+        """The club is in Playa del Carmen and 31 of 47 completed orders were made in Spanish."""
+        from crm.whats_on import body
+
+        contact = Contact.objects.create(email='unknown@example.com', locale='')
+        text = body(self.week(), contact)
+        self.assertLess(text.index('Hola'), text.index('Hi there'))
+
+    def test_both_languages_are_always_in_the_body(self):
+        from crm.whats_on import body
+
+        for locale in ('es', 'en', ''):
+            text = body(self.week(), Contact.objects.create(email=f'{locale or "x"}@example.com', locale=locale))
+            self.assertIn('Hola', text)
+            self.assertIn('Hi there', text)
+
+    def test_the_subject_follows_the_same_rule(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        Contact.objects.create(email='unknown2@example.com', locale='', subscribed=True)
+        out = StringIO()
+        call_command('send_whats_on', stdout=out)
+        self.assertIn('Esta semana en Iguana Comedy', out.getvalue())
+
+
+class ReservationsBoardTests(ApiTestCase):
+    """The board that answers "how many have we got for Tuesday", and doubles as the door list."""
+
+    def staff(self, name, **extra):
+        from django.contrib.auth import get_user_model
+
+        user = get_user_model().objects.create_user(name, password='x', is_staff=True, **extra)
+        self.client.force_login(user)
+        return user
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.event.date = timezone.now() + timedelta(days=3)
+        cls.event.save(update_fields=['date'])
+        cls.order = Order.objects.create(event=cls.event, event_name=cls.event.name, customer_name='Ana Lopez',
+                                         customer_email='ana@example.com', currency='usd', locale='en',
+                                         status=Order.COMPLETED, completed_at=timezone.now())
+        Ticket.objects.create(order=cls.order, ticket_type_name='GA')
+        Ticket.objects.create(order=cls.order, ticket_type_name='GA')
+
+    def test_it_is_staff_only(self):
+        res = self.client.get('/reservations/')
+        self.assertEqual(res.status_code, 302)
+        self.assertIn('/admin/login/', res['Location'])
+
+    def test_it_counts_the_seats_and_names_the_guests(self):
+        self.staff('door')
+        page = self.client.get('/reservations/').content.decode()
+        self.assertIn('Ana Lopez', page)
+        self.assertIn('2 seats booked', page)
+
+    def test_plain_staff_do_not_get_the_mailing_list(self):
+        """The door needs a name to check somebody in. It does not need 600 email addresses."""
+        self.staff('door2')
+        page = self.client.get('/reservations/').content.decode()
+        self.assertIn('Ana Lopez', page)
+        self.assertNotIn('ana@example.com', page)
+
+    def test_an_owner_sees_the_email(self):
+        self.staff('boss', is_superuser=True)
+        page = self.client.get('/reservations/').content.decode()
+        self.assertIn('ana@example.com', page)
+
+    def test_a_cancelled_order_is_not_counted(self):
+        self.staff('door3')
+        self.order.status = Order.CANCELLED
+        self.order.save(update_fields=['status'])
+        page = self.client.get('/reservations/').content.decode()
+        self.assertNotIn('Ana Lopez', page)
+        self.assertIn('Nobody yet', page)
+
+    def test_it_reads_in_spanish_when_the_phone_does(self):
+        self.staff('door4')
+        page = self.client.get('/reservations/', HTTP_ACCEPT_LANGUAGE='es-MX,es;q=0.9').content.decode()
+        self.assertIn('Reservaciones', page)
+        self.assertIn('Quién viene', page)

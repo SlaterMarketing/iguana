@@ -140,6 +140,7 @@ upstream iguana_api { server 127.0.0.1:8001; }
     location ^~ /unsubscribe/ { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
     location ^~ /newsletter/  { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
     location ^~ /tables/      { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
+    location ^~ /reservations/ { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
     location ^~ /revenue/     { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
     location ^~ /admin/       { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
     {# Django's own CSS and JS, for the admin login those pages redirect to. #}

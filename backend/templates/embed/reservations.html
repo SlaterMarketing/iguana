@@ -1,0 +1,124 @@
+{% extends "embed/base.html" %}
+{% load showtime %}
+{% block title %}{% t lang "Reservations" %} · Iguana Comedy{% endblock %}
+{% block head %}
+<style>
+  /* Read standing up, often on a phone, usually to answer one question: how many have we got. */
+  .wrap { max-width: 900px; }
+  .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .night { border: 1px solid var(--line); border-radius: 18px; background: #fff; padding: 14px 16px; }
+  .night + .night { margin-top: 12px; }
+  .night.tonight { border-color: var(--brand); background: var(--brand-soft); }
+  .night .top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .night h2 { margin: 0; font-size: 1.05rem; }
+  .night .day { font-size: .78rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .count { font-family: "Bebas Neue", sans-serif; font-size: 2.1rem; line-height: 1; }
+  .count small { font-family: inherit; font-size: .9rem; font-weight: 600; color: var(--muted); letter-spacing: .04em; }
+  .bar { height: 8px; border-radius: 999px; background: rgba(0,0,0,.08); overflow: hidden; margin: 10px 0 8px; }
+  .bar span { display: block; height: 100%; background: var(--brand); }
+  .bar.full span { background: #b7791f; }
+  .meta { font-size: .85rem; color: var(--muted); line-height: 1.5; }
+  details { margin-top: 10px; }
+  summary { cursor: pointer; font-size: .82rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: .9rem; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  td.seats { font-weight: 700; white-space: nowrap; }
+  .here { color: var(--brand); font-weight: 700; }
+  .empty { color: var(--muted); font-style: italic; }
+  .past { opacity: .75; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="stack">
+  <div class="head">
+    <div>
+      <p class="eyebrow">Iguana Comedy</p>
+      <h1>{% t lang "Reservations" %}</h1>
+    </div>
+    <p class="muted">{% t lang "{0} seats booked across every night to come" seats_ahead %}</p>
+  </div>
+
+  {% for n in upcoming %}
+    <section class="night {% if n.when.date == today %}tonight{% endif %}">
+      <div class="top">
+        <div>
+          <p class="day">
+            {{ n.when|date:"D j M" }}{% if n.event.show_time %} · {% t lang "show {0}" n.event.show_time %}{% endif %}
+            {% if n.when.date == today %} · {% t lang "tonight" %}{% endif %}
+          </p>
+          <h2>{{ n.name }}</h2>
+        </div>
+        <p class="count">
+          {{ n.seats }}{% if n.capacity %}<small> / {{ n.capacity }}</small>{% endif %}
+        </p>
+      </div>
+
+      {% if n.capacity %}
+        <div class="bar {% if n.percent >= 90 %}full{% endif %}"><span style="width: {{ n.percent }}%"></span></div>
+      {% endif %}
+
+      <p class="meta">
+        {% if n.bookings == 1 %}{% t lang "1 booking" %}{% else %}{% t lang "{0} bookings" n.bookings %}{% endif %}
+        {% if n.left is not None %} · {% t lang "{0} left" n.left %}{% endif %}
+        {% if n.elsewhere %} · {% t lang "{0} sold elsewhere" n.elsewhere %}{% endif %}
+        {% if n.online %} · {% t lang "{0} taken online" n.online %}{% endif %}
+        {% if n.at_door %} · {% t lang "{0} to collect at the door" n.at_door %}{% endif %}
+        {% if n.checked_in %} · <span class="here">{% t lang "{0} checked in" n.checked_in %}</span>{% endif %}
+      </p>
+
+      {% if n.guests %}
+        <details {% if n.when.date == today %}open{% endif %}>
+          <summary>{% t lang "Who is coming" %}</summary>
+          <table>
+            <thead>
+              <tr>
+                <th>{% t lang "Name" %}</th>
+                {% if can_see_email %}<th>{% t lang "Email" %}</th>{% endif %}
+                <th>{% t lang "Seats" %}</th>
+                <th>{% t lang "Booked" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for g in n.guests %}
+                <tr>
+                  <td>{{ g.name }}{% if g.checked_in %} <span class="here">✓</span>{% endif %}</td>
+                  {% if can_see_email %}<td>{{ g.email }}</td>{% endif %}
+                  <td class="seats">{{ g.seats }}</td>
+                  <td class="muted">{{ g.booked_at|date:"j M H:i" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </details>
+      {% else %}
+        <p class="empty">{% t lang "Nobody yet." %}</p>
+      {% endif %}
+    </section>
+  {% empty %}
+    <p class="empty">{% t lang "Nothing on the calendar yet." %}</p>
+  {% endfor %}
+
+  {% if past %}
+    <details class="past">
+      <summary>{% t lang "Recent nights" %}</summary>
+      {% for n in past %}
+        <section class="night">
+          <div class="top">
+            <div>
+              <p class="day">{{ n.when|date:"D j M" }}</p>
+              <h2>{{ n.name }}</h2>
+            </div>
+            <p class="count">{{ n.seats }}{% if n.capacity %}<small> / {{ n.capacity }}</small>{% endif %}</p>
+          </div>
+          <p class="meta">
+            {% if n.bookings == 1 %}{% t lang "1 booking" %}{% else %}{% t lang "{0} bookings" n.bookings %}{% endif %}
+            {% if n.checked_in %} · <span class="here">{% t lang "{0} checked in" n.checked_in %}</span>
+            {% else %} · {% t lang "nobody was scanned at the door" %}{% endif %}
+          </p>
+        </section>
+      {% endfor %}
+    </details>
+  {% endif %}
+</div>
+{% endblock %}

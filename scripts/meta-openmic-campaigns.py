@@ -139,14 +139,14 @@ NIGHTS = {
         'image': 'openmic-en-flyer-4x5.jpg',
         'story_image': 'openmic-en-flyer-9x16-safe.jpg',
         'copy': {
-            'message': ('Free stand-up every Wednesday in Playa del Carmen. Doors at 8, show at 8:30.\n\n'
+            'message': ('Free stand-up every Wednesday in Playa del Carmen. Doors at 8, show at 9.\n\n'
                         'The room holds 80 and it fills up. Reserve your spot free in thirty seconds and walk '
                         'straight in.'),
             'title': 'Reserve your free spot, every Wednesday',
             'description': 'Iguana Comedy, Calle 6 Nte and Av 20, centro',
         },
         'reach_copy': {
-            'message': ('Free stand-up every Wednesday in Playa del Carmen. Doors at 8, show at 8:30.\n\n'
+            'message': ('Free stand-up every Wednesday in Playa del Carmen. Doors at 8, show at 9.\n\n'
                         'Come and watch, or sign up at the door and do five minutes yourself. Nothing to pay.'),
             'title': 'Open mic night in Playa',
             'description': 'Iguana Comedy, Calle 6 Nte and Av 20, centro',

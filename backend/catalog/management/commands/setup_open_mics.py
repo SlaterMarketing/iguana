@@ -128,9 +128,10 @@ SERIES = {
         'language': 'en',
         'currency': 'usd',
         'price_cents': 0,
-        # From the night's own flyer: doors at 8, show at 8:30.
+        # Doors at 8, show at 9, matching the Spanish night. The flyer says 8:30 and the room never did,
+        # so the flyer is the thing that is wrong.
         'doors': '20:00',
-        'show_time': '20:30',
+        'show_time': '21:00',
         'images': {'en': ('/media/events/open-mic-en-16x9.jpg', '/media/events/open-mic-en-4x5.jpg'),
                    'es': ('/media/events/open-mic-en-es-16x9.jpg', '/media/events/open-mic-en-es-4x5.jpg')},
     },
