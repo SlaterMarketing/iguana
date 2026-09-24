@@ -187,16 +187,23 @@ class TableOrder(models.Model):
     replaces the waiting, not the till.
     """
 
-    OPEN, DELIVERED, CANCELLED = 'OPEN', 'DELIVERED', 'CANCELLED'
-    STATUS_CHOICES = [(s, s.title()) for s in (OPEN, DELIVERED, CANCELLED)]
+    OPEN, DELIVERED, PAID, CANCELLED = 'OPEN', 'DELIVERED', 'PAID', 'CANCELLED'
+    STATUS_CHOICES = [(s, s.title()) for s in (OPEN, DELIVERED, PAID, CANCELLED)]
 
     id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
     table_number = models.PositiveSmallIntegerField()
+    # The night this round belongs to, stamped when it is ordered. Without it the bar's takings are a pile of
+    # timestamps: "what did we sell on the Fredy night" is the question, and the answer has to survive the
+    # calendar rolling over at midnight while the show is still on.
+    event = models.ForeignKey('catalog.Event', null=True, blank=True, on_delete=models.SET_NULL,
+                              related_name='table_orders')
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=OPEN)
     total_cents = models.PositiveIntegerField(default=0)
     currency = models.CharField(max_length=3, default='mxn')
     note = models.CharField(max_length=300, blank=True)
     locale = models.CharField(max_length=5, default='en')
+    # Settled at the table, which is the end of the round trip: ordered, carried over, paid for.
+    paid_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     delivered_at = models.DateTimeField(null=True, blank=True)
 

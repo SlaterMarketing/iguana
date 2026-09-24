@@ -92,9 +92,14 @@ def table_order(request):
         return JsonResponse({'error': tr(lang, 'Those items are not available right now.')}, status=400)
 
     with transaction.atomic():
+        from .tables_views import current_show
+
         order = TableOrder.objects.create(
             table_number=table, locale=lang, note=str(body.get('note') or '')[:300],
             currency=(next(iter(items.values())).currency or 'mxn'),
+            # Stamped now rather than worked out later: which night a round belongs to is obvious while it is
+            # being poured and guesswork afterwards.
+            event=current_show(),
         )
         total = 0
         for item_id, qty in quantities.items():

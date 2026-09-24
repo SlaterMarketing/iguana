@@ -212,6 +212,18 @@ ES = {
     'Bookings and seats are our own rows, counted now. Spend is Meta\'s, from the snapshot. Cost per seat is their spend over our seats, never over their purchase count: today they report {0} purchases against the {1} bookings we actually hold.':
         'Las reservaciones y los lugares son nuestros propios registros, contados ahora. El gasto es de Meta, del snapshot. El costo por lugar es su gasto entre nuestros lugares, nunca entre su conteo de compras: hoy reportan {0} compras contra las {1} reservaciones que realmente tenemos.',
     # The bar board's running tab: what this table owes for the night, not just what is waiting.
+    'Mark paid': 'Marcar pagado',
+    'Paid': 'Pagado',
+    'Undo': 'Deshacer',
+    'Not paid after all': 'No pagó después de todo',
+    '1 round tonight': '1 ronda esta noche',
+    '1 round · {0} drinks': '1 ronda · {0} bebidas',
+    '{0} rounds tonight': '{0} rondas esta noche',
+    '{0} taken': '{0} cobrados',
+    '{0} still owed': '{0} por cobrar',
+    'The bar, night by night': 'La barra, noche por noche',
+    '{0} rounds · {1} drinks': '{0} rondas · {1} bebidas',
+    'nothing yet': 'nada todavía',
     'Due': 'Por cobrar',
     '{0} rounds': '{0} rondas',
     'Nothing waiting': 'Nada pendiente',

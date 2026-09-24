@@ -144,6 +144,44 @@ def _funnel(first_day, last_day):
     }
 
 
+def _bar_nights(limit=8):
+    """What the bar sold and collected, per show.
+
+    A round is stamped with the night it was poured on, so this survives the calendar rolling over at midnight
+    while the show is still running. `collected` is what has actually been settled; `owed` is what is still on
+    a table, which on a night still in progress is most of it.
+    """
+    from django.db.models import Sum
+    from sales.models import TableOrder, TableOrderItem
+
+    rows = {}
+    orders = (TableOrder.objects.exclude(status=TableOrder.CANCELLED).exclude(event__isnull=True)
+              .select_related('event').order_by('-created_at'))
+    for order in orders[:400]:
+        key = order.event_id
+        row = rows.setdefault(key, {'event': order.event, 'rounds': 0, 'collected': 0, 'owed': 0,
+                                    'currency': order.currency or 'mxn', 'drinks': 0})
+        row['rounds'] += 1
+        if order.status == TableOrder.PAID:
+            row['collected'] += order.total_cents
+        else:
+            row['owed'] += order.total_cents
+        if len(rows) > limit:
+            break
+    drinks = (TableOrderItem.objects.filter(order__event_id__in=list(rows))
+              .values('order__event_id').annotate(n=Sum('quantity')))
+    for row in drinks:
+        if row['order__event_id'] in rows:
+            rows[row['order__event_id']]['drinks'] = row['n'] or 0
+    nights = sorted(rows.values(), key=lambda r: r['event'].date or timezone.now(), reverse=True)[:limit]
+    for night in nights:
+        night['when'] = night['event'].date.astimezone(CANCUN) if night['event'].date else None
+        night['name'] = night['event'].label('en')
+        night['collected_money'] = f"{night['collected'] / 100:,.2f} {night['currency'].upper()}"
+        night['owed_money'] = f"{night['owed'] / 100:,.2f} {night['currency'].upper()}" if night['owed'] else ''
+    return nights
+
+
 def _room():
     """Everything else worth a glance: the list, and whatever the bar is holding right now."""
     from crm.models import Contact
@@ -183,6 +221,7 @@ def stats(request):
         'funnel_today': _funnel(today, today),
         'funnel_week': _funnel(today - timedelta(days=6), today),
         'room': _room(),
+        'bar_nights': _bar_nights(),
         'now': now,
         'fetched_ago': timesince(fetched) if fetched else '',
         'windows': windows,

@@ -136,6 +136,27 @@
     </section>
   {% endfor %}
 
+  {% if bar_nights %}
+    <section class="win">
+      <h2>{% t lang "The bar, night by night" %}</h2>
+      <table class="nights">
+        {% for n in bar_nights %}
+          <tr>
+            <td class="when">
+              {{ n.when|date:"D j M" }}
+              <span class="what">{{ n.name }}</span>
+            </td>
+            <td class="fill"><span class="what">{% if n.rounds == 1 %}{% t lang "1 round · {0} drinks" n.drinks %}{% else %}{% t lang "{0} rounds · {1} drinks" n.rounds n.drinks %}{% endif %}</span></td>
+            <td class="num">
+              <strong>{{ n.collected_money }}</strong>
+              {% if n.owed_money %}<span class="left">{% t lang "{0} still owed" n.owed_money %}</span>{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
+    </section>
+  {% endif %}
+
   <section class="win">
     <h2>{% t lang "Everything else" %}</h2>
     <p class="note">

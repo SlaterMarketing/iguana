@@ -2639,3 +2639,153 @@ class TableTabTests(ApiTestCase):
         self.assertEqual(service_start(small_hours).date(), (small_hours - timedelta(days=1)).date())
         evening = timezone.now().astimezone(CANCUN_TZ).replace(hour=21, minute=0)
         self.assertEqual(service_start(evening).date(), evening.date())
+
+
+class TableSettleTests(ApiTestCase):
+    """Paying closes the table out, and a mis-tap has to be recoverable.
+
+    Marking a table paid that has not paid is money walking out of the door, and this is a tap on a phone in a
+    dark room by somebody holding a tray. So it toggles rather than commits.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from sales.models import TableOrder
+
+        self.client.force_login(get_user_model().objects.create_user('bar4', password='x', is_staff=True))
+        self.round_one = TableOrder.objects.create(table_number=9, currency='mxn', total_cents=18000)
+
+    def board(self):
+        return self.client.get('/tables/').content.decode()
+
+    def test_marking_it_paid_settles_every_round_on_the_table(self):
+        from sales.models import TableOrder
+
+        TableOrder.objects.create(table_number=9, currency='mxn', total_cents=9000,
+                                  status=TableOrder.DELIVERED, delivered_at=timezone.now())
+        self.client.post('/tables/9/settle/')
+        self.assertEqual(TableOrder.objects.filter(table_number=9, status=TableOrder.PAID).count(), 2)
+        page = self.board()
+        self.assertIn('Paid', page)
+        self.assertIn('Undo', page)
+
+    def test_an_open_round_is_also_recorded_as_delivered(self):
+        """If they are paying for it, it reached the table."""
+        from sales.models import TableOrder
+
+        self.client.post('/tables/9/settle/')
+        settled = TableOrder.objects.get(pk=self.round_one.pk)
+        self.assertEqual(settled.status, TableOrder.PAID)
+        self.assertIsNotNone(settled.delivered_at)
+        self.assertIsNotNone(settled.paid_at)
+
+    def test_undo_puts_it_back(self):
+        from sales.models import TableOrder
+
+        self.client.post('/tables/9/settle/')
+        self.client.post('/tables/9/settle/', {'undo': '1'})
+        back = TableOrder.objects.get(pk=self.round_one.pk)
+        self.assertEqual(back.status, TableOrder.DELIVERED)
+        self.assertIsNone(back.paid_at)
+        self.assertIn('Mark paid', self.board())
+
+    def test_a_round_ordered_after_paying_reopens_the_tab(self):
+        """They settle, then order one more. The table owes again and must not read as settled."""
+        from sales.models import TableOrder
+
+        self.client.post('/tables/9/settle/')
+        TableOrder.objects.create(table_number=9, currency='mxn', total_cents=5000)
+        page = self.board()
+        self.assertIn('Mark paid', page)
+        self.assertIn('230 MXN', page)
+
+    def test_a_settled_table_is_not_counted_as_waiting(self):
+        self.client.post('/tables/9/settle/')
+        self.assertIn('Nothing waiting', self.board())
+
+    def test_only_staff_can_settle(self):
+        self.client.logout()
+        res = self.client.post('/tables/9/settle/')
+        self.assertEqual(res.status_code, 302)
+        self.assertIn('/admin/login/', res['Location'])
+
+
+class BarHistoryTests(ApiTestCase):
+    """What the bar sold, per show, kept rather than left as a pile of timestamps."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.tonight = Event.objects.create(name='Fredy El Regio', slug='fredy-night', status=Event.ACTIVE,
+                                           venue=cls.venue, date=timezone.now().replace(hour=21, minute=0),
+                                           show_time='21:00')
+
+    def staff(self, name, **extra):
+        from django.contrib.auth import get_user_model
+
+        self.client.force_login(get_user_model().objects.create_user(name, password='x', is_staff=True, **extra))
+
+    def test_a_round_is_stamped_with_the_show_it_was_poured_on(self):
+        from sales.models import TableOrder
+
+        res = self.client.post('/api/public/v1/table-orders',
+                               data=json.dumps({'table': 5, 'items': {}, 'lang': 'en'}),
+                               content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {KEY}')
+        self.assertEqual(res.status_code, 400, 'an empty basket is still refused')
+        order = TableOrder.objects.create(table_number=5, currency='mxn', total_cents=9000,
+                                          event=self.tonight)
+        self.assertEqual(order.event, self.tonight)
+
+    def test_the_board_names_tonights_show(self):
+        self.staff('bar5')
+        page = self.client.get('/tables/').content.decode()
+        self.assertIn('Fredy El Regio', page)
+
+    def test_the_board_totals_the_night(self):
+        from sales.models import TableOrder
+
+        TableOrder.objects.create(table_number=5, currency='mxn', total_cents=9000, event=self.tonight,
+                                  status=TableOrder.PAID, paid_at=timezone.now())
+        TableOrder.objects.create(table_number=6, currency='mxn', total_cents=18000, event=self.tonight)
+        self.staff('bar6')
+        page = self.client.get('/tables/').content.decode()
+        self.assertIn('2 rounds tonight', page)
+        self.assertIn('90 MXN', page)     # taken
+        self.assertIn('180 MXN', page)    # still owed
+
+    def test_stats_keeps_the_history_per_show(self):
+        from sales.models import TableOrder, TableOrderItem
+
+        order = TableOrder.objects.create(table_number=5, currency='mxn', total_cents=9000, event=self.tonight,
+                                          status=TableOrder.PAID, paid_at=timezone.now())
+        TableOrderItem.objects.create(order=order, name='Margarita', quantity=3, unit_price_cents=3000)
+        self.staff('boss2', is_superuser=True)
+        page = self.client.get('/stats/').content.decode()
+        self.assertIn('The bar, night by night', page)
+        self.assertIn('Fredy El Regio', page)
+        self.assertIn('1 round · 3 drinks', page)
+        self.assertIn('90.00 MXN', page)
+
+
+class ServiceShowTests(ApiTestCase):
+    """Which show the bar's evening belongs to."""
+
+    def test_tomorrows_show_is_not_tonights(self):
+        """An event's date sits early in its own day, so a timestamp window caught the NEXT night's show from
+        this afternoon: the board announced Friday's headliner on a Thursday with nothing on."""
+        from api.tables_views import current_show
+
+        now = timezone.localtime(timezone.now()).replace(hour=15, minute=30)
+        Event.objects.create(name='Tomorrow', slug='tomorrow-show', status=Event.ACTIVE, venue=self.venue,
+                             date=(now + timedelta(days=1)).replace(hour=0, minute=0))
+        self.assertIsNone(current_show(now), 'nothing is on tonight')
+
+    def test_tonights_show_is_found_from_the_afternoon_and_after_midnight(self):
+        from api.tables_views import current_show
+
+        now = timezone.localtime(timezone.now()).replace(hour=15, minute=30)
+        tonight = Event.objects.create(name='Tonight', slug='tonight-show', status=Event.ACTIVE, venue=self.venue,
+                                       date=now.replace(hour=0, minute=0))
+        self.assertEqual(current_show(now), tonight)
+        after_midnight = (now + timedelta(days=1)).replace(hour=0, minute=40)
+        self.assertEqual(current_show(after_midnight), tonight, 'the tab has not changed hands at 00:40')

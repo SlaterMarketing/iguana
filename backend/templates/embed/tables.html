@@ -25,18 +25,29 @@
             font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
   .t .tab strong { font-size: 1.15rem; letter-spacing: 0; text-transform: none; color: var(--ink); }
   .t .tab .rounds { flex-basis: 100%; font-size: .68rem; letter-spacing: .08em; }
+  .t .tab.settled { color: var(--muted); }
+  .t .tab.settled strong { color: var(--muted); text-decoration: line-through; }
+  /* Beside the amount, and deliberately not the same shape as Delivered: one carries drinks, one takes money. */
+  .t button.paid { flex: 0 0 auto; width: auto; min-height: 34px; padding: 0 14px; border-radius: 999px;
+                   background: #fff; color: var(--ink); border: 1px solid var(--ink);
+                   font: 700 .66rem/1 inherit; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+  .t button.paid:hover { background: var(--ink); color: #fff; }
+  .t button.paid.on { background: transparent; border-color: var(--line); color: var(--muted); }
+  .t form.tab { margin-top: 10px; }
   .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .head .tonight { display: block; font-size: .78rem; margin-top: 2px; }
 </style>
 {% endblock %}
 {% block content %}
 <div class="stack">
   <div class="head">
     <div>
-      <p class="eyebrow">Iguana Comedy</p>
+      <p class="eyebrow">{% if show_name %}{{ show_name }}{% if show_time %} · {% t lang "show {0}" show_time %}{% endif %}{% else %}Iguana Comedy{% endif %}</p>
       <h1>{% t lang "Tables" %}</h1>
     </div>
     <p class="muted">
       {% if open_count %}{% t lang "{0} waiting" open_count %}{% else %}{% t lang "Nothing waiting" %}{% endif %}
+      {% if rounds %}<span class="tonight">{% if rounds == 1 %}{% t lang "1 round tonight" %}{% else %}{% t lang "{0} rounds tonight" rounds %}{% endif %}{% if taken %} · {% t lang "{0} taken" taken %}{% endif %}{% if owed %} · {% t lang "{0} still owed" owed %}{% endif %}</span>{% endif %}
     </p>
   </div>
 
@@ -63,11 +74,19 @@
           delivered is still money sitting on this table and the board is the only place anybody looks.
         {% endcomment %}
         {% if t.tab_cents %}
-          <p class="tab">
-            <span>{% t lang "Due" %}</span>
+          <form class="tab {% if t.settled %}settled{% endif %}" method="post"
+                action="{% url 'settle-table' t.number %}">
+            {% csrf_token %}
+            <span>{% if t.settled %}{% t lang "Paid" %}{% else %}{% t lang "Due" %}{% endif %}</span>
             <strong>{{ t.tab }}</strong>
+            {% if t.settled %}
+              <button class="paid on" type="submit" name="undo" value="1"
+                      aria-label="{% t lang "Not paid after all" %}">{% t lang "Undo" %}</button>
+            {% else %}
+              <button class="paid" type="submit">{% t lang "Mark paid" %}</button>
+            {% endif %}
             {% if t.rounds > 1 %}<span class="rounds">{% t lang "{0} rounds" t.rounds %}</span>{% endif %}
-          </p>
+          </form>
         {% endif %}
       </div>
     {% endfor %}

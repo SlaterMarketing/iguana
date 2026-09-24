@@ -27,6 +27,7 @@ urlpatterns = [
     path('stats/', stats_views.stats, name='stats'),
     path('tables/', tables_views.tables, name='tables'),
     path('tables/<int:number>/close/', tables_views.close_table, name='close-table'),
+    path('tables/<int:number>/settle/', tables_views.settle_table, name='settle-table'),
     path('api/public/v1/menu', menu_views.menu),
     path('api/public/v1/table-orders', menu_views.table_order),
     path('api/public/v1/site', public_views.site),

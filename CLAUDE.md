@@ -334,9 +334,20 @@ changing one in the admin is not undone by the next deploy.
   interchangeable: the one at the top is what is **waiting to be carried over**, and the one under the rule is
   **Due**, everything that table has ordered tonight including rounds already delivered. They pay at the end,
   so pressing Delivered used to make the money disappear from the only screen anybody looks at.
+  **Paying is a toggle beside the amount**, not a second Delivered button: `Mark paid` settles every round on
+  that table for the service (an open one is marked delivered too, since they are paying for it) and turns into
+  `Undo`. Reversible on purpose: it is a tap on a phone in a dark room, and a table wrongly marked paid is
+  money out of the door. The board header names the show and totals the night.
   ⚠ **The night runs on a 6am-to-6am service, not a calendar day** (`tables_views.service_start`). A show
   starting at nine runs past midnight and the tab crosses with it; counting by calendar day would zero a table
   at 00:05 with the people still sitting at it.
+  🚨 **But `current_show` matches the CALENDAR DAY, not that window.** An event's date is stored early in its
+  own day, so a 6am-to-6am window over timestamps returns TOMORROW's show from this afternoon: it announced
+  Friday's Privilegio on a Thursday with nothing on. The service's date is the day it began, which after
+  midnight is still yesterday, so both ends still behave.
+  Every round is stamped with its show (`TableOrder.event`), which is what makes "what did the bar take on the
+  Fredy night" answerable at all; `/stats/` prints it per night, rounds, drinks and collected against still
+  owed. A round poured on a night with no show has no event, and that is correct rather than missing.
 - **`/revenue/`** as before.
 
 🚨 **No request path may call Meta, and `/stats/` does not.** The ad account's rate limit clears only by
