@@ -2138,13 +2138,43 @@ class InviteAFriendTests(ApiTestCase):
         self.assertIn('/en/open-mic/', url, 'the path follows the sharer, who writes the message')
         self.assertIn('night=es', url, 'the night follows the show, which is in Spanish')
 
-    def test_a_normal_ticketed_show_gets_no_open_mic_invite(self):
-        from sales.sharing import share_url
+    def test_a_ticketed_show_shares_its_own_page_never_the_open_mic(self):
+        """Somebody who has just paid for two tickets is at least as willing to tell people as somebody who
+        reserved a free seat. What changes is where the friend should land: the show being recommended, where
+        they can buy it, and not the open mic lander, which sells a different night entirely."""
+        from sales.sharing import share_message, share_url
         from sales.models import Order
 
         order = Order.objects.create(event=self.event, event_name=self.event.name, customer_email='a@example.com',
+                                     currency='usd', status=Order.COMPLETED, locale='en')
+        link = share_url(order)
+        self.assertIn(f'/en/events/{self.event.slug}/', link)
+        self.assertIn('ref=share', link)
+        # The lander's own query, which is what would mean it had been sent to the open mic instead.
+        self.assertNotIn('night=', link)
+        self.assertIn(self.event.name, share_message(order))
+
+    def test_a_show_happening_tonight_is_still_shared(self):
+        """The stored date can sit earlier in the day than the show itself, and comparing it to the clock made
+        every night 'past' from midnight, which removed the share block on the one day people talk about it."""
+        from sales.sharing import share_url
+        from sales.models import Order
+
+        self.event.date = timezone.now().replace(hour=0, minute=1)
+        self.event.save(update_fields=['date'])
+        order = Order.objects.create(event=self.event, event_name=self.event.name, customer_email='a@example.com',
+                                     currency='usd', status=Order.COMPLETED, locale='en')
+        self.assertNotEqual(share_url(order), '')
+
+    def test_a_show_that_has_already_happened_is_not_shared(self):
+        from sales.sharing import share_url
+        from sales.models import Order
+
+        self.event.date = timezone.now() - timedelta(days=1)
+        self.event.save(update_fields=['date'])
+        order = Order.objects.create(event=self.event, event_name=self.event.name, customer_email='a@example.com',
                                      currency='usd', status=Order.COMPLETED)
-        self.assertEqual(share_url(order), '', 'the invite is for the free open mic, not for paid shows')
+        self.assertEqual(share_url(order), '', 'a link to a finished show wastes the one ask we get')
 
 
 class CheckoutReserveTests(ApiTestCase):
@@ -2183,3 +2213,111 @@ class CheckoutReserveTests(ApiTestCase):
         html = self.client.get(f'/embed/event/{self.event.id}?embedded=1&lang=en').content.decode()
         self.assertIn('settled: settled', html)
         self.assertIn('card.on("ready", settleWhenStable)', html)
+
+
+class AfterShowTests(ApiTestCase):
+    """The morning-after note: thank them, ask them to tell somebody, ask what could have been better.
+
+    The things worth protecting are the ones that would embarrass us: sending it twice, sending it to somebody
+    who has unsubscribed, sending English to a Spanish booking, or claiming they came when nobody is scanned at
+    the door and we cannot know.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.last_night = Event.objects.create(name='Open Mic Night in Spanish', slug='mic-last-night',
+                                              status=Event.ACTIVE, venue=cls.venue, language='es',
+                                              date=timezone.now() - timedelta(days=1), tags=['open-mic'])
+        TicketType.objects.create(event=cls.last_night, name='Free reserved seat', price_cents=0, capacity=60)
+        cls.soon = Event.objects.create(name='Open Mic Night in Spanish', slug='mic-next', status=Event.ACTIVE,
+                                        venue=cls.venue, language='es', tags=['open-mic'],
+                                        date=timezone.now() + timedelta(days=6))
+
+    def booking(self, email, name='Ana Lopez', locale='es', event=None):
+        contact = Contact.objects.create(email=email, locale=locale)
+        return Order.objects.create(event=event or self.last_night, event_name=(event or self.last_night).name,
+                                    customer_email=email, customer_name=name, contact=contact, locale=locale,
+                                    currency='mxn', status=Order.COMPLETED, completed_at=timezone.now())
+
+    def run_command(self, **kwargs):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        out = StringIO()
+        call_command('send_after_show', stdout=out, **kwargs)
+        return out.getvalue()
+
+    def test_it_sends_one_note_per_booking_in_the_booking_language(self):
+        self.booking('ana@example.com')
+        mail.outbox = []
+        self.run_command(send=True)
+        self.assertEqual(len(mail.outbox), 1)
+        message = mail.outbox[0]
+        self.assertEqual(message.subject, '¿Qué tal estuvo anoche?')
+        self.assertIn('Tenías lugar para', message.body)
+        self.assertIn('/es/open-mic/', message.body)
+        self.assertIn('ref=after-show', message.body)
+
+    def test_it_never_claims_they_turned_up(self):
+        """Nobody is scanned at the door, so attendance is not a fact we hold."""
+        self.booking('ana@example.com', locale='en')
+        mail.outbox = []
+        self.run_command(send=True)
+        body = mail.outbox[0].body.lower()
+        self.assertIn('we hope you made it', body)
+        self.assertNotIn('thanks for coming', body)
+
+    def test_it_asks_for_a_reply_to_an_address_a_person_reads(self):
+        self.booking('ana@example.com')
+        mail.outbox = []
+        with override_settings(MARKETING_REPLY_TO='hello@iguanacomedy.com'):
+            self.run_command(send=True)
+        self.assertEqual(mail.outbox[0].reply_to, ['hello@iguanacomedy.com'])
+        self.assertIn('responde a este correo', mail.outbox[0].body)
+
+    def test_a_second_run_sends_nothing(self):
+        self.booking('ana@example.com')
+        mail.outbox = []
+        self.run_command(send=True)
+        self.run_command(send=True)
+        self.assertEqual(len(mail.outbox), 1)
+
+    def test_an_unsubscribed_guest_is_skipped_but_still_stamped(self):
+        order = self.booking('ana@example.com')
+        order.contact.subscribed = False
+        order.contact.save(update_fields=['subscribed'])
+        mail.outbox = []
+        self.run_command(send=True)
+        self.assertEqual(mail.outbox, [])
+        order.refresh_from_db()
+        self.assertIsNotNone(order.follow_up_sent_at, 'otherwise every run picks them up again forever')
+
+    def test_two_bookings_by_one_person_get_one_note(self):
+        first = self.booking('ana@example.com')
+        second = Order.objects.create(event=self.last_night, event_name=self.last_night.name, locale='es',
+                                      customer_email='ana@example.com', customer_name='Ana Lopez',
+                                      contact=first.contact, currency='mxn', status=Order.COMPLETED,
+                                      completed_at=timezone.now())
+        mail.outbox = []
+        self.run_command(send=True)
+        self.assertEqual(len(mail.outbox), 1)
+        second.refresh_from_db()
+        self.assertIsNotNone(second.follow_up_sent_at)
+
+    def test_tonights_show_is_not_followed_up_yet(self):
+        tonight = Event.objects.create(name='Tonight', slug='tonight', status=Event.ACTIVE, venue=self.venue,
+                                       date=timezone.now())
+        self.booking('ana@example.com', event=tonight)
+        mail.outbox = []
+        self.run_command(send=True)
+        self.assertEqual(mail.outbox, [])
+
+    def test_a_dry_run_delivers_nothing_and_shows_the_note(self):
+        self.booking('ana@example.com')
+        mail.outbox = []
+        output = self.run_command()
+        self.assertEqual(mail.outbox, [])
+        self.assertIn('Dry run', output)
+        self.assertIn('¿Qué tal estuvo anoche?', output)

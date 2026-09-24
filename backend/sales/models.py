@@ -34,6 +34,9 @@ class Order(models.Model):
     public_view_token = models.CharField(max_length=60, default=new_token, unique=True)
     completed_at = models.DateTimeField(null=True, blank=True)
     refunded_at = models.DateTimeField(null=True, blank=True)
+    # Stamped by `send_after_show`, so the morning-after note can only ever go out once per booking however
+    # many times the cron runs or is re-run by hand.
+    follow_up_sent_at = models.DateTimeField(null=True, blank=True)
     attribution = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
 

@@ -170,6 +170,19 @@ ES = {
     'Doors {0}, show {1}. Free entry.': 'Puertas {0}, show {1}. Entrada gratis.',
     'Hold your seat for {0}, a free drink included: {1}':
         'Aparta tu lugar por {0}, incluye una bebida gratis: {1}',
+    # The share link somebody sends after booking, and the morning-after note.
+    'I am going to see {0} at Iguana Comedy. Tickets here: {1}':
+        'Voy a ver a {0} en Iguana Comedy. Boletos aquí: {1}',
+    'Shows here sell out. Send this to whoever you want to bring and they can get their own ticket.':
+        'Los shows aquí se llenan. Manda esto a quien quieras traer y puede sacar su propio boleto.',
+    'How was last night?': '¿Qué tal estuvo anoche?',
+    'You had a seat for {0} last night. We hope you made it, and that it was a good one.':
+        'Tenías lugar para {0} anoche. Esperamos que hayas podido venir y que la hayas pasado bien.',
+    'If you enjoyed it, tell somebody. The open mic is every week and free to reserve:':
+        'Si te gustó, cuéntaselo a alguien. El open mic es cada semana y reservar es gratis:',
+    'And if anything could have been better, just reply to this email. We read every one.':
+        'Y si algo pudo haber estado mejor, solo responde a este correo. Los leemos todos.',
+    'See you at the next one,': 'Nos vemos en la próxima,',
     'Show {0}.': 'Show {0}.',
     'Tickets from {0}: {1}': 'Boletos desde {0}: {1}',
     'Details: {0}': 'Más información: {0}',

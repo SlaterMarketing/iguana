@@ -19,7 +19,7 @@ from crm.optin import confirm as confirm_optin
 from crm.optin import email_from_token as email_from_optin_token
 from crm.unsubscribe import email_from_token, resume_marketing, stop_marketing
 from sales.ad_reporting import report_checkout_engaged, report_payment_info_added
-from sales.sharing import is_open_mic, share_message, share_url, whatsapp_url
+from sales.sharing import is_open_mic, share_is_free, share_message, share_url, whatsapp_url
 from sales.i18n import lang_from_request, normalize, tr
 from sales.links import order_url
 from sales.models import Membership, MembershipPlan, Order, Ticket
@@ -280,6 +280,7 @@ def order_page(request, token):
         'site_url': settings.SITE_URLS[0] if settings.SITE_URLS else '',
         # Somebody who has just reserved is about to tell a friend anyway; this is the moment to make it one tap.
         'share_url': share_url(order),
+        'share_is_free': share_is_free(order),
         'whatsapp_url': whatsapp_url(order),
         'share_message': share_message(order),
     })

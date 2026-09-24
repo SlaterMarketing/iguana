@@ -67,7 +67,11 @@
     {% if share_url %}
       <section class="card invite">
         <h2>{% t lang "Bringing someone?" %}</h2>
-        <p class="muted">{% t lang "These nights fill up. Send this to whoever you want to bring and they can reserve their own free seat." %}</p>
+        {% if share_is_free %}
+          <p class="muted">{% t lang "These nights fill up. Send this to whoever you want to bring and they can reserve their own free seat." %}</p>
+        {% else %}
+          <p class="muted">{% t lang "Shows here sell out. Send this to whoever you want to bring and they can get their own ticket." %}</p>
+        {% endif %}
         <div class="invite-actions">
           {% if whatsapp_url %}
             <a class="btn" href="{{ whatsapp_url }}" target="_blank" rel="noopener">{% t lang "Invite on WhatsApp" %}</a>

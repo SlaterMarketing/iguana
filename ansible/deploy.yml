@@ -362,6 +362,21 @@
           timeout 30m {{ app_dir }}/backend/venv/bin/python {{ app_dir }}/backend/manage.py send_whats_on
           --send --lede-file {{ newsletter_lede }} 2>&1 | logger -t iguana-newsletter
 
+    - name: Morning-after note to last night's audience
+      become: true
+      cron:
+        name: iguana after-show follow up
+        disabled: "{{ not (after_show_enabled | default(true) | bool) }}"
+        user: "{{ deploy_user }}"
+        # 16:00 UTC is 11:00 in Playa: late enough that a show ending at 23:00 is properly "last night", and
+        # early enough that the next open mic is still something they can invite somebody to this week.
+        hour: "16"
+        minute: "0"
+        # Every booking it considers is stamped, so a double fire or a hand re-run sends nothing twice.
+        job: >-
+          timeout 20m {{ app_dir }}/backend/venv/bin/python {{ app_dir }}/backend/manage.py send_after_show
+          --send 2>&1 | logger -t iguana-after-show
+
     - name: Restart the site
       become: true
       command: "supervisorctl restart {{ projectname }}:{{ projectname }}-web"
