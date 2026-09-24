@@ -39,6 +39,9 @@ TIMEOUT = 30
 # campaign is the only object Meta's insights give us here; `api.tests.AdSpendTests` pins it.
 FREE_PREFIX = 'open mic'
 
+# How often one person should see an ad in a week before it counts as repetition. The owner's number.
+FREQUENCY_TARGET = 1.3
+
 
 def classify(campaign_name):
     return AdSpend.FREE if (campaign_name or '').strip().lower().startswith(FREE_PREFIX) else AdSpend.PAID
@@ -125,9 +128,10 @@ def campaign_rows(day=None, window=AdSpend.DAY):
             'clicks': row.clicks,
             'ctr': (row.clicks / row.impressions * 100) if row.impressions else None,
             'cpc': (row.spend_cents / 100 / row.clicks) if row.clicks else None,
-            # Above three impressions per person in a week, the same people are being shown it over and over.
-            # In a town this size that is the point at which more budget buys repetition, not audience.
-            'saturated': window == AdSpend.WEEK and row.frequency >= 3,
+            # The owner's target, not an industry threshold: 1.3 impressions per person per week. Set
+            # 2026-09-24 looking at 1.7 and 1.8 on the open mics. Over it, the budget is buying the same
+            # faces again rather than new ones, and the fix is a bigger audience or a smaller budget.
+            'saturated': window == AdSpend.WEEK and row.frequency > FREQUENCY_TARGET,
         })
     return rows
 

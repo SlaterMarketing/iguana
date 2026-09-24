@@ -38,7 +38,22 @@
   td.num { text-align: right; white-space: nowrap; font-size: 1.05rem; }
   td.num .of { color: var(--muted); font-size: .85rem; }
   td.num .left { display: block; font-size: .72rem; color: var(--muted); font-weight: 600; }
-  table.ads { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: .85rem; }
+  table.ads { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: .85rem; table-layout: fixed; }
+  table.ads td:first-child { word-break: break-word; }
+  /* Under 420px five columns cannot fit, and a table that overflows is a table nobody can read the right of.
+     Each campaign becomes its own block, with the column headings carried down as labels. */
+  @media (max-width: 420px) {
+    table.ads, table.ads tbody, table.ads tr, table.ads td { display: block; width: auto; }
+    table.ads thead { display: none; }
+    table.ads tr { border-top: 1px solid var(--line); padding: 8px 0 2px; }
+    table.ads tr.hot { background: #fdf6e7; border-radius: 10px; padding-left: 8px; padding-right: 8px; }
+    table.ads td { border: 0; padding: 1px 0; }
+    table.ads td.n { text-align: left; }
+    table.ads td.n::before { content: attr(data-label) " "; font-size: .7rem; letter-spacing: .08em;
+                             text-transform: uppercase; color: var(--muted); }
+    table.ads td:first-child { font-weight: 700; }
+    table.ads .what { display: inline; }
+  }
   table.ads th { font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
                  text-align: left; padding: 0 6px 4px; font-weight: 700; }
   table.ads th.n, table.ads td.n { text-align: right; white-space: nowrap; }
@@ -185,10 +200,10 @@
                 {{ c.name }}
                 <span class="what">{% if c.free %}{% t lang "free seats" %}{% else %}{% t lang "tickets" %}{% endif %}</span>
               </td>
-              <td class="n">${{ c.spend|floatformat:0 }}</td>
-              <td class="n">{{ c.reach }}</td>
-              <td class="n"><strong>{{ c.frequency|floatformat:1 }}</strong></td>
-              <td class="n">{{ c.clicks }}{% if c.ctr %}<span class="what">{{ c.ctr|floatformat:1 }}%</span>{% endif %}</td>
+              <td class="n" data-label="{% t lang "Spend" %}">${{ c.spend|floatformat:0 }}</td>
+              <td class="n" data-label="{% t lang "People" %}">{{ c.reach }}</td>
+              <td class="n" data-label="{% t lang "Times each" %}"><strong>{{ c.frequency|floatformat:1 }}</strong></td>
+              <td class="n" data-label="{% t lang "Clicks" %}">{{ c.clicks }}{% if c.ctr %}<span class="what">{{ c.ctr|floatformat:1 }}%</span>{% endif %}</td>
             </tr>
           {% empty %}
             <tr><td colspan="5" class="none">{% t lang "Nothing spent this week." %}</td></tr>
@@ -197,7 +212,8 @@
       </table>
       <p class="note">
         {% t lang "Seven days. People is how many saw it at all; times each is how often the same person saw it, which is why it is never added up across days." %}
-        {% if saturated_any %} <strong>{% t lang "Anything at 3 or above is being shown to the same people over and over, and more budget buys repetition rather than audience." %}</strong>{% endif %}
+        {% t lang "The target is {0} or under." frequency_target %}
+        {% if saturated_any %} <strong>{% t lang "Anything above it is being shown to the same people again, and the budget is buying repetition rather than new faces." %}</strong>{% endif %}
       </p>
       {% if campaigns_today %}
         <p class="note">{% t lang "Today so far:" %}

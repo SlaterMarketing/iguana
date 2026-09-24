@@ -25,7 +25,7 @@ from django.shortcuts import render
 from django.utils import timezone
 from django.utils.timesince import timesince
 
-from crm.ad_spend import campaign_rows, last_fetch, spend_between
+from crm.ad_spend import FREQUENCY_TARGET, campaign_rows, last_fetch, spend_between
 from crm.models import AdSpend
 from sales.i18n import lang_from_request
 from sales.models import Order
@@ -226,6 +226,7 @@ def stats(request):
         'campaigns_today': campaigns_today,
         'campaigns_week': campaigns_week,
         'saturated_any': any(c['saturated'] for c in campaigns_week),
+        'frequency_target': FREQUENCY_TARGET,
         'bar_nights': _bar_nights(),
         'now': now,
         'fetched_ago': timesince(fetched) if fetched else '',

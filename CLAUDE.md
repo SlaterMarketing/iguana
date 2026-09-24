@@ -326,6 +326,10 @@ changing one in the admin is not undone by the next deploy.
   saw it, clicks and CTR, over seven days and today), the room night by night (seats taken against capacity, with a fill bar
   and seats left), today's funnel from visit to booking, cost per reservation free against paid for today,
   yesterday and seven days, and a line for the list size and any open bar tab. Refreshes itself every 60s.
+  ⚠ **Every one of these pages is read on a phone, so test at 320px, not just 390.** The ad table overflowed
+  the page by 54px at 320 and 14px at 360 while looking perfect at 390; it stacks into one block per campaign
+  under 420px now. The reservations guest list was worse because it did NOT overflow the page: the card
+  clipped it, so the right-hand column existed and could not be reached by any amount of scrolling.
   ⚠ **`sales.demand` counts `OrderItem.quantity`, not `Ticket` rows.** A fixture that creates tickets without
   items reads as an empty room, which is a broken test rather than a broken page.
   ⚠ **Money on this page is a STRING per currency** (`'600.00 MXN · 25.00 USD'`), never a float, because the
@@ -373,7 +377,12 @@ reaches counts somebody who saw the ad on Monday and again on Thursday twice, an
 that sum reads LOWER than the truth, which is the direction that hides ad fatigue. The seven-day figures are
 therefore asked of Meta AS a seven-day window and stored as their own `AdSpend` row (`window='WEEK'`, same
 day and campaign as the daily rows). Anything that sums spend must filter `window=DAY` or it double counts.
-Frequency at 3 or above is flagged: past that, more budget buys repetition rather than audience.
+Frequency above **1.3 a week is flagged** (`ad_spend.FREQUENCY_TARGET`, the owner's number, set 2026-09-24
+looking at 1.7 and 1.8 on the open mics). It is a house target rather than an industry one: 1.7 over seven
+days is a quarter of an impression per person per day and nobody would call it fatigue. With the budget fixed
+the only honest lever is audience size, so the open mic reservation ad sets went from a 25km to a 40km radius
+(Puerto Aventuras and Akumal, the drive people here actually make), matching what Privilegio already used.
+⚠ Frequency is a TRAILING seven-day figure, so a targeting change shows up over days, not on the next refresh.
 
 🔑 **Cost per seat is Meta's spend over OUR seats, never over Meta's purchase count.** Their attribution has
 run both above and below the orders we hold (5 reported against 7 real on 2026-09-24, 22 against 7 the day

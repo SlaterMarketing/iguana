@@ -2986,17 +2986,17 @@ class AdFrequencyTests(ApiTestCase):
     def test_a_saturated_campaign_is_called_out(self):
         from crm.models import AdSpend
 
-        self.rows(day=timezone.localdate(), window=AdSpend.WEEK, frequency=4.2)
+        self.rows(day=timezone.localdate(), window=AdSpend.WEEK, frequency=2.0)
         self.as_owner()
         page = self.client.get('/stats/').content.decode()
-        self.assertIn('same people over and over', page)
+        self.assertIn('same people again', page)
         self.assertIn('class="hot"', page)
 
     def test_a_healthy_frequency_is_not_called_out(self):
         from crm.models import AdSpend
 
-        self.rows(day=timezone.localdate(), window=AdSpend.WEEK, frequency=1.6)
+        self.rows(day=timezone.localdate(), window=AdSpend.WEEK, frequency=1.2)
         self.as_owner()
         page = self.client.get('/stats/').content.decode()
-        self.assertNotIn('same people over and over', page)
+        self.assertNotIn('same people again', page)
         self.assertNotIn('class="hot"', page)

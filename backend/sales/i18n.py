@@ -199,8 +199,9 @@ ES = {
     'Nothing spent this week.': 'Nada gastado esta semana.',
     'Seven days. People is how many saw it at all; times each is how often the same person saw it, which is why it is never added up across days.':
         'Siete días. Personas es cuántas lo vieron; veces c/u es cuántas veces lo vio la misma persona, y por eso nunca se suma entre días.',
-    'Anything at 3 or above is being shown to the same people over and over, and more budget buys repetition rather than audience.':
-        'Todo lo que esté en 3 o más se le está mostrando a las mismas personas una y otra vez, y más presupuesto compra repetición en lugar de público.',
+    'The target is {0} or under.': 'La meta es {0} o menos.',
+    'Anything above it is being shown to the same people again, and the budget is buying repetition rather than new faces.':
+        'Todo lo que esté por encima se le está mostrando otra vez a las mismas personas, y el presupuesto compra repetición en lugar de caras nuevas.',
     'Today so far:': 'Hoy hasta ahora:',
     'people': 'personas',
     'Stats': 'Números',

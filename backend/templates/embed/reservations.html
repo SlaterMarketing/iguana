@@ -20,7 +20,10 @@
   .meta { font-size: .85rem; color: var(--muted); line-height: 1.5; }
   details { margin-top: 10px; }
   summary { cursor: pointer; font-size: .82rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
-  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: .9rem; }
+  /* The guest list is wider than a phone when emails are shown. It used to be clipped by the card, which put
+     the "Booked" column somewhere nobody could reach; now the list scrolls sideways on its own. */
+  .guests { overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top: 8px; }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
   th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
   th { font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
   td.seats { font-weight: 700; white-space: nowrap; }
@@ -70,6 +73,7 @@
       {% if n.guests %}
         <details {% if n.when.date == today %}open{% endif %}>
           <summary>{% t lang "Who is coming" %}</summary>
+          <div class="guests">
           <table>
             <thead>
               <tr>
@@ -90,6 +94,7 @@
               {% endfor %}
             </tbody>
           </table>
+          </div>
         </details>
       {% else %}
         <p class="empty">{% t lang "Nobody yet." %}</p>

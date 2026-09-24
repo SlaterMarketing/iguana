@@ -53,7 +53,11 @@ CREATIVE_DIR = pathlib.Path(os.environ.get('IGUANA_CREATIVE_DIR', '~/iguana-ads/
 # the tight one for walk-ins, who will not cross the highway for a free show. 17km is Meta's floor for a city
 # radius (10 miles); anything smaller is refused outright, so the walk-in ad set cannot be drawn tighter.
 PLAYA = 1540930
-WIDE_KM, NEAR_KM = 25, 17
+# 40km on the reservation ads since 2026-09-24, to hold frequency down. At 25km the reachable pool was small
+# enough that a week of spend showed the same person the ad 1.7 to 1.8 times; the owner wants 1.3 or under, and
+# with the budget fixed the only honest lever is more people. 40 reaches Puerto Aventuras and Akumal, which is
+# a drive people here actually make for a night out, and matches what the Privilegio ad set already uses.
+WIDE_KM, NEAR_KM = 40, 17
 # The interest every campaign this account ever won on used.
 STANDUP_INTEREST = {'id': '6003273904571', 'name': 'Comedia stand up (comedia)'}
 ENGLISH_LOCALES = [6, 24]              # English (US), English (UK)
