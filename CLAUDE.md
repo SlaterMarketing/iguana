@@ -311,6 +311,12 @@ Tests: `python3 -m unittest discover -s scripts/tests`.
 
 Three pages behind the admin session, all bilingual, all on both domains.
 
+**Logins** (`~/.credentials/vpsorg/iguanacomedy/`): **`iguana`** is the owner account, superuser, so it reaches
+everything including the money (`owner_password`). **`bar`** is the door and the bar, plain staff, so it reaches
+`/tables/` and `/reservations/` but is refused `/stats/` and `/revenue/` (`bar_password`). `admin` is the
+account the first deploy creates (`admin_password`). Each password is set only when the account is created, so
+changing one in the admin is not undone by the next deploy.
+
 - **`/reservations/`** (any staff, so the `bar` login reaches it): every night with seats against capacity, a
   fill bar, bookings, seats left, what was taken online and what is owed at the door, and under each night the
   guest list with when they booked. Names show to all staff; **email addresses only to whoever passes

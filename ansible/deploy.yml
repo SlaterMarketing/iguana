@@ -224,6 +224,27 @@
       no_log: true
       tags: [first_run]
 
+    # The owner's own login, as distinct from the `admin` account the first run makes and the `bar` account the
+    # door uses. Superuser, so it passes `can_see_the_money` and reaches /stats/ and /revenue/ as well as
+    # /reservations/. The password is only ever set when the account is created, so changing it in the admin is
+    # not undone by the next deploy.
+    - name: Owner account
+      become: true
+      become_user: "{{ deploy_user }}"
+      command: >-
+        {{ app_dir }}/backend/venv/bin/python {{ app_dir }}/backend/manage.py shell -c
+        "from django.contrib.auth import get_user_model;
+        U = get_user_model();
+        u = U.objects.filter(username='iguana').first() or U(username='iguana', email='hello@iguanacomedy.com');
+        fresh = u.pk is None;
+        u.is_staff = u.is_superuser = True;
+        u.set_password('''{{ lookup('file', creds + '/owner_password') }}''') if fresh else None;
+        u.save();
+        print('created' if fresh else 'already there')"
+      args: {chdir: "{{ app_dir }}/backend"}
+      no_log: true
+      changed_when: true
+
     # ------------------------------------------------------------------ site
     # `npm ci` DELETES node_modules and rebuilds it, under a Node server that is still serving and still
     # resolving Astro's imports lazily. So every deploy opened a window where a live request could throw
