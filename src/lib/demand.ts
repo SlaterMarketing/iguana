@@ -66,13 +66,26 @@ export function demandLine(evt: KintanaPublicEvent, locale: Locale): DemandLine 
   const d = eventDemand(evt);
   if (!d) return null;
 
-  const tight = d.left > 0 && d.left <= 10;
+  const gone = d.left === 0;
+  // A fifth of the room, capped at ten. A flat "ten left" is nonsense on a small night: a room of three with
+  // nothing sold has three left, and announcing "Only 3 seats left of 3" to an empty house is worse than
+  // saying nothing, because it is a lie anybody can check by looking at the room.
+  const nearlyGone = Math.min(10, Math.max(1, Math.floor(d.capacity * 0.2)));
+  const tight = gone || (d.left > 0 && d.left <= nearlyGone);
+  // Half a room is a quieter fact than a burst of bookings, but it stays true for longer, so it sits under
+  // the recent line and above the plain count. Nothing is said about an empty room: that is not an argument
+  // for coming, and a weak number reads as an admission.
+  const half = d.capacity > 0 && d.taken / d.capacity >= 0.5;
   let text = "";
-  if (tight) {
+  if (gone) {
+    text = t(locale, "demand.soldOut");
+  } else if (tight) {
     text = t(locale, "demand.left", { count: String(d.left), total: String(d.capacity) });
   } else if (d.recent >= 2 && d.recentWindow in WINDOW_KEYS) {
     const when = t(locale, WINDOW_KEYS[d.recentWindow as keyof typeof WINDOW_KEYS]);
     text = t(locale, "demand.recent", { count: String(d.recent), window: when });
+  } else if (half) {
+    text = t(locale, "demand.half");
   } else if (d.showBar) {
     text = t(locale, "demand.taken", { taken: String(d.taken), total: String(d.capacity) });
   }

@@ -199,6 +199,27 @@ email per night and locks the ticket types while booking, because nothing paid u
 The site finds the next bookable night per language by the `open-mic` tag (`src/lib/open-mics.ts`), skipping sold-out
 nights, and the home page keeps open mics out of its six event slots.
 
+### The nudges on a night, and the order they argue in
+
+`sales/demand.py` counts the room; the ladder that turns it into a sentence lives in `src/lib/demand.ts`
+(listings, the open mic lander, the home badge) and in `checkout.html`'s `renderDemand` (event pages, where the
+iframe prints it because the host does not). Both must say the same thing, in this order:
+
+1. **Sold out** when nothing is left.
+2. **Only N seats left of M** when the room is nearly gone.
+3. **N people reserved in the last hour/few hours/day** when at least 2 have.
+4. **More than half the room is gone** at 50% or more.
+5. **N of M seats taken** once a third is gone (`BAR_FROM`).
+6. Nothing at all below that. A small number is not social proof, it is an admission.
+
+A burst outranks half a room on purpose: half is truer for longer, a burst is more persuasive now.
+🚨 **"Nearly gone" is a FIFTH of the room capped at ten, never a flat ten.** A flat ten on a small night is a
+lie anybody can check: a room of three with nothing sold has three left, and the page would announce "Only 3
+seats left of 3" to an empty house. Caught by a test rather than in the wild, because every live ticket type
+happens to hold 60 or 80; the first 20-seat workshop would have shipped it.
+⚠ **Seats a guest promoter sold count toward all of it** (`TicketType.sold_elsewhere`), so a night somebody
+else is also selling does not read as empty.
+
 ### Newsletter, city alerts and who signs up from where
 
 - The home hero's bottom-left is a newsletter sign-up (`NewsletterSignup.astro`, form endpoint slug `newsletter`,

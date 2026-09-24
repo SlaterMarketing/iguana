@@ -248,6 +248,7 @@ ES = {
     'Waiting': 'Pendiente',
     'Delivered at the table': 'Entregado en la mesa',
     'Paid for': 'Pagado',
+    'More than half the room is gone': 'Ya se fue más de la mitad de la sala',
     'Due': 'Por cobrar',
     '{0} rounds': '{0} rondas',
     'Nothing waiting': 'Nada pendiente',

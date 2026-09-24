@@ -3042,3 +3042,80 @@ class NoMembershipTests(ApiTestCase):
         visible = html.split('<script')[0]
         for word in ('Member pricing', 'Member discount', 'Member benefit'):
             self.assertNotIn(word, visible)
+
+
+class DemandNudgeTests(ApiTestCase):
+    """What the room's state says to somebody deciding whether to come.
+
+    The ladder is ordered by how persuasive each fact is, not by how impressive it sounds: nearly gone beats a
+    recent burst, a burst beats half a room, and half a room beats a bare count. Nothing is said about an
+    empty room, because a small number is not social proof, it is an admission.
+    """
+
+    def render(self):
+        return self.client.get(f'/embed/event/{self.event.id}?embedded=1&lang=en').content.decode()
+
+    def fill(self, seats, hours_ago=0):
+        order = Order.objects.create(event=self.event, event_name=self.event.name, currency='usd',
+                                     customer_email=f'f{seats}{hours_ago}@example.com', status=Order.COMPLETED,
+                                     completed_at=timezone.now() - timedelta(hours=hours_ago))
+        OrderItem.objects.create(order=order, ticket_type=self.ga, name='GA', quantity=seats,
+                                 unit_price_cents=1000)
+        return order
+
+    def line(self):
+        from sales.demand import demand
+
+        d = demand(self.event)
+        capacity, taken, left = d['capacity'], d['taken'], d['left']
+        if left == 0:
+            return 'sold out'
+        if left <= min(10, max(1, int(capacity * 0.2))):
+            return 'nearly gone'
+        if d['recent'] >= 2:
+            return 'recent'
+        if capacity and taken / capacity >= 0.5:
+            return 'half'
+        return 'taken' if d['showBar'] else 'nothing'
+
+    def test_the_checkout_carries_every_tier(self):
+        page = self.render()
+        for phrase in ('Sold out', 'Only {0} seats left of {1}', '{0} people reserved {1}',
+                       'More than half the room is gone', '{0} of {1} seats taken'):
+            self.assertIn(phrase, page, f'the checkout cannot say: {phrase}')
+
+    def test_an_empty_room_says_nothing(self):
+        self.assertEqual(self.line(), 'nothing')
+
+    def test_half_a_room_is_worth_saying(self):
+        self.ga.capacity = 20
+        self.ga.save(update_fields=['capacity'])
+        self.fill(10, hours_ago=48)   # old enough not to count as a recent burst
+        self.assertEqual(self.line(), 'half')
+
+    def test_a_recent_burst_outranks_half_a_room(self):
+        self.ga.capacity = 20
+        self.ga.save(update_fields=['capacity'])
+        self.fill(10, hours_ago=1)
+        self.assertEqual(self.line(), 'recent')
+
+    def test_nearly_gone_outranks_everything_but_sold_out(self):
+        # A real open mic: 60 seats, 50 gone, 10 left. A fifth of 60 is 12, capped at 10, so 10 left is the
+        # last rung before sold out even though ten seats sounds like plenty in the abstract.
+        self.ga.capacity = 60
+        self.ga.save(update_fields=['capacity'])
+        self.fill(50, hours_ago=1)
+        self.assertEqual(self.line(), 'nearly gone')
+
+    def test_a_full_room_says_sold_out(self):
+        self.ga.capacity = 20
+        self.ga.save(update_fields=['capacity'])
+        self.fill(20, hours_ago=1)
+        self.assertEqual(self.line(), 'sold out')
+
+    def test_seats_sold_by_a_promoter_count_toward_the_nudge(self):
+        """Privilegio's 25 tickets sold elsewhere are seats in this room."""
+        self.ga.capacity = 20
+        self.ga.sold_elsewhere = 11
+        self.ga.save(update_fields=['capacity', 'sold_elsewhere'])
+        self.assertEqual(self.line(), 'half')

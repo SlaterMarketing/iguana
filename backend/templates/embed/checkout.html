@@ -227,16 +227,24 @@
     var d = ev.demand;
     if (!d || !d.capacity || !$("demand")) return;   // the host page is printing it instead
     var line = "";
-    if (d.left > 0 && d.left <= 10) {
+    var half = d.capacity ? d.taken / d.capacity >= 0.5 : false;
+    // A fifth of the room, capped at ten. A flat ten is nonsense on a small night: a room of three with
+    // nothing sold has three left, and "Only 3 seats left of 3" to an empty house is a checkable lie.
+    var nearly = Math.min(10, Math.max(1, Math.floor(d.capacity * 0.2)));
+    if (d.left === 0) {
+      line = T("Sold out");                                                // nothing left to argue for
+    } else if (d.left > 0 && d.left <= nearly) {
       line = T("Only {0} seats left of {1}", d.left, d.capacity);          // genuinely nearly gone
     } else if (d.recent >= 2) {
       line = T("{0} people reserved {1}", d.recent, T(d.recentWindow));    // somebody else is coming
+    } else if (half) {
+      line = T("More than half the room is gone");                         // true for longer than a burst is
     } else if (d.showBar) {
       line = T("{0} of {1} seats taken", d.taken, d.capacity);
     }
     if (!line) return;   // an empty room is not an argument for coming; say nothing rather than something weak
     $("demand-line").textContent = line;
-    if (d.left > 0 && d.left <= 10) $("demand-line").classList.add("tight");
+    if (d.left === 0 || d.left <= nearly) $("demand-line").classList.add("tight");
     if (d.showBar) {
       $("demand-fill").style.width = Math.min(100, Math.round((d.taken / d.capacity) * 100)) + "%";
       show($("demand-track"), true);
