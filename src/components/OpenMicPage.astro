@@ -24,7 +24,7 @@ import NewsletterSignup from "./NewsletterSignup.astro";
 import { site } from "../content/site";
 import { demandLine } from "../lib/demand";
 import { eventVenueMapEmbedUrl } from "../lib/event-hero";
-import { eventCollectsPayment, eventTicketTypeCount, formatEventDate, formatEventDateShort } from "../lib/events";
+import { eventCollectsPayment, eventTicketTypeCount, formatEventDate, formatEventDateShort, formatEventTime } from "../lib/events";
 import { loadEventsForCalendarPages } from "../lib/events-catalog";
 import { holidayNotice } from "../lib/holiday-notice";
 import { createLocalizedKintanaClient, getKintanaEnv } from "../lib/kintana-env";
@@ -134,6 +134,25 @@ const night = copy.nights[shownKey];
 const mapEmbedUrl = selected ? eventVenueMapEmbedUrl(selected) : null;
 // Rendered here rather than inside the checkout iframe, which is told to stop drawing its own copy.
 const pressure = selected ? demandLine(selected, locale) : null;
+/**
+ * When the night actually is, taken from the night itself.
+ *
+ * This used to be a fixed line per series, so moving the English show from 8:30 to 9 meant remembering to
+ * change a sentence in a copy table that has no idea what the API says. The fallback is still there for the
+ * case the lander has no night to show.
+ */
+function nightDetail(event: KintanaPublicEvent | null, fallback: string, locale: Locale): string {
+  if (!event) return fallback;
+  const doors = formatEventTime(event.doorsOpen, locale);
+  const show = formatEventTime(event.showTime, locale);
+  if (!doors && !show) return fallback;
+  const doorsLabel = locale === "es" ? "Puertas" : "Doors";
+  const parts = [];
+  if (doors) parts.push(`${doorsLabel} ${doors}`);
+  if (show) parts.push(`Show ${show}`);
+  return parts.join(" · ");
+}
+
 ---
 
 <Base title={`${copy.headline} · Iguana Comedy`} description={copy.lede} narrow={false} pixelContent={selected
@@ -193,7 +212,7 @@ const pressure = selected ? demandLine(selected, locale) : null;
       <div class="border-b border-black/10 px-5 py-2 text-center sm:py-3">
         <p class="text-sm text-neutral-600">
           <span class="font-semibold text-neutral-900">{selected ? formatEventDate(selected.date, locale) : night.show}</span>
-          <span> · {night.detail}</span>
+          <span> · {nightDetail(selected, night.detail, locale)}</span>
         </p>
         {
           selected ? (
