@@ -89,7 +89,6 @@
       <div id="payment-element" hidden></div>
     </div>
     <div class="action" id="action" hidden>
-      <p class="note ok" id="member-note" hidden>{% t lang "Member pricing applied." %}</p>
       <p class="note muted" id="discount-note" hidden></p>
       <p class="error" id="error" role="alert" hidden></p>
       <button class="btn" type="submit" id="submit"><span class="main"></span><span class="sub"></span></button>
@@ -355,9 +354,9 @@
       .then(function (q) {
         if (seq !== quoteSeq) return;
         quoted = q;
-        show($("member-note"), q.isMember);
         var disc = $("discount-note");
-        disc.textContent = q.discountCents ? (q.freeTickets ? T("Member benefit ({0} free)", q.freeTickets) : T("Member discount")) + ": −" + money(q.discountCents) : "";
+        // No membership is sold, so this is only ever a plain discount if one is ever introduced.
+        disc.textContent = q.discountCents ? T("Discount") + ": −" + money(q.discountCents) : "";
         show(disc, !!q.discountCents);
         paymentElement(q);
         refresh();

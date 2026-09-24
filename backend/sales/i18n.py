@@ -42,6 +42,7 @@ ES = {
     'Add one {0}': 'Agregar uno: {0}',
     'Remove one {0}': 'Quitar uno: {0}',
     'Member benefit ({0} free)': 'Beneficio de socio ({0} gratis)',
+    'Discount': 'Descuento',
     'Member discount': 'Descuento de socio',
     'Something went wrong.': 'Algo salió mal.',
 

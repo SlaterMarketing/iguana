@@ -68,7 +68,8 @@ class PublicApiTests(ApiTestCase):
         self.assertEqual(e['headliner']['slug'], self.artist.slug)
         self.assertEqual(e['venue']['city'], 'Playa del Carmen')
         self.assertRegex(e['date'], r'^\d{4}-\d{2}-\d{2}$')
-        self.assertEqual(e['goldMembership']['freeTickets'], 2)
+        # No membership is sold, so the block the SDK allows for is deliberately absent.
+        self.assertNotIn('goldMembership', e)
         self.assertEqual(self.api('get', '/api/public/v1/events/hidden').status_code, 404)
 
     def test_past_filter(self):
@@ -307,6 +308,8 @@ class CheckoutTests(ApiTestCase):
         self.assertEqual(self.post(f'/api/checkout/{self.event.id}/quote', {'items': {self.vip.id: 1}}).status_code, 400)
 
     def test_member_free_tickets_then_guest_discount(self):
+        self.event.members_eligible = True
+        self.event.save(update_fields=['members_eligible'])
         self.make_member('member@example.com')
         token = self.sign_in('member@example.com')
         quote = self.post(f'/api/checkout/{self.event.id}/quote', {'items': {self.ga.id: 3, self.vip.id: 1}, 'fanToken': token}).json()
@@ -321,6 +324,10 @@ class CheckoutTests(ApiTestCase):
         self.assertEqual(Order.objects.get(pk=start['orderId']).total_amount_cents, 1000)
 
     def test_free_order_completes_immediately(self):
+        # The club sells no membership, so nothing is eligible by default. This exercises the pricing code,
+        # not the product: it opts in the way a future membership would have to.
+        self.event.members_eligible = True
+        self.event.save(update_fields=['members_eligible'])
         self.make_member('member@example.com')
         token = self.sign_in('member@example.com')
         start = self.post(f'/api/checkout/{self.event.id}/start',
@@ -3000,3 +3007,38 @@ class AdFrequencyTests(ApiTestCase):
         page = self.client.get('/stats/').content.decode()
         self.assertNotIn('same people again', page)
         self.assertNotIn('class="hot"', page)
+
+
+class NoMembershipTests(ApiTestCase):
+    """The club sells no membership, so nothing may offer member pricing.
+
+    The machinery still exists in the price path, because removing it means surgery on the checkout for no
+    gain while nobody holds a membership. What must not exist is any way for it to show up by accident: a
+    night created with the flag on, a checkbox somebody ticks, or a plan left active from the old product.
+    """
+
+    def test_a_new_night_does_not_offer_member_pricing(self):
+        night = Event.objects.create(name='Fresh night', slug='fresh-night', venue=self.venue,
+                                     date=timezone.now() + timedelta(days=5))
+        self.assertFalse(night.members_eligible)
+
+    def test_no_event_on_the_calendar_offers_it(self):
+        Event.objects.update(members_eligible=False)
+        self.assertFalse(Event.objects.filter(members_eligible=True).exists())
+
+    def test_the_admin_does_not_offer_the_checkbox(self):
+        """A checkbox that promises member pricing is a promise the checkout cannot keep."""
+        from catalog.admin import EventAdmin
+
+        fields = {f for _, section in EventAdmin.fieldsets for f in section['fields']}
+        self.assertNotIn('members_eligible', fields)
+
+    def test_the_payload_carries_no_membership_block(self):
+        data = self.api('get', f'/api/public/v1/events/{self.event.id}').json()['event']
+        self.assertNotIn('goldMembership', data)
+
+    def test_the_checkout_says_nothing_about_members(self):
+        html = self.client.get(f'/embed/event/{self.event.id}?embedded=1&lang=en').content.decode()
+        visible = html.split('<script')[0]
+        for word in ('Member pricing', 'Member discount', 'Member benefit'):
+            self.assertNotIn(word, visible)

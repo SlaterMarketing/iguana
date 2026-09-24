@@ -67,6 +67,16 @@ Auth: the site's key arrives as `Authorization: Bearer` (checked by `api_view` i
 `X-Customer-Authorization: Bearer <signed token>` issued by `auth/verify`. Browser calls rely on
 `api/middleware.py` CORS for `SITE_URLS`.
 
+🚨 **There is no membership, and nothing may offer member pricing** (owner, 2026-09-24: "we don't have member
+price bullshit anymore"). The plan is inactive, the one membership row ever created is cancelled and belonged
+to a departed colleague, and `0009_alter_event_members_eligible` turned `members_eligible` off on all 51
+events and defaulted it off for new ones. The admin no longer shows the checkbox, because a tick that promises
+member pricing is a promise the checkout cannot keep, and the checkout's "Member pricing applied" note is
+gone. The price path itself stays: removing it is surgery on the checkout for no gain while nobody holds a
+membership, so `api.tests.CheckoutTests` still exercises it by opting a fixture in explicitly.
+`api.tests.NoMembershipTests` pins the rest. What remains live is an `isMember: false` in the bootstrap and a
+code comment; neither is visible to anyone.
+
 Checkout flow: `EventCheckoutWidget.astro` renders `data-kintana-widget="event:<id>"`; `k.js` injects the iframe,
 posts the fan token in, and follows `kintana-embed-checkout-success` to the order page. Prices are always
 computed server-side in `sales/services.py::price_cart` (member free tickets priciest-first, then guest discount;

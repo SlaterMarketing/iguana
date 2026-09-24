@@ -106,7 +106,11 @@ class Event(models.Model):
     venue = models.ForeignKey(Venue, null=True, blank=True, on_delete=models.SET_NULL, related_name='events')
     venue_label = models.CharField(max_length=200, blank=True, help_text='Venue name as exported, when no Venue row matched.')
     tour = models.ForeignKey(Tour, null=True, blank=True, on_delete=models.SET_NULL, related_name='events')
-    members_eligible = models.BooleanField(default=True, help_text='Member free tickets / guest discount apply.')
+    # Off by default and off on every night since 2026-09-24: the club sells no membership. The field and the
+    # pricing behind it are kept rather than ripped out, because removing them means surgery on the checkout's
+    # price path for no gain while nobody holds a membership. Turning it on again is a product decision, not a
+    # checkbox: it needs a plan marked active AND this flag, and the admin no longer offers the flag.
+    members_eligible = models.BooleanField(default=False, help_text='Dead unless the club sells memberships again.')
     created_at = models.DateTimeField(default=timezone.now)
     updated_at = models.DateTimeField(auto_now=True)
 
