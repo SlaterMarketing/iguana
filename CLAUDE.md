@@ -224,6 +224,15 @@ the Marketing API. It is an operator tool run by hand, so it reads the never-exp
 | Pixel `Ticket Tracking` (used by the Kintana-era site) | `1167556798403907` |
 | Pixel `andrew new pixel` (created 2026-09-15, never fired) | `2122037578734069` |
 
+**The goal the spend is judged against (owner, 2026-09-24): fill every night. 60 reservations on an open mic,
+80 on a paid show.** Budget is a means, not a constraint to protect: a paid seat is 200 to 300 MXN against a
+measured 35 to 49 MXN to acquire, and a free seat costs about 16 and pays back at the bar. So an underfilled
+night with a live campaign is a reason to raise the budget, not to admire the cost per seat.
+⚠ **A lifetime budget is a CAP, and a nearly exhausted one goes quiet at the worst possible moment.** On
+2026-09-24 the Privilegio ad set had 463 of 1,200 MXN left with 27.7 hours to the show and 40 of 80 seats
+unsold: it would have stopped advertising on the Friday evening people actually decide. Raised to 2,400.
+Check `budget_remaining` against the hours left whenever a show is close, because nothing surfaces this.
+
 🚨 **A campaign or ad set reading `ACTIVE` is not evidence that it spends.** 31 ad sets report `ACTIVE` while
 their `end_time` passed months or years ago, so the UI looks busy and the account has in fact spent nothing
 since April 2026. Judge delivery by `end_time` in the future plus non-zero `insights.spend`, which is what
