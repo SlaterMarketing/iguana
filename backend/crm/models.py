@@ -160,7 +160,13 @@ class AdSpend(models.Model):
     FREE = 'FREE'
     PAID = 'PAID'
 
+    DAY, WEEK = 'DAY', 'WEEK'
+
     day = models.DateField(db_index=True)
+    # A DAY row is that day's figures. A WEEK row is the seven days ENDING on `day`, fetched as one window
+    # rather than summed, because reach counts PEOPLE: adding seven days of reach counts somebody who saw the
+    # ad on Monday and Thursday twice, and the frequency derived from it would be quietly wrong.
+    window = models.CharField(max_length=5, default=DAY, choices=[(DAY, 'Day'), (WEEK, 'Week')])
     campaign_id = models.CharField(max_length=40)
     campaign_name = models.CharField(max_length=200)
     kind = models.CharField(max_length=8, default=PAID, help_text='Whether this campaign sells free seats or tickets.')
@@ -168,11 +174,14 @@ class AdSpend(models.Model):
     impressions = models.PositiveIntegerField(default=0)
     clicks = models.PositiveIntegerField(default=0)
     reported_purchases = models.PositiveIntegerField(default=0, help_text="Meta's own count, which is not ours.")
+    reach = models.PositiveIntegerField(default=0, help_text='People who saw it at least once, deduplicated.')
+    frequency = models.FloatField(default=0, help_text='Impressions per person. Meta reports it; never summed.')
     fetched_at = models.DateTimeField(default=timezone.now)
 
     class Meta:
         ordering = ['-day', 'campaign_name']
-        constraints = [models.UniqueConstraint(fields=['day', 'campaign_id'], name='one_row_per_campaign_per_day')]
+        constraints = [models.UniqueConstraint(fields=['day', 'window', 'campaign_id'],
+                                               name='one_row_per_campaign_per_window')]
 
     def __str__(self):
         return f'{self.day} {self.campaign_name} {self.spend_cents / 100:.2f}'

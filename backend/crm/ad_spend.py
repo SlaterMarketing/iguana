@@ -58,44 +58,84 @@ def _purchases(row):
     return 0
 
 
-def fetch(days=2, today=None):
-    """Pull the last `days` days per campaign per day and write them down. Returns rows written.
+FIELDS = 'campaign_id,campaign_name,spend,impressions,clicks,reach,frequency,actions'
 
-    `days=2` means today and yesterday, which is all a dashboard restates; a longer window backfills history
-    after an outage without asking Meta for months of data it would rather not serve.
+
+def _write(row, day, window, now):
+    AdSpend.objects.update_or_create(
+        day=day, window=window, campaign_id=row['campaign_id'],
+        defaults={
+            'campaign_name': row.get('campaign_name', ''),
+            'kind': classify(row.get('campaign_name', '')),
+            'spend_cents': round(float(row.get('spend', 0)) * 100),
+            'impressions': int(row.get('impressions', 0) or 0),
+            'clicks': int(row.get('clicks', 0) or 0),
+            'reach': int(row.get('reach', 0) or 0),
+            'frequency': float(row.get('frequency', 0) or 0),
+            'reported_purchases': _purchases(row),
+            'fetched_at': now,
+        })
+
+
+def fetch(days=2, today=None):
+    """Pull per-campaign figures and write them down. Returns rows written.
+
+    Two passes, and the second is not a convenience. Daily rows are what a dashboard restates. The seven-day
+    row has to be asked for AS a seven-day window, because reach counts PEOPLE: summing seven daily reaches
+    counts somebody who saw the ad on Monday and again on Thursday twice, so a frequency derived from that sum
+    reads lower than the truth, which is exactly the direction that hides ad fatigue.
     """
     if not settings.META_ADS_TOKEN:
         log.warning('no META_ADS_TOKEN, so /stats/ has no spend to show')
         return 0
     until = today or timezone.localdate()
     since = until - timedelta(days=max(days - 1, 0))
-    payload = _get(f'{settings.META_AD_ACCOUNT}/insights',
-                   level='campaign', time_increment=1, limit=500,
-                   time_range=json.dumps({'since': since.isoformat(), 'until': until.isoformat()}),
-                   fields='campaign_id,campaign_name,spend,impressions,clicks,actions')
-    written = 0
     now = timezone.now()
-    for row in payload.get('data', []):
-        day = date.fromisoformat(row['date_start'])
-        AdSpend.objects.update_or_create(
-            day=day, campaign_id=row['campaign_id'],
-            defaults={
-                'campaign_name': row.get('campaign_name', ''),
-                'kind': classify(row.get('campaign_name', '')),
-                'spend_cents': round(float(row.get('spend', 0)) * 100),
-                'impressions': int(row.get('impressions', 0) or 0),
-                'clicks': int(row.get('clicks', 0) or 0),
-                'reported_purchases': _purchases(row),
-                'fetched_at': now,
-            })
+    written = 0
+
+    daily = _get(f'{settings.META_AD_ACCOUNT}/insights', level='campaign', time_increment=1, limit=500,
+                 time_range=json.dumps({'since': since.isoformat(), 'until': until.isoformat()}),
+                 fields=FIELDS)
+    for row in daily.get('data', []):
+        _write(row, date.fromisoformat(row['date_start']), AdSpend.DAY, now)
+        written += 1
+
+    week_since = until - timedelta(days=6)
+    weekly = _get(f'{settings.META_AD_ACCOUNT}/insights', level='campaign', limit=500,
+                  time_range=json.dumps({'since': week_since.isoformat(), 'until': until.isoformat()}),
+                  fields=FIELDS)
+    for row in weekly.get('data', []):
+        _write(row, until, AdSpend.WEEK, now)
         written += 1
     return written
+
+
+def campaign_rows(day=None, window=AdSpend.DAY):
+    """Per campaign, worst value for money first. Frequency comes from Meta and is never recomputed here."""
+    day = day or timezone.localdate()
+    rows = []
+    for row in AdSpend.objects.filter(day=day, window=window).order_by('-spend_cents'):
+        rows.append({
+            'name': row.campaign_name,
+            'free': row.kind == AdSpend.FREE,
+            'spend': row.spend_cents / 100,
+            'reach': row.reach,
+            'impressions': row.impressions,
+            'frequency': row.frequency,
+            'clicks': row.clicks,
+            'ctr': (row.clicks / row.impressions * 100) if row.impressions else None,
+            'cpc': (row.spend_cents / 100 / row.clicks) if row.clicks else None,
+            # Above three impressions per person in a week, the same people are being shown it over and over.
+            # In a town this size that is the point at which more budget buys repetition, not audience.
+            'saturated': window == AdSpend.WEEK and row.frequency >= 3,
+        })
+    return rows
 
 
 def spend_between(first_day, last_day):
     """{'FREE': cents, 'PAID': cents} over an inclusive range of days."""
     totals = {AdSpend.FREE: 0, AdSpend.PAID: 0}
-    for row in AdSpend.objects.filter(day__gte=first_day, day__lte=last_day):
+    for row in AdSpend.objects.filter(day__gte=first_day, day__lte=last_day, window=AdSpend.DAY):
         totals[row.kind] = totals.get(row.kind, 0) + row.spend_cents
     return totals
 

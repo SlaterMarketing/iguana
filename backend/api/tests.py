@@ -2931,3 +2931,72 @@ class RepliedUnsubscribeTests(ApiTestCase):
 
         self.run_on([('stranger2@example.com', 'unsubscribe', 'please')], apply=False)
         self.assertFalse(Contact.objects.filter(email='stranger2@example.com').exists())
+
+
+class AdFrequencyTests(ApiTestCase):
+    """Reach and frequency, and the one arithmetic rule that makes them worth showing.
+
+    Reach counts PEOPLE. Summing seven days of it counts somebody who saw the ad on Monday and again on
+    Thursday twice, and a frequency derived from that sum reads LOWER than the truth, which is the direction
+    that hides ad fatigue. So the seven-day row is asked for as a seven-day window and stored separately.
+    """
+
+    def rows(self, **kw):
+        from crm.models import AdSpend
+
+        base = dict(campaign_id='1', campaign_name='Open mic Spanish · reservations', kind=AdSpend.FREE,
+                    spend_cents=10000, impressions=900, clicks=40, reach=300, frequency=3.0)
+        base.update(kw)
+        return AdSpend.objects.create(**base)
+
+    def as_owner(self):
+        from django.contrib.auth import get_user_model
+
+        self.client.force_login(get_user_model().objects.create_user('boss3', password='x', is_staff=True,
+                                                                     is_superuser=True))
+
+    def test_the_week_row_is_stored_apart_from_the_days_that_make_it_up(self):
+        from crm.models import AdSpend
+
+        today = timezone.localdate()
+        self.rows(day=today, window=AdSpend.DAY, reach=120, frequency=1.4)
+        self.rows(day=today, window=AdSpend.WEEK, reach=300, frequency=3.0)
+        self.assertEqual(AdSpend.objects.filter(day=today).count(), 2, 'same day, same campaign, two windows')
+
+    def test_spend_totals_never_double_count_the_week_row(self):
+        """The cost cards sum daily spend; a WEEK row is the same money again."""
+        from crm.ad_spend import spend_between
+        from crm.models import AdSpend
+
+        today = timezone.localdate()
+        self.rows(day=today, window=AdSpend.DAY, spend_cents=10000)
+        self.rows(day=today, window=AdSpend.WEEK, spend_cents=70000)
+        self.assertEqual(spend_between(today, today)[AdSpend.FREE], 10000)
+
+    def test_the_page_shows_people_and_times_each(self):
+        from crm.models import AdSpend
+
+        self.rows(day=timezone.localdate(), window=AdSpend.WEEK, reach=412, frequency=2.4)
+        self.as_owner()
+        page = self.client.get('/stats/').content.decode()
+        self.assertIn('The ads, campaign by campaign', page)
+        self.assertIn('412', page)
+        self.assertIn('2.4', page)
+
+    def test_a_saturated_campaign_is_called_out(self):
+        from crm.models import AdSpend
+
+        self.rows(day=timezone.localdate(), window=AdSpend.WEEK, frequency=4.2)
+        self.as_owner()
+        page = self.client.get('/stats/').content.decode()
+        self.assertIn('same people over and over', page)
+        self.assertIn('class="hot"', page)
+
+    def test_a_healthy_frequency_is_not_called_out(self):
+        from crm.models import AdSpend
+
+        self.rows(day=timezone.localdate(), window=AdSpend.WEEK, frequency=1.6)
+        self.as_owner()
+        page = self.client.get('/stats/').content.decode()
+        self.assertNotIn('same people over and over', page)
+        self.assertNotIn('class="hot"', page)

@@ -38,6 +38,14 @@
   td.num { text-align: right; white-space: nowrap; font-size: 1.05rem; }
   td.num .of { color: var(--muted); font-size: .85rem; }
   td.num .left { display: block; font-size: .72rem; color: var(--muted); font-weight: 600; }
+  table.ads { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: .85rem; }
+  table.ads th { font-size: .66rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+                 text-align: left; padding: 0 6px 4px; font-weight: 700; }
+  table.ads th.n, table.ads td.n { text-align: right; white-space: nowrap; }
+  table.ads td { padding: 7px 6px; border-top: 1px solid var(--line); vertical-align: top; }
+  table.ads tr.hot td { background: #fdf6e7; }
+  table.ads tr.hot td.n strong { color: #8a5a00; }
+  table.ads .what { display: block; font-size: .7rem; color: var(--muted); }
   .funnel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px; text-align: center; }
   .funnel .kind { margin: 2px 0 0; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
   .none { color: var(--muted); font-style: italic; }
@@ -154,6 +162,48 @@
           </tr>
         {% endfor %}
       </table>
+    </section>
+  {% endif %}
+
+  {% if campaigns_week or campaigns_today %}
+    <section class="win">
+      <h2>{% t lang "The ads, campaign by campaign" %}</h2>
+      <table class="ads">
+        <thead>
+          <tr>
+            <th>{% t lang "Campaign" %}</th>
+            <th class="n">{% t lang "Spend" %}</th>
+            <th class="n">{% t lang "People" %}</th>
+            <th class="n">{% t lang "Times each" %}</th>
+            <th class="n">{% t lang "Clicks" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in campaigns_week %}
+            <tr class="{% if c.saturated %}hot{% endif %}">
+              <td>
+                {{ c.name }}
+                <span class="what">{% if c.free %}{% t lang "free seats" %}{% else %}{% t lang "tickets" %}{% endif %}</span>
+              </td>
+              <td class="n">${{ c.spend|floatformat:0 }}</td>
+              <td class="n">{{ c.reach }}</td>
+              <td class="n"><strong>{{ c.frequency|floatformat:1 }}</strong></td>
+              <td class="n">{{ c.clicks }}{% if c.ctr %}<span class="what">{{ c.ctr|floatformat:1 }}%</span>{% endif %}</td>
+            </tr>
+          {% empty %}
+            <tr><td colspan="5" class="none">{% t lang "Nothing spent this week." %}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <p class="note">
+        {% t lang "Seven days. People is how many saw it at all; times each is how often the same person saw it, which is why it is never added up across days." %}
+        {% if saturated_any %} <strong>{% t lang "Anything at 3 or above is being shown to the same people over and over, and more budget buys repetition rather than audience." %}</strong>{% endif %}
+      </p>
+      {% if campaigns_today %}
+        <p class="note">{% t lang "Today so far:" %}
+          {% for c in campaigns_today %}{{ c.name }} ${{ c.spend|floatformat:0 }} · {{ c.reach }} {% t lang "people" %} · {{ c.frequency|floatformat:1 }}x{% if not forloop.last %} · {% endif %}{% endfor %}
+        </p>
+      {% endif %}
     </section>
   {% endif %}
 

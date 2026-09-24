@@ -322,7 +322,8 @@ changing one in the admin is not undone by the next deploy.
   guest list with when they booked. Names show to all staff; **email addresses only to whoever passes
   `can_see_the_money`**, because the door needs a name and does not need the mailing list. It doubles as the
   door list, since nobody scans the QR codes.
-- **`/stats/`** (`can_see_the_money`): the room night by night (seats taken against capacity, with a fill bar
+- **`/stats/`** (`can_see_the_money`): the ads campaign by campaign (spend, people reached, times each person
+  saw it, clicks and CTR, over seven days and today), the room night by night (seats taken against capacity, with a fill bar
   and seats left), today's funnel from visit to booking, cost per reservation free against paid for today,
   yesterday and seven days, and a line for the list size and any open bar tab. Refreshes itself every 60s.
   ⚠ **`sales.demand` counts `OrderItem.quantity`, not `Ticket` rows.** A fixture that creates tickets without
@@ -366,6 +367,13 @@ campaign per day; the page reads rows and prints how old they are, and says so l
 The token is `META_ADS_TOKEN` in `config.py`, rendered from `config.py.j2` like every other secret.
 ⚠ **config.py is TEMPLATED on every deploy.** A hand-edited line in it survives until the next deploy and no
 longer: add the key to `files/config.py.j2` and `group_vars/all`, never with `lineinfile`.
+
+🚨 **Reach counts PEOPLE, so it is never summed across days and neither is frequency.** Adding seven daily
+reaches counts somebody who saw the ad on Monday and again on Thursday twice, and the frequency derived from
+that sum reads LOWER than the truth, which is the direction that hides ad fatigue. The seven-day figures are
+therefore asked of Meta AS a seven-day window and stored as their own `AdSpend` row (`window='WEEK'`, same
+day and campaign as the daily rows). Anything that sums spend must filter `window=DAY` or it double counts.
+Frequency at 3 or above is flagged: past that, more budget buys repetition rather than audience.
 
 🔑 **Cost per seat is Meta's spend over OUR seats, never over Meta's purchase count.** Their attribution has
 run both above and below the orders we hold (5 reported against 7 real on 2026-09-24, 22 against 7 the day

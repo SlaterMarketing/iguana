@@ -25,7 +25,7 @@ from django.shortcuts import render
 from django.utils import timezone
 from django.utils.timesince import timesince
 
-from crm.ad_spend import last_fetch, spend_between
+from crm.ad_spend import campaign_rows, last_fetch, spend_between
 from crm.models import AdSpend
 from sales.i18n import lang_from_request
 from sales.models import Order
@@ -213,7 +213,9 @@ def stats(request):
         _window(today - timedelta(days=6), today, 'last 7 days'),
     ]
     # Meta's own purchase count for today, shown beside ours rather than instead of it.
-    reported = sum(row.reported_purchases for row in AdSpend.objects.filter(day=today))
+    campaigns_today = campaign_rows(today, AdSpend.DAY)
+    campaigns_week = campaign_rows(today, AdSpend.WEEK)
+    reported = sum(row.reported_purchases for row in AdSpend.objects.filter(day=today, window=AdSpend.DAY))
     ours = windows[0]['free']['bookings'] + windows[0]['paid']['bookings']
     return render(request, 'embed/stats.html', {
         'lang': lang,
@@ -221,6 +223,9 @@ def stats(request):
         'funnel_today': _funnel(today, today),
         'funnel_week': _funnel(today - timedelta(days=6), today),
         'room': _room(),
+        'campaigns_today': campaigns_today,
+        'campaigns_week': campaigns_week,
+        'saturated_any': any(c['saturated'] for c in campaigns_week),
         'bar_nights': _bar_nights(),
         'now': now,
         'fetched_ago': timesince(fetched) if fetched else '',

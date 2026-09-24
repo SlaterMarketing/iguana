@@ -188,6 +188,21 @@ ES = {
     '{0} people on the mailing list, {1} joined this week.':
         '{0} personas en la lista de correo, {1} se sumaron esta semana.',
     '{0} table(s) open at the bar, {1} owed': '{0} mesa(s) abiertas en la barra, {1} por cobrar',
+    'The ads, campaign by campaign': 'Los anuncios, campaña por campaña',
+    'Campaign': 'Campaña',
+    'Spend': 'Gasto',
+    'People': 'Personas',
+    'Times each': 'Veces c/u',
+    'Clicks': 'Clics',
+    'free seats': 'lugares gratis',
+    'tickets': 'boletos',
+    'Nothing spent this week.': 'Nada gastado esta semana.',
+    'Seven days. People is how many saw it at all; times each is how often the same person saw it, which is why it is never added up across days.':
+        'Siete días. Personas es cuántas lo vieron; veces c/u es cuántas veces lo vio la misma persona, y por eso nunca se suma entre días.',
+    'Anything at 3 or above is being shown to the same people over and over, and more budget buys repetition rather than audience.':
+        'Todo lo que esté en 3 o más se le está mostrando a las mismas personas una y otra vez, y más presupuesto compra repetición en lugar de público.',
+    'Today so far:': 'Hoy hasta ahora:',
+    'people': 'personas',
     'Stats': 'Números',
     'Spend from Meta, {0} ago': 'Gasto según Meta, hace {0}',
     'No spend figures yet': 'Todavía no hay cifras de gasto',
