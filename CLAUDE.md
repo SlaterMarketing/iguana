@@ -465,9 +465,17 @@ The header now offers the URL alone, because a one-click URL unsubscribes somebo
 a mailto only works if a human is reading that mailbox.
 `process_unsubscribe_mail --apply` runs every 20 minutes and honours them anyway, because people reply
 "unsubscribe" to mail whatever the headers say, and that is the commonest form of the request.
-⚠ **It matches on the SUBJECT only.** Every newsletter carries the word in its own footer and a copy of each
-send lands in that same mailbox, so a body match would unsubscribe whoever appears to have sent our own mail.
-Messages from our own domains are refused for the same reason.
+⚠ **It reads the BODY as well as the subject, but only the part they typed.** The commonest real request is a
+reply to their own ticket email with the subject unchanged: "Re: Tus boletos" and "ya no quiero recibir
+correos" underneath. Subject-only matching read those as ordinary replies and left the person on the list.
+Three things keep that safe, and all three are load-bearing: messages from our own domains are refused;
+everything from the first quote marker or `On ... wrote:` line down is discarded, because a reply quotes our
+own footer and our footer says the word; and what remains must be short and must contain a REQUEST rather
+than a mention. "The footer says I can unsubscribe here" is somebody describing the email, and acting on it
+would drop a happy customer for being polite. Bilingual by necessity: two thirds of this audience books in
+Spanish, so `darme de baja`, `quítame de la lista` and `ya no quiero recibir` matter as much as the English.
+An address we do not hold is **created unsubscribed** rather than only logged, because this list has been
+imported from a spreadsheet once already and asking twice is how a person becomes a spam complaint.
 
 ⏱ **A one-off catch-up send is scheduled for Wed 2026-09-23 14:00 UTC** (09:00 Playa), because the list had
 never actually received one. `systemd-run --on-calendar`, transient, so it disappears after it fires:

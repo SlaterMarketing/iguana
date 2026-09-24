@@ -11,9 +11,15 @@ Two ways this happens and neither is exotic:
 
 Ignoring either is a spam complaint waiting to happen, and a complaint costs the whole list's deliverability.
 
-🚨 Matched on the SUBJECT only, never the body. Every newsletter carries the word "unsubscribe" in its own
-footer, and a copy of each one is delivered to this very mailbox, so a body match would unsubscribe whoever
-appears to have sent our own mail. Our own addresses are refused outright for the same reason.
+🚨 The body is read, but only after the quoted part is cut away. Every newsletter carries the word
+"unsubscribe" in its own footer and a copy of each one lands in this very mailbox, so a naive body match would
+unsubscribe whoever appears to have sent our own mail. Three things make it safe: our own addresses are refused
+outright, everything from the first quote marker or "On ... wrote:" line down is discarded, and what is left
+has to be SHORT and has to contain a phrase that is the request rather than a mention of it.
+
+That matters because the commonest real request is not a bare "unsubscribe" subject. It is somebody replying
+to their own ticket email, subject still "Re: Tus boletos", with "ya no quiero recibir correos" in the body.
+Subject-only matching read that as a normal reply and left them on the list.
 """
 
 import mailbox
@@ -30,6 +36,48 @@ DEFAULT_MAILBOX = '/var/mail/inbox'
 
 # The subject has to BE the request, not merely mention it.
 ASKS = re.compile(r'^\s*(re:\s*)?(unsubscribe|desuscribir(me)?|darme de baja|baja|remove me|stop)\b', re.I)
+
+# In the body the bar is higher, because a reply can mention anything. These are sentences somebody writes
+# when they mean it, in both languages, since two thirds of this audience books in Spanish.
+BODY_ASKS = re.compile(
+    r'(remove me from|take me off|stop (sending|emailing)|no longer wish to receive|unsubscribe me'
+    r'|please unsubscribe|d(?:a|á)r?me de baja|darse de baja|desuscrib|qu(?:i|í)tame de la lista'
+    r'|ya no (?:quiero|deseo) recibir|no me (?:manden|env(?:i|í)en) m(?:a|á)s (?:correos|emails)'
+    r'|cancelar (?:la )?suscripci(?:o|ó)n)', re.I)
+
+# The bare word on its own is a request; the same word inside a sentence is a mention. "The footer says I can
+# unsubscribe here" is somebody describing the email, not asking to leave it, and acting on that would remove
+# a happy customer from the list for being polite.
+BARE_ASK = re.compile(r'^\W*(unsubscribe|baja|stop|remove)\W*$', re.I)
+
+# Where a reply stops being theirs and starts being ours quoted back. Anything from here down is discarded.
+QUOTE_LINE = re.compile(
+    r'^\s*(>|on .*wrote:|el .*escribi(?:o|ó):|-{2,}\s*original message|_{5,}|de:\s|from:\s)', re.I)
+
+# A request is a sentence, not an essay. Past this many characters it is a conversation that happens to
+# contain the word, and those should be read by a person rather than acted on by a cron.
+MAX_BODY = 600
+
+
+def own_words(message):
+    """The part of a reply the sender actually typed, with our own mail quoted underneath cut away."""
+    if message.is_multipart():
+        part = next((p for p in message.walk() if p.get_content_type() == 'text/plain'), None)
+    else:
+        part = message
+    if part is None:
+        return ''
+    try:
+        raw = part.get_payload(decode=True)
+        text = raw.decode(part.get_content_charset() or 'utf-8', 'ignore') if raw else str(part.get_payload())
+    except Exception:
+        return ''
+    lines = []
+    for line in text.splitlines():
+        if QUOTE_LINE.match(line):
+            break
+        lines.append(line)
+    return '\n'.join(lines).strip()
 
 
 def ours(address):
@@ -56,18 +104,25 @@ class Command(BaseCommand):
 
         asked, changed, unknown = set(), 0, []
         for message in box:
-            subject = str(message.get('Subject', ''))
-            if not ASKS.match(subject):
-                continue
             address = parseaddr(str(message.get('From', '')))[1].strip().lower()
             if not address or ours(address):
                 continue
-            asked.add(address)
+            if ASKS.match(str(message.get('Subject', ''))):
+                asked.add(address)
+                continue
+            body = own_words(message)
+            if body and len(body) <= MAX_BODY and (BODY_ASKS.search(body) or BARE_ASK.match(body)):
+                asked.add(address)
 
         for address in sorted(asked):
             contact = Contact.objects.filter(email__iexact=address).first()
             if contact is None:
+                # Remember it anyway. They are not on the list today, but this address has been imported from
+                # a spreadsheet once already and asking twice is how a person becomes a spam complaint.
                 unknown.append(address)
+                if opts['apply']:
+                    contact = Contact.objects.create(email=address)
+                    stop_marketing(contact)
                 continue
             if not contact.subscribed:
                 continue
@@ -80,4 +135,4 @@ class Command(BaseCommand):
                           + ('' if opts['apply'] else ' (dry run, pass --apply)'))
         for address in unknown:
             # Worth seeing: somebody asking to leave a list they are not on usually means a forwarded copy.
-            self.stdout.write(f'  not on the list: {address}')
+            self.stdout.write(f'  was not on the list, remembered anyway: {address}')

@@ -1750,9 +1750,9 @@ class EmailedUnsubscribeTests(ApiTestCase):
         person.refresh_from_db()
         self.assertFalse(person.subscribed)
 
-    def test_it_never_reads_the_body(self):
-        """Every newsletter carries the word in its own footer and a copy is delivered to this mailbox. A body
-        match would unsubscribe whoever appears to have sent our own mail."""
+    def test_mentioning_the_word_is_not_asking(self):
+        """The body is read now, but a mention is not a request. Every newsletter carries the word in its own
+        footer and a copy lands in this mailbox, so the line between the two has to hold."""
         from django.core.management import call_command
         from crm.models import Contact
 
@@ -2850,3 +2850,84 @@ class TableQueueAndBreakdownTests(ApiTestCase):
 
     def test_nonsense_in_the_url_does_not_break_the_board(self):
         self.assertIn('Waiting now', self.board(open='not-a-table'))
+
+
+class RepliedUnsubscribeTests(ApiTestCase):
+    """The commonest real request: a reply to their own ticket email, subject unchanged, asking in the body.
+
+    Subject-only matching read those as ordinary replies and left the person on the list, which is how a
+    polite request becomes a spam complaint, and a complaint costs the whole list's deliverability.
+    """
+
+    def _mbox(self, messages):
+        import pathlib
+        import tempfile
+
+        path = pathlib.Path(tempfile.mkdtemp()) / 'inbox'
+        path.write_text('\n'.join(
+            f'From someone Thu Sep 25 14:00:00 2026\nFrom: {frm}\nSubject: {subject}\n\n{body}\n'
+            for frm, subject, body in messages))
+        return str(path)
+
+    def run_on(self, messages, apply=True):
+        from io import StringIO
+
+        from django.core.management import call_command
+
+        out = StringIO()
+        args = ['process_unsubscribe_mail', '--mailbox', self._mbox(messages)]
+        if apply:
+            args.append('--apply')
+        call_command(*args, stdout=out)
+        return out.getvalue()
+
+    def asking(self, email, subject, body):
+        from crm.models import Contact
+
+        person = Contact.objects.create(email=email, subscribed=True)
+        self.run_on([(email, subject, body)])
+        person.refresh_from_db()
+        return person
+
+    def test_a_spanish_reply_is_honoured(self):
+        person = self.asking('ana@example.com', 'Re: Tus boletos: Privilegio',
+                             'Hola, ya no quiero recibir correos. Gracias.')
+        self.assertFalse(person.subscribed)
+
+    def test_an_english_reply_is_honoured(self):
+        person = self.asking('bob@example.com', 'Re: Your tickets', 'Please take me off your list, thanks.')
+        self.assertFalse(person.subscribed)
+
+    def test_a_one_word_reply_is_honoured(self):
+        person = self.asking('cara@example.com', 'Re: Your tickets', 'Unsubscribe')
+        self.assertFalse(person.subscribed)
+
+    def test_our_own_footer_quoted_back_is_not_a_request(self):
+        """A reply quotes the message underneath it, and our messages say the word."""
+        body = ('Great show, thanks!\n\n'
+                'On Wed, Sep 24, 2026 at 9:02 AM Iguana Comedy wrote:\n'
+                '> You are booked. To stop receiving these, unsubscribe me here: https://x/y\n'
+                '> Iguana Comedy')
+        person = self.asking('dan@example.com', 'Re: Your tickets', body)
+        self.assertTrue(person.subscribed, 'that was our own footer, quoted')
+
+    def test_a_long_conversation_is_left_for_a_person_to_read(self):
+        body = ('I wanted to ask about the show on Friday. ' * 20) + ' also please take me off your list'
+        person = self.asking('eve@example.com', 'Re: Your tickets', body)
+        self.assertTrue(person.subscribed, 'past a few lines it is a conversation, not a request')
+
+    def test_an_address_we_do_not_hold_is_remembered_anyway(self):
+        """They are not on the list today. This address has been imported from a spreadsheet once already."""
+        from crm.models import Contact
+
+        output = self.run_on([('stranger@example.com', 'unsubscribe', 'please')])
+        self.assertIn('remembered anyway', output)
+        remembered = Contact.objects.get(email='stranger@example.com')
+        self.assertFalse(remembered.subscribed)
+        self.assertIsNotNone(remembered.unsubscribed_at)
+
+    def test_a_dry_run_remembers_nothing(self):
+        from crm.models import Contact
+
+        self.run_on([('stranger2@example.com', 'unsubscribe', 'please')], apply=False)
+        self.assertFalse(Contact.objects.filter(email='stranger2@example.com').exists())
