@@ -2789,3 +2789,64 @@ class ServiceShowTests(ApiTestCase):
         self.assertEqual(current_show(now), tonight)
         after_midnight = (now + timedelta(days=1)).replace(hour=0, minute=40)
         self.assertEqual(current_show(after_midnight), tonight, 'the tab has not changed hands at 00:40')
+
+
+class TableQueueAndBreakdownTests(ApiTestCase):
+    """The queue across the room, and the per-table breakdown behind it."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from sales.models import TableOrder, TableOrderItem
+
+        self.client.force_login(get_user_model().objects.create_user('bar7', password='x', is_staff=True))
+        self.old = TableOrder.objects.create(table_number=2, currency='mxn', total_cents=12000,
+                                             created_at=timezone.now() - timedelta(minutes=18))
+        TableOrderItem.objects.create(order=self.old, name='Mezcal', quantity=2, unit_price_cents=6000)
+        self.fresh = TableOrder.objects.create(table_number=8, currency='mxn', total_cents=5000)
+        TableOrderItem.objects.create(order=self.fresh, name='Cerveza', quantity=1, unit_price_cents=5000)
+
+    def board(self, **params):
+        return self.client.get('/tables/', params).content.decode()
+
+    def test_the_queue_lists_every_waiting_table_longest_first(self):
+        page = self.board()
+        self.assertIn('Waiting now', page)
+        self.assertLess(page.index('Table 2'), page.index('Table 8'), '18 minutes waiting outranks just now')
+
+    def test_a_table_with_nothing_waiting_is_not_in_the_queue(self):
+        self.client.post('/tables/2/close/')
+        queue = self.board().split('<div class="board">')[0]
+        self.assertNotIn('Table 2', queue)
+        self.assertIn('Table 8', queue)
+
+    def test_the_breakdown_is_closed_until_asked_for(self):
+        page = self.board()
+        # The card always summarises what is waiting; the breakdown is the itemised panel behind it.
+        self.assertIn('2 x Mezcal', page)
+        self.assertNotIn('<div class="rounds-list">', page)
+        self.assertIn('See breakdown', page)
+
+    def test_the_breakdown_itemises_that_table_only(self):
+        page = self.board(open='2')
+        self.assertEqual(page.count('<div class="rounds-list">'), 1, 'one table opens at a time')
+        self.assertIn('120 MXN', page)
+        self.assertIn('round-state', page)
+        panel = page.split('<div class="rounds-list">')[1].split('</form>')[0]
+        self.assertIn('Mezcal', panel)
+        self.assertNotIn('Cerveza', panel, 'table 8 is a different table')
+
+    def test_the_open_table_rides_in_the_url_so_a_refresh_keeps_it(self):
+        """The board reloads itself every twenty seconds; a panel that snaps shut mid-read is worse than none."""
+        page = self.board(open='2')
+        self.assertIn('id="t2"', page)
+        self.assertIn('Hide breakdown', page)
+        self.assertIn('?open=8#t8', page, 'the other tables still offer to open')
+
+    def test_a_delivered_round_stays_in_the_breakdown(self):
+        self.client.post('/tables/2/close/')
+        page = self.board(open='2')
+        self.assertIn('2 x Mezcal', page)
+        self.assertIn('Delivered at the table', page)
+
+    def test_nonsense_in_the_url_does_not_break_the_board(self):
+        self.assertIn('Waiting now', self.board(open='not-a-table'))

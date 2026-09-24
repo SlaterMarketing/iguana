@@ -125,9 +125,38 @@ def tables(request):
             taken += order.total_cents
         else:
             owed += order.total_cents
+    # The queue, oldest first, so somebody holding a tray reads what is outstanding in one place instead of
+    # picking the green cards out of a grid of twelve. Grouped by table because that is what Delivered closes.
+    waiting = sorted((t for t in board if t['orders']), key=lambda t: t['waited'] or 0, reverse=True)
+
+    # Which table is showing its breakdown. It lives in the URL rather than in a <details> element because this
+    # page reloads itself every twenty seconds, and a panel that snaps shut mid-read is worse than no panel.
+    try:
+        opened = int(request.GET.get('open', ''))
+    except ValueError:
+        opened = 0
+    if opened:
+        rounds = (TableOrder.objects.filter(table_number=opened, created_at__gte=service_start())
+                  .exclude(status=TableOrder.CANCELLED).prefetch_related('items').order_by('created_at'))
+        detail = [{
+            'at': order.created_at.astimezone(CANCUN),
+            'status': order.status,
+            'waiting': order.status == TableOrder.OPEN,
+            'paid': order.status == TableOrder.PAID,
+            'total': format_money(order.total_cents, order.currency),
+            'items': [{'quantity': i.quantity, 'name': i.name,
+                       'line': format_money(i.unit_price_cents * i.quantity, order.currency)}
+                      for i in order.items.all()],
+            'note': order.note,
+        } for order in rounds]
+        for row in board:
+            if row['number'] == opened:
+                row['breakdown'] = detail
+                row['is_open'] = True
     return render(request, 'embed/tables.html', {
         'lang': lang,
         'tables': board,
+        'waiting': waiting,
         'open_count': sum(1 for t in board if t['orders']),
         'max_table': MAX_TABLE,
         'show': show,

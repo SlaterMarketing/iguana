@@ -334,6 +334,14 @@ changing one in the admin is not undone by the next deploy.
   interchangeable: the one at the top is what is **waiting to be carried over**, and the one under the rule is
   **Due**, everything that table has ordered tonight including rounds already delivered. They pay at the end,
   so pressing Delivered used to make the money disappear from the only screen anybody looks at.
+  **The queue comes first**: every table with something waiting, longest wait at the top, amber past ten
+  minutes, with the round and a Delivered button on each row. The grid of twelve below it is for state; the
+  queue is for somebody holding a tray, who should not have to find the green cards in it.
+  **`See breakdown`** opens a table's rounds itemised, each with its time, its lines, its total and whether it
+  is waiting, delivered or paid.
+  ⚠ **It is a LINK carrying `?open=N#tN`, not a `<details>`.** The board reloads itself every twenty seconds
+  and a panel that snaps shut mid-read is worse than no panel; the query string rides along with the refresh
+  and the anchor puts the reader back on the same card.
   **Paying is a toggle beside the amount**, not a second Delivered button: `Mark paid` settles every round on
   that table for the service (an open one is marked delivered too, since they are paying for it) and turns into
   `Undo`. Reversible on purpose: it is a tap on a phone in a dark room, and a table wrongly marked paid is

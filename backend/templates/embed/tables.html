@@ -36,6 +36,38 @@
   .t form.tab { margin-top: 10px; }
   .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
   .head .tonight { display: block; font-size: .78rem; margin-top: 2px; }
+  /* The queue reads top to bottom, longest wait first. One row per table, because that is what Delivered closes. */
+  .queue h2 { font-size: .78rem; letter-spacing: .16em; text-transform: uppercase; margin-bottom: 8px; }
+  .q { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+       border: 1px solid var(--brand); background: var(--brand-soft); border-radius: 16px;
+       padding: 10px 14px; }
+  .q + .q { margin-top: 8px; }
+  .q.late { border-color: #b7791f; background: #fdf6e7; }
+  .q-what { min-width: 0; flex: 1 1 60%; }
+  .q-table { font-family: "Bebas Neue", sans-serif; font-size: 1.5rem; line-height: 1; margin: 0; }
+  .q-table .q-due { font-family: inherit; font-size: .95rem; font-weight: 700; margin-left: 8px; }
+  .q-items { font-size: .85rem; color: var(--muted); margin: 4px 0 0; line-height: 1.35; }
+  .q-act { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+  .q-when { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; margin: 0; }
+  .q.late .q-when { color: #8a5a00; }
+  .q-act form { margin: 0; }
+  .q-act button { width: auto; min-height: 42px; padding: 0 18px; border: 0; border-radius: 999px;
+                  background: var(--ink); color: #fff; font: 700 .7rem/1 inherit; letter-spacing: .16em;
+                  text-transform: uppercase; cursor: pointer; }
+  .q-act button:hover { background: var(--brand-hover); }
+  .peek { display: inline-block; margin-top: 6px; font-size: .72rem; font-weight: 700; letter-spacing: .12em;
+          text-transform: uppercase; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
+  .peek:hover { color: var(--ink); }
+  .rounds-list { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .round + .round { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
+  .round-head { display: flex; justify-content: space-between; gap: 8px; margin: 0; font-size: .8rem;
+                font-weight: 700; }
+  .round-item { display: flex; justify-content: space-between; gap: 8px; margin: 2px 0 0; font-size: .8rem;
+                color: var(--muted); }
+  .round-note { margin: 4px 0 0; font-size: .75rem; font-style: italic; color: var(--muted); }
+  .round-state { margin: 4px 0 0; font-size: .66rem; font-weight: 700; letter-spacing: .12em;
+                 text-transform: uppercase; color: var(--muted); }
+  .round.is-waiting .round-state { color: var(--brand); }
 </style>
 {% endblock %}
 {% block content %}
@@ -51,9 +83,31 @@
     </p>
   </div>
 
+  {% if waiting %}
+    <section class="queue">
+      <h2>{% t lang "Waiting now" %}</h2>
+      {% for t in waiting %}
+        <div class="q {% if t.late %}late{% endif %}">
+          <div class="q-what">
+            <p class="q-table">{% t lang "Table" %} {{ t.number }} <span class="q-due">{{ t.due }}</span></p>
+            <p class="q-items">{{ t.items }}</p>
+            <a class="peek" href="?open={{ t.number }}#t{{ t.number }}">{% t lang "See breakdown" %}</a>
+          </div>
+          <div class="q-act">
+            <p class="q-when">{% if t.waited < 1 %}{% t lang "just now" %}{% else %}{% t lang "{0} min" t.waited %}{% endif %}</p>
+            <form method="post" action="{% url 'close-table' t.number %}">
+              {% csrf_token %}
+              <button type="submit">{% t lang "Delivered" %}</button>
+            </form>
+          </div>
+        </div>
+      {% endfor %}
+    </section>
+  {% endif %}
+
   <div class="board">
     {% for t in tables %}
-      <div class="t {% if t.orders %}open{% endif %} {% if t.late %}late{% endif %} {% if not t.orders and not t.tab_cents %}quiet{% endif %}">
+      <div class="t {% if t.orders %}open{% endif %} {% if t.late %}late{% endif %} {% if not t.orders and not t.tab_cents %}quiet{% endif %}" id="t{{ t.number }}">
         <p class="no">{% t lang "Table" %} {{ t.number }}</p>
         {% if t.orders %}
           <p class="due">{{ t.due }}</p>
@@ -73,6 +127,27 @@
           that one is what to carry over, this one is what to charge. They pay at the end, so a round already
           delivered is still money sitting on this table and the board is the only place anybody looks.
         {% endcomment %}
+        {% if t.breakdown %}
+          <div class="rounds-list">
+            {% for r in t.breakdown %}
+              <div class="round {% if r.waiting %}is-waiting{% endif %}">
+                <p class="round-head">
+                  <span>{{ r.at|date:"H:i" }}</span>
+                  <strong>{{ r.total }}</strong>
+                </p>
+                {% for i in r.items %}
+                  <p class="round-item"><span>{{ i.quantity }} x {{ i.name }}</span><span>{{ i.line }}</span></p>
+                {% endfor %}
+                {% if r.note %}<p class="round-note">{{ r.note }}</p>{% endif %}
+                <p class="round-state">
+                  {% if r.waiting %}{% t lang "Waiting" %}
+                  {% elif r.paid %}{% t lang "Paid for" %}
+                  {% else %}{% t lang "Delivered at the table" %}{% endif %}
+                </p>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
         {% if t.tab_cents %}
           <form class="tab {% if t.settled %}settled{% endif %}" method="post"
                 action="{% url 'settle-table' t.number %}">
@@ -87,6 +162,16 @@
             {% endif %}
             {% if t.rounds > 1 %}<span class="rounds">{% t lang "{0} rounds" t.rounds %}</span>{% endif %}
           </form>
+          {% comment %}
+            A link rather than a <details>, because this page reloads itself every twenty seconds and the open
+            table has to survive that. The query string rides along with the refresh; the anchor puts the
+            reader back on the same card instead of at the top of the board.
+          {% endcomment %}
+          {% if t.is_open %}
+            <a class="peek" href="?#t{{ t.number }}">{% t lang "Hide breakdown" %}</a>
+          {% else %}
+            <a class="peek" href="?open={{ t.number }}#t{{ t.number }}">{% t lang "See breakdown" %}</a>
+          {% endif %}
         {% endif %}
       </div>
     {% endfor %}
