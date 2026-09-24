@@ -176,6 +176,30 @@ ES = {
     'Shows here sell out. Send this to whoever you want to bring and they can get their own ticket.':
         'Los shows aquí se llenan. Manda esto a quien quieras traer y puede sacar su propio boleto.',
     # The staff reservations board: how many we have for each night, and who they are.
+    # The spend-against-bookings page.
+    'Stats': 'Números',
+    'Spend from Meta, {0} ago': 'Gasto según Meta, hace {0}',
+    'No spend figures yet': 'Todavía no hay cifras de gasto',
+    'These spend figures are not fresh. The snapshot cron has not written in a while, so treat the cost per seat as the last known one.':
+        'Estas cifras de gasto no están frescas. El cron no ha escrito en un rato, así que toma el costo por lugar como el último conocido.',
+    'Today so far': 'Hoy hasta ahora',
+    'Yesterday': 'Ayer',
+    'Last 7 days': 'Últimos 7 días',
+    '{0} spent': '{0} gastados',
+    'The day is {0}% through. Spend runs from midnight while bookings arrive in the evening, so this reads high in the afternoon.':
+        'Va {0}% del día. El gasto corre desde medianoche y las reservaciones llegan de noche, así que por la tarde se ve alto.',
+    'Free reservations': 'Reservaciones gratis',
+    'Paid tickets': 'Boletos pagados',
+    'seat': 'lugar',
+    'no seats yet': 'sin lugares todavía',
+    'Ad spend': 'Gasto en anuncios',
+    'Bookings': 'Reservaciones',
+    'Per booking': 'Por reservación',
+    'Taken': 'Cobrado',
+    'Return': 'Retorno',
+    'Ads as share': 'Anuncios como parte',
+    'Bookings and seats are our own rows, counted now. Spend is Meta\'s, from the snapshot. Cost per seat is their spend over our seats, never over their purchase count: today they report {0} purchases against the {1} bookings we actually hold.':
+        'Las reservaciones y los lugares son nuestros propios registros, contados ahora. El gasto es de Meta, del snapshot. El costo por lugar es su gasto entre nuestros lugares, nunca entre su conteo de compras: hoy reportan {0} compras contra las {1} reservaciones que realmente tenemos.',
     'Reservations': 'Reservaciones',
     '{0} seats booked across every night to come': '{0} lugares apartados en todas las noches por venir',
     'show {0}': 'show {0}',

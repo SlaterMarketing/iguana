@@ -362,6 +362,19 @@
           timeout 30m {{ app_dir }}/backend/venv/bin/python {{ app_dir }}/backend/manage.py send_whats_on
           --send --lede-file {{ newsletter_lede }} 2>&1 | logger -t iguana-newsletter
 
+    - name: Snapshot what the ads cost, for /stats/
+      become: true
+      cron:
+        name: iguana ad spend snapshot
+        user: "{{ deploy_user }}"
+        minute: "*/15"
+        # The page never calls Meta itself: the ad account's rate limit clears only by waiting, and a Graph
+        # outage would otherwise take the dashboard down with it. Stale numbers with an honest timestamp beat
+        # a 500 at the moment somebody wants to know whether to keep spending.
+        job: >-
+          timeout 5m {{ app_dir }}/backend/venv/bin/python {{ app_dir }}/backend/manage.py
+          snapshot_ad_spend 2>&1 | logger -t iguana-ad-spend
+
     - name: Morning-after note to last night's audience
       become: true
       cron:

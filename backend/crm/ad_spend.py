@@ -1,0 +1,105 @@
+"""What the ads cost, fetched on a schedule and written down.
+
+Nothing in a request path talks to Meta. The ad account's rate limit clears only by waiting, so a dashboard
+that asked Graph on every load would eventually wall itself, and a Graph outage would turn the page into a 500
+at the moment somebody wanted to know whether to keep spending. A cron calls `fetch()` every quarter of an
+hour and `/stats/` reads the rows, which also means the page renders honestly, with the time of the last
+successful fetch on it, when Meta is unreachable.
+
+Two things about Meta's own numbers are worth remembering when reading anything built on this:
+
+`time_range` is inclusive at both ends, so "since today, until today" is one day and `since = today - 1` is
+two. That is what makes `meta-ads.py campaigns --days 1` a two-day figure, which read as a fivefold overspend
+for about a minute on 2026-09-24.
+
+And `reported_purchases` is Meta's attribution, not our database. It has been both high and low against the
+orders we actually hold, so it is stored for comparison and never used as the denominator: cost per booking
+here is always spend over bookings we can see in our own tables.
+"""
+
+import json
+import logging
+import urllib.error
+import urllib.parse
+import urllib.request
+from datetime import date, timedelta
+
+from django.conf import settings
+from django.utils import timezone
+
+from .models import AdSpend
+
+log = logging.getLogger(__name__)
+
+GRAPH = 'https://graph.facebook.com/v21.0'
+TIMEOUT = 30
+
+# The campaigns that sell a free seat. `scripts/meta-openmic-campaigns.py` builds them with this exact prefix,
+# and anything else on the account is selling a ticket. It is a naming rule rather than a lookup because the
+# campaign is the only object Meta's insights give us here; `api.tests.AdSpendTests` pins it.
+FREE_PREFIX = 'open mic'
+
+
+def classify(campaign_name):
+    return AdSpend.FREE if (campaign_name or '').strip().lower().startswith(FREE_PREFIX) else AdSpend.PAID
+
+
+def _get(path, **params):
+    params['access_token'] = settings.META_ADS_TOKEN
+    url = f'{GRAPH}/{path}?' + urllib.parse.urlencode(params)
+    with urllib.request.urlopen(url, timeout=TIMEOUT) as response:
+        return json.load(response)
+
+
+def _purchases(row):
+    for action in row.get('actions') or []:
+        if action.get('action_type') in ('purchase', 'offsite_conversion.fb_pixel_purchase'):
+            return int(float(action.get('value', 0)))
+    return 0
+
+
+def fetch(days=2, today=None):
+    """Pull the last `days` days per campaign per day and write them down. Returns rows written.
+
+    `days=2` means today and yesterday, which is all a dashboard restates; a longer window backfills history
+    after an outage without asking Meta for months of data it would rather not serve.
+    """
+    if not settings.META_ADS_TOKEN:
+        log.warning('no META_ADS_TOKEN, so /stats/ has no spend to show')
+        return 0
+    until = today or timezone.localdate()
+    since = until - timedelta(days=max(days - 1, 0))
+    payload = _get(f'{settings.META_AD_ACCOUNT}/insights',
+                   level='campaign', time_increment=1, limit=500,
+                   time_range=json.dumps({'since': since.isoformat(), 'until': until.isoformat()}),
+                   fields='campaign_id,campaign_name,spend,impressions,clicks,actions')
+    written = 0
+    now = timezone.now()
+    for row in payload.get('data', []):
+        day = date.fromisoformat(row['date_start'])
+        AdSpend.objects.update_or_create(
+            day=day, campaign_id=row['campaign_id'],
+            defaults={
+                'campaign_name': row.get('campaign_name', ''),
+                'kind': classify(row.get('campaign_name', '')),
+                'spend_cents': round(float(row.get('spend', 0)) * 100),
+                'impressions': int(row.get('impressions', 0) or 0),
+                'clicks': int(row.get('clicks', 0) or 0),
+                'reported_purchases': _purchases(row),
+                'fetched_at': now,
+            })
+        written += 1
+    return written
+
+
+def spend_between(first_day, last_day):
+    """{'FREE': cents, 'PAID': cents} over an inclusive range of days."""
+    totals = {AdSpend.FREE: 0, AdSpend.PAID: 0}
+    for row in AdSpend.objects.filter(day__gte=first_day, day__lte=last_day):
+        totals[row.kind] = totals.get(row.kind, 0) + row.spend_cents
+    return totals
+
+
+def last_fetch():
+    row = AdSpend.objects.order_by('-fetched_at').first()
+    return row.fetched_at if row else None

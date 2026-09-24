@@ -2160,7 +2160,7 @@ class InviteAFriendTests(ApiTestCase):
         from sales.sharing import share_url
         from sales.models import Order
 
-        self.event.date = timezone.now().replace(hour=0, minute=1)
+        self.event.date = timezone.localtime(timezone.now()).replace(hour=0, minute=1)
         self.event.save(update_fields=['date'])
         order = Order.objects.create(event=self.event, event_name=self.event.name, customer_email='a@example.com',
                                      currency='usd', status=Order.COMPLETED, locale='en')
@@ -2443,3 +2443,82 @@ class ReservationsBoardTests(ApiTestCase):
         page = self.client.get('/reservations/', HTTP_ACCEPT_LANGUAGE='es-MX,es;q=0.9').content.decode()
         self.assertIn('Reservaciones', page)
         self.assertIn('Quién viene', page)
+
+
+class StatsPageTests(ApiTestCase):
+    """The page that answers "what does a reservation cost us right now", free against paid.
+
+    Its whole value is that the two halves come from different places and it never mixes them up: seats are
+    ours, counted live; spend is Meta's, read from a snapshot a cron wrote. Meta's own purchase count is shown
+    beside ours and never divided by, because it has run both above and below the orders we actually hold.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        from crm.models import AdSpend
+
+        today = timezone.localdate()
+        AdSpend.objects.create(day=today, campaign_id='1', campaign_name='Open mic Spanish · reservations',
+                               kind=AdSpend.FREE, spend_cents=10000, reported_purchases=9)
+        AdSpend.objects.create(day=today, campaign_id='2', campaign_name='Privilegio · Fredy El Regio · boletos',
+                               kind=AdSpend.PAID, spend_cents=20000, reported_purchases=4)
+        free = Order.objects.create(event=cls.event, event_name=cls.event.name, customer_email='free@example.com',
+                                    currency='mxn', status=Order.COMPLETED, completed_at=timezone.now())
+        Ticket.objects.create(order=free, ticket_type_name='Free reserved seat')
+        Ticket.objects.create(order=free, ticket_type_name='Free reserved seat')
+        paid = Order.objects.create(event=cls.event, event_name=cls.event.name, customer_email='paid@example.com',
+                                    currency='mxn', status=Order.COMPLETED, completed_at=timezone.now(),
+                                    total_amount_cents=60000)
+        Ticket.objects.create(order=paid, ticket_type_name='General')
+
+    def as_owner(self):
+        from django.contrib.auth import get_user_model
+
+        user = get_user_model().objects.create_user('owner', password='x', is_staff=True, is_superuser=True)
+        self.client.force_login(user)
+        return user
+
+    def test_plain_staff_cannot_see_the_money(self):
+        from django.contrib.auth import get_user_model
+
+        self.client.force_login(get_user_model().objects.create_user('barkeep2', password='x', is_staff=True))
+        self.assertEqual(self.client.get('/stats/').status_code, 302)
+
+    def test_cost_per_seat_divides_spend_by_OUR_seats(self):
+        self.as_owner()
+        page = self.client.get('/stats/').content.decode()
+        self.assertIn('$50.00', page)   # 100.00 of free spend over our 2 seats
+        self.assertIn('$200.00', page)  # 200.00 of paid spend over our 1 seat
+
+    def test_metas_purchase_count_is_shown_but_never_divided_by(self):
+        self.as_owner()
+        page = self.client.get('/stats/').content.decode()
+        self.assertIn('13 purchases', page)   # Meta says 9 + 4
+        self.assertIn('2 bookings', page)     # we hold 2
+        self.assertNotIn('$23.07', page)      # 300.00 over Meta's 13, which nothing should ever compute
+
+    def test_a_probe_booking_does_not_flatter_the_numbers(self):
+        probe = Order.objects.create(event=self.event, event_name=self.event.name, currency='mxn',
+                                     customer_email='e2e-probe@example.com', status=Order.COMPLETED,
+                                     completed_at=timezone.now())
+        Ticket.objects.create(order=probe, ticket_type_name='Free reserved seat')
+        self.as_owner()
+        page = self.client.get('/stats/').content.decode()
+        self.assertIn('$50.00', page, 'the probe seat would have made it $33.33')
+
+    def test_it_says_when_the_spend_figures_went_stale(self):
+        from crm.models import AdSpend
+
+        self.as_owner()
+        AdSpend.objects.update(fetched_at=timezone.now() - timedelta(hours=3))
+        page = self.client.get('/stats/').content.decode()
+        self.assertIn('not fresh', page)
+
+    def test_a_campaign_is_classified_by_what_it_sells(self):
+        from crm.ad_spend import classify
+        from crm.models import AdSpend
+
+        self.assertEqual(classify('Open mic English · reservations'), AdSpend.FREE)
+        self.assertEqual(classify('Open mic Spanish · local reach'), AdSpend.FREE)
+        self.assertEqual(classify('Privilegio · Fredy El Regio · boletos'), AdSpend.PAID)

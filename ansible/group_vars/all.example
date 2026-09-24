@@ -41,6 +41,9 @@ stripe_webhook_secret: "{{ lookup('file', stripe_creds + '/webhook_secret') }}"
 # system user token that scripts/meta-ads.py also uses. Blank test code = events count for real.
 meta_pixel_id: "2122037578734069"
 meta_capi_token: "{{ lookup('file', '~/.credentials/meta/iguanacomedy/token') }}"
+# Same system-user token, used read-only by the /stats/ spend snapshot cron. No request path calls Meta.
+meta_ads_token: "{{ lookup('file', '~/.credentials/meta/iguanacomedy/token') }}"
+meta_ad_account: "act_178760798664478"
 meta_test_event_code: ""
 
 notify_emails: ["hello@iguanacomedy.com"]

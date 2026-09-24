@@ -22,6 +22,9 @@ MARKETING_REPLY_TO = getattr(config, 'MARKETING_REPLY_TO', '')
 # pixel on the marketing site cannot see it. Blank means conversions simply are not reported; see crm/meta_capi.py.
 META_PIXEL_ID = getattr(config, 'META_PIXEL_ID', '')
 META_CAPI_TOKEN = getattr(config, 'META_CAPI_TOKEN', '')
+# Read-only Marketing API access, for the spend half of /stats/. A cron fetches it; no request path calls Meta.
+META_ADS_TOKEN = getattr(config, 'META_ADS_TOKEN', '')
+META_AD_ACCOUNT = getattr(config, 'META_AD_ACCOUNT', 'act_178760798664478')
 # Set only while watching Test Events in Events Manager; it keeps those events out of the real dataset.
 META_TEST_EVENT_CODE = getattr(config, 'META_TEST_EVENT_CODE', '')
 

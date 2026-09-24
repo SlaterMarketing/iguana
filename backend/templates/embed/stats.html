@@ -1,0 +1,88 @@
+{% extends "embed/base.html" %}
+{% load showtime %}
+{% block title %}{% t lang "Stats" %} · Iguana Comedy{% endblock %}
+{% block head %}
+{% comment %}
+  Keeps itself current without anybody reloading. Sixty seconds is faster than the cron writes spend, so the
+  booking half moves on its own and the spend half catches up on the quarter hour.
+{% endcomment %}
+<meta http-equiv="refresh" content="60">
+<style>
+  .wrap { max-width: 900px; }
+  .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .win { border: 1px solid var(--line); border-radius: 18px; background: #fff; padding: 14px 16px; }
+  .win + .win { margin-top: 12px; }
+  .win.now { border-color: var(--brand); background: var(--brand-soft); }
+  .win h2 { margin: 0 0 2px; font-size: .78rem; letter-spacing: .16em; text-transform: uppercase; }
+  .pair { display: grid; gap: 12px; grid-template-columns: 1fr 1fr; margin-top: 10px; }
+  @media (max-width: 520px) { .pair { grid-template-columns: 1fr; } }
+  .side { border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; background: #fff; }
+  .side .kind { font-size: .72rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
+  .big { font-family: "Bebas Neue", sans-serif; font-size: 2.4rem; line-height: 1; margin: 2px 0 0; }
+  .big small { font-family: inherit; font-size: .8rem; font-weight: 600; color: var(--muted); letter-spacing: .06em; }
+  .side dl { display: grid; grid-template-columns: auto auto; gap: 2px 10px; margin: 8px 0 0; font-size: .85rem; }
+  .side dt { color: var(--muted); }
+  .side dd { margin: 0; text-align: right; font-weight: 600; }
+  .note { font-size: .82rem; color: var(--muted); line-height: 1.5; margin: 0; }
+  .warn { border-radius: 12px; padding: 8px 12px; background: #fdf6e7; border: 1px solid #b7791f; color: #6b4900;
+          font-size: .82rem; }
+  .none { color: var(--muted); font-style: italic; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="stack">
+  <div class="head">
+    <div>
+      <p class="eyebrow">Iguana Comedy</p>
+      <h1>{% t lang "Stats" %}</h1>
+    </div>
+    <p class="note">
+      {% if fetched %}{% t lang "Spend from Meta, {0} ago" fetched_ago %}{% else %}{% t lang "No spend figures yet" %}{% endif %}
+      · {{ now|date:"H:i" }}
+    </p>
+  </div>
+
+  {% if stale %}
+    <p class="warn">{% t lang "These spend figures are not fresh. The snapshot cron has not written in a while, so treat the cost per seat as the last known one." %}</p>
+  {% endif %}
+
+  {% for w in windows %}
+    <section class="win {% if forloop.first %}now{% endif %}">
+      <h2>
+        {% if w.label == "today" %}{% t lang "Today so far" %}
+        {% elif w.label == "yesterday" %}{% t lang "Yesterday" %}
+        {% else %}{% t lang "Last 7 days" %}{% endif %}
+        · {% t lang "{0} spent" w.spend|floatformat:2 %}
+      </h2>
+      {% if forloop.first %}
+        <p class="note">{% t lang "The day is {0}% through. Spend runs from midnight while bookings arrive in the evening, so this reads high in the afternoon." day_fraction %}</p>
+      {% endif %}
+
+      <div class="pair">
+        {% for side in w.sides %}
+          <div class="side">
+            <p class="kind">{% if side.label == "free" %}{% t lang "Free reservations" %}{% else %}{% t lang "Paid tickets" %}{% endif %}</p>
+            <p class="big">
+              {% if side.per_seat %}${{ side.per_seat|floatformat:2 }}<small> / {% t lang "seat" %}</small>
+              {% else %}<span class="none">{% t lang "no seats yet" %}</span>{% endif %}
+            </p>
+            <dl>
+              <dt>{% t lang "Ad spend" %}</dt><dd>${{ side.spend|floatformat:2 }}</dd>
+              <dt>{% t lang "Bookings" %}</dt><dd>{{ side.bookings }}</dd>
+              <dt>{% t lang "Seats" %}</dt><dd>{{ side.seats }}</dd>
+              {% if side.per_booking %}<dt>{% t lang "Per booking" %}</dt><dd>${{ side.per_booking|floatformat:2 }}</dd>{% endif %}
+              {% if side.revenue %}<dt>{% t lang "Taken" %}</dt><dd>${{ side.revenue|floatformat:2 }}</dd>{% endif %}
+              {% if side.roas %}<dt>{% t lang "Return" %}</dt><dd>{{ side.roas|floatformat:1 }}x</dd>{% endif %}
+              {% if side.ad_share %}<dt>{% t lang "Ads as share" %}</dt><dd>{{ side.ad_share|floatformat:0 }}%</dd>{% endif %}
+            </dl>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+  {% endfor %}
+
+  <p class="note">
+    {% t lang "Bookings and seats are our own rows, counted now. Spend is Meta's, from the snapshot. Cost per seat is their spend over our seats, never over their purchase count: today they report {0} purchases against the {1} bookings we actually hold." reported_today ours_today %}
+  </p>
+</div>
+{% endblock %}

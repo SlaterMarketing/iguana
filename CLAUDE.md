@@ -170,6 +170,10 @@ seat currently costs the club nothing to give away, so the ad spend per seat is 
 the bar is where it comes back. (Checked against production 2026-09-23 after it was stated wrongly in a
 cost-per-booking summary.)
 
+**Both nights are doors 20:00, show 21:00.** The English night ran 20:30 until 2026-09-24; moving it meant the
+series definition, the lander, the ad copy and the 15 nights already on the calendar, and the lander now reads
+the time off the night it is showing rather than repeating it in a copy table.
+
 `manage.py setup_open_mics [--show-time 20:00 --doors 19:30] [--dry-run]` publishes every upcoming night of the two
 series (`Noche de Open Mic - Espanol!`, `Open Mic Night - English!`), sets currency/language, turns off member
 benefits, tags them `open-mic`, and creates or updates the reservation type. It is re-runnable and never drops
@@ -302,6 +306,53 @@ exits 2. Facebook posts go through `/{page}/photos` with a Page token derived at
 Instagram through `/media`, a `status_code` poll, then `/media_publish`. Weekly open mics have no image and no
 `showTime` in the data, so they cannot be posted until one is set (or `--image` is passed); WebP is refused.
 Tests: `python3 -m unittest discover -s scripts/tests`.
+
+### The staff pages: who is coming, and what they cost
+
+Three pages behind the admin session, all bilingual, all on both domains.
+
+- **`/reservations/`** (any staff, so the `bar` login reaches it): every night with seats against capacity, a
+  fill bar, bookings, seats left, what was taken online and what is owed at the door, and under each night the
+  guest list with when they booked. Names show to all staff; **email addresses only to whoever passes
+  `can_see_the_money`**, because the door needs a name and does not need the mailing list. It doubles as the
+  door list, since nobody scans the QR codes.
+- **`/stats/`** (`can_see_the_money`): cost per reservation, free against paid, for today, yesterday and seven
+  days. Refreshes itself every 60s.
+- **`/revenue/`** and **`/tables/`** as before.
+
+🚨 **No request path may call Meta, and `/stats/` does not.** The ad account's rate limit clears only by
+waiting, so a page that asked Graph on every load would eventually wall itself and take the numbers down with
+it, and a Graph outage would turn the dashboard into a 500 at the moment somebody wanted to decide whether to
+keep spending. `manage.py snapshot_ad_spend` runs every 15 minutes and writes `crm.AdSpend`, one row per
+campaign per day; the page reads rows and prints how old they are, and says so loudly past 45 minutes.
+The token is `META_ADS_TOKEN` in `config.py`, rendered from `config.py.j2` like every other secret.
+⚠ **config.py is TEMPLATED on every deploy.** A hand-edited line in it survives until the next deploy and no
+longer: add the key to `files/config.py.j2` and `group_vars/all`, never with `lineinfile`.
+
+🔑 **Cost per seat is Meta's spend over OUR seats, never over Meta's purchase count.** Their attribution has
+run both above and below the orders we hold (5 reported against 7 real on 2026-09-24, 22 against 7 the day
+before), so the page shows their number beside ours and never divides by it. Probe bookings (`e2e-` emails)
+are excluded from every denominator.
+
+🚨 **`scripts/meta-ads.py --days N` means N+1 days.** `window()` is `since = today - N, until = today`, and
+Meta's `time_range` is inclusive at both ends, so `--days 1` is yesterday AND today. It reported 1,162 MXN as
+"today" when today was 226, which reads as a fivefold overspend. `--days 0` is today.
+
+### The two mails that go out on their own
+
+- **Monday 09:00 Playa**: the what-is-on newsletter (`send_whats_on`, `newsletter_enabled`).
+- **Daily 11:00 Playa**: `send_after_show` writes to everyone who booked the night before. It hopes they made
+  it, asks them to pass the open mic on, and asks them to reply with anything that could have been better;
+  replies go to hello@. Dry run unless `--send`; every booking it considers is stamped with
+  `Order.follow_up_sent_at`, so a re-run or a double fire cannot send twice.
+  ⚠ **It must not thank them for coming.** Nobody is scanned at the door (0 of 24 on 2026-09-23), so
+  attendance is not a fact we hold.
+
+🔑 **Which language the weekly mail leads with.** It always carries both, but the order and the SUBJECT follow
+`contact.locale`, and 595 of 666 mailable contacts came from the Kintana import with that field blank. Blank
+used to resolve to English through `normalize('')` rather than through any decision. An unknown reader now
+gets **Spanish first** (`whats_on.UNKNOWN_READS`), because the club is in Playa del Carmen and the bookings say
+so: 31 of 47 completed orders were made in Spanish.
 
 ### Reading the mail the server keeps
 

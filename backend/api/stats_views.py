@@ -1,0 +1,111 @@
+"""What the club is spending and what it is getting, on one page that keeps itself current.
+
+The question it exists to answer is the one asked several times a day: what does a reservation cost us right
+now, free against paid. Everything here is built from two sources that disagree by nature, so the page is
+explicit about which is which.
+
+Bookings, seats and money taken are OUR rows, counted live at the moment of the request. Spend is Meta's, read
+from the `AdSpend` snapshot a cron writes every quarter of an hour, never fetched in the request. Cost per seat
+is therefore their numerator over our denominator, which is the honest way round: Meta's own purchase count
+has run both above and below the orders we hold, so it appears on the page as a comparison and is never used
+to divide by.
+
+A part-day number is not a day. Spend accrues steadily from midnight while bookings arrive in the evening, so
+today's cost per seat reads high all afternoon and settles by night. The page says so rather than letting
+somebody act on 14:00 as though it were a result.
+"""
+
+from datetime import timedelta
+from zoneinfo import ZoneInfo
+
+from django.contrib.admin.views.decorators import staff_member_required
+from django.contrib.auth.decorators import user_passes_test
+from django.shortcuts import render
+from django.utils import timezone
+from django.utils.timesince import timesince
+
+from crm.ad_spend import last_fetch, spend_between
+from crm.models import AdSpend
+from sales.i18n import lang_from_request
+from sales.models import Order
+
+from .revenue_views import can_see_the_money
+
+CANCUN = ZoneInfo('America/Cancun')
+STALE_AFTER = timedelta(minutes=45)
+
+
+def _bookings(first_day, last_day):
+    """Our own rows: (free, paid) each with bookings, seats and money actually taken."""
+    start = timezone.make_aware(timezone.datetime.combine(first_day, timezone.datetime.min.time()), CANCUN)
+    end = timezone.make_aware(timezone.datetime.combine(last_day + timedelta(days=1), timezone.datetime.min.time()), CANCUN)
+    free = {'bookings': 0, 'seats': 0, 'cents': 0}
+    paid = {'bookings': 0, 'seats': 0, 'cents': 0}
+    orders = (Order.objects.filter(status=Order.COMPLETED, created_at__gte=start, created_at__lt=end)
+              .prefetch_related('tickets'))
+    for order in orders:
+        if (order.customer_email or '').startswith('e2e-'):
+            continue  # our own end-to-end probes, which would otherwise flatter every rate on this page
+        charged = max(order.total_amount_cents - order.pay_at_door_cents, 0)
+        side = paid if charged > 0 else free
+        side['bookings'] += 1
+        side['seats'] += order.tickets.count()
+        side['cents'] += charged
+    return free, paid
+
+
+def _row(label, spend_cents, side):
+    seats, bookings = side['seats'], side['bookings']
+    return {
+        'label': label,
+        'spend': spend_cents / 100,
+        'bookings': bookings,
+        'seats': seats,
+        'revenue': side['cents'] / 100,
+        'per_seat': (spend_cents / 100 / seats) if seats else None,
+        'per_booking': (spend_cents / 100 / bookings) if bookings else None,
+        'roas': (side['cents'] / spend_cents) if spend_cents and side['cents'] else None,
+        'ad_share': (spend_cents / side['cents'] * 100) if side['cents'] else None,
+    }
+
+
+def _window(first_day, last_day, label):
+    spend = spend_between(first_day, last_day)
+    free, paid = _bookings(first_day, last_day)
+    free_row = _row('free', spend.get(AdSpend.FREE, 0), free)
+    paid_row = _row('paid', spend.get(AdSpend.PAID, 0), paid)
+    return {
+        'label': label,
+        'free': free_row,
+        'paid': paid_row,
+        'sides': [free_row, paid_row],
+        'spend': (spend.get(AdSpend.FREE, 0) + spend.get(AdSpend.PAID, 0)) / 100,
+    }
+
+
+@user_passes_test(can_see_the_money, login_url='/admin/login/')
+@staff_member_required
+def stats(request):
+    lang = lang_from_request(request)
+    now = timezone.now().astimezone(CANCUN)
+    today = now.date()
+    fetched = last_fetch()
+    windows = [
+        _window(today, today, 'today'),
+        _window(today - timedelta(days=1), today - timedelta(days=1), 'yesterday'),
+        _window(today - timedelta(days=6), today, 'last 7 days'),
+    ]
+    # Meta's own purchase count for today, shown beside ours rather than instead of it.
+    reported = sum(row.reported_purchases for row in AdSpend.objects.filter(day=today))
+    ours = windows[0]['free']['bookings'] + windows[0]['paid']['bookings']
+    return render(request, 'embed/stats.html', {
+        'lang': lang,
+        'now': now,
+        'fetched_ago': timesince(fetched) if fetched else '',
+        'windows': windows,
+        'fetched': fetched,
+        'stale': (not fetched) or (timezone.now() - fetched) > STALE_AFTER,
+        'day_fraction': round(((now.hour * 60 + now.minute) / (24 * 60)) * 100),
+        'reported_today': reported,
+        'ours_today': ours,
+    })

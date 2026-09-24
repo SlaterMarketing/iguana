@@ -144,3 +144,35 @@ class TrackedEvent(models.Model):
     referrer = models.URLField(max_length=1000, blank=True)
     properties = models.JSONField(default=dict, blank=True)
     created_at = models.DateTimeField(default=timezone.now, db_index=True)
+
+
+class AdSpend(models.Model):
+    """One campaign's spend on one day, as Meta reported it when we last looked.
+
+    Kept in the database rather than fetched per request. The ad account's rate limit clears only by waiting,
+    so a page that called Meta on every load would eventually take itself down and take the numbers with it,
+    and a Graph outage would turn a dashboard into a 500. A cron writes these rows; `/stats/` only reads them,
+    which also means the page still renders, with an honest "last updated" line, when Meta is unreachable.
+
+    Rows are upserted on (day, campaign_id): today's figure is restated as the day goes on and settles after it.
+    """
+
+    FREE = 'FREE'
+    PAID = 'PAID'
+
+    day = models.DateField(db_index=True)
+    campaign_id = models.CharField(max_length=40)
+    campaign_name = models.CharField(max_length=200)
+    kind = models.CharField(max_length=8, default=PAID, help_text='Whether this campaign sells free seats or tickets.')
+    spend_cents = models.PositiveIntegerField(default=0)
+    impressions = models.PositiveIntegerField(default=0)
+    clicks = models.PositiveIntegerField(default=0)
+    reported_purchases = models.PositiveIntegerField(default=0, help_text="Meta's own count, which is not ours.")
+    fetched_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['-day', 'campaign_name']
+        constraints = [models.UniqueConstraint(fields=['day', 'campaign_id'], name='one_row_per_campaign_per_day')]
+
+    def __str__(self):
+        return f'{self.day} {self.campaign_name} {self.spend_cents / 100:.2f}'
