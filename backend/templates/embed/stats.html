@@ -26,6 +26,20 @@
   .note { font-size: .82rem; color: var(--muted); line-height: 1.5; margin: 0; }
   .warn { border-radius: 12px; padding: 8px 12px; background: #fdf6e7; border: 1px solid #b7791f; color: #6b4900;
           font-size: .82rem; }
+  .bar { height: 8px; border-radius: 999px; background: rgba(0,0,0,.08); overflow: hidden; }
+  .bar span { display: block; height: 100%; background: var(--brand); }
+  .bar.full span { background: #b7791f; }
+  table.nights { width: 100%; border-collapse: collapse; margin-top: 8px; }
+  table.nights td { padding: 7px 4px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  table.nights tr.tonight td { background: var(--brand-soft); }
+  td.when { font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+  td.when .what { display: block; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted); }
+  td.fill { width: 36%; padding-left: 10px; padding-right: 10px; }
+  td.num { text-align: right; white-space: nowrap; font-size: 1.05rem; }
+  td.num .of { color: var(--muted); font-size: .85rem; }
+  td.num .left { display: block; font-size: .72rem; color: var(--muted); font-weight: 600; }
+  .funnel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 8px; text-align: center; }
+  .funnel .kind { margin: 2px 0 0; font-size: .72rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
   .none { color: var(--muted); font-style: italic; }
 </style>
 {% endblock %}
@@ -41,6 +55,47 @@
       · {{ now|date:"H:i" }}
     </p>
   </div>
+
+  {% if nights %}
+    <section class="win">
+      <h2>{% t lang "The room, night by night" %}</h2>
+      <table class="nights">
+        {% for n in nights %}
+          <tr class="{% if n.tonight %}tonight{% endif %}">
+            <td class="when">
+              {{ n.when|date:"D j M" }}{% if n.tonight %} · {% t lang "tonight" %}{% endif %}
+              <span class="what">{{ n.name }}</span>
+            </td>
+            <td class="fill">
+              {% if n.capacity %}
+                <div class="bar {% if n.percent >= 90 %}full{% endif %}"><span style="width: {{ n.percent }}%"></span></div>
+              {% endif %}
+            </td>
+            <td class="num">
+              <strong>{{ n.taken }}</strong>{% if n.capacity %}<span class="of">/{{ n.capacity }}</span>{% endif %}
+              {% if n.left is not None %}<span class="left">{% t lang "{0} left" n.left %}</span>{% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </table>
+    </section>
+  {% endif %}
+
+  <section class="win">
+    <h2>{% t lang "Today, from visit to booking" %}</h2>
+    <div class="funnel">
+      <div><p class="big">{{ funnel_today.visits }}</p><p class="kind">{% t lang "visits" %}</p></div>
+      <div>
+        <p class="big">{{ funnel_today.engaged }}</p>
+        <p class="kind">{% t lang "started booking" %}{% if funnel_today.engaged_rate %} · {{ funnel_today.engaged_rate|floatformat:1 }}%{% endif %}</p>
+      </div>
+      <div>
+        <p class="big">{{ funnel_today.booked }}</p>
+        <p class="kind">{% t lang "booked" %}{% if funnel_today.booked_rate %} · {{ funnel_today.booked_rate|floatformat:0 }}%{% endif %}</p>
+      </div>
+    </div>
+    <p class="note">{% t lang "Over seven days: {0} visits, {1} started, {2} booked." funnel_week.visits funnel_week.engaged funnel_week.booked %}</p>
+  </section>
 
   {% if stale %}
     <p class="warn">{% t lang "These spend figures are not fresh. The snapshot cron has not written in a while, so treat the cost per seat as the last known one." %}</p>
@@ -71,7 +126,7 @@
               <dt>{% t lang "Bookings" %}</dt><dd>{{ side.bookings }}</dd>
               <dt>{% t lang "Seats" %}</dt><dd>{{ side.seats }}</dd>
               {% if side.per_booking %}<dt>{% t lang "Per booking" %}</dt><dd>${{ side.per_booking|floatformat:2 }}</dd>{% endif %}
-              {% if side.revenue %}<dt>{% t lang "Taken" %}</dt><dd>${{ side.revenue|floatformat:2 }}</dd>{% endif %}
+              {% if side.revenue %}<dt>{% t lang "Taken" %}</dt><dd>{{ side.revenue }}</dd>{% endif %}
               {% if side.roas %}<dt>{% t lang "Return" %}</dt><dd>{{ side.roas|floatformat:1 }}x</dd>{% endif %}
               {% if side.ad_share %}<dt>{% t lang "Ads as share" %}</dt><dd>{{ side.ad_share|floatformat:0 }}%</dd>{% endif %}
             </dl>
@@ -80,6 +135,14 @@
       </div>
     </section>
   {% endfor %}
+
+  <section class="win">
+    <h2>{% t lang "Everything else" %}</h2>
+    <p class="note">
+      {% t lang "{0} people on the mailing list, {1} joined this week." room.mailable room.new_contacts %}
+      {% if room.open_tabs %} · {% t lang "{0} table(s) open at the bar, {1} owed" room.open_tabs room.owed %}{% endif %}
+    </p>
+  </section>
 
   <p class="note">
     {% t lang "Bookings and seats are our own rows, counted now. Spend is Meta's, from the snapshot. Cost per seat is their spend over our seats, never over their purchase count: today they report {0} purchases against the {1} bookings we actually hold." reported_today ours_today %}

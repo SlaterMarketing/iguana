@@ -322,8 +322,14 @@ changing one in the admin is not undone by the next deploy.
   guest list with when they booked. Names show to all staff; **email addresses only to whoever passes
   `can_see_the_money`**, because the door needs a name and does not need the mailing list. It doubles as the
   door list, since nobody scans the QR codes.
-- **`/stats/`** (`can_see_the_money`): cost per reservation, free against paid, for today, yesterday and seven
-  days. Refreshes itself every 60s.
+- **`/stats/`** (`can_see_the_money`): the room night by night (seats taken against capacity, with a fill bar
+  and seats left), today's funnel from visit to booking, cost per reservation free against paid for today,
+  yesterday and seven days, and a line for the list size and any open bar tab. Refreshes itself every 60s.
+  ⚠ **`sales.demand` counts `OrderItem.quantity`, not `Ticket` rows.** A fixture that creates tickets without
+  items reads as an empty room, which is a broken test rather than a broken page.
+  ⚠ **Money on this page is a STRING per currency** (`'600.00 MXN · 25.00 USD'`), never a float, because the
+  English nights sell in dollars and the Spanish ones in pesos. A ratio is only offered when one currency took
+  the money. Running `|floatformat` over it silently prints a bare `$`, which a test now catches.
 - **`/revenue/`** and **`/tables/`** as before.
 
 🚨 **No request path may call Meta, and `/stats/` does not.** The ad account's rate limit clears only by

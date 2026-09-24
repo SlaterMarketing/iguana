@@ -15,6 +15,7 @@ today's cost per seat reads high all afternoon and settles by night. The page sa
 somebody act on 14:00 as though it were a result.
 """
 
+from collections import Counter
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
@@ -39,8 +40,8 @@ def _bookings(first_day, last_day):
     """Our own rows: (free, paid) each with bookings, seats and money actually taken."""
     start = timezone.make_aware(timezone.datetime.combine(first_day, timezone.datetime.min.time()), CANCUN)
     end = timezone.make_aware(timezone.datetime.combine(last_day + timedelta(days=1), timezone.datetime.min.time()), CANCUN)
-    free = {'bookings': 0, 'seats': 0, 'cents': 0}
-    paid = {'bookings': 0, 'seats': 0, 'cents': 0}
+    free = {'bookings': 0, 'seats': 0, 'money': Counter()}
+    paid = {'bookings': 0, 'seats': 0, 'money': Counter()}
     orders = (Order.objects.filter(status=Order.COMPLETED, created_at__gte=start, created_at__lt=end)
               .prefetch_related('tickets'))
     for order in orders:
@@ -50,22 +51,27 @@ def _bookings(first_day, last_day):
         side = paid if charged > 0 else free
         side['bookings'] += 1
         side['seats'] += order.tickets.count()
-        side['cents'] += charged
+        if charged:
+            side['money'][(order.currency or 'mxn').upper()] += charged
     return free, paid
 
 
 def _row(label, spend_cents, side):
-    seats, bookings = side['seats'], side['bookings']
+    seats, bookings, money = side['seats'], side['bookings'], side['money']
+    earned = [f'{cents / 100:,.2f} {code}' for code, cents in sorted(money.items()) if cents]
+    # A ratio across two currencies would be arithmetic on apples and pesos, so it is only offered when one
+    # currency took the money. In practice that is MXN; a dollar night selling alongside simply hides the ratio.
+    single = money.most_common(1)[0][1] if len(money) == 1 else 0
     return {
         'label': label,
         'spend': spend_cents / 100,
         'bookings': bookings,
         'seats': seats,
-        'revenue': side['cents'] / 100,
+        'revenue': ' · '.join(earned),
         'per_seat': (spend_cents / 100 / seats) if seats else None,
         'per_booking': (spend_cents / 100 / bookings) if bookings else None,
-        'roas': (side['cents'] / spend_cents) if spend_cents and side['cents'] else None,
-        'ad_share': (spend_cents / side['cents'] * 100) if side['cents'] else None,
+        'roas': (single / spend_cents) if spend_cents and single else None,
+        'ad_share': (spend_cents / single * 100) if single else None,
     }
 
 
@@ -80,6 +86,79 @@ def _window(first_day, last_day, label):
         'paid': paid_row,
         'sides': [free_row, paid_row],
         'spend': (spend.get(AdSpend.FREE, 0) + spend.get(AdSpend.PAID, 0)) / 100,
+    }
+
+
+def _upcoming_nights(limit=6):
+    """Every night still to come: how many of the room we have sold, and how many are left.
+
+    The question this answers is the one asked walking into the office: are we full on Tuesday. `demand_for`
+    does it in two queries for the whole set and already counts seats sold elsewhere by a guest promoter, so a
+    night somebody else is also selling does not read as empty here.
+    """
+    from catalog.models import Event
+    from sales.demand import demand_for
+
+    today = timezone.now().astimezone(CANCUN).date()
+    events = list(Event.objects.filter(status=Event.ACTIVE, date__date__gte=today).order_by('date')[:limit])
+    pressure = demand_for(events)
+    nights = []
+    for event in events:
+        row = pressure.get(event.id) or {}
+        capacity, taken = row.get('capacity') or 0, row.get('taken') or 0
+        when = event.date.astimezone(CANCUN)
+        nights.append({
+            'name': event.label('en'),
+            'when': when,
+            'tonight': when.date() == today,
+            'taken': taken,
+            'capacity': capacity,
+            'left': max(capacity - taken, 0) if capacity else None,
+            'percent': round(min(taken / capacity, 1) * 100) if capacity else 0,
+            'show_time': event.show_time,
+        })
+    return nights
+
+
+def _funnel(first_day, last_day):
+    """Visits, then the ones who touched the form, then the ones who booked.
+
+    `k.js` records a pageview per visit and `checkout_engaged` when somebody actually starts filling the
+    checkout in, so the gap between those two is interest and the gap after it is the form itself.
+    """
+    from crm.models import TrackedEvent
+
+    start = timezone.make_aware(timezone.datetime.combine(first_day, timezone.datetime.min.time()), CANCUN)
+    end = timezone.make_aware(timezone.datetime.combine(last_day + timedelta(days=1), timezone.datetime.min.time()), CANCUN)
+    seen = TrackedEvent.objects.filter(created_at__gte=start, created_at__lt=end)
+    visits = seen.filter(kind='pageview').count()
+    engaged = seen.filter(name='checkout_engaged').count()
+    booked = (Order.objects.filter(status=Order.COMPLETED, created_at__gte=start, created_at__lt=end)
+              .exclude(customer_email__startswith='e2e-').count())
+    return {
+        'visits': visits,
+        'engaged': engaged,
+        'booked': booked,
+        'engaged_rate': (engaged / visits * 100) if visits else None,
+        'booked_rate': (booked / engaged * 100) if engaged else None,
+    }
+
+
+def _room():
+    """Everything else worth a glance: the list, and whatever the bar is holding right now."""
+    from crm.models import Contact
+    from sales.models import TableOrder
+
+    week = timezone.now() - timedelta(days=7)
+    tabs = TableOrder.objects.filter(status=TableOrder.OPEN)
+    owed = Counter()
+    for tab in tabs:
+        owed[(tab.currency or 'mxn').upper()] += tab.total_cents
+    return {
+        'mailable': Contact.objects.filter(subscribed=True).count(),
+        'new_contacts': Contact.objects.filter(created_at__gte=week).count(),
+        'open_tabs': tabs.count(),
+        'owed': ' · '.join(f'{cents / 100:,.2f} {code}' for code, cents in sorted(owed.items())),
     }
 
 
@@ -100,6 +179,10 @@ def stats(request):
     ours = windows[0]['free']['bookings'] + windows[0]['paid']['bookings']
     return render(request, 'embed/stats.html', {
         'lang': lang,
+        'nights': _upcoming_nights(),
+        'funnel_today': _funnel(today, today),
+        'funnel_week': _funnel(today - timedelta(days=6), today),
+        'room': _room(),
         'now': now,
         'fetched_ago': timesince(fetched) if fetched else '',
         'windows': windows,

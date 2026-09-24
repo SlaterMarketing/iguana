@@ -2522,3 +2522,58 @@ class StatsPageTests(ApiTestCase):
         self.assertEqual(classify('Open mic English · reservations'), AdSpend.FREE)
         self.assertEqual(classify('Open mic Spanish · local reach'), AdSpend.FREE)
         self.assertEqual(classify('Privilegio · Fredy El Regio · boletos'), AdSpend.PAID)
+
+
+class StatsAtAGlanceTests(ApiTestCase):
+    """The parts of /stats/ that are not about money: how full each night is, and the funnel into it."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        from crm.models import TrackedEvent
+
+        cls.event.date = timezone.now() + timedelta(days=2)
+        cls.event.save(update_fields=['date'])
+        order = Order.objects.create(event=cls.event, event_name=cls.event.name, customer_email='a@example.com',
+                                     currency='mxn', status=Order.COMPLETED, completed_at=timezone.now())
+        OrderItem.objects.create(order=order, ticket_type=cls.ga, name='GA', quantity=1, unit_price_cents=1000)
+        Ticket.objects.create(order=order, ticket_type_name='GA')
+        for _ in range(9):
+            TrackedEvent.objects.create(kind='pageview')
+        for _ in range(3):
+            TrackedEvent.objects.create(kind='checkout', name='checkout_engaged')
+
+    def as_owner(self):
+        from django.contrib.auth import get_user_model
+
+        self.client.force_login(get_user_model().objects.create_user('owner2', password='x', is_staff=True,
+                                                                     is_superuser=True))
+
+    def test_each_night_shows_taken_against_the_room(self):
+        self.as_owner()
+        page = self.client.get('/stats/').content.decode()
+        self.assertIn('The room, night by night', page)
+        self.assertIn('/3', page, 'the GA capacity of the fixture event')
+        self.assertIn('2 left', page)
+
+    def test_the_funnel_counts_visits_then_form_then_bookings(self):
+        self.as_owner()
+        page = self.client.get('/stats/').content.decode()
+        self.assertIn('>9<', page)   # visits
+        self.assertIn('>3<', page)   # started booking
+        self.assertIn('>1<', page)   # booked
+
+    def test_money_from_two_currencies_is_never_added_up(self):
+        """A dollar night and a peso night in one window must not become one number."""
+        usd = Event.objects.create(name='Dollar night', slug='dollar-night', status=Event.ACTIVE, venue=self.venue,
+                                   currency='usd', date=timezone.now() + timedelta(days=4))
+        for event, currency, cents in ((self.event, 'mxn', 60000), (usd, 'usd', 2500)):
+            paid = Order.objects.create(event=event, event_name=event.name, customer_email=f'{currency}@example.com',
+                                        currency=currency, status=Order.COMPLETED, completed_at=timezone.now(),
+                                        total_amount_cents=cents)
+            Ticket.objects.create(order=paid, ticket_type_name='GA')
+        self.as_owner()
+        page = self.client.get('/stats/').content.decode()
+        self.assertIn('600.00 MXN', page)
+        self.assertIn('25.00 USD', page)
+        self.assertNotIn('625.00', page, 'adding pesos to dollars is a wrong number, not a rounding error')

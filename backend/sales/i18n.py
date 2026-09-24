@@ -177,6 +177,17 @@ ES = {
         'Los shows aquí se llenan. Manda esto a quien quieras traer y puede sacar su propio boleto.',
     # The staff reservations board: how many we have for each night, and who they are.
     # The spend-against-bookings page.
+    'The room, night by night': 'La sala, noche por noche',
+    'Today, from visit to booking': 'Hoy, de la visita a la reservación',
+    'visits': 'visitas',
+    'started booking': 'empezaron a reservar',
+    'booked': 'reservaron',
+    'Over seven days: {0} visits, {1} started, {2} booked.':
+        'En siete días: {0} visitas, {1} empezaron, {2} reservaron.',
+    'Everything else': 'Lo demás',
+    '{0} people on the mailing list, {1} joined this week.':
+        '{0} personas en la lista de correo, {1} se sumaron esta semana.',
+    '{0} table(s) open at the bar, {1} owed': '{0} mesa(s) abiertas en la barra, {1} por cobrar',
     'Stats': 'Números',
     'Spend from Meta, {0} ago': 'Gasto según Meta, hace {0}',
     'No spend figures yet': 'Todavía no hay cifras de gasto',
