@@ -20,6 +20,11 @@
   .t button { width: 100%; min-height: 44px; border: 0; border-radius: 999px; background: var(--ink); color: #fff;
               font: 700 .72rem/1 inherit; letter-spacing: .18em; text-transform: uppercase; cursor: pointer; }
   .t button:hover { background: var(--brand-hover); }
+  .t .tab { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; flex-wrap: wrap;
+            margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--line);
+            font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .t .tab strong { font-size: 1.15rem; letter-spacing: 0; text-transform: none; color: var(--ink); }
+  .t .tab .rounds { flex-basis: 100%; font-size: .68rem; letter-spacing: .08em; }
   .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
 </style>
 {% endblock %}
@@ -37,7 +42,7 @@
 
   <div class="board">
     {% for t in tables %}
-      <div class="t {% if t.orders %}open{% endif %} {% if t.late %}late{% endif %} {% if not t.orders %}quiet{% endif %}">
+      <div class="t {% if t.orders %}open{% endif %} {% if t.late %}late{% endif %} {% if not t.orders and not t.tab_cents %}quiet{% endif %}">
         <p class="no">{% t lang "Table" %} {{ t.number }}</p>
         {% if t.orders %}
           <p class="due">{{ t.due }}</p>
@@ -47,8 +52,22 @@
             {% csrf_token %}
             <button type="submit">{% t lang "Delivered" %}</button>
           </form>
+        {% elif t.tab_cents %}
+          <p class="what">{% t lang "Nothing waiting" %}</p>
         {% else %}
           <p class="what">{% t lang "Nothing ordered" %}</p>
+        {% endif %}
+        {% comment %}
+          The whole tab for the night, under a rule, because it is a different number from the one above it:
+          that one is what to carry over, this one is what to charge. They pay at the end, so a round already
+          delivered is still money sitting on this table and the board is the only place anybody looks.
+        {% endcomment %}
+        {% if t.tab_cents %}
+          <p class="tab">
+            <span>{% t lang "Due" %}</span>
+            <strong>{{ t.tab }}</strong>
+            {% if t.rounds > 1 %}<span class="rounds">{% t lang "{0} rounds" t.rounds %}</span>{% endif %}
+          </p>
         {% endif %}
       </div>
     {% endfor %}

@@ -211,6 +211,10 @@ ES = {
     'Ads as share': 'Anuncios como parte',
     'Bookings and seats are our own rows, counted now. Spend is Meta\'s, from the snapshot. Cost per seat is their spend over our seats, never over their purchase count: today they report {0} purchases against the {1} bookings we actually hold.':
         'Las reservaciones y los lugares son nuestros propios registros, contados ahora. El gasto es de Meta, del snapshot. El costo por lugar es su gasto entre nuestros lugares, nunca entre su conteo de compras: hoy reportan {0} compras contra las {1} reservaciones que realmente tenemos.',
+    # The bar board's running tab: what this table owes for the night, not just what is waiting.
+    'Due': 'Por cobrar',
+    '{0} rounds': '{0} rondas',
+    'Nothing waiting': 'Nada pendiente',
     'Reservations': 'Reservaciones',
     '{0} seats booked across every night to come': '{0} lugares apartados en todas las noches por venir',
     'show {0}': 'show {0}',

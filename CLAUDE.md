@@ -330,7 +330,14 @@ changing one in the admin is not undone by the next deploy.
   ⚠ **Money on this page is a STRING per currency** (`'600.00 MXN · 25.00 USD'`), never a float, because the
   English nights sell in dollars and the Spanish ones in pesos. A ratio is only offered when one currency took
   the money. Running `|floatformat` over it silently prints a bare `$`, which a test now catches.
-- **`/revenue/`** and **`/tables/`** as before.
+- **`/tables/`** (any staff): the bar board. Each card carries two different numbers and they are not
+  interchangeable: the one at the top is what is **waiting to be carried over**, and the one under the rule is
+  **Due**, everything that table has ordered tonight including rounds already delivered. They pay at the end,
+  so pressing Delivered used to make the money disappear from the only screen anybody looks at.
+  ⚠ **The night runs on a 6am-to-6am service, not a calendar day** (`tables_views.service_start`). A show
+  starting at nine runs past midnight and the tab crosses with it; counting by calendar day would zero a table
+  at 00:05 with the people still sitting at it.
+- **`/revenue/`** as before.
 
 🚨 **No request path may call Meta, and `/stats/` does not.** The ad account's rate limit clears only by
 waiting, so a page that asked Graph on every load would eventually wall itself and take the numbers down with

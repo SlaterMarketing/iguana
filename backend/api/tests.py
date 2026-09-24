@@ -1,5 +1,6 @@
 import hashlib
 import json
+from zoneinfo import ZoneInfo
 import pathlib
 import re
 from unittest.mock import patch
@@ -13,6 +14,8 @@ from django.utils import timezone
 from catalog.models import Artist, Event, FormEndpoint, LineupEntry, TicketType, Venue
 from crm.models import Contact
 from sales.models import LoginToken, Membership, MembershipPlan, Order, OrderItem, Ticket
+
+CANCUN_TZ = ZoneInfo('America/Cancun')
 
 KEY = 'ipk_test'
 SITE = 'http://site.test'
@@ -2577,3 +2580,62 @@ class StatsAtAGlanceTests(ApiTestCase):
         self.assertIn('600.00 MXN', page)
         self.assertIn('25.00 USD', page)
         self.assertNotIn('625.00', page, 'adding pesos to dollars is a wrong number, not a rounding error')
+
+
+class TableTabTests(ApiTestCase):
+    """What a table owes for the night, which is not the same number as what is waiting to be carried over.
+
+    They pay at the end, so a round already delivered is still money sitting on that table. The board only ever
+    showed open orders, so the moment the bar pressed Delivered the amount vanished from the only screen
+    anybody looks at.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from sales.models import TableOrder, TableOrderItem
+
+        self.client.force_login(get_user_model().objects.create_user('bar3', password='x', is_staff=True))
+        self.first = TableOrder.objects.create(table_number=7, currency='mxn', total_cents=18000)
+        TableOrderItem.objects.create(order=self.first, name='Margarita', quantity=2, unit_price_cents=9000)
+
+    def board(self):
+        return self.client.get('/tables/').content.decode()
+
+    def test_an_open_round_shows_both_what_is_waiting_and_what_is_owed(self):
+        page = self.board()
+        self.assertIn('180 MXN', page)
+        self.assertIn('Due', page)
+
+    def test_a_delivered_round_still_shows_as_owed(self):
+        from sales.models import TableOrder
+
+        self.client.post('/tables/7/close/')
+        page = self.board()
+        self.assertIn('Nothing waiting', page)
+        self.assertIn('180 MXN', page, 'delivered is not paid')
+        self.assertEqual(TableOrder.objects.get(pk=self.first.pk).status, TableOrder.DELIVERED)
+
+    def test_a_second_round_adds_to_the_tab(self):
+        from sales.models import TableOrder
+
+        self.client.post('/tables/7/close/')
+        TableOrder.objects.create(table_number=7, currency='mxn', total_cents=9000)
+        page = self.board()
+        self.assertIn('270 MXN', page)
+        self.assertIn('2 rounds', page)
+
+    def test_a_cancelled_round_is_not_owed(self):
+        from sales.models import TableOrder
+
+        self.first.status = TableOrder.CANCELLED
+        self.first.save(update_fields=['status'])
+        self.assertNotIn('180 MXN', self.board())
+
+    def test_a_tab_that_crosses_midnight_is_one_tab(self):
+        """A show starting at nine runs past midnight, and the people are still sitting there at 00:05."""
+        from api.tables_views import service_start
+
+        small_hours = timezone.now().astimezone(CANCUN_TZ).replace(hour=0, minute=5)
+        self.assertEqual(service_start(small_hours).date(), (small_hours - timedelta(days=1)).date())
+        evening = timezone.now().astimezone(CANCUN_TZ).replace(hour=21, minute=0)
+        self.assertEqual(service_start(evening).date(), evening.date())
