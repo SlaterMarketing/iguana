@@ -90,7 +90,7 @@
         - "smtp_address_preference = ipv6"
         - "mynetworks = 127.0.0.0/8 [::1]/128"
         - "smtpd_relay_restrictions = permit_mynetworks, reject_unauth_destination"
-        - "smtpd_recipient_restrictions = permit_mynetworks, reject_unauth_destination, reject_unknown_recipient_domain"
+        - "smtpd_recipient_restrictions = permit_mynetworks, reject_unauth_destination, reject_unknown_recipient_domain, check_sender_access hash:/etc/postfix/blocked_senders"
         - "smtpd_helo_required = yes"
         - "disable_vrfy_command = yes"
         - "message_size_limit = 26214400"
@@ -115,6 +115,26 @@
     - name: Virtual alias map
       template: {src: files/postfix_virtual.j2, dest: /etc/postfix/virtual}
       register: virtual_map
+
+    # Senders caught phishing this address. It is not a spam filter and it will not keep up with a rotating
+    # domain; it stops the exact infrastructure that has already tried, which in practice tries again.
+    # 2026-09-24: a fake "Meta advertising policy violation" with a one-day deadline and a vercel.app page
+    # that wanted a Facebook login, aimed at the account that runs the ads and holds the card.
+    - name: Blocked senders
+      become: true
+      copy:
+        dest: /etc/postfix/blocked_senders
+        mode: "0644"
+        content: |
+          lynnwon.site                REJECT phishing (fake Meta policy notice, 2026-09-24)
+          friedrichsonde.site         REJECT phishing relay (2026-09-24)
+          atlasphysiocenter.site      REJECT phishing tracker (2026-09-24)
+          noreply.com                 REJECT forged reply-to used by the same message (2026-09-24)
+
+    - name: postmap blocked senders
+      become: true
+      command: postmap /etc/postfix/blocked_senders
+      changed_when: true
 
     - name: postmap virtual
       command: postmap /etc/postfix/virtual

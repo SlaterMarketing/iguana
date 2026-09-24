@@ -520,6 +520,15 @@ and finds out at the door. Verified per-link, not per-page.
 Before this the domain's only bulk send was the "Club Opening" campaign on 2026-09-14 to 722 addresses, which
 is what people remember when they say emails went out.
 
+🚨 **Phishing aimed at the ad account arrives here, and it authenticates.** On 2026-09-24 a fake Meta
+"advertising policy violation" with a one-business-day deadline and a `vercel.app` login page reached hello@.
+Return-Path `bounce@lynnwon.site`, sent from `api992409.friedrichsonde.site`, Reply-To at `noreply.com`, and
+**DKIM passed** for the phisher's own domain, which is all a DKIM pass ever proves. The account was fine:
+`account_status: 1`, `disable_reason: 0`, zero ads carrying review feedback. **Check the Graph API before
+believing any mail about the ads**, since the thing being phished is an account with a live card on it. Those
+senders are in `/etc/postfix/blocked_senders` (managed in `mail.yml`); the list is not a spam filter, it stops
+the infrastructure that has already tried.
+
 Marketing mail must go through `crm.mail.send_marketing` (or `manage.py send_newsletter`, a dry run without
 `--send`), which drops unsubscribed contacts and attaches the unsubscribe footer and `List-Unsubscribe` headers
 itself. `crm/unsubscribe.py` signs the per-address token; `/unsubscribe/<token>` serves the bilingual page and
