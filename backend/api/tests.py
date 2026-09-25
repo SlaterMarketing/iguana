@@ -1927,6 +1927,293 @@ class FloorInventoryTests(ApiTestCase):
         self.assertEqual(InventoryItem.objects.get(pk=it.pk).quantity, 6)
 
 
+class StockFromSalesTests(ApiTestCase):
+    """Selling a drink takes its ingredients out of the store room, once and only once."""
+
+    def setUp(self):
+        super().setUp()
+        from catalog.models import InventoryItem, MenuCategory, MenuItem, MenuItemIngredient
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'mesero',
+                     verbosity=0)
+        self.client.login(username='mesero', password='no-es-la-real')
+        category = MenuCategory.objects.create(name='Cocteles')
+        self.gin = InventoryItem.objects.create(name='Ginebra', unit='botella', quantity=10, par=2)
+        self.tonic = InventoryItem.objects.create(name='Tonica', unit='lata', quantity=24, par=6)
+        self.gt = MenuItem.objects.create(category=category, name='Gin tonic', price_cents=12000)
+        MenuItemIngredient.objects.create(menu_item=self.gt, inventory_item=self.gin, quantity='0.05')
+        MenuItemIngredient.objects.create(menu_item=self.gt, inventory_item=self.tonic, quantity=1)
+
+    def round_for(self, table=5, quantity=2, **kw):
+        from sales.models import TableOrder, TableOrderItem
+
+        order = TableOrder.objects.create(table_number=table, currency='mxn',
+                                          total_cents=12000 * quantity, **kw)
+        TableOrderItem.objects.create(order=order, menu_item=self.gt, name='Gin tonic',
+                                      quantity=quantity, unit_price_cents=12000)
+        return order
+
+    def test_delivering_a_round_takes_its_ingredients_out(self):
+        from catalog.models import InventoryItem
+
+        order = self.round_for(quantity=2)
+        self.client.post(f'/tables/{order.table_number}/close/')
+        self.assertEqual(float(InventoryItem.objects.get(pk=self.gin.pk).quantity), 9.9)
+        self.assertEqual(InventoryItem.objects.get(pk=self.tonic.pk).quantity, 22)
+
+    def test_ordering_alone_takes_nothing(self):
+        """An open round has not left the bar. A table that changes its mind must not move the count."""
+        from catalog.models import InventoryItem
+
+        self.round_for()
+        self.assertEqual(InventoryItem.objects.get(pk=self.gin.pk).quantity, 10)
+
+    def test_delivering_twice_does_not_empty_the_fridge_twice(self):
+        """🚨 A double tap on a phone, a reposted form, or the board's own refresh landing on a stale button.
+
+        A count that is too LOW reads as theft rather than as a bug, so this is the direction that has to hold.
+        """
+        from catalog.models import InventoryItem
+
+        order = self.round_for(quantity=2)
+        for _ in range(3):
+            self.client.post(f'/tables/{order.table_number}/close/')
+        self.assertEqual(InventoryItem.objects.get(pk=self.tonic.pk).quantity, 22)
+
+    def test_settling_a_table_also_takes_the_stock_and_still_only_once(self):
+        """Settle marks anything still open delivered, so it has to account for it, without recounting."""
+        from catalog.models import InventoryItem
+
+        order = self.round_for(quantity=1)
+        self.client.post(f'/tables/{order.table_number}/settle/')
+        self.assertEqual(InventoryItem.objects.get(pk=self.tonic.pk).quantity, 23)
+        self.client.post(f'/tables/{order.table_number}/settle/')
+        self.assertEqual(InventoryItem.objects.get(pk=self.tonic.pk).quantity, 23)
+
+    def test_delivering_then_settling_counts_once(self):
+        from catalog.models import InventoryItem
+
+        order = self.round_for(quantity=1)
+        self.client.post(f'/tables/{order.table_number}/close/')
+        self.client.post(f'/tables/{order.table_number}/settle/')
+        self.assertEqual(InventoryItem.objects.get(pk=self.tonic.pk).quantity, 23)
+
+    def test_an_item_with_no_recipe_consumes_nothing(self):
+        """A blank is honest. A guessed 1:1 makes the count drift every night and nothing reports it."""
+        from catalog.models import InventoryItem, MenuCategory, MenuItem
+        from sales.models import TableOrder, TableOrderItem
+
+        beer = MenuItem.objects.create(category=MenuCategory.objects.first(), name='Cerveza', price_cents=6000)
+        order = TableOrder.objects.create(table_number=7, currency='mxn', total_cents=6000)
+        TableOrderItem.objects.create(order=order, menu_item=beer, name='Cerveza', quantity=3,
+                                      unit_price_cents=6000)
+        self.client.post('/tables/7/close/')
+        self.assertEqual(InventoryItem.objects.get(pk=self.gin.pk).quantity, 10)
+        order.refresh_from_db()
+        self.assertIsNotNone(order.stock_applied_at, 'still accounted for, so it cannot be applied later')
+
+    def test_stock_never_goes_negative(self):
+        from catalog.models import InventoryItem
+
+        self.tonic.quantity = 1
+        self.tonic.save(update_fields=['quantity'])
+        order = self.round_for(quantity=5)
+        self.client.post(f'/tables/{order.table_number}/close/')
+        self.assertEqual(InventoryItem.objects.get(pk=self.tonic.pk).quantity, 0)
+
+    def test_the_movement_says_which_table(self):
+        from catalog.models import InventoryChange
+
+        order = self.round_for(table=9, quantity=1)
+        self.client.post('/tables/9/close/')
+        note = InventoryChange.objects.filter(item=self.tonic).first()
+        self.assertEqual(note.note, 'mesa 9')
+        self.assertEqual(note.who, 'mesero')
+
+    def test_one_movement_per_ingredient_not_per_line(self):
+        """Two gin tonics and a gin soda touch the gin row once: the history is read by a person."""
+        from catalog.models import InventoryChange, MenuItem, MenuItemIngredient
+        from sales.models import TableOrderItem
+
+        soda = MenuItem.objects.create(category=self.gt.category, name='Gin soda', price_cents=11000)
+        MenuItemIngredient.objects.create(menu_item=soda, inventory_item=self.gin, quantity='0.05')
+        order = self.round_for(table=4, quantity=2)
+        TableOrderItem.objects.create(order=order, menu_item=soda, name='Gin soda', quantity=1,
+                                      unit_price_cents=11000)
+        self.client.post('/tables/4/close/')
+        self.assertEqual(InventoryChange.objects.filter(item=self.gin).count(), 1)
+        self.assertEqual(float(InventoryChange.objects.get(item=self.gin).delta), -0.15)
+
+
+class SeedBarInventoryTests(ApiTestCase):
+    """The starting count sheet: wired where 1:1 is true, blank where a measure would be a guess."""
+
+    def setUp(self):
+        super().setUp()
+        from catalog.models import MenuCategory, MenuItem
+
+        beers = MenuCategory.objects.create(name='Beers')
+        shots = MenuCategory.objects.create(name='Shots')
+        MenuItem.objects.create(category=beers, name='Victoria', price_cents=5000)
+        MenuItem.objects.create(category=shots, name='Tequila', price_cents=6000)
+
+    def test_a_unit_sold_item_is_wired_one_to_one(self):
+        from catalog.models import InventoryItem, MenuItem
+        from django.core.management import call_command
+
+        call_command('seed_bar_inventory', verbosity=0)
+        beer = MenuItem.objects.get(name='Victoria')
+        ingredient = beer.ingredients.get()
+        self.assertEqual(ingredient.quantity, 1)
+        self.assertEqual(ingredient.inventory_item.name, 'Victoria')
+        self.assertEqual(InventoryItem.objects.get(name='Victoria').quantity, 0, 'the bar counts, not us')
+
+    def test_a_pour_gets_its_bottle_but_no_recipe(self):
+        """🚨 The measure depends on their glassware. A guessed fraction makes the sheet drift invisibly."""
+        from catalog.models import InventoryItem, MenuItem
+        from django.core.management import call_command
+
+        call_command('seed_bar_inventory', verbosity=0)
+        self.assertTrue(InventoryItem.objects.filter(name='Tequila').exists(), 'the bottle is countable')
+        self.assertFalse(MenuItem.objects.get(name='Tequila').ingredients.exists(), 'the pour is theirs to set')
+
+    def test_a_dry_run_writes_nothing(self):
+        from catalog.models import InventoryItem
+        from django.core.management import call_command
+
+        call_command('seed_bar_inventory', '--dry-run', verbosity=0)
+        self.assertEqual(InventoryItem.objects.count(), 0)
+
+    def test_re_running_it_does_not_disturb_a_count_or_a_recipe(self):
+        from catalog.models import InventoryItem, MenuItem, MenuItemIngredient
+        from django.core.management import call_command
+
+        call_command('seed_bar_inventory', verbosity=0)
+        stock = InventoryItem.objects.get(name='Victoria')
+        stock.quantity = 37
+        stock.par = 12
+        stock.save(update_fields=['quantity', 'par'])
+        MenuItemIngredient.objects.filter(menu_item__name='Victoria').update(quantity=2)
+
+        call_command('seed_bar_inventory', verbosity=0)
+        stock.refresh_from_db()
+        self.assertEqual(stock.quantity, 37, 'a count somebody took is not overwritten')
+        self.assertEqual(stock.par, 12)
+        self.assertEqual(MenuItem.objects.get(name='Victoria').ingredients.get().quantity, 2,
+                         'a recipe somebody set is theirs')
+        self.assertEqual(InventoryItem.objects.filter(name='Victoria').count(), 1, 'and nothing is duplicated')
+
+
+class FloorCartaTests(ApiTestCase):
+    """La carta: precios y recetas, cambiados por la barra sin pasar por el admin."""
+
+    def setUp(self):
+        super().setUp()
+        from catalog.models import InventoryItem, MenuCategory, MenuItem
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'mesero',
+                     verbosity=0)
+        self.client.login(username='mesero', password='no-es-la-real')
+        self.category = MenuCategory.objects.create(name='Cervezas')
+        self.beer = MenuItem.objects.create(category=self.category, name='Cerveza', price_cents=6000)
+        self.stock = InventoryItem.objects.create(name='Cerveza clara', unit='botella', quantity=48)
+
+    def test_the_bar_can_change_a_price(self):
+        from catalog.models import MenuItem
+
+        self.client.post(f'/mesas/carta/{self.beer.id}/guardar/',
+                         {'name': 'Cerveza clara', 'price': '75', 'available': '1'})
+        self.assertEqual(MenuItem.objects.get(pk=self.beer.pk).price_cents, 7500)
+
+    def test_a_price_change_does_not_rewrite_an_order_already_placed(self):
+        """🚨 What makes handing this to the floor safe: the round snapshots what was agreed."""
+        from sales.models import TableOrder, TableOrderItem
+
+        order = TableOrder.objects.create(table_number=3, currency='mxn', total_cents=6000)
+        line = TableOrderItem.objects.create(order=order, menu_item=self.beer, name='Cerveza', quantity=1,
+                                             unit_price_cents=6000)
+        self.client.post(f'/mesas/carta/{self.beer.id}/guardar/', {'name': 'Cerveza', 'price': '95'})
+        line.refresh_from_db()
+        self.assertEqual(line.unit_price_cents, 6000)
+        self.assertEqual(line.name, 'Cerveza')
+
+    def test_a_nonsense_price_leaves_the_old_one_alone(self):
+        from catalog.models import MenuItem
+
+        for bad in ('abc', '-5', '999999999'):
+            self.client.post(f'/mesas/carta/{self.beer.id}/guardar/', {'name': 'Cerveza', 'price': bad})
+            self.assertEqual(MenuItem.objects.get(pk=self.beer.pk).price_cents, 6000, f'accepted {bad!r}')
+
+    def test_a_comma_is_a_decimal_point(self):
+        from catalog.models import MenuItem
+
+        self.client.post(f'/mesas/carta/{self.beer.id}/guardar/', {'name': 'Cerveza', 'price': '62,50'})
+        self.assertEqual(MenuItem.objects.get(pk=self.beer.pk).price_cents, 6250)
+
+    def test_sold_out_in_one_tap_and_back(self):
+        from catalog.models import MenuItem
+
+        self.client.post(f'/mesas/carta/{self.beer.id}/cambiar/')
+        self.assertFalse(MenuItem.objects.get(pk=self.beer.pk).available)
+        self.client.post(f'/mesas/carta/{self.beer.id}/cambiar/')
+        self.assertTrue(MenuItem.objects.get(pk=self.beer.pk).available)
+
+    def test_a_new_item_is_named_in_spanish_for_the_customer_menu_too(self):
+        """The floor types Spanish, so `name_es` has to follow or the customer menu drifts out of step."""
+        from catalog.models import MenuItem
+
+        self.client.post('/mesas/carta/agregar/',
+                         {'name': 'Mezcal derecho', 'price': '90', 'category': self.category.id})
+        item = MenuItem.objects.get(name='Mezcal derecho')
+        self.assertEqual(item.name_es, 'Mezcal derecho')
+        self.assertTrue(item.available)
+
+    def test_linking_a_recipe_and_taking_it_off_again(self):
+        from catalog.models import MenuItemIngredient
+
+        self.client.post(f'/mesas/carta/{self.beer.id}/receta/',
+                         {'inventory_item': self.stock.id, 'quantity': '1'})
+        row = MenuItemIngredient.objects.get(menu_item=self.beer)
+        self.assertEqual(row.quantity, 1)
+        self.client.post(f'/mesas/carta/receta/{row.id}/quitar/')
+        self.assertFalse(MenuItemIngredient.objects.filter(menu_item=self.beer).exists())
+
+    def test_linking_the_same_ingredient_twice_updates_rather_than_duplicates(self):
+        from catalog.models import MenuItemIngredient
+
+        for amount in ('1', '2'):
+            self.client.post(f'/mesas/carta/{self.beer.id}/receta/',
+                             {'inventory_item': self.stock.id, 'quantity': amount})
+        rows = MenuItemIngredient.objects.filter(menu_item=self.beer)
+        self.assertEqual(rows.count(), 1)
+        self.assertEqual(rows.first().quantity, 2)
+
+    def test_the_page_says_how_many_items_have_no_recipe(self):
+        body = self.client.get('/mesas/carta/').content.decode()
+        self.assertIn('sin receta', body)
+        self.assertIn('Al venderlo no se descuenta nada', body)
+
+    def test_a_stranger_cannot_change_a_price(self):
+        from catalog.models import MenuItem
+
+        self.client.logout()
+        res = self.client.post(f'/mesas/carta/{self.beer.id}/guardar/', {'name': 'Gratis', 'price': '0'})
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(MenuItem.objects.get(pk=self.beer.pk).price_cents, 6000)
+
+    def test_the_floor_reaches_the_door_list_but_not_the_addresses(self):
+        """The door is one of these two accounts, and a door with no list is the one job on that page.
+
+        Email addresses stay behind `can_see_the_money`: the door needs to know who is on the list, not the
+        mailing list, and a phone behind a bar is the least private screen in the building.
+        """
+        res = self.client.get('/mesas/reservas/')
+        self.assertEqual(res.status_code, 200)
+        self.assertFalse(res.context['can_see_email'])
+
+
 class BouncedMailTests(ApiTestCase):
     """A dead address must stop being mailed, and a live one must never be dropped for our own reputation."""
 
@@ -2702,10 +2989,16 @@ class ReservationsBoardTests(ApiTestCase):
         Ticket.objects.create(order=cls.order, ticket_type_name='GA')
         Ticket.objects.create(order=cls.order, ticket_type_name='GA')
 
-    def test_it_is_staff_only(self):
+    def test_a_logged_out_request_sees_nothing(self):
+        """The page names guests, so the only thing that matters is that a stranger is turned away.
+
+        It sends them to the FLOOR login now rather than the admin one, because the door is a floor account:
+        the door list is the one job this page has, and the door does not have the admin.
+        """
         res = self.client.get('/reservations/')
         self.assertEqual(res.status_code, 302)
-        self.assertIn('/admin/login/', res['Location'])
+        self.assertIn('/mesas/entrar/', res['Location'])
+        self.assertNotIn(b'Ana Lopez', res.content)
 
     def test_it_counts_the_seats_and_names_the_guests(self):
         self.staff('door')

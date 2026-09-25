@@ -426,3 +426,32 @@ class InventoryChange(models.Model):
 
     def __str__(self):
         return f'{self.item.name} {self.delta:+g} -> {self.quantity_after:g}'
+
+
+class MenuItemIngredient(models.Model):
+    """What one of these takes out of the store room.
+
+    This is the wiring between the menu and the count sheet, and it is a RECIPE rather than an assumption. The
+    reason inventory is not simply a column on `MenuItem` is that one gin and tonic consumes gin, tonic, a lime
+    and ice, in four units, from four suppliers; a single "stock" number on the drink cannot express that and
+    would quietly be wrong. A row here says one true thing: selling one of this takes this much of that.
+
+    🚨 A menu item with no rows here consumes NOTHING, and that is deliberate rather than a gap. A guess is
+    worse than a blank: an invented 1:1 between a cocktail and a bottle makes the count sheet drift every night
+    and the drift is invisible until somebody counts by hand and finds the numbers lying. `/mesas/carta/` shows
+    which items are unlinked so the blank is visible instead of silent.
+    """
+
+    id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
+    menu_item = models.ForeignKey(MenuItem, on_delete=models.CASCADE, related_name='ingredients')
+    inventory_item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE, related_name='used_in')
+    # Per ONE sold. Fractions are the normal case: a shot is 0.04 of a bottle, a slice is 0.02 of a kilo.
+    quantity = models.DecimalField(max_digits=10, decimal_places=3, default=1)
+
+    class Meta:
+        ordering = ['inventory_item__name']
+        constraints = [models.UniqueConstraint(fields=['menu_item', 'inventory_item'],
+                                               name='one_row_per_ingredient_per_item')]
+
+    def __str__(self):
+        return f'{self.menu_item.name}: {self.quantity:g} {self.inventory_item.unit or "x"} {self.inventory_item.name}'

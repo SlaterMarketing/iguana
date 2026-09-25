@@ -1,0 +1,167 @@
+{% extends "embed/base.html" %}
+{% block title %}Carta · Iguana Comedy{% endblock %}
+{% block head %}
+<style>
+  .wrap { max-width: 720px; }
+  .top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .floornav { display: flex; gap: 8px; margin: 14px 0 4px; flex-wrap: wrap; }
+  .floornav a, .floornav form button { flex: 1 1 0; min-width: 88px; text-align: center;
+    border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 12px 10px;
+    font: 700 .72rem/1 inherit; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
+    text-decoration: none; cursor: pointer; }
+  .floornav a.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .floornav form { flex: 1 1 0; margin: 0; }
+  .floornav form button { width: 100%; }
+  h2.cat { font-size: .78rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted);
+    margin: 22px 0 8px; }
+  .m { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: #fff; }
+  .m + .m { margin-top: 8px; }
+  .m.off { opacity: .55; }
+  .m-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .m-name { font-weight: 700; margin: 0; }
+  .m-price { font-family: "Bebas Neue", sans-serif; font-size: 1.7rem; line-height: 1; }
+  .m-desc { margin: 4px 0 0; font-size: .78rem; color: var(--muted); }
+  .m-row { display: flex; gap: 8px; margin-top: 10px; align-items: center; flex-wrap: wrap; }
+  .m-row form { margin: 0; }
+  .tog { min-height: 44px; padding: 0 16px; border: 1px solid var(--ink); background: #fff; color: var(--ink);
+    border-radius: 999px; font: 700 .68rem/1 inherit; letter-spacing: .12em; text-transform: uppercase;
+    cursor: pointer; }
+  .tog:hover { background: var(--ink); color: #fff; }
+  .tog.off { border-color: var(--line); color: var(--muted); }
+  details.edit { margin-top: 8px; }
+  details.edit summary { font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); cursor: pointer; }
+  .fields { display: grid; gap: 10px; margin-top: 10px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .ing { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+  .ing p { margin: 0 0 4px; font-size: .8rem; }
+  .ing .none { color: #8a5a00; font-weight: 600; }
+  .ing form.line { display: flex; gap: 8px; align-items: center; margin: 0 0 6px; }
+  .ing .del { min-height: 36px; padding: 0 12px; border: 1px solid var(--line); background: #fff;
+    border-radius: 999px; font: 700 .64rem/1 inherit; letter-spacing: .1em; text-transform: uppercase;
+    color: var(--danger); cursor: pointer; }
+  select, input { font: inherit; padding: 12px 14px; border: 1px solid rgba(0,0,0,.2); border-radius: 12px;
+    width: 100%; background: #fff; }
+  .qty { max-width: 92px; text-align: center; }
+  label.check { display: flex; align-items: center; gap: 10px; font-size: .85rem; font-weight: 600; }
+  label.check input { width: 22px; height: 22px; }
+  .warn { background: #fdf6e7; border: 1px solid #b7791f; border-radius: 14px; padding: 12px 14px;
+    font-size: .82rem; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="stack">
+  <div class="top">
+    <div>
+      <p class="eyebrow">Iguana Comedy</p>
+      <h1>Carta</h1>
+    </div>
+    <p class="muted">Precios en pesos</p>
+  </div>
+
+  <div class="floornav">
+    <a href="/mesas/">Mesas</a>
+    <a class="on" href="/mesas/carta/">Carta</a>
+    <a href="/mesas/inventario/">Inventario</a>
+    <a href="/mesas/reservas/">Reservas</a>
+    <form method="post" action="/mesas/salir/">{% csrf_token %}<button type="submit">Salir</button></form>
+  </div>
+
+  {% if sin_receta %}
+    {# Se muestra el hueco en vez de inventarlo: un 1:1 adivinado hace que el inventario mienta sin avisar. #}
+    <p class="warn">
+      {{ sin_receta }} producto{{ sin_receta|pluralize:"s" }} sin receta: al venderlos no se descuenta nada del
+      inventario. Abre <strong>Receta</strong> en cada uno para decir qué gasta.
+    </p>
+  {% endif %}
+
+  {% for categoria, rows in grupos %}
+    <h2 class="cat">{{ categoria.name_es|default:categoria.name }}</h2>
+    {% for row in rows %}
+      <div class="m{% if not row.item.available %} off{% endif %}" id="m{{ row.item.id }}">
+        <div class="m-head">
+          <p class="m-name">{{ row.item.name_es|default:row.item.name }}</p>
+          <span class="m-price">${{ row.precio }}</span>
+        </div>
+        {% if row.item.description_es or row.item.description %}
+          <p class="m-desc">{{ row.item.description_es|default:row.item.description }}</p>
+        {% endif %}
+
+        <div class="m-row">
+          <form method="post" action="/mesas/carta/{{ row.item.id }}/cambiar/">
+            {% csrf_token %}
+            <button class="tog{% if not row.item.available %} off{% endif %}" type="submit">
+              {% if row.item.available %}Se vende{% else %}Agotado{% endif %}
+            </button>
+          </form>
+        </div>
+
+        <details class="edit">
+          <summary>Editar precio y nombre</summary>
+          <form class="fields" method="post" action="/mesas/carta/{{ row.item.id }}/guardar/">
+            {% csrf_token %}
+            <div class="two">
+              <label>Precio<input name="price" value="{{ row.precio }}" inputmode="decimal" required></label>
+              <label class="check">
+                <input type="checkbox" name="available" value="1"{% if row.item.available %} checked{% endif %}>
+                Se vende
+              </label>
+            </div>
+            <label>Nombre<input name="name" value="{{ row.item.name_es|default:row.item.name }}" required></label>
+            <label>Descripción<input name="description" value="{{ row.item.description_es|default:row.item.description }}"></label>
+            <button class="btn" type="submit">Guardar</button>
+          </form>
+        </details>
+
+        <details class="edit">
+          <summary>Receta {% if not row.ingredientes %}(sin definir){% endif %}</summary>
+          <div class="ing">
+            {% if row.ingredientes %}
+              {% for ing in row.ingredientes %}
+                <form class="line" method="post" action="/mesas/carta/receta/{{ ing.id }}/quitar/">
+                  {% csrf_token %}
+                  <p style="flex:1 1 auto">{{ ing.quantity|floatformat:"-3" }} {{ ing.inventory_item.unit }}
+                     · {{ ing.inventory_item.name }}</p>
+                  <button class="del" type="submit">Quitar</button>
+                </form>
+              {% endfor %}
+            {% else %}
+              <p class="none">Al venderlo no se descuenta nada.</p>
+            {% endif %}
+            <form class="fields" method="post" action="/mesas/carta/{{ row.item.id }}/receta/">
+              {% csrf_token %}
+              <label>Gasta del inventario
+                <select name="inventory_item" required>
+                  <option value="">Elige…</option>
+                  {% for inv in inventario %}
+                    <option value="{{ inv.id }}">{{ inv.name }}{% if inv.unit %} ({{ inv.unit }}){% endif %}</option>
+                  {% endfor %}
+                </select>
+              </label>
+              <label>Cuánto por cada uno<input class="qty" name="quantity" value="1" inputmode="decimal"></label>
+              <button class="btn" type="submit">Agregar a la receta</button>
+            </form>
+          </div>
+        </details>
+      </div>
+    {% endfor %}
+  {% empty %}
+    <p class="muted">No hay categorías activas en la carta.</p>
+  {% endfor %}
+
+  <h2 class="cat">Agregar a la carta</h2>
+  <form class="card fields" method="post" action="/mesas/carta/agregar/">
+    {% csrf_token %}
+    <label>Nombre<input name="name" placeholder="Mezcal derecho" required></label>
+    <div class="two">
+      <label>Precio<input name="price" inputmode="decimal" placeholder="90" required></label>
+      <label>Categoría
+        <select name="category" required>
+          {% for c in categorias %}<option value="{{ c.id }}">{{ c.name_es|default:c.name }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <button class="btn" type="submit">Agregar</button>
+  </form>
+</div>
+{% endblock %}

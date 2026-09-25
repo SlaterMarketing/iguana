@@ -15,7 +15,6 @@ shown to whoever can already see orders, because the door needs a name and does 
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
-from django.contrib.admin.views.decorators import staff_member_required
 from django.shortcuts import render
 from django.utils import timezone
 
@@ -23,7 +22,10 @@ from catalog.models import Event
 from sales.demand import demand_for
 from sales.i18n import lang_from_request
 from sales.models import Order
+
 from sales.services import format_money
+
+from .floor import floor_required
 
 CANCUN = ZoneInfo('America/Cancun')
 PAST_NIGHTS = 8
@@ -71,9 +73,18 @@ def _nights(events, can_see_email, lang):
     return nights
 
 
-@staff_member_required
+@floor_required
 def reservations(request):
-    lang = lang_from_request(request)
+    """The guest list, which is also the door list because nobody scans the QR codes.
+
+    Open to the floor accounts as well as the admin: the door is one of the two people who log in at `/mesas/`,
+    and a door with no list is the one job on this page. Names only for them.
+
+    🚨 Email addresses stay behind `can_see_the_money`, and that is the whole reason this page can be shared.
+    The door needs to know whether somebody is on the list; it does not need the mailing list, and a phone
+    behind a bar is the least private screen in the building.
+    """
+    lang = 'es' if request.path.startswith('/mesas') else lang_from_request(request)
     can_see_email = request.user.is_superuser or request.user.has_perm('sales.view_order')
     today = timezone.now().astimezone(CANCUN).date()
     window = (Event.objects.filter(date__date__gte=today - timedelta(days=PAST_NIGHTS),
@@ -88,6 +99,7 @@ def reservations(request):
     past = [n for n in reversed(nights) if n['when'] and n['when'].date() < today]
     return render(request, 'embed/reservations.html', {
         'lang': lang,
+        'floor': request.path.startswith('/mesas'),
         'today': today,
         'upcoming': upcoming,
         'past': past,

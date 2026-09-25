@@ -20,6 +20,7 @@ from django.views.decorators.http import require_POST
 
 from sales.i18n import lang_from_request
 from sales.models import TableOrder
+from sales.stock import apply_stock, deliver
 from sales.services import format_money
 
 from .floor import floor_required
@@ -29,6 +30,16 @@ from .menu_views import MAX_TABLE
 # board of a hundred empty squares is unreadable; the rest appear the moment somebody orders from one.
 TABLES_ON_SHOW = 12
 CANCUN = ZoneInfo('America/Cancun')
+
+
+def _who(request):
+    return (request.user.get_full_name() or request.user.get_username())[:80] if request.user.is_authenticated else ''
+
+
+def _back(request):
+    """Back to whichever board they pressed the button on: `/mesas/` for the floor, `/tables/` from the admin."""
+    referer = request.META.get('HTTP_REFERER') or ''
+    return '/mesas/' if '/mesas' in referer else 'tables'
 
 
 def service_start(now=None):
@@ -199,17 +210,27 @@ def settle_table(request, number):
         rounds.filter(status=TableOrder.PAID).update(status=TableOrder.DELIVERED, paid_at=None)
     else:
         now = timezone.now()
+        # Anything still open when the table pays was clearly carried over, so it leaves the store room here
+        # too. `apply_stock` is what makes that safe to say twice: a round Delivered already accounted for is
+        # skipped rather than counted again. Done BEFORE the bulk update, because a queryset `.update()` never
+        # loads a row and so can never decrement anything.
+        for order in rounds.exclude(status=TableOrder.PAID):
+            apply_stock(order, who=_who(request))
         rounds.filter(delivered_at__isnull=True).update(delivered_at=now)
         rounds.exclude(status=TableOrder.PAID).update(status=TableOrder.PAID, paid_at=now)
-    return redirect('tables')
+    return redirect(_back(request))
 
 
 @floor_required
 @require_POST
 def close_table(request, number):
-    """Everything open on this table has been delivered."""
-    closed = (TableOrder.objects.filter(table_number=number, status=TableOrder.OPEN)
-              .update(status=TableOrder.DELIVERED, delivered_at=timezone.now()))
+    """Everything open on this table has been delivered, and comes out of the store room as it goes."""
+    rounds = list(TableOrder.objects.filter(table_number=number, status=TableOrder.OPEN))
+    for order in rounds:
+        # One at a time and through `deliver`, not a bulk `.update()`: a queryset update never loads a row, so
+        # it can mark ten rounds delivered without touching a single ingredient. That is exactly the silent
+        # drift this is here to avoid.
+        deliver(order, who=_who(request))
     if request.headers.get('X-Requested-With') == 'fetch':
-        return JsonResponse({'closed': closed, 'table': number})
-    return redirect('tables')
+        return JsonResponse({'closed': len(rounds), 'table': number})
+    return redirect(_back(request))

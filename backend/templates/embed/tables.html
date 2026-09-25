@@ -36,8 +36,8 @@
   .t form.tab { margin-top: 10px; }
   .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
   .head .tonight { display: block; font-size: .78rem; margin-top: 2px; }
-  .floornav { display: flex; gap: 8px; margin: 14px 0 4px; }
-  .floornav a, .floornav form button { flex: 1 1 0; text-align: center; border: 1px solid var(--line);
+  .floornav { display: flex; gap: 8px; margin: 14px 0 4px; flex-wrap: wrap; }
+  .floornav a, .floornav form button { flex: 1 1 0; min-width: 84px; text-align: center; border: 1px solid var(--line);
     background: #fff; border-radius: 999px; padding: 12px 10px; font: 700 .72rem/1 inherit;
     letter-spacing: .16em; text-transform: uppercase; color: var(--muted); text-decoration: none;
     cursor: pointer; width: auto; min-height: 0; }
@@ -96,7 +96,9 @@
   {% if floor %}
     <div class="floornav">
       <a class="on" href="/mesas/">Mesas</a>
+      <a href="/mesas/carta/">Carta</a>
       <a href="/mesas/inventario/">Inventario</a>
+      <a href="/mesas/reservas/">Reservas</a>
       <form method="post" action="/mesas/salir/">{% csrf_token %}<button type="submit">Salir</button></form>
     </div>
   {% endif %}

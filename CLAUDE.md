@@ -465,6 +465,42 @@ the door's guest list, because nobody scans the QR codes. If the door needs it b
   because a count sheet with no history cannot answer the only question worth asking of one.
   ⚠ A count can never go negative (taking the last one twice means zero), a comma is read as a decimal point,
   and anything over 100,000 is refused so a slipped finger cannot write a million bottles.
+
+**Selling a drink takes it out of the store room** (`sales/stock.py`), through a RECIPE per menu item
+(`MenuItemIngredient`: one sale of this takes this much of that) rather than a stock column on the drink. It
+runs on DELIVERY, not on the order: a round a table changes its mind about never leaves the bar, and
+decrementing on the order would drift the sheet down by every abandoned round.
+🚨 **It runs at most once per round, enforced by `TableOrder.stock_applied_at` rather than trusted to the
+caller.** Every realistic way it gets called twice is an ordinary event: a double tap on Delivered, a reposted
+form, the board's own twenty-second refresh landing on a stale button, or Settle marking an open round
+delivered after Delivered already did. A count that is too LOW reads as theft rather than as a bug, so that is
+the direction that has to hold.
+⚠ **Never mark rounds delivered with a queryset `.update()`.** It never loads a row, so it can mark ten rounds
+delivered without touching one ingredient, which is precisely the silent drift this exists to prevent. Go
+through `stock.deliver()` / `stock.apply_stock()` one round at a time.
+⚠ Movements are summed per inventory item before writing, so two gin tonics and a gin soda touch the gin row
+once: the history is read by a person.
+🚨 **A menu item with NO recipe consumes nothing, and that is deliberate.** A guessed 1:1 between a cocktail and
+a bottle makes the sheet drift every night, invisibly, until somebody counts by hand and finds the numbers
+lying. `/mesas/carta/` prints how many items are `sin receta` so the hole is visible instead of silent.
+`manage.py seed_bar_inventory [--dry-run]` follows the same rule against the real menu: the four beers and four
+bottled soft drinks are sold AS the unit, so they are wired 1:1 because that is simply true; the two shots and
+three mixed drinks are pours whose measure depends on this bar's glassware, so their BOTTLES are created to be
+countable and the recipe is left for the bar to state. Re-runnable, and it never overwrites a count somebody
+took or a recipe somebody set.
+- **`/mesas/carta/`** (same accounts): the menu itself. Price, name, description, on or off tonight in one
+  tap, and adding an item. The menu has always lived in the database rather than the site's code so a price can
+  change the night it changes; until now that still meant somebody with the admin, which is the one thing these
+  accounts must not have, and a price the bar cannot fix is a price that stays wrong all night.
+  🚨 **Handing prices to the floor is safe because `TableOrderItem` snapshots the name and unit price when the
+  round is ordered.** Tonight's correction cannot restate what a table already agreed to pay.
+  ⚠ What they type goes into `name`/`description` **and** `name_es`, because the console is Spanish: leaving
+  `name_es` behind would have the customer menu showing the old name in one language and the new one in the
+  other.
+- **`/mesas/reservas/`** (same accounts): the guest list, which is the DOOR list because nobody scans the QR
+  codes. Email addresses stay behind `can_see_the_money`, which is what makes the page shareable: the door needs
+  to know whether somebody is on the list, not the mailing list, and a phone behind a bar is the least private
+  screen in the building.
 - **`/revenue/`** as before.
 
 🚨 **No request path may call Meta, and `/stats/` does not.** The ad account's rate limit clears only by

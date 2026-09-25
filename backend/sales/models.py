@@ -206,6 +206,10 @@ class TableOrder(models.Model):
     paid_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(default=timezone.now)
     delivered_at = models.DateTimeField(null=True, blank=True)
+    # When this round was taken out of the store room. A stamp rather than a boolean so it is obvious WHEN, and
+    # so the only way to double-count is to clear it deliberately. Delivering a round twice, a double-tap on a
+    # phone, or a page reload must not empty the fridge twice: see `sales/stock.py`.
+    stock_applied_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']

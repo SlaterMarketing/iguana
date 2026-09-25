@@ -2,7 +2,8 @@ from django.contrib import admin
 from django.utils.html import format_html
 
 from .models import (Artist, Event, FormEndpoint, FormSubmission, InventoryChange, InventoryItem,
-                     LineupEntry, MenuCategory, MenuItem, SiteFile, StoreCollection, StoreProduct,
+                     LineupEntry, MenuCategory, MenuItem, MenuItemIngredient, SiteFile,
+                     StoreCollection, StoreProduct,
                      StoreProductImage, StoreVariant, TicketType, Tour, Venue)
 
 
@@ -140,12 +141,28 @@ class MenuCategoryAdmin(admin.ModelAdmin):
         return obj.items.filter(available=True).count()
 
 
+class IngredientInline(admin.TabularInline):
+    """What one of these takes out of the store room. The bar sets these at /mesas/carta/; this mirrors it."""
+
+    model = MenuItemIngredient
+    extra = 1
+    autocomplete_fields = ('inventory_item',)
+
+
 @admin.register(MenuItem)
 class MenuItemAdmin(admin.ModelAdmin):
-    list_display = ('name', 'name_es', 'category', 'price_cents', 'currency', 'available', 'sort_order')
+    list_display = ('name', 'name_es', 'category', 'price_cents', 'currency', 'available', 'recipe',
+                    'sort_order')
     list_editable = ('price_cents', 'available', 'sort_order')
     list_filter = ('category', 'available')
     search_fields = ('name', 'name_es')
+    inlines = [IngredientInline]
+
+    @admin.display(description='consumes', boolean=True)
+    def recipe(self, obj):
+        """Visible in the list, because an item with no recipe silently consumes nothing when it sells."""
+        return obj.ingredients.exists()
+
 
 @admin.register(InventoryItem)
 class InventoryItemAdmin(admin.ModelAdmin):
@@ -153,6 +170,7 @@ class InventoryItemAdmin(admin.ModelAdmin):
 
     list_display = ('name', 'area', 'quantity', 'unit', 'par', 'low', 'active', 'updated_at')
     list_filter = ('area', 'active')
+    # search_fields is also what makes the recipe inline's autocomplete work on MenuItem.
     search_fields = ('name', 'note')
     list_editable = ('quantity', 'par', 'active')
 

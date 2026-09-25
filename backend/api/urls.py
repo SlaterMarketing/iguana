@@ -1,7 +1,7 @@
 from django.urls import path, re_path
 
-from . import (embed_views, fan_views, floor_views, inventory_views, menu_views, public_views,
-               reservations_views, revenue_views, stats_views, tables_views)
+from . import (carta_views, embed_views, fan_views, floor_views, inventory_views, menu_views,
+               public_views, reservations_views, revenue_views, stats_views, tables_views)
 
 urlpatterns = [
     # Public catalogue (@kintana/sdk KintanaClient)
@@ -34,6 +34,14 @@ urlpatterns = [
     path('mesas/inventario/agregar/', inventory_views.add_item, name='floor-inventory-add'),
     path('mesas/inventario/<str:item_id>/ajustar/', inventory_views.adjust, name='floor-inventory-adjust'),
     path('mesas/inventario/<str:item_id>/editar/', inventory_views.edit_item, name='floor-inventory-edit'),
+    path('mesas/carta/', carta_views.carta, name='floor-carta'),
+    path('mesas/carta/agregar/', carta_views.add_menu_item, name='floor-carta-add'),
+    path('mesas/carta/<str:item_id>/guardar/', carta_views.save_item, name='floor-carta-save'),
+    path('mesas/carta/<str:item_id>/cambiar/', carta_views.toggle_item, name='floor-carta-toggle'),
+    path('mesas/carta/<str:item_id>/receta/', carta_views.link_ingredient, name='floor-carta-recipe'),
+    path('mesas/carta/receta/<str:pk>/quitar/', carta_views.unlink_ingredient, name='floor-carta-unrecipe'),
+    # The guest list, which is the DOOR list: same view, Spanish, and reached without the admin.
+    path('mesas/reservas/', reservations_views.reservations, name='floor-reservations'),
     path('tables/<int:number>/close/', tables_views.close_table, name='close-table'),
     path('tables/<int:number>/settle/', tables_views.settle_table, name='settle-table'),
     path('api/public/v1/menu', menu_views.menu),
