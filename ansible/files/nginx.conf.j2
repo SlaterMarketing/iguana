@@ -109,8 +109,19 @@ upstream iguana_api { server 127.0.0.1:8001; }
 {{ clicky_locations() }}
 {% endif %}
 
+    {# A build hashes its filename from its content, so a name that is gone is not a name that changed: it is
+       last build's file, still exactly what its name says it holds. Somebody who had a page open when a deploy
+       landed asks for it, gets a 404, and the island on that page never hydrates. Nothing reports that. The
+       button just does nothing, and the only trace is a 404 here, which read as crawler noise for weeks.
+       `dist.old` is the previous build the deploy keeps for rollback, so the fallback costs nothing. #}
     location ^~ /_astro/ {
-        alias {{ app_dir }}/dist/client/_astro/;
+        root {{ app_dir }}/dist/client;
+        try_files $uri @last_build;
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+    location @last_build {
+        root {{ app_dir }}/dist.old/client;
         expires 1y;
         add_header Cache-Control "public, immutable";
     }

@@ -366,6 +366,21 @@
           timeout 5m {{ app_dir }}/backend/venv/bin/python {{ app_dir }}/backend/manage.py
           process_unsubscribe_mail --apply 2>&1 | logger -t iguana-unsubscribe
 
+    - name: Stop mailing addresses that permanently do not exist
+      become: true
+      become_user: "{{ deploy_user }}"
+      cron:
+        name: iguana hard bounces
+        user: "{{ deploy_user }}"
+        hour: "6"
+        minute: "40"
+        # Daily, and deliberately before the Monday send rather than after it: the point is that a dead address
+        # is off the list by the time the newsletter runs. Nothing here is urgent enough for every twenty
+        # minutes, because a bounce is already a message that failed.
+        job: >-
+          timeout 10m {{ app_dir }}/backend/venv/bin/python {{ app_dir }}/backend/manage.py
+          process_bounces --apply 2>&1 | logger -t iguana-bounces
+
     - name: Weekly what-is-on email, Monday morning in Playa
       become: true
       cron:

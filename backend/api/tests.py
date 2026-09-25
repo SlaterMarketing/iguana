@@ -4,7 +4,7 @@ from zoneinfo import ZoneInfo
 import pathlib
 import re
 from unittest.mock import patch
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
 from django.conf import settings
 from django.core import mail
@@ -1732,6 +1732,96 @@ class NewsletterLinkTests(ApiTestCase):
         self.assertIn('?night=es&date=2026-09-22&ic=', tag('https://x/es/open-mic/?night=es&date=2026-09-22', contact))
 
 
+class BouncedMailTests(ApiTestCase):
+    """A dead address must stop being mailed, and a live one must never be dropped for our own reputation."""
+
+    def _dsn(self, address, status, action='failed'):
+        return (
+            'From MAILER-DAEMON Thu Sep 24 16:00:00 2026\n'
+            'From: Mail Delivery System <MAILER-DAEMON@mail.site.test>\n'
+            'Subject: Undelivered Mail Returned to Sender\n'
+            'MIME-Version: 1.0\n'
+            'Content-Type: multipart/report; report-type=delivery-status; boundary="B"\n'
+            '\n--B\nContent-Type: text/plain\n\nyour message could not be delivered\n'
+            f'\n--B\nContent-Type: message/delivery-status\n\nReporting-MTA: dns; mail.site.test\n\n'
+            f'Final-Recipient: rfc822; {address}\nAction: {action}\nStatus: {status}\n'
+            '\n--B--\n')
+
+    def _mbox(self, parts):
+        import pathlib
+        import tempfile
+
+        path = pathlib.Path(tempfile.mkdtemp()) / 'inbox'
+        path.write_text(''.join(parts))
+        return str(path)
+
+    def test_an_address_that_does_not_exist_stops_being_mailed(self):
+        from django.core.management import call_command
+        from crm.models import Contact
+
+        gone = Contact.objects.create(email='typo@gmail.com', subscribed=True)
+        box = self._mbox([self._dsn('typo@gmail.com', '5.1.1')])
+        call_command('process_bounces', '--mailbox', box, '--apply', verbosity=0)
+        gone.refresh_from_db()
+        self.assertFalse(gone.subscribed)
+        self.assertIn('hard-bounce', gone.tags)
+
+    def test_our_own_ip_being_refused_does_not_unsubscribe_anybody(self):
+        """🚨 The one that matters. `5.7.1` from Gmail means our IPv4 is on a blocklist, not that the mailbox
+        is gone: ten of the twenty-four bounces on this box the day this was written were exactly that. Acting
+        on the leading 5 would have removed ten live subscribers because OUR reputation slipped."""
+        from django.core.management import call_command
+        from crm.models import Contact
+
+        fine = Contact.objects.create(email='reader@gmail.com', subscribed=True)
+        box = self._mbox([self._dsn('reader@gmail.com', '5.7.1')])
+        call_command('process_bounces', '--mailbox', box, '--apply', verbosity=0)
+        fine.refresh_from_db()
+        self.assertTrue(fine.subscribed, 'a policy rejection is about us, not about them')
+
+    def test_a_full_mailbox_is_not_a_dead_one(self):
+        from django.core.management import call_command
+        from crm.models import Contact
+
+        full = Contact.objects.create(email='busy@example.com', subscribed=True)
+        box = self._mbox([self._dsn('busy@example.com', '5.2.2')])
+        call_command('process_bounces', '--mailbox', box, '--apply', verbosity=0)
+        full.refresh_from_db()
+        self.assertTrue(full.subscribed, 'over quota ends; the address does not')
+
+    def test_a_delivery_report_that_succeeded_is_not_a_bounce(self):
+        from django.core.management import call_command
+        from crm.models import Contact
+
+        fine = Contact.objects.create(email='ok@example.com', subscribed=True)
+        box = self._mbox([self._dsn('ok@example.com', '2.0.0', action='delivered')])
+        call_command('process_bounces', '--mailbox', box, '--apply', verbosity=0)
+        fine.refresh_from_db()
+        self.assertTrue(fine.subscribed)
+
+    def test_a_dry_run_changes_nothing(self):
+        from django.core.management import call_command
+        from crm.models import Contact
+
+        gone = Contact.objects.create(email='typo2@gmail.com', subscribed=True)
+        box = self._mbox([self._dsn('typo2@gmail.com', '5.1.1')])
+        call_command('process_bounces', '--mailbox', box, verbosity=0)
+        gone.refresh_from_db()
+        self.assertTrue(gone.subscribed)
+
+    def test_the_bounce_is_recorded_against_the_send(self):
+        from django.core.management import call_command
+        from crm.models import Campaign, CampaignRecipient, Contact
+
+        gone = Contact.objects.create(email='typo3@gmail.com', subscribed=True)
+        campaign = Campaign.objects.create(name='Monday')
+        row = CampaignRecipient.objects.create(campaign=campaign, contact=gone, email=gone.email, status='SENT')
+        call_command('process_bounces', '--mailbox', self._mbox([self._dsn('typo3@gmail.com', '5.1.1')]),
+                     '--apply', verbosity=0)
+        row.refresh_from_db()
+        self.assertIsNotNone(row.bounced_at)
+
+
 class EmailedUnsubscribeTests(ApiTestCase):
     """An unsubscribe that arrives as an email has to work, and must not take innocent people with it."""
 
@@ -2723,9 +2813,14 @@ class BarHistoryTests(ApiTestCase):
     @classmethod
     def setUpTestData(cls):
         super().setUpTestData()
+        # 🚨 Nine tonight in CANCUN, not nine UTC. `current_show` matches the service's own calendar day, and
+        # between 19:00 and midnight in Playa the UTC date has already rolled over: an event built from a bare
+        # `timezone.now()` lands on tomorrow, the board finds no show and this fails for five hours a day.
+        # Those five hours are the show, so the suite broke exactly when somebody would be deploying.
+        from api.tables_views import service_start
+        tonight = datetime.combine(service_start().date(), time(21, 0), tzinfo=CANCUN_TZ)
         cls.tonight = Event.objects.create(name='Fredy El Regio', slug='fredy-night', status=Event.ACTIVE,
-                                           venue=cls.venue, date=timezone.now().replace(hour=21, minute=0),
-                                           show_time='21:00')
+                                           venue=cls.venue, date=tonight, show_time='21:00')
 
     def staff(self, name, **extra):
         from django.contrib.auth import get_user_model
