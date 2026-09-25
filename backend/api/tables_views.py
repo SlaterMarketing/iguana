@@ -73,7 +73,13 @@ def current_show(now=None):
     # so a 6am-to-6am window over timestamps catches TOMORROW's show from this afternoon: it picked Friday's
     # Privilegio on a Thursday with nothing on. The service's date is the day it began, which after midnight is
     # still yesterday, so a tab that crosses midnight still belongs to the show it was poured at.
-    return (Event.objects.filter(status=Event.ACTIVE, date__date=service_start(now).date())
+    # 🚨 SOLD_OUT is still a show, and this is where forgetting that costs money. Marking Privilegio sold out
+    # on the afternoon of 2026-09-25 made this return None for its own night: the bar board would have shown
+    # no show, and every round poured would have been stamped `event=None`, so "what did the bar take on the
+    # Privilegio night" would have had no answer for the busiest night of the week. Only DRAFT and CANCELLED
+    # are not a show.
+    return (Event.objects.filter(status__in=(Event.ACTIVE, Event.SOLD_OUT),
+                                 date__date=service_start(now).date())
             .order_by('-date').first())
 
 

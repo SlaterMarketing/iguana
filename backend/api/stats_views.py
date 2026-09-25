@@ -100,7 +100,10 @@ def _upcoming_nights(limit=6):
     from sales.demand import demand_for
 
     today = timezone.now().astimezone(CANCUN).date()
-    events = list(Event.objects.filter(status=Event.ACTIVE, date__date__gte=today).order_by('date')[:limit])
+    # A sold-out night is the one you most want on this page, so `status=ACTIVE` was exactly the wrong filter:
+    # marking Privilegio sold out dropped the busiest night of the week off the dashboard entirely.
+    events = list(Event.objects.filter(status__in=(Event.ACTIVE, Event.SOLD_OUT), date__date__gte=today)
+                  .order_by('date')[:limit])
     pressure = demand_for(events)
     nights = []
     for event in events:
@@ -114,7 +117,11 @@ def _upcoming_nights(limit=6):
             'taken': taken,
             'capacity': capacity,
             'left': max(capacity - taken, 0) if capacity else None,
-            'percent': round(min(taken / capacity, 1) * 100) if capacity else 0,
+            'percent': 100 if event.status == Event.SOLD_OUT else (
+                round(min(taken / capacity, 1) * 100) if capacity else 0),
+            # Our own rows can say 40 of 80 on a night that is genuinely gone, because a guest promoter sells a
+            # block we never see. The status is the truth; the counts are what WE can see, and both are shown.
+            'sold_out': event.status == Event.SOLD_OUT,
             'show_time': event.show_time,
         })
     return nights

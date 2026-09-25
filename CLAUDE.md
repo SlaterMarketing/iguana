@@ -423,6 +423,10 @@ the door's guest list, because nobody scans the QR codes. If the door needs it b
   the page by 54px at 320 and 14px at 360 while looking perfect at 390; it stacks into one block per campaign
   under 420px now. The reservations guest list was worse because it did NOT overflow the page: the card
   clipped it, so the right-hand column existed and could not be reached by any amount of scrolling.
+  ⚠ **Seats left is a LIE on a sold-out night, so the row says "no seats to sell" instead.** Our own rows can
+  read 40 of 80 on a night that is genuinely gone, because a guest promoter sells a block we never see, which
+  is exactly how Privilegio came to be sold out. The bar fills to 100 and the row is marked; the counts stay
+  visible because they are what WE can see.
   ⚠ **`sales.demand` counts `OrderItem.quantity`, not `Ticket` rows.** A fixture that creates tickets without
   items reads as an empty room, which is a broken test rather than a broken page.
   ⚠ **Money on this page is a STRING per currency** (`'600.00 MXN · 25.00 USD'`), never a float, because the
@@ -472,6 +476,16 @@ the door's guest list, because nobody scans the QR codes. If the door needs it b
   ⚠ **The night runs on a 6am-to-6am service, not a calendar day** (`tables_views.service_start`). A show
   starting at nine runs past midnight and the tab crosses with it; counting by calendar day would zero a table
   at 00:05 with the people still sitting at it.
+  🚨 **A SOLD OUT night is still a night, and only DRAFT and CANCELLED are not.** Filtering on
+  `status=ACTIVE` looks harmless and cost two things the moment Privilegio was marked sold out on the
+  afternoon of its own show (2026-09-25): `current_show()` returned None for its own night, so the board
+  showed no show and every round poured would have been stamped `event=None`, leaving "what did the bar take
+  on the Privilegio night" unanswerable for the busiest night of the week; and `/stats/` dropped the one night
+  the owner most wanted to look at. Both now filter `status__in=(ACTIVE, SOLD_OUT)`, and
+  `api.tests.SoldOutIsStillAShowTests` pins it.
+  ⚠ `crm/after_show.py` still excludes sold-out deliberately, because it picks the next show to invite people
+  to and inviting them to a full one is worse than saying nothing. `crm/whats_on.py` also still excludes it,
+  which is a copy decision rather than a bug: the Monday mail would otherwise list a night nobody can book.
   🚨 **But `current_show` matches the CALENDAR DAY, not that window.** An event's date is stored early in its
   own day, so a 6am-to-6am window over timestamps returns TOMORROW's show from this afternoon: it announced
   Friday's Privilegio on a Thursday with nothing on. The service's date is the day it began, which after

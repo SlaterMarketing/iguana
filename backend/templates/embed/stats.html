@@ -32,6 +32,8 @@
   table.nights { width: 100%; border-collapse: collapse; margin-top: 8px; }
   table.nights td { padding: 7px 4px; border-bottom: 1px solid var(--line); vertical-align: middle; }
   table.nights tr.tonight td { background: var(--brand-soft); }
+  table.nights .gone { display: inline-block; margin-left: 6px; font-size: .62rem; font-weight: 700;
+                       letter-spacing: .12em; text-transform: uppercase; color: var(--danger); }
   td.when { font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
   td.when .what { display: block; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--muted); }
   td.fill { width: 36%; padding-left: 10px; padding-right: 10px; }
@@ -87,7 +89,7 @@
           <tr class="{% if n.tonight %}tonight{% endif %}">
             <td class="when">
               {{ n.when|date:"D j M" }}{% if n.tonight %} · {% t lang "tonight" %}{% endif %}
-              <span class="what">{{ n.name }}</span>
+              <span class="what">{{ n.name }}{% if n.sold_out %} <b class="gone">{% t lang "Sold out" %}</b>{% endif %}</span>
             </td>
             <td class="fill">
               {% if n.capacity %}
@@ -96,7 +98,13 @@
             </td>
             <td class="num">
               <strong>{{ n.taken }}</strong>{% if n.capacity %}<span class="of">/{{ n.capacity }}</span>{% endif %}
-              {% if n.left is not None %}<span class="left">{% t lang "{0} left" n.left %}</span>{% endif %}
+              {# Seats left is a lie on a sold-out night: our own rows can say 40 of 80 while a guest promoter #}
+              {# has sold the rest, which is how this show came to be sold out in the first place. #}
+              {% if n.sold_out %}
+                <span class="left">{% t lang "no seats to sell" %}</span>
+              {% elif n.left is not None %}
+                <span class="left">{% t lang "{0} left" n.left %}</span>
+              {% endif %}
             </td>
           </tr>
         {% endfor %}

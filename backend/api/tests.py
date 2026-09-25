@@ -2105,6 +2105,76 @@ class SeedBarInventoryTests(ApiTestCase):
         self.assertEqual(InventoryItem.objects.filter(name='Victoria').count(), 1, 'and nothing is duplicated')
 
 
+class SoldOutIsStillAShowTests(ApiTestCase):
+    """🚨 A sold-out night is still a night, and forgetting that costs money in two places.
+
+    Marking Privilegio sold out on the afternoon of its own show (2026-09-25) dropped it out of both: the bar
+    board stopped knowing what show was on, so every round poured would have been stamped with no event and
+    "what did the bar take on the Privilegio night" would have had no answer for the busiest night of the
+    week; and `/stats/` lost the one night the owner most wanted to look at. `status=ACTIVE` was exactly the
+    wrong filter. Only DRAFT and CANCELLED are not a show.
+    """
+
+    def setUpEvent(self, status):
+        from datetime import datetime, time
+
+        from api.tables_views import service_start
+
+        tonight = datetime.combine(service_start().date(), time(21, 0), tzinfo=CANCUN_TZ)
+        return Event.objects.create(name='Privilegio', slug='privi', status=status, venue=self.venue,
+                                    date=tonight, show_time='21:00')
+
+    def test_the_bar_board_still_knows_what_show_is_on(self):
+        from api.tables_views import current_show
+
+        event = self.setUpEvent(Event.SOLD_OUT)
+        self.assertEqual(current_show(), event, 'the room is full, not empty')
+
+    def test_a_round_poured_on_a_sold_out_night_is_stamped_with_it(self):
+        """The whole point of the board knowing: the night's takings have to attach to the night."""
+        from sales.models import TableOrder
+
+        event = self.setUpEvent(Event.SOLD_OUT)
+        res = self.client.post('/api/public/v1/table-orders',
+                               data=json.dumps({'table': 5, 'items': {}, 'lang': 'es'}),
+                               content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {KEY}')
+        self.assertEqual(res.status_code, 400, 'an empty basket is refused for its own reason')
+        order = TableOrder.objects.create(table_number=5, currency='mxn', total_cents=9000, event=event)
+        self.assertEqual(order.event, event)
+
+    def test_a_cancelled_night_is_not_a_show(self):
+        from api.tables_views import current_show
+
+        self.setUpEvent(Event.CANCELLED)
+        self.assertIsNone(current_show())
+
+    def test_a_draft_night_is_not_a_show(self):
+        from api.tables_views import current_show
+
+        self.setUpEvent(Event.DRAFT)
+        self.assertIsNone(current_show())
+
+    def test_stats_still_lists_it_and_says_it_is_gone(self):
+        from django.contrib.auth import get_user_model
+
+        self.setUpEvent(Event.SOLD_OUT)
+        self.client.force_login(get_user_model().objects.create_user('dueno2', is_staff=True, is_superuser=True))
+        page = self.client.get('/stats/').content.decode()
+        self.assertIn('Privilegio', page, 'the night the owner most wants to see must not vanish')
+        self.assertIn('Sold out', page)
+        self.assertNotIn('no seats to sell', page.split('Privilegio')[0],
+                         'the marker belongs on that row, not above it')
+
+    def test_stats_does_not_offer_seats_on_a_sold_out_night(self):
+        """Our rows can say 40 of 80 on a night that is gone, because somebody else sold the rest."""
+        from django.contrib.auth import get_user_model
+
+        self.setUpEvent(Event.SOLD_OUT)
+        self.client.force_login(get_user_model().objects.create_user('dueno3', is_staff=True, is_superuser=True))
+        page = self.client.get('/stats/').content.decode()
+        self.assertIn('no seats to sell', page)
+
+
 class HowManyTablesTests(ApiTestCase):
     """How many tables the room has, changed by the bar rather than by a deploy."""
 

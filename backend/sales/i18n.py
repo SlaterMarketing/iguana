@@ -250,6 +250,7 @@ ES = {
     'Paid for': 'Pagado',
     'Over half reserved, worth booking early': 'Más de la mitad reservada, mejor reserva pronto',
     # Quitar una línea de la cuenta. Los dos motivos no son el mismo hecho para el inventario.
+    'no seats to sell': 'no hay lugares que vender',
     'Tables in the room': 'Cuántas mesas hay',
     'One table fewer': 'Una mesa menos',
     'One table more': 'Una mesa más',
