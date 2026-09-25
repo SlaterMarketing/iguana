@@ -228,6 +228,16 @@
   function renderDemand() {
     var d = ev.demand;
     if (!d || !d.capacity || !$("demand")) return;   // the host page is printing it instead
+    // 🚨 A night marked sold out IS sold out, whatever the seat count says: a guest promoter sells a block we
+    // never see, so a show can be full at 40 of 80 on our own rows. Reading only the count printed "over half
+    // reserved, worth booking early" inside a checkout that was refusing to sell. Mirror of `src/lib/demand.ts`.
+    if (["SOLD_OUT", "CANCELLED", "POSTPONED"].indexOf(ev.status) !== -1) {
+      $("demand-line").textContent = T("Sold out");
+      $("demand-line").classList.add("tight");
+      show($("demand-line"), ev.status === "SOLD_OUT");
+      show($("demand"), ev.status === "SOLD_OUT");
+      return;
+    }
     var half = d.capacity ? d.taken / d.capacity >= 0.5 : false;
     // A fifth of the room, capped at ten. A flat ten is nonsense on a small night: a room of three with
     // nothing sold has three left, and "Only 3 seats left of 3" to an empty house is a checkable lie.

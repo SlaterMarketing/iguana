@@ -42,6 +42,8 @@ const ticketsLabel = isOpenMic(evt) ? t(locale, "ui.reserveSeat") : t(locale, "u
 // How the night is filling. Never on a show that has already happened, where it would only be a scoreboard.
 const demand = past ? null : demandLine(evt, locale);
 
+const soldOut = !past && evt.status === "sold-out";
+
 const statusBadge =
   past
     ? null
@@ -70,7 +72,7 @@ const emphasized =
   >
     <div
       class:list={[
-        "aspect-[16/10] overflow-hidden bg-neutral-200",
+        "relative aspect-[16/10] overflow-hidden bg-neutral-200",
         featured && "lg:aspect-auto lg:min-h-[22rem]",
       ]}
     >
@@ -96,6 +98,20 @@ const emphasized =
           <div class="flex size-full items-center justify-center bg-neutral-950 text-neutral-500">{t(locale, "ui.loading")}</div>
         )
       }
+      {/* Across the poster, because that is where the eye lands and a small line above the title was read
+          straight past: the card said AGOTADO and then offered a price and "book early" underneath. */}
+      {
+        soldOut ? (
+          <div class="pointer-events-none absolute inset-0 flex items-center justify-center bg-neutral-950/55">
+            <p
+              class="w-[115%] -rotate-6 border-y-4 border-white bg-neutral-950/85 py-3 text-center uppercase text-white"
+              style="font-family: var(--font-display); font-size: clamp(2rem, 7vw, 3.75rem); line-height: 1; letter-spacing: 0.08em;"
+            >
+              {t(locale, "ui.soldOut")}
+            </p>
+          </div>
+        ) : null
+      }
     </div>
 
     <div
@@ -115,7 +131,7 @@ const emphasized =
         </p>
 
         {
-          statusBadge ? (
+          statusBadge && !soldOut ? (
             <p
               class:list={[
                 "text-[0.65rem] font-semibold uppercase tracking-[0.38em]",
@@ -147,7 +163,8 @@ const emphasized =
         <p class="text-xs font-semibold uppercase tracking-[0.35em] opacity-85">
           {t(locale, "events.offeredIn").replace("{language}", languageLabel)}
         </p>
-        {priceLabel ? <p class="text-sm font-medium opacity-[0.9]">{priceLabel}</p> : null}
+        {/* A price for something nobody can buy is noise, and the demand bar under it read as an invitation. */}
+        {priceLabel && !soldOut ? <p class="text-sm font-medium opacity-[0.9]">{priceLabel}</p> : null}
         {
           demand ? (
             <DemandLines demand={demand} tone={emphasized ? "dark" : "light"} class="mx-auto max-w-xs" />

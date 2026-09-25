@@ -208,6 +208,19 @@ const pixelContent = event
                       class="!min-h-0 !rounded-none !border-0 !bg-white !px-4 !py-4 sm:!px-5"
                     />
                   </div>
+                ) : event.status === "sold-out" ? (
+                  /* Where the reservation form was. "Tickets are not available right now" is what a page says
+                     when something is broken, and somebody who came to buy reads it as a fault to work around
+                     rather than an answer. The answer is one word, in the place they were looking. */
+                  <div class="overflow-hidden rounded-xl border-t-4 border-white bg-neutral-950 text-center shadow-[0_18px_50px_-18px_rgba(0,0,0,0.7)] ring-1 ring-white/15">
+                    <p
+                      class="px-4 pt-7 uppercase leading-none text-white"
+                      style="font-family: var(--font-display); font-size: clamp(2.6rem, 9vw, 4rem); letter-spacing: 0.06em;"
+                    >
+                      {t(locale, "ui.soldOut")}
+                    </p>
+                    <p class="px-6 pb-7 pt-3 text-sm text-white/80">{t(locale, "events.soldOutNote")}</p>
+                  </div>
                 ) : ticketingBlocked ? (
                   <p class="rounded-xl border border-white/15 bg-white/10 px-6 py-10 text-center text-sm text-white backdrop-blur-sm">{t(locale, "events.ticketsUnavailable")}</p>
                 ) : null

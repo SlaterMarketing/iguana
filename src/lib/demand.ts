@@ -85,6 +85,18 @@ export function demandLine(evt: KintanaPublicEvent, locale: Locale): DemandLine 
   const d = eventDemand(evt);
   if (!d) return null;
 
+  /**
+   * 🚨 A night marked sold out IS sold out, whatever the seat count says. The two disagree all the time and
+   * the status is the one that is true: a guest promoter sells a block we never see, so a show can be full at
+   * 40 of 80 on our own rows. Reading only the count printed "AGOTADO" next to "over half reserved, worth
+   * booking early" and a price, on the same card, for a show nobody could buy (Privilegio, 2026-09-25).
+   * Momentum is silenced too: how fast it sold is not an argument for a thing you cannot have.
+   */
+  if ((evt as unknown as { status?: string }).status === "sold-out") {
+    return { room: t(locale, "demand.soldOut"), momentum: "", text: t(locale, "demand.soldOut"),
+             tight: true, fill: 100 };
+  }
+
   const gone = d.left === 0;
   // A fifth of the room, capped at ten. A flat "ten left" is nonsense on a small night: a room of three with
   // nothing sold has three left, and announcing "Only 3 seats left of 3" to an empty house is worse than
