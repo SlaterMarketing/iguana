@@ -110,6 +110,8 @@ const table = await (async () => {
   await page.waitForTimeout(1200);
   return page.evaluate(() => {
     for (const card of document.querySelectorAll(".t")) {
+      // A card with a running tab or a waiting round is one whose breakdown has lines in it. A card that is
+      // merely present has neither, and opening it would measure an empty panel.
       if (card.querySelector(".tab") || card.querySelector("form[action*='/close/']")) {
         return Number((card.id || "").replace("t", "")) || null;
       }
@@ -159,6 +161,13 @@ if (table === null) {
                issues: [...new Set(issues)].slice(0, 8),
                panels: document.querySelectorAll("details.void").length };
     }, width);
+    // 🚨 Zero panels means the control was not on the page, so "ok" here would be a pass that measured
+    // nothing. It already happened one level up, with a quiet board reporting 16/16 while the amount-due row
+    // was broken; a run that cannot see the thing has to say so rather than count itself clean.
+    if (found.panels === 0) {
+      console.log(`----  ${String(width).padEnd(4)} breakdown  NOT TESTED: table ${table} has no voidable lines`);
+      continue;
+    }
     const problems = (found.overflow > 1 ? 1 : 0) + found.issues.length;
     if (problems) failures += 1;
     checks += 1;
