@@ -398,6 +398,11 @@ changing one in the admin is not undone by the next deploy.
   own day, so a 6am-to-6am window over timestamps returns TOMORROW's show from this afternoon: it announced
   Friday's Privilegio on a Thursday with nothing on. The service's date is the day it began, which after
   midnight is still yesterday, so both ends still behave.
+  ⚠ **A test that builds "tonight" from a bare `timezone.now()` fails for five hours a day, and they are the
+  show.** `timezone.now()` is UTC; Playa is UTC-5, so between 19:00 and midnight there the UTC date has
+  already rolled over and `now().replace(hour=21)` lands on TOMORROW, where `current_show` cannot see it.
+  `BarHistoryTests` did exactly that and the whole suite went red every evening, which is when somebody
+  deploying before a show would meet it. Build the event from `service_start().date()` in `CANCUN_TZ`.
   Every round is stamped with its show (`TableOrder.event`), which is what makes "what did the bar take on the
   Fredy night" answerable at all; `/stats/` prints it per night, rounds, drinks and collected against still
   owed. A round poured on a night with no show has no event, and that is correct rather than missing.
@@ -469,7 +474,7 @@ thing it cannot do, which is read the mail. `crm/optin.py` holds the signed conf
 unsubscribe link can never re-subscribe someone who used it to leave); a sign-up creates the contact
 **unsubscribed and on no list**, sends one confirmation, and only `/newsletter/confirm/<token>` makes it
 mailable. `api.tests.NewsletterOptInTests` covers it.
-⚠ **Do NOT key "already confirmed" on `Contact.subscribed`** — the model defaults it to `True`, so every brand
+⚠ **Do NOT key "already confirmed" on `Contact.subscribed`**: the model defaults it to `True`, so every brand
 new contact reads as confirmed and the gate silently does nothing. That was the first version of this. Key it
 on whether `get_or_create` actually created the row, and never downgrade an existing subscriber who signs up
 again.
@@ -487,12 +492,12 @@ restart, on the far side of `npm install` and the Astro build. In between, the d
 the workers are still running the old code, which inserts without the column. Measured 2026-09-21 on
 `OrderItem.is_addon`: two `POST /api/checkout/<id>/start` from a Facebook in-app browser on Android, both 500,
 both a real ad click that did not become a reservation. **Nothing is written on that path, so the DB cannot show
-you the loss and neither can an order count** — the only trace is `/var/log/iguana/api.out.log`, and the
+you the loss and neither can an order count**: the only trace is `/var/log/iguana/api.out.log`, and the
 traceback in `api.err.log` carries no timestamp of its own, only the nearest gunicorn line.
 Two fixes, both in place: the API now reloads **directly after the migration**, before the long site build; and
 `0006_orderitem_is_addon_db_default` restores the database default Django drops, so an insert from an old worker
 gets `false` rather than an `IntegrityError`. **Give any new NOT NULL column a DB default in a follow-up
-migration** (Postgres only — SQLite cannot ALTER it and does not need to).
+migration** (Postgres only; SQLite cannot ALTER it and does not need to).
 
 🚨 **The deploy used to break live traffic twice over, and both were invisible to every log check.** Gunicorn
 was hard-restarted, so the checkout iframe served **502 inside the ad landing page** for the ~2s window; it is
@@ -502,6 +507,15 @@ modules lazily, so every route the running process had not yet imported threw `E
 restart (`/en/open-mic/` 500'd for a minute on 2026-09-21 with ads pointed at it). It now builds into
 `dist.next`, asserts that build produced a `server/entry.mjs`, and renames; `dist.old` is the rollback. The
 play then polls the site and the checkout before finishing.
+
+A third case survived both of those, because it happens to the BROWSER rather than the server. A build hashes
+its filenames from their content, so a name that has gone is not a name that changed: it is last build's file,
+still exactly what its name says it holds. Somebody with a page already open when a deploy lands asks for it
+and gets a 404, the island never hydrates, and the symptom is a button that does nothing. Nothing reports it;
+the only trace is an `_astro` 404 in nginx, which reads as crawler noise (13 on 2026-09-24, 11 of them
+Facebook's crawler). `location ^~ /_astro/` now `try_files $uri @last_build` into `dist.old`, the previous
+build the deploy already keeps for rollback. Verify by putting a file in `dist.old/client/_astro/` only: it
+serves 200, and a nonsense hash still 404s.
 
 🚨 **`/var/mail/inbox` is 0600 `inbox:mail` and the deploy user was in neither group, so `iguana-mail` read
 NOTHING and a check reported the mailbox as a clean channel.** An unread channel is not an empty one. `mail.yml`
@@ -559,6 +573,23 @@ Return-Path `bounce@lynnwon.site`, sent from `api992409.friedrichsonde.site`, Re
 believing any mail about the ads**, since the thing being phished is an account with a live card on it. Those
 senders are in `/etc/postfix/blocked_senders` (managed in `mail.yml`); the list is not a spam filter, it stops
 the infrastructure that has already tried.
+
+🚨 **A permanent bounce is not automatically a dead address, and treating it as one unsubscribes people who
+did nothing wrong.** Nothing read the bounces at all until 2026-09-24, so the Monday send kept going back to
+addresses that had already failed. Of the 24 bounces sitting in the mailbox, **ten were `5.1.1` (no such
+mailbox) and ten were `5.7.1`, which is Gmail refusing OUR IPv4** because 38.86.78.0/24 is on the Spamhaus
+PBL. Both are `5.x.x`, both arrive in the same envelope, and acting on the leading digit would have dropped
+seven live people at Yahoo, Outlook, Cox and Netscape plus `john@nader.mx`. The list would then shrink every
+time our own reputation slipped. `manage.py process_bounces [--apply]` (daily 06:40 UTC, before the Monday
+send, `journalctl -t iguana-bounces`) acts only on the no-such-mailbox codes `5.1.1 5.1.0 5.1.3 5.1.6`,
+unsubscribes, tags the contact `hard-bounce` and stamps `CampaignRecipient.bounced_at`; everything else
+permanent is printed and left alone. `api.tests.BouncedMailTests` pins the `5.7.1` case specifically.
+⚠ **Read the structured `message/delivery-status` part, never the human paragraph above it** (that quotes the
+remote server verbatim and it words things however it likes).
+⚠ **A deferred message retried over IPv4 is how a temporary problem becomes a hard bounce.**
+`smtp_address_preference = ipv6` only sorts v6 first: first attempts to Gmail go over v6 and succeed (measured
+746 sent v6 against 5 bounced v4), but a message deferred for `4.2.2` over-quota gets retried and can take the
+v4 path into the PBL rejection. Small, so it is documented rather than fixed with a v6-only transport.
 
 Marketing mail must go through `crm.mail.send_marketing` (or `manage.py send_newsletter`, a dry run without
 `--send`), which drops unsubscribed contacts and attaches the unsubscribe footer and `List-Unsubscribe` headers
