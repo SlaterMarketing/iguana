@@ -1,7 +1,7 @@
 from django.urls import path, re_path
 
-from . import (embed_views, fan_views, menu_views, public_views, reservations_views, revenue_views,
-               stats_views, tables_views)
+from . import (embed_views, fan_views, floor_views, inventory_views, menu_views, public_views,
+               reservations_views, revenue_views, stats_views, tables_views)
 
 urlpatterns = [
     # Public catalogue (@kintana/sdk KintanaClient)
@@ -26,6 +26,14 @@ urlpatterns = [
     path('reservations/', reservations_views.reservations, name='reservations'),
     path('stats/', stats_views.stats, name='stats'),
     path('tables/', tables_views.tables, name='tables'),
+    # The floor console. Spanish only, its own login, and no admin behind it: see `api/floor.py`.
+    path('mesas/', tables_views.mesas, name='mesas'),
+    path('mesas/entrar/', floor_views.sign_in, name='floor-sign-in'),
+    path('mesas/salir/', floor_views.sign_out, name='floor-sign-out'),
+    path('mesas/inventario/', inventory_views.inventory, name='floor-inventory'),
+    path('mesas/inventario/agregar/', inventory_views.add_item, name='floor-inventory-add'),
+    path('mesas/inventario/<str:item_id>/ajustar/', inventory_views.adjust, name='floor-inventory-adjust'),
+    path('mesas/inventario/<str:item_id>/editar/', inventory_views.edit_item, name='floor-inventory-edit'),
     path('tables/<int:number>/close/', tables_views.close_table, name='close-table'),
     path('tables/<int:number>/settle/', tables_views.settle_table, name='settle-table'),
     path('api/public/v1/menu', menu_views.menu),

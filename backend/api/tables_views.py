@@ -13,16 +13,16 @@ Staff only, on the API domain, sharing the admin session rather than inventing a
 from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
-from django.contrib.admin.views.decorators import staff_member_required
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from sales.i18n import lang_from_request, normalize
+from sales.i18n import lang_from_request
 from sales.models import TableOrder
 from sales.services import format_money
 
+from .floor import floor_required
 from .menu_views import MAX_TABLE
 
 # What the board lays out when the room is quiet. The club has fewer tables than the 100 a QR can name, and a
@@ -111,9 +111,25 @@ def _board(lang):
     return tables
 
 
-@staff_member_required
+@floor_required
 def tables(request):
-    lang = lang_from_request(request)
+    """The board as the admin has always served it: bilingual, following the staff phone's language."""
+    return _render_board(request, lang_from_request(request), floor=False)
+
+
+@floor_required
+def mesas(request):
+    """The same board at `/mesas/`, in Spanish, with the floor console's own navigation.
+
+    Spanish is not negotiated here, unlike `/tables/`, which reads `Accept-Language`. The floor console has one
+    audience and it works in Spanish; a board that changed language because somebody picked up the wrong phone
+    is a worse board. The nav strip is the only other difference, because a floor account has nowhere else to
+    go: no admin, so the links out have to be on the page.
+    """
+    return _render_board(request, 'es', floor=True)
+
+
+def _render_board(request, lang, floor):
     board = _board(lang)
     show = current_show()
     taken, owed, currency = 0, 0, 'mxn'
@@ -155,6 +171,7 @@ def tables(request):
                 row['is_open'] = True
     return render(request, 'embed/tables.html', {
         'lang': lang,
+        'floor': floor,
         'tables': board,
         'waiting': waiting,
         'open_count': sum(1 for t in board if t['orders']),
@@ -168,7 +185,7 @@ def tables(request):
     })
 
 
-@staff_member_required
+@floor_required
 @require_POST
 def settle_table(request, number):
     """They have paid. Everything on this table tonight is settled, and anything still open was clearly served.
@@ -187,7 +204,7 @@ def settle_table(request, number):
     return redirect('tables')
 
 
-@staff_member_required
+@floor_required
 @require_POST
 def close_table(request, number):
     """Everything open on this table has been delivered."""

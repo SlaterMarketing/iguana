@@ -29,6 +29,10 @@ db_name: iguana
 db_user: iguana
 db_password: "{{ lookup('file', creds + '/db_password') }}"
 django_secret_key: "{{ lookup('file', creds + '/django_secret_key') }}"
+# The shared password for the two /mesas/ accounts (mesero, bar). Short and typed on a shared phone
+# behind a bar, so it is re-applied on every deploy rather than curated in the admin. Those accounts are
+# is_staff=False, which is what closes /admin/ to them; see backend/api/floor.py.
+floor_password: "{{ lookup('file', creds + '/floor_password') }}"
 public_api_key: "{{ lookup('file', creds + '/public_api_key') }}"
 secret_api_key: "{{ lookup('file', creds + '/secret_api_key') }}"
 # Stripe live keys for the account that charges for tickets and memberships.

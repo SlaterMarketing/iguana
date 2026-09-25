@@ -1,0 +1,30 @@
+{% extends "embed/base.html" %}
+{% block title %}Entrar · Iguana Comedy{% endblock %}
+{% block head %}
+<style>
+  .wrap { max-width: 420px; }
+  form.stack > * + * { margin-top: 14px; }
+  .err { color: var(--danger); font-size: .9rem; margin: 0; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="stack">
+  <div>
+    <p class="eyebrow">Iguana Comedy</p>
+    <h1>Mesas</h1>
+    <p class="muted">Entra para ver las mesas y el inventario.</p>
+  </div>
+  <form class="card stack" method="post" action="/mesas/entrar/">
+    {% csrf_token %}
+    <input type="hidden" name="next" value="{{ next }}">
+    {% if error %}<p class="err">{{ error }}</p>{% endif %}
+    <label>Usuario
+      <input name="username" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" required autofocus>
+    </label>
+    <label>Contraseña
+      <input name="password" type="password" autocomplete="current-password" required>
+    </label>
+    <button class="btn" type="submit">Entrar</button>
+  </form>
+</div>
+{% endblock %}

@@ -245,6 +245,23 @@
       no_log: true
       changed_when: true
 
+    # The floor console's two accounts: a waiter and the bar, `/mesas/` and nothing else. The command forces
+    # `is_staff = False` every run, which is the whole security model: Django's admin turns away a non-staff
+    # account at the login form before it consults any permission, so `/admin/` is shut by construction rather
+    # than by withholding every model permission one at a time. See `api/floor.py`.
+    #
+    # Unlike the owner and admin accounts the password IS re-applied every deploy. It is a short shared word
+    # typed on a phone behind a bar by whoever is on shift, so pretending it is a secret somebody curates in
+    # the admin would be a fiction. To change it, change the credential file and deploy.
+    - name: Floor accounts for /mesas/
+      become: true
+      become_user: "{{ deploy_user }}"
+      command:
+        cmd: "{{ app_dir }}/backend/venv/bin/python manage.py ensure_floor_accounts --password {{ floor_password }}"
+        chdir: "{{ app_dir }}/backend"
+      no_log: true
+      changed_when: true
+
     # ------------------------------------------------------------------ site
     # `npm ci` DELETES node_modules and rebuilds it, under a Node server that is still serving and still
     # resolving Astro's imports lazily. So every deploy opened a window where a live request could throw

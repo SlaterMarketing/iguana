@@ -36,6 +36,14 @@
   .t form.tab { margin-top: 10px; }
   .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
   .head .tonight { display: block; font-size: .78rem; margin-top: 2px; }
+  .floornav { display: flex; gap: 8px; margin: 14px 0 4px; }
+  .floornav a, .floornav form button { flex: 1 1 0; text-align: center; border: 1px solid var(--line);
+    background: #fff; border-radius: 999px; padding: 12px 10px; font: 700 .72rem/1 inherit;
+    letter-spacing: .16em; text-transform: uppercase; color: var(--muted); text-decoration: none;
+    cursor: pointer; width: auto; min-height: 0; }
+  .floornav a.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .floornav form { flex: 1 1 0; margin: 0; }
+  .floornav form button { width: 100%; }
   /* The queue reads top to bottom, longest wait first. One row per table, because that is what Delivered closes. */
   .queue h2 { font-size: .78rem; letter-spacing: .16em; text-transform: uppercase; margin-bottom: 8px; }
   .q { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
@@ -82,6 +90,16 @@
       {% if rounds %}<span class="tonight">{% if rounds == 1 %}{% t lang "1 round tonight" %}{% else %}{% t lang "{0} rounds tonight" rounds %}{% endif %}{% if taken %} · {% t lang "{0} taken" taken %}{% endif %}{% if owed %} · {% t lang "{0} still owed" owed %}{% endif %}</span>{% endif %}
     </p>
   </div>
+
+  {# La consola de piso no tiene admin detrás: los enlaces de salida van en la página. #}
+  {# Sólo en /mesas/, porque en /tables/ el personal llega desde el admin y ya tiene navegación. #}
+  {% if floor %}
+    <div class="floornav">
+      <a class="on" href="/mesas/">Mesas</a>
+      <a href="/mesas/inventario/">Inventario</a>
+      <form method="post" action="/mesas/salir/">{% csrf_token %}<button type="submit">Salir</button></form>
+    </div>
+  {% endif %}
 
   {% if waiting %}
     <section class="queue">

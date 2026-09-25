@@ -353,3 +353,76 @@ class FormSubmission(models.Model):
 
     def __str__(self):
         return f'{self.endpoint.slug}: {self.email}'
+
+
+class InventoryItem(models.Model):
+    """What is behind the bar, counted by the people who are behind the bar.
+
+    Deliberately NOT tied to `MenuItem`. A menu item is what a customer can order; inventory is what runs out,
+    and the two are different lists. A bar sells one gin and tonic and loses gin, tonic, limes and ice from
+    four different suppliers in four different units, so a model that decrements a drink when it is sold gets
+    the arithmetic wrong in a way nobody can correct at 1am. This is a count sheet: the staff say what is
+    there, and the number is whatever they last said it was.
+
+    `par` is the level worth reordering at, not a minimum. The list sorts anything at or below it to the top,
+    because the only question this page answers in a hurry is what to buy tomorrow.
+    """
+
+    BAR = 'bar'
+    KITCHEN = 'kitchen'
+    SUPPLIES = 'supplies'
+    AREAS = [(BAR, 'Barra'), (KITCHEN, 'Cocina'), (SUPPLIES, 'Insumos')]
+
+    # 🚨 One name field, in Spanish, and no `name_es` beside it. The floor console is Spanish only because
+    # the floor is: everything else in this project is bilingual because a CUSTOMER reads it, and a staff
+    # count sheet has no second audience. A second name column here would only ever be half filled.
+    id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
+    name = models.CharField(max_length=120, help_text='En español: es lo que ve el personal.')
+    area = models.CharField(max_length=20, choices=AREAS, default=BAR)
+    unit = models.CharField(max_length=30, blank=True, help_text='bottle, case, kg, each. Free text on purpose.')
+    quantity = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    par = models.DecimalField(max_digits=10, decimal_places=2, default=0,
+                              help_text='Reorder at or below this. 0 means never flag it.')
+    note = models.CharField(max_length=300, blank=True)
+    # Archived rather than deleted, so a count from last month still names what it counted.
+    active = models.BooleanField(default=True)
+    sort_order = models.IntegerField(default=0)
+    created_at = models.DateTimeField(default=timezone.now)
+    # auto_now, not a default: every write here is somebody recounting, and "when was this last looked at" is
+    # the second question the page gets asked. A `default=timezone.now` would freeze at the row's creation.
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['area', 'sort_order', 'name']
+
+    def __str__(self):
+        return f'{self.name} ({self.quantity:g} {self.unit})'.replace(' )', ')')
+
+    @property
+    def low(self):
+        return self.par > 0 and self.quantity <= self.par
+
+
+class InventoryChange(models.Model):
+    """Every adjustment, with who made it.
+
+    A count sheet with no history cannot answer the only question worth asking of one, which is where it went.
+    The row keeps the resulting quantity as well as the change, so a later correction does not rewrite what an
+    earlier person said they saw.
+    """
+
+    id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
+    item = models.ForeignKey(InventoryItem, on_delete=models.CASCADE, related_name='changes')
+    delta = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity_after = models.DecimalField(max_digits=10, decimal_places=2)
+    note = models.CharField(max_length=200, blank=True)
+    # The name rather than a foreign key: the row has to survive the account being removed, and "who counted
+    # this" is a fact about that night, not a live link to a user.
+    who = models.CharField(max_length=80, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.item.name} {self.delta:+g} -> {self.quantity_after:g}'

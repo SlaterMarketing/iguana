@@ -1,8 +1,9 @@
 from django.contrib import admin
 from django.utils.html import format_html
 
-from .models import (Artist, Event, FormEndpoint, FormSubmission, LineupEntry, MenuCategory, MenuItem, SiteFile,
-                     StoreCollection, StoreProduct, StoreProductImage, StoreVariant, TicketType, Tour, Venue)
+from .models import (Artist, Event, FormEndpoint, FormSubmission, InventoryChange, InventoryItem,
+                     LineupEntry, MenuCategory, MenuItem, SiteFile, StoreCollection, StoreProduct,
+                     StoreProductImage, StoreVariant, TicketType, Tour, Venue)
 
 
 def thumb(url):
@@ -145,3 +146,27 @@ class MenuItemAdmin(admin.ModelAdmin):
     list_editable = ('price_cents', 'available', 'sort_order')
     list_filter = ('category', 'available')
     search_fields = ('name', 'name_es')
+
+@admin.register(InventoryItem)
+class InventoryItemAdmin(admin.ModelAdmin):
+    """The owner's view of the count sheet. The floor keeps it at /mesas/inventario/; this is for corrections."""
+
+    list_display = ('name', 'area', 'quantity', 'unit', 'par', 'low', 'active', 'updated_at')
+    list_filter = ('area', 'active')
+    search_fields = ('name', 'note')
+    list_editable = ('quantity', 'par', 'active')
+
+
+@admin.register(InventoryChange)
+class InventoryChangeAdmin(admin.ModelAdmin):
+    """Read only on purpose: it is the audit trail, and an editable audit trail is not one."""
+
+    list_display = ('created_at', 'item', 'delta', 'quantity_after', 'who', 'note')
+    list_filter = ('item__area',)
+    search_fields = ('item__name', 'who', 'note')
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False

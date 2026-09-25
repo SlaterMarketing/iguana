@@ -377,10 +377,23 @@ Tests: `python3 -m unittest discover -s scripts/tests`.
 Three pages behind the admin session, all bilingual, all on both domains.
 
 **Logins** (`~/.credentials/vpsorg/iguanacomedy/`): **`iguana`** is the owner account, superuser, so it reaches
-everything including the money (`owner_password`). **`bar`** is the door and the bar, plain staff, so it reaches
-`/tables/` and `/reservations/` but is refused `/stats/` and `/revenue/` (`bar_password`). `admin` is the
-account the first deploy creates (`admin_password`). Each password is set only when the account is created, so
-changing one in the admin is not undone by the next deploy.
+everything including the money (`owner_password`). `admin` is the account the first deploy creates
+(`admin_password`). Both passwords are set only when the account is created, so changing one in the admin is
+not undone by the next deploy.
+
+**`mesero` and `bar` are the floor accounts and they are NOT staff** (`floor_password`, shared, re-applied on
+every deploy because it is a short word typed on a shared phone behind a bar). They reach `/mesas/` and its
+inventory, and nothing else.
+🚨 **`is_staff = False` is the entire security model, on purpose.** Django's admin turns away a non-staff
+account at the login form, before it consults a single permission, so `/admin/` is shut by construction rather
+than by remembering to withhold every model permission one at a time; a permission added to one of these
+accounts later still cannot open the admin. `manage.py ensure_floor_accounts --password <pw>` forces the flag
+off every deploy, because somebody ticking "staff status" in the admin to be helpful is the realistic way that
+protection disappears. `api.tests.FloorConsoleTests` asserts the refusal rather than asserting an empty admin,
+and the production sweep checks it against the live box.
+⚠ **`bar` used to be a staff account and this DEMOTED it, so `/reservations/` is now owner-only.** That page is
+the door's guest list, because nobody scans the QR codes. If the door needs it back, the fix is to let
+`is_floor` through `reservations_views` as well; it was left alone because the ask was "just that page".
 
 - **`/reservations/`** (any staff, so the `bar` login reaches it): every night with seats against capacity, a
   fill bar, bookings, seats left, what was taken online and what is owed at the door, and under each night the
@@ -391,6 +404,9 @@ changing one in the admin is not undone by the next deploy.
   saw it, clicks and CTR, over seven days and today), the room night by night (seats taken against capacity, with a fill bar
   and seats left), today's funnel from visit to booking, cost per reservation free against paid for today,
   yesterday and seven days, and a line for the list size and any open bar tab. Refreshes itself every 60s.
+  🔑 **A Playwright check on these pages must be case-insensitive.** The nav and the labels are uppercased in
+  CSS and `innerText` returns what is RENDERED, so `/Inventario/` fails on a page that is perfectly correct.
+  It cost time twice in one night: once on the demand nudges, once on the floor nav.
   ⚠ **Every one of these pages is read on a phone, so test at 320px, not just 390.** The ad table overflowed
   the page by 54px at 320 and 14px at 360 while looking perfect at 390; it stacks into one block per campaign
   under 420px now. The reservations guest list was worse because it did NOT overflow the page: the card
@@ -431,6 +447,24 @@ changing one in the admin is not undone by the next deploy.
   Every round is stamped with its show (`TableOrder.event`), which is what makes "what did the bar take on the
   Fredy night" answerable at all; `/stats/` prints it per night, rounds, drinks and collected against still
   owed. A round poured on a night with no show has no event, and that is correct rather than missing.
+- **`/mesas/`** (floor accounts, and the owner): the same board as `/tables/`, **in Spanish whatever the phone
+  says**, with a nav strip because a floor account has no admin to navigate from. Its own login at
+  `/mesas/entrar/`, never `/admin/login/`: the admin tells a non-staff account its correct password is wrong,
+  which at the start of service reads as a broken account and becomes a phone call. `?next=` is restricted to
+  `/mesas` paths so a crafted link cannot bounce somebody off the site.
+- **`/mesas/inventario/`** (same accounts): the count sheet. Spanish only, and that is a decision rather than an
+  omission: everything customer-facing here is bilingual because a customer reads it, and this has one
+  audience. Minus, plus, and a "Poner" box for the exact count; `Editar` per row for name, unit, reorder level,
+  area and archive; an add form at the bottom that insists only on a name, because a half-written row that
+  exists beats a complete one nobody stopped to type during service. Anything at or below its reorder level
+  sorts to the top and is flagged `Por pedir`, since the page exists to answer what to buy tomorrow.
+  ⚠ **`InventoryItem` is deliberately NOT tied to `MenuItem`.** One gin and tonic loses gin, tonic, limes and
+  ice in four units from four suppliers, so a model that decrements a drink when it is sold gets arithmetic
+  wrong in a way nobody can correct at 1am. The staff say what is on the shelf; the number is whatever they
+  last said it was. Every adjustment writes an `InventoryChange` with the resulting quantity and who made it,
+  because a count sheet with no history cannot answer the only question worth asking of one.
+  ⚠ A count can never go negative (taking the last one twice means zero), a comma is read as a decimal point,
+  and anything over 100,000 is refused so a slipped finger cannot write a million bottles.
 - **`/revenue/`** as before.
 
 🚨 **No request path may call Meta, and `/stats/` does not.** The ad account's rate limit clears only by

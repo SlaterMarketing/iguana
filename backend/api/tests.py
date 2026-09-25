@@ -1732,6 +1732,201 @@ class NewsletterLinkTests(ApiTestCase):
         self.assertIn('?night=es&date=2026-09-22&ic=', tag('https://x/es/open-mic/?night=es&date=2026-09-22', contact))
 
 
+class FloorConsoleTests(ApiTestCase):
+    """The floor console: `/mesas/` for the two people on shift, and the admin firmly shut behind them.
+
+    🚨 The password here is deliberately NOT the real one. This repository is public, so a fixture that reused
+    the production floor password would publish it to anybody reading the tests. The value is irrelevant to
+    what is being asserted: `ensure_floor_accounts` sets whatever it is given.
+    """
+
+    def floor(self, username='mesero'):
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', username, verbosity=0)
+        self.assertTrue(self.client.login(username=username, password='no-es-la-real'))
+
+    def test_both_accounts_exist_and_neither_is_staff(self):
+        from django.contrib.auth import get_user_model
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', verbosity=0)
+        users = {u.username: u for u in get_user_model().objects.filter(username__in=('mesero', 'bar'))}
+        self.assertEqual(set(users), {'mesero', 'bar'})
+        for user in users.values():
+            self.assertFalse(user.is_staff, f'{user.username} must not be staff: that is what shuts /admin/')
+            self.assertFalse(user.is_superuser)
+            self.assertTrue(user.groups.filter(name='Floor').exists())
+            self.assertTrue(user.check_password('no-es-la-real'))
+
+    def test_a_floor_account_cannot_reach_the_admin(self):
+        """🚨 The requirement in one test. Not "sees an empty admin": is refused at the door."""
+        self.floor()
+        for path in ('/admin/', '/admin/catalog/event/', '/admin/auth/user/'):
+            res = self.client.get(path, follow=True)
+            body = res.content.decode()
+            self.assertNotIn('Site administration', body, f'{path} let a floor account into the admin')
+            self.assertIn('/admin/login', res.request['PATH_INFO'] + ''.join(u for u, _ in res.redirect_chain),
+                          f'{path} did not bounce a floor account to the login')
+
+    def test_the_admin_login_itself_refuses_them(self):
+        """Even with the right password: `is_staff = False` is refused by the form, before any permission."""
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'mesero', verbosity=0)
+        res = self.client.post('/admin/login/', {'username': 'mesero', 'password': 'no-es-la-real',
+                                                 'next': '/admin/'}, follow=True)
+        self.assertNotIn('Site administration', res.content.decode())
+
+    def test_a_promoted_floor_account_is_demoted_on_the_next_deploy(self):
+        """Somebody ticks "staff status" in the admin to be helpful; the deploy takes it straight back off."""
+        from django.contrib.auth import get_user_model
+        from django.core.management import call_command
+
+        User = get_user_model()
+        User.objects.create_user('mesero', password='x', is_staff=True, is_superuser=True)
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'mesero', verbosity=0)
+        user = User.objects.get(username='mesero')
+        self.assertFalse(user.is_staff)
+        self.assertFalse(user.is_superuser)
+
+    def test_mesas_is_spanish_whatever_the_phone_says(self):
+        """`/tables/` follows Accept-Language; `/mesas/` does not, because the floor works in Spanish."""
+        self.floor()
+        res = self.client.get('/mesas/', HTTP_ACCEPT_LANGUAGE='en-GB,en;q=0.9')
+        self.assertEqual(res.status_code, 200)
+        body = res.content.decode()
+        self.assertIn('Mesas', body)
+        self.assertIn('Inventario', body)
+        self.assertNotIn('Nothing waiting', body, 'an English phone must not get an English board here')
+
+    def test_signed_out_visitors_go_to_the_floor_login_not_the_admin_one(self):
+        for path in ('/mesas/', '/mesas/inventario/'):
+            res = self.client.get(path)
+            self.assertEqual(res.status_code, 302)
+            self.assertTrue(res['Location'].startswith('/mesas/entrar/'), f'{path} -> {res["Location"]}')
+
+    def test_the_owner_can_still_see_the_board(self):
+        from django.contrib.auth import get_user_model
+
+        self.client.force_login(get_user_model().objects.create_user('dueno', is_staff=True, is_superuser=True))
+        self.assertEqual(self.client.get('/mesas/').status_code, 200)
+
+    def test_a_crafted_next_cannot_bounce_them_off_the_site(self):
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'mesero', verbosity=0)
+        res = self.client.post('/mesas/entrar/?next=https://evil.example/x',
+                               {'username': 'mesero', 'password': 'no-es-la-real'})
+        self.assertEqual(res['Location'], '/mesas/')
+
+
+class FloorInventoryTests(ApiTestCase):
+    """El inventario: contar, corregir y agregar lo que falte, desde un teléfono."""
+
+    def setUp(self):
+        super().setUp()
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'mesero', verbosity=0)
+        self.client.login(username='mesero', password='no-es-la-real')
+
+    def item(self, **kw):
+        from catalog.models import InventoryItem
+
+        return InventoryItem.objects.create(**{'name': 'Tequila blanco', 'unit': 'botella',
+                                               'quantity': 6, 'par': 2, **kw})
+
+    def test_taking_one_off_and_putting_one_back(self):
+        from catalog.models import InventoryItem
+
+        it = self.item()
+        self.client.post(f'/mesas/inventario/{it.id}/ajustar/', {'delta': '-1'})
+        self.assertEqual(InventoryItem.objects.get(pk=it.pk).quantity, 5)
+        self.client.post(f'/mesas/inventario/{it.id}/ajustar/', {'delta': '1'})
+        self.assertEqual(InventoryItem.objects.get(pk=it.pk).quantity, 6)
+
+    def test_a_count_never_goes_negative(self):
+        """Somebody takes the last one twice. That means zero, not minus one."""
+        from catalog.models import InventoryItem
+
+        it = self.item(quantity=1)
+        for _ in range(3):
+            self.client.post(f'/mesas/inventario/{it.id}/ajustar/', {'delta': '-1'})
+        self.assertEqual(InventoryItem.objects.get(pk=it.pk).quantity, 0)
+
+    def test_setting_the_exact_count_wins_over_a_step(self):
+        from catalog.models import InventoryItem
+
+        it = self.item()
+        self.client.post(f'/mesas/inventario/{it.id}/ajustar/', {'set': '2,5', 'delta': '-1'})
+        self.assertEqual(float(InventoryItem.objects.get(pk=it.pk).quantity), 2.5,
+                         'a comma is a decimal point to the person typing it')
+
+    def test_every_adjustment_is_written_down_with_who(self):
+        from catalog.models import InventoryChange
+
+        it = self.item()
+        self.client.post(f'/mesas/inventario/{it.id}/ajustar/', {'delta': '-2', 'note': 'se rompió'})
+        change = InventoryChange.objects.get(item=it)
+        self.assertEqual(change.delta, -2)
+        self.assertEqual(change.quantity_after, 4)
+        self.assertEqual(change.who, 'mesero')
+        self.assertEqual(change.note, 'se rompió')
+
+    def test_adding_something_the_list_was_missing(self):
+        from catalog.models import InventoryItem
+
+        self.client.post('/mesas/inventario/agregar/',
+                         {'name': 'Limones', 'unit': 'kg', 'quantity': '3', 'par': '1', 'area': 'kitchen'})
+        it = InventoryItem.objects.get(name='Limones')
+        self.assertEqual(it.area, 'kitchen')
+        self.assertEqual(it.quantity, 3)
+
+    def test_a_nameless_item_is_not_created(self):
+        from catalog.models import InventoryItem
+
+        self.client.post('/mesas/inventario/agregar/', {'name': '   ', 'quantity': '5'})
+        self.assertEqual(InventoryItem.objects.count(), 0)
+
+    def test_a_slipped_finger_cannot_write_a_million_bottles(self):
+        from catalog.models import InventoryItem
+
+        it = self.item()
+        self.client.post(f'/mesas/inventario/{it.id}/ajustar/', {'set': '999999999'})
+        self.assertEqual(InventoryItem.objects.get(pk=it.pk).quantity, 6, 'refused, and the count is untouched')
+
+    def test_what_to_buy_sorts_to_the_top(self):
+        plenty = self.item(name='Ginebra', quantity=10, par=2)
+        short = self.item(name='Tonica', quantity=1, par=4)
+        body = self.client.get('/mesas/inventario/').content.decode()
+        self.assertLess(body.index(short.name), body.index(plenty.name))
+        self.assertIn('Por pedir', body)
+
+    def test_editing_and_archiving(self):
+        from catalog.models import InventoryItem
+
+        it = self.item()
+        self.client.post(f'/mesas/inventario/{it.id}/editar/',
+                         {'name': 'Tequila reposado', 'unit': 'caja', 'par': '3', 'area': 'bar'})
+        it.refresh_from_db()
+        self.assertEqual(it.name, 'Tequila reposado')
+        self.assertEqual(it.unit, 'caja')
+        self.client.post(f'/mesas/inventario/{it.id}/editar/', {'archive': '1'})
+        it.refresh_from_db()
+        self.assertFalse(it.active)
+        self.assertNotIn('Tequila reposado', self.client.get('/mesas/inventario/').content.decode())
+
+    def test_a_stranger_cannot_touch_the_inventory(self):
+        from catalog.models import InventoryItem
+
+        it = self.item()
+        self.client.logout()
+        res = self.client.post(f'/mesas/inventario/{it.id}/ajustar/', {'delta': '-6'})
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(InventoryItem.objects.get(pk=it.pk).quantity, 6)
+
+
 class BouncedMailTests(ApiTestCase):
     """A dead address must stop being mailed, and a live one must never be dropped for our own reputation."""
 
@@ -2800,11 +2995,25 @@ class TableSettleTests(ApiTestCase):
         self.client.post('/tables/9/settle/')
         self.assertIn('Nothing waiting', self.board())
 
-    def test_only_staff_can_settle(self):
+    def test_a_stranger_cannot_settle(self):
+        """Sent to the FLOOR login now, not the admin one: the bar settles tables, and the bar is not staff.
+
+        The redirect target changed when `/tables/` moved onto `floor_required`. Where it sends somebody is a
+        detail; what matters is that an unauthenticated POST cannot settle a table.
+        """
         self.client.logout()
         res = self.client.post('/tables/9/settle/')
         self.assertEqual(res.status_code, 302)
-        self.assertIn('/admin/login/', res['Location'])
+        self.assertIn('/mesas/entrar/', res['Location'])
+
+    def test_a_signed_in_customer_cannot_settle(self):
+        """Authenticated is not authorised: an ordinary fan account has no business on the board."""
+        from django.contrib.auth import get_user_model
+
+        self.client.force_login(get_user_model().objects.create_user('fan', password='x'))
+        res = self.client.post('/tables/9/settle/')
+        self.assertEqual(res.status_code, 302)
+        self.assertIn('/mesas/entrar/', res['Location'])
 
 
 class BarHistoryTests(ApiTestCase):

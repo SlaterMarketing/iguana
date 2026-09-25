@@ -95,25 +95,41 @@ await q.context().close();
 
 // ---------------------------------------------------------------- staff surfaces
 if (STAFF.user && STAFF.pass) {
-  console.log("\nstaff");
+  console.log("\nfloor console");
   const s = await page({ viewport: { width: 430, height: 932 }, isMobile: true, hasTouch: true, locale: "es-MX" });
-  await s.goto(`${API}/admin/login/?next=/tables/`, { waitUntil: "domcontentloaded" });
+  // The floor console has its own login on purpose: these accounts are is_staff=False, so /admin/login/ would
+  // tell them their correct password is wrong.
+  await s.goto(`${BASE}/mesas/entrar/`, { waitUntil: "domcontentloaded" });
   await s.fill('input[name="username"]', STAFF.user);
   await s.fill('input[name="password"]', STAFF.pass);
-  await s.click('input[type="submit"]');
+  await s.click('button[type="submit"]');
   await s.waitForTimeout(3000);
-  check("the bar account reaches /tables/", s.url().includes("/tables/"), s.url().replace(API, ""));
+  check("the floor account reaches /mesas/", s.url().includes("/mesas/") && !s.url().includes("entrar"), s.url().replace(BASE, ""));
   const board = await s.locator("body").innerText();
   check("the board lists tables", /Mesa 1/.test(board) && /Mesa 12/.test(board));
-  await s.context().close();
+  check("the board is in Spanish on an es-MX phone", /Mesas/.test(board) && !/Nothing waiting/.test(board));
+  // Case-insensitive on purpose: the nav is uppercased in CSS, and `innerText` returns what is RENDERED,
+  // so a case-sensitive match here fails on a page that is perfectly correct. Cost twenty minutes once.
+  check("it offers the inventory", /inventario/i.test(board));
 
-  const r = await page({ viewport: { width: 1280, height: 900 } });
-  await r.goto(`${API}/revenue/`, { waitUntil: "domcontentloaded" });
-  await r.waitForTimeout(1500);
-  check("/revenue/ is gated from the bar account", r.url().includes("/admin/login") || (await r.locator("body").innerText()).includes("Revenue"));
-  await r.context().close();
+  await s.goto(`${BASE}/mesas/inventario/`, { waitUntil: "domcontentloaded" });
+  await s.waitForTimeout(1500);
+  const inv = await s.locator("body").innerText();
+  check("the inventory loads", /Inventario/.test(inv) && s.url().includes("/mesas/inventario"));
+  check("it can add an item", (await s.locator('form[action="/mesas/inventario/agregar/"] input[name="name"]').count()) === 1);
+
+  // 🚨 The requirement, checked against production rather than assumed: the admin must refuse them.
+  await s.goto(`${API}/admin/`, { waitUntil: "domcontentloaded" });
+  await s.waitForTimeout(1500);
+  const admin = await s.locator("body").innerText();
+  check("the floor account is refused by /admin/", !/Site administration|Administración del sitio/.test(admin), s.url().replace(API, "").slice(0, 40));
+
+  await s.goto(`${API}/stats/`, { waitUntil: "domcontentloaded" });
+  await s.waitForTimeout(1200);
+  check("the floor account is refused by /stats/", !(await s.locator("body").innerText()).includes("Cost per"));
+  await s.context().close();
 } else {
-  console.log("\nstaff  (skipped: pass --staff <user> --pass <password>)");
+  console.log("\nfloor console  (skipped: pass --staff <user> --pass <password>)");
 }
 
 // ---------------------------------------------------------------- CLS, the thing that was broken

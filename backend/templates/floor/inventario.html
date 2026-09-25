@@ -1,0 +1,154 @@
+{% extends "embed/base.html" %}
+{% block title %}Inventario · Iguana Comedy{% endblock %}
+{% block head %}
+<style>
+  /* Un teléfono, una mano, poca luz. Botones grandes y un solo color que significa una sola cosa. */
+  .wrap { max-width: 720px; }
+  .top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .tabs { display: flex; gap: 8px; margin: 14px 0 4px; }
+  .tabs a, .tabs form button { flex: 1 1 0; text-align: center; border: 1px solid var(--line); background: #fff;
+    border-radius: 999px; padding: 12px 10px; font: 700 .72rem/1 inherit; letter-spacing: .16em;
+    text-transform: uppercase; color: var(--muted); text-decoration: none; cursor: pointer; }
+  .tabs a.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+  h2.area { font-size: .78rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted);
+    margin: 22px 0 8px; }
+  .it { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: #fff; }
+  .it + .it { margin-top: 8px; }
+  .it.low { border-color: #b7791f; background: #fdf6e7; }
+  .it-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .it-name { font-weight: 700; margin: 0; }
+  .it-qty { font-family: "Bebas Neue", sans-serif; font-size: 1.9rem; line-height: 1; }
+  .it-unit { font-size: .78rem; color: var(--muted); font-family: inherit; }
+  .it-note { margin: 4px 0 0; font-size: .78rem; color: var(--muted); }
+  .flag { display: inline-block; margin-left: 8px; font-size: .62rem; font-weight: 700; letter-spacing: .12em;
+    text-transform: uppercase; color: #8a5a00; }
+  .row { display: flex; align-items: center; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .row form { margin: 0; display: flex; gap: 8px; align-items: center; }
+  .step { width: 56px; min-height: 48px; border: 0; border-radius: 999px; background: var(--ink); color: #fff;
+    font: 700 1.2rem/1 inherit; cursor: pointer; }
+  .step:hover { background: var(--brand-hover); }
+  .set { width: 84px; min-height: 48px; text-align: center; }
+  .go { min-height: 48px; padding: 0 16px; border: 1px solid var(--ink); background: #fff; color: var(--ink);
+    border-radius: 999px; font: 700 .68rem/1 inherit; letter-spacing: .12em; text-transform: uppercase;
+    cursor: pointer; }
+  .go:hover { background: var(--ink); color: #fff; }
+  details.edit { margin-top: 8px; }
+  details.edit summary { font-size: .7rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+    color: var(--muted); cursor: pointer; }
+  details.edit .fields { display: grid; gap: 10px; margin-top: 10px; }
+  .two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .danger { border-color: var(--danger); color: var(--danger); background: #fff; }
+  .log { margin-top: 26px; }
+  .log p { margin: 0 0 4px; font-size: .78rem; color: var(--muted); }
+  select { font: inherit; padding: 12px 14px; border: 1px solid rgba(0,0,0,.2); border-radius: 12px;
+    width: 100%; background: #fff; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="stack">
+  <div class="top">
+    <div>
+      <p class="eyebrow">Iguana Comedy</p>
+      <h1>Inventario</h1>
+    </div>
+    <p class="muted">
+      {{ total }} artículo{{ total|pluralize:"s" }}
+      {% if bajos %}· <strong>{{ bajos|length }} por pedir</strong>{% endif %}
+    </p>
+  </div>
+
+  <div class="tabs">
+    <a href="/mesas/">Mesas</a>
+    <a class="on" href="/mesas/inventario/">Inventario</a>
+    <form method="post" action="/mesas/salir/">{% csrf_token %}<button type="submit">Salir</button></form>
+  </div>
+
+  {% for area, items in grupos %}
+    <h2 class="area">{{ area }}</h2>
+    {% for it in items %}
+      <div class="it{% if it.low %} low{% endif %}" id="i{{ it.id }}">
+        <div class="it-head">
+          <p class="it-name">
+            {{ it.name }}
+            {% if it.low %}<span class="flag">Por pedir</span>{% endif %}
+          </p>
+          <span class="it-qty">{{ it.quantity|floatformat:"-2" }}<span class="it-unit"> {{ it.unit }}</span></span>
+        </div>
+        {% if it.note %}<p class="it-note">{{ it.note }}</p>{% endif %}
+
+        <div class="row">
+          {# Quitar y poner son lo que más se usa, así que van primero y son lo más grande de la tarjeta. #}
+          <form method="post" action="/mesas/inventario/{{ it.id }}/ajustar/">
+            {% csrf_token %}<input type="hidden" name="delta" value="-1">
+            <button class="step" type="submit" aria-label="Quitar uno de {{ it.name }}">−</button>
+          </form>
+          <form method="post" action="/mesas/inventario/{{ it.id }}/ajustar/">
+            {% csrf_token %}<input type="hidden" name="delta" value="1">
+            <button class="step" type="submit" aria-label="Agregar uno a {{ it.name }}">+</button>
+          </form>
+          <form method="post" action="/mesas/inventario/{{ it.id }}/ajustar/">
+            {% csrf_token %}
+            <input class="set" name="set" inputmode="decimal" placeholder="Contar" aria-label="Poner la cantidad exacta de {{ it.name }}">
+            <button class="go" type="submit">Poner</button>
+          </form>
+        </div>
+
+        <details class="edit">
+          <summary>Editar</summary>
+          <form class="fields" method="post" action="/mesas/inventario/{{ it.id }}/editar/">
+            {% csrf_token %}
+            <label>Nombre<input name="name" value="{{ it.name }}" required></label>
+            <div class="two">
+              <label>Unidad<input name="unit" value="{{ it.unit }}" placeholder="botella, caja, kg"></label>
+              <label>Pedir en<input name="par" value="{{ it.par|floatformat:"-2" }}" inputmode="decimal"></label>
+            </div>
+            <label>Área
+              <select name="area">
+                {% for value, etiqueta in areas %}
+                  <option value="{{ value }}"{% if value == it.area %} selected{% endif %}>{{ etiqueta }}</option>
+                {% endfor %}
+              </select>
+            </label>
+            <label>Nota<input name="note" value="{{ it.note }}" placeholder="marca, proveedor, dónde está"></label>
+            <button class="btn" type="submit">Guardar</button>
+            <button class="go danger" type="submit" name="archive" value="1">Quitar de la lista</button>
+          </form>
+        </details>
+      </div>
+    {% endfor %}
+  {% empty %}
+    <p class="muted">Todavía no hay nada en la lista. Agrega lo primero abajo.</p>
+  {% endfor %}
+
+  <h2 class="area">Agregar</h2>
+  <form class="card fields" method="post" action="/mesas/inventario/agregar/" style="display:grid;gap:10px">
+    {% csrf_token %}
+    <label>Nombre<input name="name" placeholder="Tequila blanco" required></label>
+    <div class="two">
+      <label>Cantidad<input name="quantity" inputmode="decimal" placeholder="0"></label>
+      <label>Unidad<input name="unit" placeholder="botella"></label>
+    </div>
+    <div class="two">
+      <label>Pedir en<input name="par" inputmode="decimal" placeholder="2"></label>
+      <label>Área
+        <select name="area">
+          {% for value, etiqueta in areas %}<option value="{{ value }}">{{ etiqueta }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <label>Nota<input name="note" placeholder="marca, proveedor, dónde está"></label>
+    <button class="btn" type="submit">Agregar</button>
+  </form>
+
+  {% if movimientos %}
+    <div class="log">
+      <h2 class="area">Últimos movimientos</h2>
+      {% for m in movimientos %}
+        <p>{{ m.created_at|date:"d/m H:i" }} · {{ m.item.name }} ·
+           {% if m.delta > 0 %}+{% endif %}{{ m.delta|floatformat:"-2" }}
+           → {{ m.quantity_after|floatformat:"-2" }}{% if m.who %} · {{ m.who }}{% endif %}</p>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+{% endblock %}
