@@ -25,6 +25,10 @@ npm run build:node && node dist/server/entry.mjs &   # port 4321, env from .env
 node tests/account-flow.mjs                          # register, code sign-in, magic link
 node tests/reserve-flow.mjs                          # reserve a seat through the real checkout iframe
 
+# Against production
+node tests/full-sweep.mjs --staff mesero --pass "$(cat ~/.credentials/vpsorg/iguanacomedy/floor_password)"
+node tests/mobile-sweep.mjs --staff mesero --pass "$(cat ~/.credentials/vpsorg/iguanacomedy/floor_password)"  # the floor console at 320-430px
+
 # Site (Node 20, see .node-version)
 npm install
 npm run dev                      # Astro dev server; needs .env + .dev.vars (copy the .example files)
@@ -404,6 +408,14 @@ the door's guest list, because nobody scans the QR codes. If the door needs it b
   saw it, clicks and CTR, over seven days and today), the room night by night (seats taken against capacity, with a fill bar
   and seats left), today's funnel from visit to booking, cost per reservation free against paid for today,
   yesterday and seven days, and a line for the list size and any open bar tab. Refreshes itself every 60s.
+  🚨 **An element can be clipped INSIDE its own box without the page overflowing at all, and that is the fault
+  that hides.** The first floor nav gave each pill `flex: 1 1 0` plus a `min-width`, so the pill came out
+  narrower than its own uppercase label and "INVENTARIO" was cut off at **every** width, while 390px looked
+  fine. It also pushed the page 20px wide at 320. Both are gone: the nav is defined **once** in
+  `templates/embed/base.html` (four copies is how they drifted) and its pills are sized to their label and
+  wrap. `tests/mobile-sweep.mjs` measures page overflow, per-element clipping AND tap targets under 40px at
+  320/360/390/430, because a 15px-tall link is fine for a mouse and bad for a thumb: it is what found
+  `a.peek` at 101x15 and every `<summary>` at 14px.
   🔑 **A Playwright check on these pages must be case-insensitive.** The nav and the labels are uppercased in
   CSS and `innerText` returns what is RENDERED, so `/Inventario/` fails on a page that is perfectly correct.
   It cost time twice in one night: once on the demand nudges, once on the floor nav.

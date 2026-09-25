@@ -4,14 +4,6 @@
 <style>
   .wrap { max-width: 720px; }
   .top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
-  .floornav { display: flex; gap: 8px; margin: 14px 0 4px; flex-wrap: wrap; }
-  .floornav a, .floornav form button { flex: 1 1 0; min-width: 88px; text-align: center;
-    border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 12px 10px;
-    font: 700 .72rem/1 inherit; letter-spacing: .14em; text-transform: uppercase; color: var(--muted);
-    text-decoration: none; cursor: pointer; }
-  .floornav a.on { background: var(--ink); color: #fff; border-color: var(--ink); }
-  .floornav form { flex: 1 1 0; margin: 0; }
-  .floornav form button { width: 100%; }
   h2.cat { font-size: .78rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted);
     margin: 22px 0 8px; }
   .m { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: #fff; }
@@ -37,14 +29,17 @@
   .ing p { margin: 0 0 4px; font-size: .8rem; }
   .ing .none { color: #8a5a00; font-weight: 600; }
   .ing form.line { display: flex; gap: 8px; align-items: center; margin: 0 0 6px; }
-  .ing .del { min-height: 36px; padding: 0 12px; border: 1px solid var(--line); background: #fff;
+  .ing .del { min-height: 44px; padding: 0 14px; border: 1px solid var(--line); background: #fff;
     border-radius: 999px; font: 700 .64rem/1 inherit; letter-spacing: .1em; text-transform: uppercase;
     color: var(--danger); cursor: pointer; }
   select, input { font: inherit; padding: 12px 14px; border: 1px solid rgba(0,0,0,.2); border-radius: 12px;
     width: 100%; background: #fff; }
   .qty { max-width: 92px; text-align: center; }
-  label.check { display: flex; align-items: center; gap: 10px; font-size: .85rem; font-weight: 600; }
-  label.check input { width: 22px; height: 22px; }
+  /* The whole row is the target, not the 22px box: a checkbox is the smallest control on the page and this is
+     the one that decides whether a drink is on sale tonight. */
+  label.check { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 0 12px;
+    border: 1px solid var(--line); border-radius: 12px; font-size: .85rem; font-weight: 600; cursor: pointer; }
+  label.check input { width: 26px; height: 26px; flex: 0 0 auto; }
   .warn { background: #fdf6e7; border: 1px solid #b7791f; border-radius: 14px; padding: 12px 14px;
     font-size: .82rem; }
 </style>

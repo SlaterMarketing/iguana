@@ -5,13 +5,6 @@
   /* Un teléfono, una mano, poca luz. Botones grandes y un solo color que significa una sola cosa. */
   .wrap { max-width: 720px; }
   .top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
-  .tabs { display: flex; gap: 8px; margin: 14px 0 4px; flex-wrap: wrap; }
-  .tabs a, .tabs form button { flex: 1 1 0; min-width: 84px; text-align: center; border: 1px solid var(--line); background: #fff;
-    border-radius: 999px; padding: 12px 10px; font: 700 .72rem/1 inherit; letter-spacing: .16em;
-    text-transform: uppercase; color: var(--muted); text-decoration: none; cursor: pointer; }
-  .tabs a.on { background: var(--ink); color: #fff; border-color: var(--ink); }
-  .tabs form { flex: 1 1 0; margin: 0; }
-  .tabs form button { width: 100%; }
   h2.area { font-size: .78rem; letter-spacing: .16em; text-transform: uppercase; color: var(--muted);
     margin: 22px 0 8px; }
   .it { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: #fff; }
@@ -59,7 +52,7 @@
     </p>
   </div>
 
-  <div class="tabs">
+  <div class="floornav">
     <a href="/mesas/">Mesas</a>
     <a href="/mesas/carta/">Carta</a>
     <a class="on" href="/mesas/inventario/">Inventario</a>

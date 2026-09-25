@@ -36,14 +36,6 @@
   .t form.tab { margin-top: 10px; }
   .head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
   .head .tonight { display: block; font-size: .78rem; margin-top: 2px; }
-  .floornav { display: flex; gap: 8px; margin: 14px 0 4px; flex-wrap: wrap; }
-  .floornav a, .floornav form button { flex: 1 1 0; min-width: 84px; text-align: center; border: 1px solid var(--line);
-    background: #fff; border-radius: 999px; padding: 12px 10px; font: 700 .72rem/1 inherit;
-    letter-spacing: .16em; text-transform: uppercase; color: var(--muted); text-decoration: none;
-    cursor: pointer; width: auto; min-height: 0; }
-  .floornav a.on { background: var(--ink); color: #fff; border-color: var(--ink); }
-  .floornav form { flex: 1 1 0; margin: 0; }
-  .floornav form button { width: 100%; }
   /* The queue reads top to bottom, longest wait first. One row per table, because that is what Delivered closes. */
   .queue h2 { font-size: .78rem; letter-spacing: .16em; text-transform: uppercase; margin-bottom: 8px; }
   .q { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
@@ -63,7 +55,10 @@
                   background: var(--ink); color: #fff; font: 700 .7rem/1 inherit; letter-spacing: .16em;
                   text-transform: uppercase; cursor: pointer; }
   .q-act button:hover { background: var(--brand-hover); }
-  .peek { display: inline-block; margin-top: 6px; font-size: .72rem; font-weight: 700; letter-spacing: .12em;
+  /* 101x15 before: a 15px-tall link is not a target for a thumb, and this is how the bar reads a table's
+     rounds. Same words, the height of a button. */
+  .peek { display: inline-flex; align-items: center; min-height: 44px; margin-top: 2px; font-size: .72rem;
+          font-weight: 700; letter-spacing: .12em;
           text-transform: uppercase; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
   .peek:hover { color: var(--ink); }
   .rounds-list { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }

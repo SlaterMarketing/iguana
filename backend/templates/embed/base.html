@@ -32,6 +32,27 @@
     label { display: grid; gap: 6px; font-size: .85rem; font-weight: 600; }
     input { font: inherit; font-weight: 400; padding: 12px 14px; border: 1px solid rgba(0,0,0,.2); border-radius: 12px; width: 100%; background: #fff; }
     input:focus { outline: 2px solid var(--brand); outline-offset: 1px; }
+    /* The floor console's nav, defined ONCE here because four templates carry it and four copies is how they
+       drift. Pills are sized to their LABEL and wrap onto as many rows as they need: the first version gave
+       each one `flex: 1 1 0` with a `min-width`, which forced the row wider than a 320px phone (20px of page
+       overflow) and, worse, squeezed each pill narrower than its own uppercase text so "INVENTARIO" was
+       clipped inside its own button at every width tested. Content-sized and wrapping cannot do either. */
+    .floornav { display: flex; flex-wrap: wrap; gap: 8px; margin: 14px 0 4px; }
+    .floornav a, .floornav button { flex: 0 0 auto; width: auto; min-height: 44px; display: inline-flex;
+      align-items: center; justify-content: center; border: 1px solid var(--line); background: #fff;
+      border-radius: 999px; padding: 0 16px; font: 700 .7rem/1 "DM Sans", sans-serif; letter-spacing: .1em;
+      text-transform: uppercase; color: var(--muted); text-decoration: none; cursor: pointer;
+      white-space: nowrap; }
+    .floornav a:hover, .floornav button:hover { color: var(--ink); border-color: var(--ink); }
+    .floornav a.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .floornav form { flex: 0 0 auto; margin: 0; }
+    /* Every disclosure trigger on the floor console, in one place. A `summary` is 14px tall by default, which
+       is a fine target for a mouse and a bad one for a thumb in a dark room: measured 250x14 for "Editar" and
+       "Receta" at every width. `body:has(.floornav)` scopes this to the console rather than to the customer
+       pages that share this base, because the checkout iframe's height is measured to the pixel and must not
+       move. A browser without `:has()` simply keeps the old size; nothing breaks. */
+    body:has(.floornav) details > summary { display: flex; align-items: center; min-height: 44px;
+      padding: 4px 2px; }
   </style>
   {% block head %}{% endblock %}
 </head>
