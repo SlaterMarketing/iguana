@@ -6,10 +6,12 @@
 <style>
   /* Read on a phone, in a dark room, by somebody holding a tray. Big numbers, one colour that means one thing. */
   .wrap { max-width: 900px; }
-  /* 150px was narrower than the card's own contents: "Marcar pagado" beside an amount needs about 182px, so
-     at 360px the board made two 153px columns and the button ran off the card. One column on a small phone is
-     the right answer anyway, because these cards are read at arm's length. */
-  .board { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); }
+  /* The column minimum has to clear the WIDEST thing in the card, which is the amount beside "Marcar pagado":
+     168px of button plus 28px of padding. 150px gave a 360px phone two 153px columns and the button ran off
+     the card; 185px fixed that and still clipped at 430, where two 190px columns leave 160px for 168px of
+     button. 200px means a second column only appears once one actually fits, so a small phone gets one
+     column, which is the right answer anyway for a card read at arm's length. */
+  .board { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
   .t { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: #fff; }
   .t.open { border-color: var(--brand); background: var(--brand-soft); }
   .t.late { border-color: #b7791f; background: #fdf6e7; }
