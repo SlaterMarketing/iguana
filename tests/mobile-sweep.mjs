@@ -42,6 +42,7 @@ if (page.url().includes("entrar")) {
 }
 
 let failures = 0;
+let checks = 0;
 for (const width of WIDTHS) {
   await page.setViewportSize({ width, height: 844 });
   for (const [path, label] of PAGES) {
@@ -87,6 +88,7 @@ for (const width of WIDTHS) {
 
     const problems = (found.overflow > 1 ? 1 : 0) + found.clipped.length + found.offscreen.length + found.small.length;
     if (problems) failures += 1;
+    checks += 1;
     console.log(`${problems ? "FAIL" : "ok  "}  ${String(width).padEnd(4)} ${label.padEnd(11)}`
       + `${found.overflow > 1 ? ` page overflows ${found.overflow}px` : ""}`);
     for (const line of found.offscreen) console.log(`        offscreen: ${line}`);
@@ -95,6 +97,77 @@ for (const width of WIDTHS) {
   }
 }
 
+/**
+ * 🚨 The board with nothing on it renders no queue, no amount-due row and no void control, so a sweep of
+ * `/mesas/` alone passes while testing none of them. That is exactly what happened: 16/16 clean while
+ * "Marcar pagado" was 168px of text in a 125px box and ran off the card at 360px. So the breakdown of a table
+ * that actually has rounds is checked too, and when there are none the run SAYS so instead of counting a
+ * vacuous pass.
+ */
+const table = await (async () => {
+  await page.setViewportSize({ width: 390, height: 900 });
+  await page.goto(`${BASE}/mesas/`, { waitUntil: "domcontentloaded" });
+  await page.waitForTimeout(1200);
+  return page.evaluate(() => {
+    for (const card of document.querySelectorAll(".t")) {
+      if (card.querySelector(".tab") || card.querySelector("form[action*='/close/']")) {
+        return Number((card.id || "").replace("t", "")) || null;
+      }
+    }
+    return null;
+  });
+})();
+
+if (table === null) {
+  console.log("\n----  the breakdown, the amount-due row and the void control were NOT tested:");
+  console.log("      no table has any rounds tonight. Order a round and re-run to cover them.");
+} else {
+  console.log(`\nbreakdown of table ${table}, void panels open`);
+  for (const width of WIDTHS) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto(`${BASE}/mesas/?open=${table}`, { waitUntil: "domcontentloaded" });
+    await page.waitForTimeout(1200);
+    const panels = page.locator("details.void summary");
+    const count = await panels.count();
+    for (let i = 0; i < count; i += 1) await panels.nth(i).click().catch(() => {});
+    await page.waitForTimeout(400);
+    const found = await page.evaluate((vw) => {
+      const name = (el) => el.tagName.toLowerCase()
+        + (typeof el.className === "string" && el.className.trim() ? "." + el.className.trim().split(/\s+/)[0] : "");
+      const issues = [];
+      for (const el of document.querySelectorAll("body *")) {
+        const box = el.getBoundingClientRect();
+        if (box.width === 0 && box.height === 0) continue;
+        if (Math.round(box.right - vw) > 1 || Math.round(box.left) < -1) {
+          issues.push(`offscreen: ${name(el)} ${Math.round(box.left)}..${Math.round(box.right)} of ${vw}`);
+        }
+        const style = getComputedStyle(el);
+        if (el.scrollWidth - el.clientWidth > 2 && !["auto", "scroll"].includes(style.overflowX)) {
+          issues.push(`clipped:   ${name(el)} needs ${el.scrollWidth} has ${el.clientWidth}`);
+        }
+      }
+      for (const el of document.querySelectorAll("button, a, input, select, summary")) {
+        const box = el.getBoundingClientRect();
+        if (!(box.width || box.height)) continue;
+        const label = (el.tagName === "INPUT" && ["checkbox", "radio"].includes(el.type)) ? el.closest("label") : null;
+        const target = label ? label.getBoundingClientRect() : box;
+        if (target.height < 40) {
+          issues.push(`small tap: ${name(el)} ${Math.round(target.width)}x${Math.round(target.height)} "${(el.textContent || "").trim().slice(0, 16)}"`);
+        }
+      }
+      return { overflow: Math.max(0, document.documentElement.scrollWidth - vw),
+               issues: [...new Set(issues)].slice(0, 8),
+               panels: document.querySelectorAll("details.void").length };
+    }, width);
+    const problems = (found.overflow > 1 ? 1 : 0) + found.issues.length;
+    if (problems) failures += 1;
+    checks += 1;
+    console.log(`${problems ? "FAIL" : "ok  "}  ${String(width).padEnd(4)} breakdown  `
+      + `${found.panels} void panel(s)${found.overflow > 1 ? `, page overflows ${found.overflow}px` : ""}`);
+    for (const line of found.issues) console.log(`        ${line}`);
+  }
+}
+
 await browser.close();
-console.log(`\n${WIDTHS.length * PAGES.length - failures}/${WIDTHS.length * PAGES.length} page/width combinations clean`);
+console.log(`\n${checks - failures}/${checks} page/width combinations clean`);
 process.exit(failures ? 1 : 0);

@@ -6,7 +6,10 @@
 <style>
   /* Read on a phone, in a dark room, by somebody holding a tray. Big numbers, one colour that means one thing. */
   .wrap { max-width: 900px; }
-  .board { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  /* 150px was narrower than the card's own contents: "Marcar pagado" beside an amount needs about 182px, so
+     at 360px the board made two 153px columns and the button ran off the card. One column on a small phone is
+     the right answer anyway, because these cards are read at arm's length. */
+  .board { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); }
   .t { border: 1px solid var(--line); border-radius: 16px; padding: 12px 14px; background: #fff; }
   .t.open { border-color: var(--brand); background: var(--brand-soft); }
   .t.late { border-color: #b7791f; background: #fdf6e7; }
@@ -20,7 +23,7 @@
   .t button { width: 100%; min-height: 44px; border: 0; border-radius: 999px; background: var(--ink); color: #fff;
               font: 700 .72rem/1 inherit; letter-spacing: .18em; text-transform: uppercase; cursor: pointer; }
   .t button:hover { background: var(--brand-hover); }
-  .t .tab { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; flex-wrap: wrap;
+  .t .tab { display: flex; align-items: center; justify-content: space-between; gap: 6px; flex-wrap: wrap;
             margin: 10px 0 0; padding-top: 8px; border-top: 1px solid var(--line);
             font-size: .78rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
   .t .tab strong { font-size: 1.15rem; letter-spacing: 0; text-transform: none; color: var(--ink); }
@@ -28,7 +31,11 @@
   .t .tab.settled { color: var(--muted); }
   .t .tab.settled strong { color: var(--muted); text-decoration: line-through; }
   /* Beside the amount, and deliberately not the same shape as Delivered: one carries drinks, one takes money. */
-  .t button.paid { flex: 0 0 auto; width: auto; min-height: 34px; padding: 0 14px; border-radius: 999px;
+  /* Beside the amount when there is room, under it when there is not, and never narrower than its own label:
+     `flex: 0 0 auto` with a `width: auto` let the flex row hand it 125px for 168px of text. 34px tall was also
+     under a thumb's worth. */
+  .t button.paid { flex: 1 1 auto; width: auto; min-width: max-content; min-height: 44px; padding: 0 14px;
+                   border-radius: 999px;
                    background: #fff; color: var(--ink); border: 1px solid var(--ink);
                    font: 700 .66rem/1 inherit; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
   .t button.paid:hover { background: var(--ink); color: #fff; }
@@ -79,7 +86,7 @@
                          font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
                          cursor: pointer; }
   details.void form { display: grid; gap: 8px; margin: 4px 0 8px; }
-  details.void input { font: inherit; padding: 10px 12px; border: 1px solid rgba(0,0,0,.2);
+  details.void input { font: inherit; min-height: 44px; padding: 10px 12px; border: 1px solid rgba(0,0,0,.2);
                        border-radius: 10px; width: 100%; }
   details.void button { min-height: 44px; border: 1px solid var(--ink); border-radius: 999px; background: #fff;
                         color: var(--ink); font: 700 .66rem/1.2 inherit; letter-spacing: .08em;
