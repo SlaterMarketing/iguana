@@ -86,3 +86,83 @@ def deliver(order, who=''):
             order.save(update_fields=['status', 'delivered_at'])
         apply_stock(order, who=who)
     return order
+
+
+def return_stock(item, who=''):
+    """Put one voided line's ingredients back on the shelf. Returns rows written.
+
+    Only ever called for a line voided as NOT_MADE, and only when the round had already been delivered, because
+    a round that never left the bar never took anything out to give back. Both conditions are checked here
+    rather than at the call site: this is the arithmetic that decides whether the count sheet is true, and it
+    should not depend on every future caller remembering the rule.
+    """
+    from catalog.models import InventoryChange, InventoryItem
+
+    if item.stock_returned_at or not item.order.stock_applied_at:
+        return 0
+    if item.menu_item_id is None:
+        return 0   # the menu item is gone, so nothing records what this line consumed
+
+    written = 0
+    with transaction.atomic():
+        locked = type(item).objects.select_for_update().get(pk=item.pk)
+        if locked.stock_returned_at or not locked.order.stock_applied_at:
+            return 0
+
+        back = {}
+        if locked.menu_item_id is not None:
+            for ingredient in locked.menu_item.ingredients.all():
+                back[ingredient.inventory_item_id] = (
+                    back.get(ingredient.inventory_item_id, 0) + ingredient.quantity * locked.quantity)
+
+        if back:
+            rows = {i.id: i for i in InventoryItem.objects.select_for_update().filter(id__in=back)}
+            for item_id, amount in back.items():
+                stock = rows.get(item_id)
+                if stock is None:
+                    continue
+                before = stock.quantity
+                stock.quantity = before + amount
+                stock.save(update_fields=['quantity', 'updated_at'])
+                InventoryChange.objects.create(
+                    item=stock, delta=amount, quantity_after=stock.quantity,
+                    note=f'devuelto, mesa {locked.order.table_number}', who=who or 'barra')
+                written += 1
+
+        locked.stock_returned_at = timezone.now()
+        locked.save(update_fields=['stock_returned_at'])
+        item.stock_returned_at = locked.stock_returned_at
+    return written
+
+
+def void_line(item, reason, note='', who=''):
+    """Take a line off the bill, and settle what that means for the store room.
+
+    The two reasons are different facts, and conflating them is how a count sheet starts lying:
+
+    NOT_MADE  the drink was never poured, so the ingredients are still in the bottle and the count comes back
+              up. This is the "they didn't order it" case, a line added to the wrong table's ticket.
+    WASTED    the drink was made and thrown away, so it is gone. The money comes off the bill and the count
+              does NOT move: the stock is in a bin, and a sheet that claimed it was on the shelf would send
+              somebody looking for it. This is the "it wasn't any good" case.
+
+    Either way the line stays on the round, struck through, with who did it. Both things in one transaction,
+    because a line off the bill whose stock never settled is the silent drift the rest of this module exists to
+    prevent.
+    """
+    from .models import TableOrderItem
+
+    with transaction.atomic():
+        locked = TableOrderItem.objects.select_for_update().get(pk=item.pk)
+        if locked.voided_at:
+            return locked   # already off the bill; voiding twice must not refund twice
+        locked.voided_at = timezone.now()
+        locked.void_reason = reason if reason in dict(TableOrderItem.VOID_REASONS) else TableOrderItem.WASTED
+        locked.void_note = (note or '')[:200]
+        locked.voided_by = who
+        locked.save(update_fields=['voided_at', 'void_reason', 'void_note', 'voided_by'])
+        if locked.void_reason == TableOrderItem.NOT_MADE:
+            return_stock(locked, who=who)
+        locked.order.recount()
+    item.refresh_from_db()
+    return item

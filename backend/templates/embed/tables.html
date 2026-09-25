@@ -65,8 +65,26 @@
   .round + .round { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
   .round-head { display: flex; justify-content: space-between; gap: 8px; margin: 0; font-size: .8rem;
                 font-weight: 700; }
-  .round-item { display: flex; justify-content: space-between; gap: 8px; margin: 2px 0 0; font-size: .8rem;
-                color: var(--muted); }
+  .round-item { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 2px 8px;
+                margin: 4px 0 0; font-size: .8rem; color: var(--muted); }
+  .round-item .what { flex: 1 1 auto; }
+  .round-item .line { flex: 0 0 auto; }
+  /* Sigue en la ronda, tachado: la barra lo quiere fuera de la cuenta, y lo está, pero quitar un trago de una
+     cuenta también es como sale dinero de una caja, así que deja rastro. */
+  .round-item.is-void .what, .round-item.is-void .line { text-decoration: line-through; opacity: .6; }
+  .round-item .void-why { flex: 1 1 100%; font-size: .68rem; font-weight: 700; letter-spacing: .06em;
+                          text-transform: uppercase; color: #8a5a00; }
+  details.void { flex: 1 1 100%; }
+  details.void summary { display: flex; align-items: center; min-height: 40px; font-size: .66rem;
+                         font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+                         cursor: pointer; }
+  details.void form { display: grid; gap: 8px; margin: 4px 0 8px; }
+  details.void input { font: inherit; padding: 10px 12px; border: 1px solid rgba(0,0,0,.2);
+                       border-radius: 10px; width: 100%; }
+  details.void button { min-height: 44px; border: 1px solid var(--ink); border-radius: 999px; background: #fff;
+                        color: var(--ink); font: 700 .66rem/1.2 inherit; letter-spacing: .08em;
+                        text-transform: uppercase; padding: 0 14px; cursor: pointer; }
+  details.void button:hover { background: var(--ink); color: #fff; }
   .round-note { margin: 4px 0 0; font-size: .75rem; font-style: italic; color: var(--muted); }
   .round-state { margin: 4px 0 0; font-size: .66rem; font-weight: 700; letter-spacing: .12em;
                  text-transform: uppercase; color: var(--muted); }
@@ -151,7 +169,25 @@
                   <strong>{{ r.total }}</strong>
                 </p>
                 {% for i in r.items %}
-                  <p class="round-item"><span>{{ i.quantity }} x {{ i.name }}</span><span>{{ i.line }}</span></p>
+                  <div class="round-item{% if i.voided %} is-void{% endif %}">
+                    <span class="what">{{ i.quantity }} x {{ i.name }}</span>
+                    <span class="line">{{ i.line }}</span>
+                    {% if i.voided %}
+                      <span class="void-why">{{ i.void_reason }}{% if i.voided_by %} · {{ i.voided_by }}{% endif %}{% if i.void_note %} · {{ i.void_note }}{% endif %}</span>
+                    {% else %}
+                      {# Dos motivos, porque no son el mismo hecho para el inventario. #}
+                      {# Lo que no se preparó regresa a la existencia; lo que se tiró es merma y no regresa. #}
+                      <details class="void">
+                        <summary>{% t lang "Take it off" %}</summary>
+                        <form method="post" action="/tables/{{ t.number }}/linea/{{ i.id }}/quitar/">
+                          {% csrf_token %}
+                          <input name="note" placeholder="{% t lang "What happened (optional)" %}" maxlength="200">
+                          <button type="submit" name="reason" value="NOT_MADE">{% t lang "Not made, back in stock" %}</button>
+                          <button type="submit" name="reason" value="WASTED">{% t lang "Made and thrown away" %}</button>
+                        </form>
+                      </details>
+                    {% endif %}
+                  </div>
                 {% endfor %}
                 {% if r.note %}<p class="round-note">{{ r.note }}</p>{% endif %}
                 <p class="round-state">

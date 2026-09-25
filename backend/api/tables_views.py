@@ -20,7 +20,7 @@ from django.views.decorators.http import require_POST
 
 from sales.i18n import lang_from_request
 from sales.models import TableOrder
-from sales.stock import apply_stock, deliver
+from sales.stock import apply_stock, deliver, void_line
 from sales.services import format_money
 
 from .floor import floor_required
@@ -171,8 +171,10 @@ def _render_board(request, lang, floor):
             'waiting': order.status == TableOrder.OPEN,
             'paid': order.status == TableOrder.PAID,
             'total': format_money(order.total_cents, order.currency),
-            'items': [{'quantity': i.quantity, 'name': i.name,
-                       'line': format_money(i.unit_price_cents * i.quantity, order.currency)}
+            'items': [{'id': i.id, 'quantity': i.quantity, 'name': i.name,
+                       'line': format_money(i.unit_price_cents * i.quantity, order.currency),
+                       'voided': i.voided, 'void_reason': i.get_void_reason_display() if i.voided else '',
+                       'void_note': i.void_note, 'voided_by': i.voided_by}
                       for i in order.items.all()],
             'note': order.note,
         } for order in rounds]
@@ -219,6 +221,33 @@ def settle_table(request, number):
         rounds.filter(delivered_at__isnull=True).update(delivered_at=now)
         rounds.exclude(status=TableOrder.PAID).update(status=TableOrder.PAID, paid_at=now)
     return redirect(_back(request))
+
+
+@floor_required
+@require_POST
+def void_item(request, number, item_id):
+    """Take a line off a table's bill, because it was not ordered or was not any good.
+
+    🚨 The reason is not paperwork, it decides the arithmetic. "No se preparó" puts the ingredients back on the
+    shelf; "Se preparó y se tiró" leaves the count alone because the drink is in a bin, and a sheet that
+    claimed it was on the shelf would send somebody looking for it. `sales/stock.py::void_line` holds both.
+
+    Not a delete. The line stays on the round, struck through, with who took it off: the bar wants it gone from
+    the bill, which it is, but "remove a drink from the bill" is also how money leaves a till, so it has to
+    leave a trace. A deleted row would change the night's takings and leave nothing behind.
+    """
+    from sales.models import TableOrderItem
+
+    item = (TableOrderItem.objects
+            .filter(id=item_id, order__table_number=number, order__created_at__gte=service_start())
+            .exclude(order__status=TableOrder.CANCELLED)
+            .select_related('order', 'menu_item').first())
+    if item is not None:
+        void_line(item, request.POST.get('reason', ''), note=request.POST.get('note', ''), who=_who(request))
+    destination = _back(request)
+    if destination == '/mesas/':
+        return redirect(f'/mesas/?open={number}#t{number}')
+    return redirect(f'/tables/?open={number}#t{number}')
 
 
 @floor_required

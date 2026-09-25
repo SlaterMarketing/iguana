@@ -219,10 +219,35 @@ class TableOrder(models.Model):
 
     @property
     def summary(self):
-        return ', '.join(f'{i.quantity} x {i.name}' for i in self.items.all())
+        return ', '.join(f'{i.quantity} x {i.name}' for i in self.items.all() if not i.voided)
+
+    def recount(self):
+        """Re-add the lines that still count and save the total.
+
+        `total_cents` stays a stored column rather than becoming a property: the board, `/stats/` and the
+        night's takings all sum it across hundreds of rows, and a property would turn each of those into a
+        query per round. So it is recomputed at the one moment it can change.
+        """
+        self.total_cents = sum(item.line_cents for item in self.items.all())
+        self.save(update_fields=['total_cents'])
+        return self.total_cents
 
 
 class TableOrderItem(models.Model):
+    """A line on a round, and whether it was taken back off.
+
+    🚨 Taking a line off VOIDS it rather than deleting it. The bar wants it gone from the bill, which it is, but
+    a deleted row changes the night's takings leaving nothing behind: a void is the one thing in a bar that
+    everybody agrees has to be traceable, because "remove a drink from the bill" is also how money leaves a
+    till. The line stays, struck through, with who took it off and why.
+    """
+
+    # Why it came off, and the two are NOT the same fact about the store room. A drink that was never made is
+    # still in the bottle, so the count has to come back up. A drink that was made and thrown away is gone,
+    # and returning it to the count would make the sheet claim stock that is in a bin.
+    NOT_MADE, WASTED = 'NOT_MADE', 'WASTED'
+    VOID_REASONS = [(NOT_MADE, 'No se preparó'), (WASTED, 'Se preparó y se tiró')]
+
     id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
     order = models.ForeignKey(TableOrder, on_delete=models.CASCADE, related_name='items')
     menu_item = models.ForeignKey('catalog.MenuItem', null=True, blank=True, on_delete=models.SET_NULL)
@@ -230,6 +255,21 @@ class TableOrderItem(models.Model):
     name = models.CharField(max_length=120)
     quantity = models.PositiveSmallIntegerField()
     unit_price_cents = models.PositiveIntegerField()
+    voided_at = models.DateTimeField(null=True, blank=True)
+    void_reason = models.CharField(max_length=10, choices=VOID_REASONS, blank=True)
+    void_note = models.CharField(max_length=200, blank=True)
+    voided_by = models.CharField(max_length=80, blank=True)
+    # Whether the ingredients went back on the shelf. A stamp rather than inferred from the reason, because the
+    # round may never have been delivered, in which case nothing had left and there is nothing to return.
+    stock_returned_at = models.DateTimeField(null=True, blank=True)
+
+    @property
+    def voided(self):
+        return self.voided_at is not None
+
+    @property
+    def line_cents(self):
+        return 0 if self.voided else self.unit_price_cents * self.quantity
 
 
 class LoginToken(models.Model):

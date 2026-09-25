@@ -2105,6 +2105,159 @@ class SeedBarInventoryTests(ApiTestCase):
         self.assertEqual(InventoryItem.objects.filter(name='Victoria').count(), 1, 'and nothing is duplicated')
 
 
+class VoidLineTests(ApiTestCase):
+    """Taking a drink off a table's bill, when it was not ordered or was not any good."""
+
+    def setUp(self):
+        super().setUp()
+        from catalog.models import InventoryItem, MenuCategory, MenuItem, MenuItemIngredient
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'mesero',
+                     verbosity=0)
+        self.client.login(username='mesero', password='no-es-la-real')
+        category = MenuCategory.objects.create(name='Cervezas')
+        self.stock = InventoryItem.objects.create(name='Victoria', unit='botella', quantity=24)
+        self.beer = MenuItem.objects.create(category=category, name='Victoria', price_cents=5000)
+        MenuItemIngredient.objects.create(menu_item=self.beer, inventory_item=self.stock, quantity=1)
+
+    def round_for(self, quantity=3, table=6):
+        from sales.models import TableOrder, TableOrderItem
+
+        order = TableOrder.objects.create(table_number=table, currency='mxn', total_cents=5000 * quantity)
+        line = TableOrderItem.objects.create(order=order, menu_item=self.beer, name='Victoria',
+                                             quantity=quantity, unit_price_cents=5000)
+        return order, line
+
+    def void(self, order, line, reason, note=''):
+        return self.client.post(f'/tables/{order.table_number}/linea/{line.id}/quitar/',
+                                {'reason': reason, 'note': note})
+
+    def test_it_comes_off_the_bill(self):
+        from sales.models import TableOrder
+
+        order, line = self.round_for(quantity=3)
+        self.void(order, line, 'WASTED')
+        self.assertEqual(TableOrder.objects.get(pk=order.pk).total_cents, 0)
+
+    def test_only_the_line_taken_off_comes_off(self):
+        from sales.models import TableOrder, TableOrderItem
+
+        order, line = self.round_for(quantity=2)
+        keep = TableOrderItem.objects.create(order=order, menu_item=self.beer, name='Victoria',
+                                             quantity=1, unit_price_cents=5000)
+        order.recount()
+        self.void(order, line, 'WASTED')
+        self.assertEqual(TableOrder.objects.get(pk=order.pk).total_cents, 5000)
+        keep.refresh_from_db()
+        self.assertFalse(keep.voided)
+
+    def test_a_drink_that_was_never_made_goes_back_on_the_shelf(self):
+        from catalog.models import InventoryItem
+
+        order, line = self.round_for(quantity=2)
+        self.client.post(f'/tables/{order.table_number}/close/')       # delivered: stock has left
+        self.assertEqual(InventoryItem.objects.get(pk=self.stock.pk).quantity, 22)
+        self.void(order, line, 'NOT_MADE')
+        self.assertEqual(InventoryItem.objects.get(pk=self.stock.pk).quantity, 24)
+
+    def test_a_drink_that_was_made_and_binned_does_NOT_go_back_on_the_shelf(self):
+        """🚨 The distinction the whole feature turns on. The money comes off either way, but a drink that was
+        poured away is in a bin: a count that claimed it was on the shelf would send somebody looking for it."""
+        from catalog.models import InventoryItem
+        from sales.models import TableOrder
+
+        order, line = self.round_for(quantity=2)
+        self.client.post(f'/tables/{order.table_number}/close/')
+        self.void(order, line, 'WASTED')
+        self.assertEqual(InventoryItem.objects.get(pk=self.stock.pk).quantity, 22, 'still gone, it was poured')
+        self.assertEqual(TableOrder.objects.get(pk=order.pk).total_cents, 0, 'but nobody pays for it')
+
+    def test_a_round_never_delivered_has_nothing_to_give_back(self):
+        """Nothing had left the store room yet, so returning stock would invent it."""
+        from catalog.models import InventoryItem
+
+        order, line = self.round_for(quantity=2)
+        self.void(order, line, 'NOT_MADE')
+        self.assertEqual(InventoryItem.objects.get(pk=self.stock.pk).quantity, 24)
+
+    def test_voiding_twice_does_not_refund_or_restock_twice(self):
+        from catalog.models import InventoryItem
+        from sales.models import TableOrder
+
+        order, line = self.round_for(quantity=2)
+        self.client.post(f'/tables/{order.table_number}/close/')
+        for _ in range(3):
+            self.void(order, line, 'NOT_MADE')
+        self.assertEqual(InventoryItem.objects.get(pk=self.stock.pk).quantity, 24)
+        self.assertEqual(TableOrder.objects.get(pk=order.pk).total_cents, 0)
+
+    def test_it_is_a_void_not_a_delete_and_says_who(self):
+        """A deleted row changes the night's takings and leaves nothing behind."""
+        from sales.models import TableOrderItem
+
+        order, line = self.round_for(quantity=1)
+        self.void(order, line, 'WASTED', note='se cayó')
+        line = TableOrderItem.objects.get(pk=line.pk)
+        self.assertTrue(line.voided)
+        self.assertEqual(line.voided_by, 'mesero')
+        self.assertEqual(line.void_note, 'se cayó')
+        self.assertEqual(line.quantity, 1, 'the line still says what it was')
+
+    def test_the_voided_line_still_shows_on_the_board_struck_through(self):
+        order, line = self.round_for(quantity=1)
+        self.void(order, line, 'WASTED')
+        body = self.client.get(f'/mesas/?open={order.table_number}').content.decode()
+        self.assertIn('is-void', body)
+        self.assertIn('Se preparó y se tiró', body)
+
+    def test_the_stock_movement_says_it_came_back(self):
+        from catalog.models import InventoryChange
+
+        order, line = self.round_for(quantity=1)
+        self.client.post(f'/tables/{order.table_number}/close/')
+        self.void(order, line, 'NOT_MADE')
+        back = InventoryChange.objects.filter(delta__gt=0).first()
+        self.assertIn('devuelto', back.note)
+        self.assertEqual(back.who, 'mesero')
+
+    def test_an_unknown_reason_is_treated_as_waste(self):
+        """The cautious default: never invent stock that might be in a bin."""
+        from catalog.models import InventoryItem
+
+        order, line = self.round_for(quantity=1)
+        self.client.post(f'/tables/{order.table_number}/close/')
+        self.void(order, line, 'BANANA')
+        self.assertEqual(InventoryItem.objects.get(pk=self.stock.pk).quantity, 23)
+
+    def test_a_stranger_cannot_take_a_line_off_a_bill(self):
+        from sales.models import TableOrder
+
+        order, line = self.round_for(quantity=2)
+        self.client.logout()
+        res = self.void(order, line, 'WASTED')
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(TableOrder.objects.get(pk=order.pk).total_cents, 10000)
+
+    def test_a_line_from_another_table_cannot_be_voided_through_this_table(self):
+        from sales.models import TableOrder
+
+        mine, _ = self.round_for(quantity=1, table=6)
+        theirs, their_line = self.round_for(quantity=2, table=7)
+        self.client.post(f'/tables/6/linea/{their_line.id}/quitar/', {'reason': 'WASTED'})
+        self.assertEqual(TableOrder.objects.get(pk=theirs.pk).total_cents, 10000)
+
+    def test_settling_a_table_charges_what_is_left(self):
+        from sales.models import TableOrder
+
+        order, line = self.round_for(quantity=3)
+        self.void(order, line, 'WASTED')
+        self.client.post(f'/tables/{order.table_number}/settle/')
+        order.refresh_from_db()
+        self.assertEqual(order.status, TableOrder.PAID)
+        self.assertEqual(order.total_cents, 0)
+
+
 class FloorCartaTests(ApiTestCase):
     """La carta: precios y recetas, cambiados por la barra sin pasar por el admin."""
 

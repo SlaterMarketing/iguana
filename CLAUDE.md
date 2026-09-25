@@ -436,7 +436,21 @@ the door's guest list, because nobody scans the QR codes. If the door needs it b
   minutes, with the round and a Delivered button on each row. The grid of twelve below it is for state; the
   queue is for somebody holding a tray, who should not have to find the green cards in it.
   **`See breakdown`** opens a table's rounds itemised, each with its time, its lines, its total and whether it
-  is waiting, delivered or paid.
+  is waiting, delivered or paid. Each line carries **`Quitar de la cuenta`** for a drink they did not order or
+  that was not any good.
+  🚨 **Taking a line off asks WHICH of two things happened, because they are not the same fact about the store
+  room.** `No se preparó` means the drink was never poured, so the ingredients are still in the bottle and the
+  count comes back up. `Se preparó y se tiró` means it was made and binned, so the money comes off the bill and
+  **the count does not move**: the stock is in a bin, and a sheet claiming it was on the shelf would send
+  somebody looking for it. An unrecognised reason is treated as waste, because the cautious default is never to
+  invent stock. A round that was never delivered has nothing to give back, since nothing had left.
+  🚨 **It is a VOID, not a delete.** The line stays on the round, struck through, with who took it off and why.
+  The bar wants it gone from the bill and it is, but "remove a drink from the bill" is also how money leaves a
+  till, so it has to leave a trace; a deleted row would change the night's takings and leave nothing behind.
+  `TableOrder.recount()` re-adds the lines that still count, and `total_cents` stays a stored column because the
+  board, `/stats/` and the night's takings all sum it across hundreds of rows.
+  `api.tests.VoidLineTests` pins both stock outcomes, the double-tap, and that a line cannot be voided through
+  another table's number.
   ⚠ **It is a LINK carrying `?open=N#tN`, not a `<details>`.** The board reloads itself every twenty seconds
   and a panel that snaps shut mid-read is worse than no panel; the query string rides along with the refresh
   and the anchor puts the reader back on the same card.

@@ -249,6 +249,11 @@ ES = {
     'Delivered at the table': 'Entregado en la mesa',
     'Paid for': 'Pagado',
     'Over half reserved, worth booking early': 'Más de la mitad reservada, mejor reserva pronto',
+    # Quitar una línea de la cuenta. Los dos motivos no son el mismo hecho para el inventario.
+    'Take it off': 'Quitar de la cuenta',
+    'What happened (optional)': 'Qué pasó (opcional)',
+    'Not made, back in stock': 'No se preparó, regresa al inventario',
+    'Made and thrown away': 'Se preparó y se tiró',
     'Due': 'Por cobrar',
     '{0} rounds': '{0} rondas',
     'Nothing waiting': 'Nada pendiente',

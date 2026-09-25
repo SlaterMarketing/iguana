@@ -44,6 +44,7 @@ urlpatterns = [
     path('mesas/reservas/', reservations_views.reservations, name='floor-reservations'),
     path('tables/<int:number>/close/', tables_views.close_table, name='close-table'),
     path('tables/<int:number>/settle/', tables_views.settle_table, name='settle-table'),
+    path('tables/<int:number>/linea/<str:item_id>/quitar/', tables_views.void_item, name='void-item'),
     path('api/public/v1/menu', menu_views.menu),
     path('api/public/v1/table-orders', menu_views.table_order),
     path('api/public/v1/site', public_views.site),
