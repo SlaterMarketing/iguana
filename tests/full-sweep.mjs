@@ -56,6 +56,17 @@ for (const [name, url] of [["open mic es", `${BASE}/es/open-mic/?night=es`], ["p
   await p.goto(url, { waitUntil: "domcontentloaded" });
   await p.waitForTimeout(5000);
   const f = p.frames().find((x) => x.url().includes("/embed/event/"));
+  // A sold-out show has no checkout, on purpose, so asserting one would fail on a page that is correct. Check
+  // the sold-out treatment instead and say which branch ran, so a silently-missing checkout cannot pass as
+  // "sold out" either.
+  const body = await p.locator("body").innerText();
+  const gone = /AGOTADO|SOLD OUT/i.test(body) && !f;
+  if (gone) {
+    check(`${name}: sold out, and says so where the form was`, /AGOTADO|SOLD OUT/i.test(body));
+    check(`${name}: nothing left to buy`, (await p.locator("[data-kintana-widget]").count()) === 0);
+    await p.context().close();
+    continue;
+  }
   check(`${name}: checkout iframe mounted`, Boolean(f));
   if (f) {
     const txt = await f.locator("body").innerText();
