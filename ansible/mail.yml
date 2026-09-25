@@ -88,6 +88,27 @@
         # 38.86.78.0/24 is on the Spamhaus PBL (ISP-maintained, 127.0.0.11), so Gmail refuses the v4 address.
         # The v6 address has forward-confirmed rDNS and is in SPF, so prefer it wherever the MX has AAAA.
         - "smtp_address_preference = ipv6"
+        # 🚨 These two are what keep a TEMPORARY failure temporary, and without them Gmail mail dies of our
+        # own IP reputation. Measured 2026-09-25 over 995 deliveries to Google: 787 of 797 first attempts went
+        # over IPv6 and 197 of 198 RETRIES went over IPv4, which reads like random fallback and is not.
+        #
+        # Postfix opens up to `smtp_mx_session_limit` sessions per delivery attempt, default TWO, walking down
+        # the address list. Session one reaches Gmail over IPv6 and gets `452-4.2.2 the recipient is over
+        # quota`, an ordinary soft failure that should simply defer. Postfix then opens session two to the
+        # next address, which is our IPv4, and Gmail answers THAT with `550-5.7.1 The IP you are using to send
+        # mail is not authorized to send email directly to our servers`. The last session is the one that
+        # decides, so a full mailbox becomes a permanent rejection: the message is destroyed and the bounce
+        # names the wrong cause, one that makes the RECIPIENT look dead. It is exactly the trap
+        # `process_bounces` refuses to act on, and this is the other half of that fix, at the source.
+        #
+        # One session per attempt, so a soft failure stays soft and is retried later over IPv6 as usual. The
+        # cost is no second MX within a single attempt, which for a destination whose primary is briefly down
+        # means a 20 minute wait rather than an immediate retry: cheap beside losing the mail outright.
+        - "smtp_mx_session_limit = 1"
+        # And this so session one is deterministically the IPv6 one. Postfix 3.5+ defaults
+        # `smtp_balance_inet_protocols = yes`, which deliberately works IPv4 into the list rather than trying
+        # every IPv6 address first, and that would hand the single session to IPv4 some of the time.
+        - "smtp_balance_inet_protocols = no"
         - "mynetworks = 127.0.0.0/8 [::1]/128"
         - "smtpd_relay_restrictions = permit_mynetworks, reject_unauth_destination"
         - "smtpd_recipient_restrictions = permit_mynetworks, reject_unauth_destination, reject_unknown_recipient_domain, check_sender_access hash:/etc/postfix/blocked_senders"

@@ -1,0 +1,61 @@
+---
+import type { DemandLine } from "../lib/demand";
+
+/**
+ * How full the night is, said the same way everywhere.
+ *
+ * Two facts, not one. The bar and the line beside it are the state of the ROOM, which is the limited-space
+ * point; the line under them is other people booking. They used to share a single slot, and because nearly
+ * every night here has two or more recent bookings, the room's own state was never printed anywhere at all.
+ *
+ * It is a component rather than three copies of the same markup because the backend keeps its own mirror of
+ * this in the checkout iframe already, and a fourth divergent copy on the site was how the listings and the
+ * lander drifted apart in the first place.
+ */
+interface Props {
+  demand: DemandLine;
+  /** `light` for dark backgrounds (the poster cards), `dark` on the pale pages. */
+  tone?: "dark" | "light";
+  class?: string;
+}
+
+const { demand, tone = "dark", class: className } = Astro.props;
+const track = tone === "light" ? "bg-white/25" : "bg-neutral-900/10";
+const fill = tone === "light" ? "bg-white" : "bg-brand";
+const room = tone === "light" ? "opacity-100" : "text-brand";
+const tight = tone === "light" ? "text-amber-300" : "text-red-700";
+const quiet = tone === "light" ? "opacity-75" : "text-neutral-600";
+---
+
+<div class:list={["space-y-1.5", className]}>
+  {
+    demand.fill != null ? (
+      <div class:list={["h-1.5 overflow-hidden rounded-full", track]}>
+        <div class:list={["h-full rounded-full transition-[width] duration-500", fill]} style={`width: ${demand.fill}%`} />
+      </div>
+    ) : null
+  }
+  {
+    demand.room ? (
+      <p
+        class:list={[
+          /* Uppercase at wide tracking is for the short urgent rungs only. "Sold out" and "Only 6 seats left"
+             carry it; "Over half reserved, worth booking early" set that way is a shout, and a shout about a
+             half-full room reads as a sales tactic rather than a fact. The quiet version is more persuasive
+             because it sounds like it is simply true. */
+          demand.tight
+            ? "text-xs font-semibold uppercase tracking-[0.2em]"
+            : "text-[0.8rem] font-semibold tracking-[0.01em]",
+          demand.tight ? tight : room,
+        ]}
+      >
+        {demand.room}
+      </p>
+    ) : null
+  }
+  {
+    demand.momentum ? (
+      <p class:list={["text-xs font-medium tracking-[0.02em]", quiet]}>{demand.momentum}</p>
+    ) : null
+  }
+</div>

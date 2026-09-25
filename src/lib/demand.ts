@@ -42,6 +42,9 @@ export function eventDemand(evt: KintanaPublicEvent): EventDemand | null {
   };
 }
 
+/** Matches MIN_RECENT in `backend/sales/demand.py`. Below this a count is not social proof, it is an admission. */
+const MIN_RECENT = 2;
+
 const WINDOW_KEYS = {
   "in the last hour": "demand.window.hour",
   "in the last few hours": "demand.window.hours",
@@ -49,6 +52,22 @@ const WINDOW_KEYS = {
 } as const;
 
 export type DemandLine = {
+  /**
+   * The state of the room: sold out, nearly gone, over half, or a plain count. This is the limited-space fact,
+   * and it belongs with the bar because it is what the bar is drawing.
+   */
+  room: string;
+  /** Other people booking. Social proof, and empty below two, where a count is an admission rather than proof. */
+  momentum: string;
+  /**
+   * The single best line, for somewhere that only has room for one (the home hero badge).
+   *
+   * 🚨 `room` and `momentum` are DIFFERENT KINDS of fact and must not compete for the same slot. They used to:
+   * one ladder produced one sentence, momentum outranked half a room, and since almost every night here has
+   * two or more recent bookings the room's own state was never said out loud anywhere. Measured 2026-09-25,
+   * with Privilegio at 40 of 80 and the Tuesday open mic at 37 of 60, four surfaces printed "N people
+   * reserved in the last day" and not one of them mentioned that half the seats had gone.
+   */
   text: string;
   /** Genuinely nearly gone, so the line is worth colouring. */
   tight: boolean;
@@ -76,28 +95,33 @@ export function demandLine(evt: KintanaPublicEvent, locale: Locale): DemandLine 
   // the recent line and above the plain count. Nothing is said about an empty room: that is not an argument
   // for coming, and a weak number reads as an admission.
   const half = d.capacity > 0 && d.taken / d.capacity >= 0.5;
-  let text = "";
+  let room = "";
   if (gone) {
-    text = t(locale, "demand.soldOut");
+    room = t(locale, "demand.soldOut");
   } else if (tight) {
-    text = t(locale, "demand.left", { count: String(d.left), total: String(d.capacity) });
-  } else if (d.recent >= 2 && d.recentWindow in WINDOW_KEYS) {
-    const when = t(locale, WINDOW_KEYS[d.recentWindow as keyof typeof WINDOW_KEYS]);
-    text = t(locale, "demand.recent", { count: String(d.recent), window: when });
+    room = t(locale, "demand.left", { count: String(d.left), total: String(d.capacity) });
   } else if (half) {
-    text = t(locale, "demand.half");
+    room = t(locale, "demand.half");
   } else if (d.showBar) {
-    text = t(locale, "demand.taken", { taken: String(d.taken), total: String(d.capacity) });
+    room = t(locale, "demand.taken", { taken: String(d.taken), total: String(d.capacity) });
   }
+
+  let momentum = "";
+  if (!gone && d.recent >= MIN_RECENT && d.recentWindow in WINDOW_KEYS) {
+    const when = t(locale, WINDOW_KEYS[d.recentWindow as keyof typeof WINDOW_KEYS]);
+    momentum = t(locale, "demand.recent", { count: String(d.recent), window: when });
+  }
+
+  // For one slot only: running out beats somebody else booking, which beats a plain count. Unchanged, so the
+  // hero badge reads exactly as it did.
+  const text = gone || tight ? room : momentum || room;
   if (!text) return null;
 
-  return { text, tight, fill: d.showBar ? Math.min(100, Math.round((d.taken / d.capacity) * 100)) : null };
+  return { room, momentum, text, tight, fill: d.showBar ? Math.min(100, Math.round((d.taken / d.capacity) * 100)) : null };
 }
 
 /** Tightest first, matching WINDOWS in `backend/sales/demand.py`; also the tie-break order. */
 const WINDOW_ORDER = ["in the last hour", "in the last few hours", "in the last day"];
-/** Matches MIN_RECENT there. Below this a count is not social proof, it is an admission. */
-const MIN_RECENT = 2;
 
 /**
  * One sentence about the open mics as a whole, rather than one per night.

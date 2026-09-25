@@ -212,7 +212,23 @@ iframe prints it because the host does not). Both must say the same thing, in th
 5. **N of M seats taken** once a third is gone (`BAR_FROM`).
 6. Nothing at all below that. A small number is not social proof, it is an admission.
 
-A burst outranks half a room on purpose: half is truer for longer, a burst is more persuasive now.
+🚨 **Rungs 1 to 2 and 4 to 6 describe the ROOM; rung 3 describes OTHER PEOPLE. They are different facts and
+they must not compete for one slot.** They did until 2026-09-25: one ladder produced one sentence, a burst
+outranked half a room, and since nearly every night here has two or more recent bookings, **the room's own
+state was never printed on any surface at all.** Privilegio sat at 40 of 80 and the Tuesday open mic at 37 of
+60 while the home page, the listings, the lander and the checkout all said only "N people reserved in the last
+day". `demandLine()` now returns `room` and `momentum` separately and `src/components/DemandLines.astro`
+renders the bar, the room line and the momentum line together, everywhere. `text` is still the single best
+line for the one surface with room for only one (the home hero badge), and its order is unchanged.
+`api.tests.DemandNudgeTests.test_a_burst_does_not_silence_the_room` pins it.
+⚠ **Uppercase at wide tracking is for the SHORT urgent rungs only.** "Sold out" and "Only 6 seats left" carry
+it; "Over half reserved, worth booking early" set that way is a shout, and a shout about a half-full room
+reads as a sales tactic rather than a fact.
+⚠ A sold-out night says nothing about momentum: there is nothing left to sell, so "3 people reserved" is noise
+on top of the answer.
+
+A burst outranks half a room in the ONE-LINE slot on purpose: half is truer for longer, a burst is more
+persuasive now.
 🚨 **"Nearly gone" is a FIFTH of the room capped at ten, never a flat ten.** A flat ten on a small night is a
 lie anybody can check: a room of three with nothing sold has three left, and the page would announce "Only 3
 seats left of 3" to an empty house. Caught by a test rather than in the wild, because every live ticket type
@@ -586,10 +602,30 @@ unsubscribes, tags the contact `hard-bounce` and stamps `CampaignRecipient.bounc
 permanent is printed and left alone. `api.tests.BouncedMailTests` pins the `5.7.1` case specifically.
 ⚠ **Read the structured `message/delivery-status` part, never the human paragraph above it** (that quotes the
 remote server verbatim and it words things however it likes).
-⚠ **A deferred message retried over IPv4 is how a temporary problem becomes a hard bounce.**
-`smtp_address_preference = ipv6` only sorts v6 first: first attempts to Gmail go over v6 and succeed (measured
-746 sent v6 against 5 bounced v4), but a message deferred for `4.2.2` over-quota gets retried and can take the
-v4 path into the PBL rejection. Small, so it is documented rather than fixed with a v6-only transport.
+🚨 **Postfix was turning Gmail's TEMPORARY failures into permanent ones, using our own IP reputation to do
+it, and `smtp_address_preference = ipv6` did not prevent it.** Measured 2026-09-25 over 995 deliveries to
+Google: 787 of 797 first attempts went over IPv6 and **197 of 198 retries went over IPv4**. That looks like
+random fallback and is not. Postfix opens up to `smtp_mx_session_limit` sessions per delivery attempt,
+**default two**, walking down the address list: session one reaches Gmail over IPv6 and gets `452-4.2.2 the
+recipient is over quota`, which should simply defer; Postfix then opens session two to the next address,
+our IPv4, and Gmail answers that with `550-5.7.1 The IP you are using to send mail is not authorized`. The
+last session decides, so a full mailbox becomes a permanent rejection, the message is destroyed, and the
+bounce names a cause that makes the RECIPIENT look dead. It is the same trap `process_bounces` refuses to act
+on, seen from the sending end.
+Fixed in `mail.yml` with `smtp_mx_session_limit = 1` (a soft failure stays soft and retries later over IPv6)
+plus `smtp_balance_inet_protocols = no`, because Postfix 3.5+ defaults that to `yes` and deliberately works
+IPv4 into the list rather than trying every IPv6 address first, which would hand the single session to IPv4
+some of the time. Verified by flushing the queue: the two over-quota messages that had taken IPv4 on every
+previous attempt now stay on IPv6 and keep `dsn=4.2.2 status=deferred`.
+⚠ **`postconf` shows main.cf, not the running process.** Postfix had not been restarted since 2026-09-21, so
+a setting read back correctly and was not in effect. Check `ps -o lstart= -p $(pgrep -o -x master)` and
+`postfix reload` before concluding a setting did nothing.
+⚠ **Do not diagnose this from the `relay=` field.** One `smtp` process serves several deliveries in a row, so
+a v6 session and a v4 `relay=` line share a PID and look like one delivery falling back. The sequence only
+reads correctly under `debug_peer_list = <domain>` with `debug_peer_level = 2` (set it, `postfix reload`,
+flush, then `postconf -X` both and reload again).
+⚠ **A Spamhaus lookup answering `127.255.255.254` is NOT a listing**, it is "query refused, you used a public
+resolver". The box resolves through one, so the PBL claim above cannot be checked from there.
 
 Marketing mail must go through `crm.mail.send_marketing` (or `manage.py send_newsletter`, a dry run without
 `--send`), which drops unsubscribed contacts and attaches the unsubscribe footer and `List-Unsubscribe` headers

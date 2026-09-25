@@ -248,7 +248,7 @@ ES = {
     'Waiting': 'Pendiente',
     'Delivered at the table': 'Entregado en la mesa',
     'Paid for': 'Pagado',
-    'More than half the room is gone': 'Ya se fue más de la mitad de la sala',
+    'Over half reserved, worth booking early': 'Más de la mitad reservada, mejor reserva pronto',
     'Due': 'Por cobrar',
     '{0} rounds': '{0} rondas',
     'Nothing waiting': 'Nada pendiente',
@@ -315,7 +315,7 @@ ES = {
     'in the last day': 'en el último día',
     '{0} people reserved {1}': '{0} personas reservaron {1}',
     'Only {0} seats left of {1}': 'Solo quedan {0} lugares de {1}',
-    '{0} of {1} seats taken': '{0} de {1} lugares apartados',
+    '{0} of {1} seats reserved': '{0} de {1} lugares reservados',
     # Invite a friend, after reserving (sales/sharing.py, templates/embed/order.html)
     # The bar, offered after the seat is held rather than inside the checkout (templates/embed/order.html)
     'Thirsty?': '¿Con sed?',

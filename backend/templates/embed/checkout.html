@@ -19,6 +19,7 @@
   .demand-fill { height: 100%; background: var(--brand); border-radius: 999px; transition: width .4s ease; }
   .demand-line { font-size: .85rem; margin: 0; font-weight: 600; color: var(--brand-hover); }
   .demand-line.tight { color: var(--danger); }
+  .demand-recent { font-size: .8rem; margin: 0; font-weight: 500; color: var(--muted); }
   .addons { margin-top: 18px; border-top: 1px solid rgba(0,0,0,.1); padding-top: 14px; }
   .addon-title { margin: 0 0 8px; font-weight: 700; }
   .qty { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
@@ -59,7 +60,8 @@
     {% if show_demand %}
       <div class="demand" id="demand" hidden>
         <div class="demand-track" id="demand-track" hidden><div class="demand-fill" id="demand-fill"></div></div>
-        <p class="demand-line" id="demand-line"></p>
+        <p class="demand-line" id="demand-line" hidden></p>
+        <p class="demand-recent" id="demand-recent" hidden></p>
       </div>
     {% endif %}
     <div class="types" id="types"></div>
@@ -226,24 +228,31 @@
   function renderDemand() {
     var d = ev.demand;
     if (!d || !d.capacity || !$("demand")) return;   // the host page is printing it instead
-    var line = "";
     var half = d.capacity ? d.taken / d.capacity >= 0.5 : false;
     // A fifth of the room, capped at ten. A flat ten is nonsense on a small night: a room of three with
     // nothing sold has three left, and "Only 3 seats left of 3" to an empty house is a checkable lie.
     var nearly = Math.min(10, Math.max(1, Math.floor(d.capacity * 0.2)));
+    // 🚨 Two DIFFERENT facts, and they must not compete for one slot. The room's state is the limited-space
+    // point and belongs with the bar; other people booking is social proof. One ladder used to pick a single
+    // sentence with momentum above half a room, and since nearly every night here has two or more recent
+    // bookings, the room's own state was never printed anywhere. Mirror of `src/lib/demand.ts`, which is the
+    // copy the site renders: both must say the same thing.
+    var room = "";
     if (d.left === 0) {
-      line = T("Sold out");                                                // nothing left to argue for
+      room = T("Sold out");                                                // nothing left to argue for
     } else if (d.left > 0 && d.left <= nearly) {
-      line = T("Only {0} seats left of {1}", d.left, d.capacity);          // genuinely nearly gone
-    } else if (d.recent >= 2) {
-      line = T("{0} people reserved {1}", d.recent, T(d.recentWindow));    // somebody else is coming
+      room = T("Only {0} seats left of {1}", d.left, d.capacity);          // genuinely nearly gone
     } else if (half) {
-      line = T("More than half the room is gone");                         // true for longer than a burst is
+      room = T("Over half reserved, worth booking early");                 // true for longer than a burst is
     } else if (d.showBar) {
-      line = T("{0} of {1} seats taken", d.taken, d.capacity);
+      room = T("{0} of {1} seats reserved", d.taken, d.capacity);
     }
-    if (!line) return;   // an empty room is not an argument for coming; say nothing rather than something weak
-    $("demand-line").textContent = line;
+    var momentum = d.left !== 0 && d.recent >= 2 ? T("{0} people reserved {1}", d.recent, T(d.recentWindow)) : "";
+    if (!room && !momentum) return;   // an empty room is not an argument for coming; say nothing weak instead
+    $("demand-line").textContent = room;
+    show($("demand-line"), Boolean(room));
+    $("demand-recent").textContent = momentum;
+    show($("demand-recent"), Boolean(momentum));
     if (d.left === 0 || d.left <= nearly) $("demand-line").classList.add("tight");
     if (d.showBar) {
       $("demand-fill").style.width = Math.min(100, Math.round((d.taken / d.capacity) * 100)) + "%";

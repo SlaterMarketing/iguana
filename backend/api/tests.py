@@ -3158,7 +3158,8 @@ class DemandNudgeTests(ApiTestCase):
                                  unit_price_cents=1000)
         return order
 
-    def line(self):
+    def room(self):
+        """The state of the room: the limited-space fact, which travels with the bar."""
         from sales.demand import demand
 
         d = demand(self.event)
@@ -3167,16 +3168,30 @@ class DemandNudgeTests(ApiTestCase):
             return 'sold out'
         if left <= min(10, max(1, int(capacity * 0.2))):
             return 'nearly gone'
-        if d['recent'] >= 2:
-            return 'recent'
         if capacity and taken / capacity >= 0.5:
             return 'half'
         return 'taken' if d['showBar'] else 'nothing'
 
+    def momentum(self):
+        """Other people booking: social proof, said ALONGSIDE the room rather than instead of it."""
+        from sales.demand import demand
+
+        d = demand(self.event)
+        return d['left'] != 0 and d['recent'] >= 2
+
+    def line(self):
+        """The single best line, for the one surface that has room for only one (the home hero badge)."""
+        room = self.room()
+        if room in ('sold out', 'nearly gone'):
+            return room
+        if self.momentum():
+            return 'recent'
+        return room
+
     def test_the_checkout_carries_every_tier(self):
         page = self.render()
         for phrase in ('Sold out', 'Only {0} seats left of {1}', '{0} people reserved {1}',
-                       'More than half the room is gone', '{0} of {1} seats taken'):
+                       'Over half reserved, worth booking early', '{0} of {1} seats reserved'):
             self.assertIn(phrase, page, f'the checkout cannot say: {phrase}')
 
     def test_an_empty_room_says_nothing(self):
@@ -3188,11 +3203,31 @@ class DemandNudgeTests(ApiTestCase):
         self.fill(10, hours_ago=48)   # old enough not to count as a recent burst
         self.assertEqual(self.line(), 'half')
 
-    def test_a_recent_burst_outranks_half_a_room(self):
+    def test_a_recent_burst_outranks_half_a_room_where_only_one_fits(self):
         self.ga.capacity = 20
         self.ga.save(update_fields=['capacity'])
         self.fill(10, hours_ago=1)
         self.assertEqual(self.line(), 'recent')
+
+    def test_a_burst_does_not_silence_the_room(self):
+        """🚨 The regression that shipped. Momentum and the room are different facts and used to share one
+        slot, so a night with two recent bookings never mentioned how full it was. Almost every night here has
+        two: on 2026-09-25 Privilegio sat at 40 of 80 and the Tuesday open mic at 37 of 60, and all four
+        surfaces printed "N people reserved in the last day" while saying nothing about the seats. Both lines
+        are rendered now, so the room has to keep speaking through a burst."""
+        self.ga.capacity = 20
+        self.ga.save(update_fields=['capacity'])
+        self.fill(10, hours_ago=1)
+        self.assertEqual(self.room(), 'half', 'half a room is still true while people are booking')
+        self.assertTrue(self.momentum(), 'and the burst is still worth saying')
+
+    def test_a_sold_out_room_does_not_also_boast(self):
+        """Nothing left to sell, so "3 people reserved" is noise on top of an answer."""
+        self.ga.capacity = 4
+        self.ga.save(update_fields=['capacity'])
+        self.fill(4, hours_ago=1)
+        self.assertEqual(self.room(), 'sold out')
+        self.assertFalse(self.momentum())
 
     def test_nearly_gone_outranks_everything_but_sold_out(self):
         # A real open mic: 60 seats, 50 gone, 10 left. A fifth of 60 is 12, capped at 10, so 10 left is the

@@ -23,6 +23,7 @@ import EventCheckoutWidget from "./EventCheckoutWidget.astro";
 import NewsletterSignup from "./NewsletterSignup.astro";
 import { site } from "../content/site";
 import { demandLine } from "../lib/demand";
+import DemandLines from "./DemandLines.astro";
 import { eventVenueMapEmbedUrl } from "../lib/event-hero";
 import { eventCollectsPayment, eventTicketTypeCount, formatEventDate, formatEventDateShort, formatEventTime } from "../lib/events";
 import { loadEventsForCalendarPages } from "../lib/events-catalog";
@@ -227,15 +228,11 @@ function nightDetail(event: KintanaPublicEvent | null, fallback: string, locale:
             </p>
           ) : null
         }
-        {/* Somebody else is already coming. It belongs beside the date it is about, where the eye already is,
-            rather than below the night pills where it read as a note on the pills. */}
-        {
-          pressure ? (
-            <p class:list={["mt-1.5 text-sm font-semibold", pressure.tight ? "text-red-700" : "text-brand"]}>
-              {pressure.text}
-            </p>
-          ) : null
-        }
+        {/* How full this night is, and who else is already coming. It belongs beside the date it is about,
+            where the eye already is, rather than below the night pills where it read as a note on the pills.
+            The page is the one the ads pay for, so the bar is here too: the seatBody paragraph explains that
+            the room fills and walk-ins get turned away, and this is the evidence for that sentence. */}
+        {pressure ? <DemandLines demand={pressure} class="mt-2 max-w-xs" /> : null}
       </div>
 
       {
