@@ -2,9 +2,10 @@
 
 Every Monday the newsletter goes to everyone on the list, and some of that list is four years of spreadsheet
 imports. Addresses in it have been closed, mistyped or abandoned. Nothing was reading the bounces, so those
-dead addresses were mailed again every week: one of them had already bounced
-twice when this was written. Gmail and Yahoo both weigh hard-bounce RATE when deciding whether a sender
-reaches the inbox, so a handful of dead rows quietly taxes delivery to the 600 people who are real.
+dead addresses were mailed again every week, and one of them had already bounced twice by the time this was
+written. (Deliberately not named: this repository is public and the address belongs to a real person.)
+Gmail and Yahoo both weigh hard-bounce RATE when deciding whether a sender reaches the inbox, so a handful of
+dead rows quietly taxes delivery to the 600 people who are real.
 
 🚨 A permanent failure is not automatically the recipient's fault, and acting on the 5 is how you unsubscribe
 people who did nothing wrong. Measured on this box the day this was written: of 24 bounces, ten were `5.1.1`
