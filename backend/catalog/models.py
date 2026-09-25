@@ -455,3 +455,43 @@ class MenuItemIngredient(models.Model):
 
     def __str__(self):
         return f'{self.menu_item.name}: {self.quantity:g} {self.inventory_item.unit or "x"} {self.inventory_item.name}'
+
+
+class FloorSettings(models.Model):
+    """The handful of numbers about the room itself, editable by the people in it.
+
+    One row, ever. A settings table with a key and a value would have been more general and less readable:
+    there is exactly one room, and a named column can carry a comment explaining what the number is for.
+
+    It exists because `TABLES_ON_SHOW` was a constant in the code, so adding a table meant a developer and a
+    deploy. A club that is still working out its own layout cannot wait for that, and the bar is the only party
+    who knows how many tables are actually out tonight.
+    """
+
+    SINGLETON = 1
+
+    id = models.PositiveSmallIntegerField(primary_key=True, default=SINGLETON, editable=False)
+    # How many table cards the board draws. NOT a limit on what a customer may type: `menu_views.MAX_TABLE`
+    # stays the ceiling for that, because a round sent to a table nobody has added yet should reach the bar and
+    # be dealt with, not be refused at the one moment somebody is trying to buy a drink. The board unions in
+    # any table that has a round, so an unexpected number still appears.
+    tables = models.PositiveSmallIntegerField(default=12, help_text='Cuántas mesas hay en el salón.')
+    updated_at = models.DateTimeField(auto_now=True)
+    updated_by = models.CharField(max_length=80, blank=True)
+
+    class Meta:
+        verbose_name = 'floor settings'
+        verbose_name_plural = 'floor settings'
+
+    def __str__(self):
+        return f'{self.tables} tables'
+
+    def save(self, *args, **kwargs):
+        self.id = self.SINGLETON
+        return super().save(*args, **kwargs)
+
+    @classmethod
+    def load(cls):
+        """The row, created on first use. Never raises, because the board must draw even on a fresh database."""
+        row, _ = cls.objects.get_or_create(pk=cls.SINGLETON)
+        return row

@@ -28,7 +28,15 @@ from .menu_views import MAX_TABLE
 
 # What the board lays out when the room is quiet. The club has fewer tables than the 100 a QR can name, and a
 # board of a hundred empty squares is unreadable; the rest appear the moment somebody orders from one.
-TABLES_ON_SHOW = 12
+def tables_on_show():
+    """How many table cards to draw, from the floor settings the bar edits at `/mesas/`.
+
+    Read per request rather than cached: it changes when somebody carries another table in, and a board that
+    needed a restart to notice would be the reason nobody bothered to update it.
+    """
+    from catalog.models import FloorSettings
+
+    return FloorSettings.load().tables
 CANCUN = ZoneInfo('America/Cancun')
 
 
@@ -92,7 +100,7 @@ def _board(lang):
         if order.status == TableOrder.PAID:
             row['paid_cents'] += order.total_cents
 
-    numbers = sorted(set(by_table) | set(tab) | set(range(1, TABLES_ON_SHOW + 1)))
+    numbers = sorted(set(by_table) | set(tab) | set(range(1, tables_on_show() + 1)))
     tables = []
     for number in numbers:
         row = by_table.get(number)
@@ -189,6 +197,7 @@ def _render_board(request, lang, floor):
         'waiting': waiting,
         'open_count': sum(1 for t in board if t['orders']),
         'max_table': MAX_TABLE,
+        'tables_count': tables_on_show(),
         'show': show,
         'show_name': show.label(lang) if show else '',
         'show_time': show.show_time if show else '',
@@ -220,6 +229,34 @@ def settle_table(request, number):
             apply_stock(order, who=_who(request))
         rounds.filter(delivered_at__isnull=True).update(delivered_at=now)
         rounds.exclude(status=TableOrder.PAID).update(status=TableOrder.PAID, paid_at=now)
+    return redirect(_back(request))
+
+
+@floor_required
+@require_POST
+def set_tables(request):
+    """Change how many tables the room has, from the board.
+
+    Lowering it is safe by construction rather than by a guard: the board unions in every table that has a
+    round tonight, so a table with an open tab keeps its card even if the count drops below its number. Money
+    on a table can never be hidden by this, which is why it does not need a confirmation.
+    """
+    from catalog.models import FloorSettings
+
+    settings_row = FloorSettings.load()
+    raw = request.POST.get('tables', '')
+    if request.POST.get('more'):
+        wanted = settings_row.tables + 1
+    elif request.POST.get('fewer'):
+        wanted = settings_row.tables - 1
+    else:
+        try:
+            wanted = int(str(raw).strip())
+        except (TypeError, ValueError):
+            wanted = settings_row.tables
+    settings_row.tables = max(1, min(MAX_TABLE, wanted))
+    settings_row.updated_by = _who(request)
+    settings_row.save(update_fields=['tables', 'updated_at', 'updated_by'])
     return redirect(_back(request))
 
 

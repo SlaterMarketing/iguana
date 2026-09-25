@@ -70,6 +70,20 @@
           font-weight: 700; letter-spacing: .12em;
           text-transform: uppercase; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
   .peek:hover { color: var(--ink); }
+  /* Cuántas mesas hay. Va al final: se usa una vez por noche, no durante el servicio. */
+  .howmany { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .howmany label { font-size: .7rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
+                   color: var(--muted); display: block; margin-bottom: 8px; }
+  .howmany-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .howmany-row button { width: 56px; min-height: 48px; border: 0; border-radius: 999px; background: var(--ink);
+                        color: #fff; font: 700 1.2rem/1 inherit; cursor: pointer; flex: 0 0 auto; }
+  .howmany-row button:hover { background: var(--brand-hover); }
+  .howmany-row input { width: 84px; min-height: 48px; text-align: center; font: 700 1.1rem/1 inherit;
+                       flex: 0 0 auto; padding: 0 8px; border: 1px solid rgba(0,0,0,.2); border-radius: 12px; }
+  .howmany-row button.save { width: auto; min-width: max-content; padding: 0 18px; background: #fff;
+                             color: var(--ink); border: 1px solid var(--ink); font: 700 .68rem/1 inherit;
+                             letter-spacing: .12em; text-transform: uppercase; }
+  .howmany-row button.save:hover { background: var(--ink); color: #fff; }
   .rounds-list { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
   .round + .round { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
   .round-head { display: flex; justify-content: space-between; gap: 8px; margin: 0; font-size: .8rem;
@@ -236,6 +250,20 @@
       </div>
     {% endfor %}
   </div>
+
+  {# Cuántas mesas hay. Bajarlo es seguro: el tablero incluye siempre cualquier mesa con consumo de la #}
+  {# noche, así que una mesa con cuenta abierta no puede desaparecer por cambiar este número. #}
+  <form class="howmany" method="post" action="/tables/cuantas/">
+    {% csrf_token %}
+    <label for="tables-count">{% t lang "Tables in the room" %}</label>
+    <div class="howmany-row">
+      <button type="submit" name="fewer" value="1" aria-label="{% t lang "One table fewer" %}">&minus;</button>
+      <input id="tables-count" name="tables" inputmode="numeric" value="{{ tables_count }}"
+             aria-label="{% t lang "Tables in the room" %}">
+      <button type="submit" name="more" value="1" aria-label="{% t lang "One table more" %}">+</button>
+      <button class="save" type="submit">{% t lang "Save" %}</button>
+    </div>
+  </form>
 
   <p class="muted" style="font-size:.8rem">
     {% t lang "This page refreshes itself. A table disappears once it is marked delivered." %}

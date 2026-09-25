@@ -2105,6 +2105,95 @@ class SeedBarInventoryTests(ApiTestCase):
         self.assertEqual(InventoryItem.objects.filter(name='Victoria').count(), 1, 'and nothing is duplicated')
 
 
+class HowManyTablesTests(ApiTestCase):
+    """How many tables the room has, changed by the bar rather than by a deploy."""
+
+    def setUp(self):
+        super().setUp()
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'mesero',
+                     verbosity=0)
+        self.client.login(username='mesero', password='no-es-la-real')
+
+    def cards(self):
+        """The table numbers the board is drawing."""
+        import re
+
+        body = self.client.get('/mesas/').content.decode()
+        return sorted({int(n) for n in re.findall(r'id="t(\d+)"', body)})
+
+    def test_twelve_by_default(self):
+        self.assertEqual(self.cards(), list(range(1, 13)))
+
+    def test_adding_a_table_puts_a_card_on_the_board(self):
+        self.client.post('/tables/cuantas/', {'more': '1'})
+        self.assertEqual(self.cards(), list(range(1, 14)))
+
+    def test_typing_a_number_sets_it(self):
+        from catalog.models import FloorSettings
+
+        self.client.post('/tables/cuantas/', {'tables': '20'})
+        self.assertEqual(FloorSettings.load().tables, 20)
+        self.assertEqual(self.cards(), list(range(1, 21)))
+
+    def test_one_fewer(self):
+        self.client.post('/tables/cuantas/', {'fewer': '1'})
+        self.assertEqual(self.cards(), list(range(1, 12)))
+
+    def test_it_never_goes_below_one_or_past_the_ceiling(self):
+        from catalog.models import FloorSettings
+
+        self.client.post('/tables/cuantas/', {'tables': '0'})
+        self.assertEqual(FloorSettings.load().tables, 1)
+        self.client.post('/tables/cuantas/', {'tables': '99999'})
+        self.assertEqual(FloorSettings.load().tables, 100)
+
+    def test_nonsense_leaves_it_alone(self):
+        from catalog.models import FloorSettings
+
+        self.client.post('/tables/cuantas/', {'tables': 'muchas'})
+        self.assertEqual(FloorSettings.load().tables, 12)
+
+    def test_lowering_it_cannot_hide_a_table_that_owes_money(self):
+        """🚨 What makes lowering safe without a confirmation: the board unions in every table with a round
+        tonight, so a tab can never be hidden by this number. Money on a table has to stay reachable."""
+        from sales.models import TableOrder
+
+        TableOrder.objects.create(table_number=20, currency='mxn', total_cents=9000)
+        self.client.post('/tables/cuantas/', {'tables': '4'})
+        cards = self.cards()
+        self.assertEqual(cards[:4], [1, 2, 3, 4])
+        self.assertIn(20, cards, 'a table with an open tab keeps its card')
+
+    def test_it_says_who_changed_it(self):
+        from catalog.models import FloorSettings
+
+        self.client.post('/tables/cuantas/', {'more': '1'})
+        self.assertEqual(FloorSettings.load().updated_by, 'mesero')
+
+    def test_a_stranger_cannot_change_it(self):
+        from catalog.models import FloorSettings
+
+        self.client.logout()
+        res = self.client.post('/tables/cuantas/', {'tables': '99'})
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(FloorSettings.load().tables, 12)
+
+    def test_a_customer_at_a_table_nobody_added_yet_can_still_order(self):
+        """A refused order is a lost sale at the one moment somebody is trying to buy a drink. The round
+        reaches the bar and the board shows it, which is how the bar finds out to add the table."""
+        from sales.models import TableOrder
+
+        self.client.post('/tables/cuantas/', {'tables': '4'})
+        res = self.client.post('/api/public/v1/table-orders',
+                               data=json.dumps({'table': 9, 'items': {}, 'lang': 'es'}),
+                               content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {KEY}')
+        self.assertEqual(res.status_code, 400, 'an empty basket is still refused, for its own reason')
+        TableOrder.objects.create(table_number=9, currency='mxn', total_cents=6000)
+        self.assertIn(9, self.cards())
+
+
 class VoidLineTests(ApiTestCase):
     """Taking a drink off a table's bill, when it was not ordered or was not any good."""
 

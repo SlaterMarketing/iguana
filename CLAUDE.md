@@ -458,6 +458,17 @@ the door's guest list, because nobody scans the QR codes. If the door needs it b
   that table for the service (an open one is marked delivered too, since they are paying for it) and turns into
   `Undo`. Reversible on purpose: it is a tap on a phone in a dark room, and a table wrongly marked paid is
   money out of the door. The board header names the show and totals the night.
+  **How many tables the room has** is a number the bar edits at the foot of the board, not a constant in the
+  code: `catalog.FloorSettings` (one row, `load()`), read per request so carrying another table in does not
+  need a restart, let alone a deploy. A club still working out its own layout cannot wait for a developer, and
+  the bar is the only party who knows how many tables are actually out tonight.
+  🔑 **Lowering it is safe by construction rather than by a guard**, which is why it needs no confirmation: the
+  board unions in every table that has a round tonight, so a table with an open tab keeps its card even when
+  the count drops below its number. Money on a table can never be hidden by this.
+  ⚠ **It is NOT a limit on what a customer may type.** `menu_views.MAX_TABLE` (100) stays the ceiling for that,
+  because a round sent to a table nobody has added yet should reach the bar and be dealt with rather than be
+  refused at the one moment somebody is trying to buy a drink. The unexpected number appears on the board,
+  which is how the bar finds out to add the table.
   ⚠ **The night runs on a 6am-to-6am service, not a calendar day** (`tables_views.service_start`). A show
   starting at nine runs past midnight and the tab crosses with it; counting by calendar day would zero a table
   at 00:05 with the people still sitting at it.
