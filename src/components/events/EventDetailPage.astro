@@ -26,6 +26,7 @@ import { localizePath } from "../../i18n/routes";
 import type { Locale } from "../../i18n/locale";
 import { isOpenMic } from "../../lib/open-mics";
 import { eventSchema } from "../../lib/structured-data";
+import { stillOnSale } from "../../lib/still-on-sale";
 
 interface Props {
   event: KintanaPublicEvent | null;
@@ -35,6 +36,9 @@ interface Props {
 const { event, locale } = Astro.props;
 
 const ticketingBlocked = Boolean(event?.status === "sold-out" || event?.status === "postponed");
+// Only fetched for the page that needs it: a visitor told "no" has already decided to come out, and a dated,
+// clickable list is the difference between a lost visit and a different one.
+const alsoOn = event?.status === "sold-out" ? await stillOnSale(event.id, locale) : [];
 const onSiteCheckout = event ? eventSupportsOnSiteCheckout(event) : false;
 const posterMobileSrc = event?.imageUrlMobile?.trim() || event?.imageUrl;
 const heroPoster = event ? eventHeroImageUrl(event) : null;
@@ -219,7 +223,32 @@ const pixelContent = event
                     >
                       {t(locale, "ui.soldOut")}
                     </p>
-                    <p class="px-6 pb-7 pt-3 text-sm text-white/80">{t(locale, "events.soldOutNote")}</p>
+                    <p class="px-6 pb-6 pt-3 text-sm text-white/80">{t(locale, "events.soldOutNote")}</p>
+                    {
+                      alsoOn.length ? (
+                        <div class="border-t border-white/15 px-4 pb-5 pt-5 text-left sm:px-5">
+                          <p class="mb-3 text-[0.65rem] font-semibold uppercase tracking-[0.3em] text-white/70">
+                            {t(locale, "events.stillOnSale")}
+                          </p>
+                          <ul class="space-y-2">
+                            {alsoOn.map((other) => (
+                              <li>
+                                <a
+                                  class="flex min-h-[3.25rem] items-center justify-between gap-3 rounded-xl bg-white/10 px-4 py-3 text-white transition hover:bg-white hover:text-neutral-950"
+                                  href={localizePath(locale, "eventDetail", { slug: other.slug })}
+                                >
+                                  <span class="min-w-0">
+                                    <span class="block truncate text-sm font-semibold">{other.name}</span>
+                                    <span class="block text-xs opacity-80">{formatEventScheduleLine(other, locale)}</span>
+                                  </span>
+                                  <span aria-hidden="true" class="text-lg leading-none">&rsaquo;</span>
+                                </a>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      ) : null
+                    }
                   </div>
                 ) : ticketingBlocked ? (
                   <p class="rounded-xl border border-white/15 bg-white/10 px-6 py-10 text-center text-sm text-white backdrop-blur-sm">{t(locale, "events.ticketsUnavailable")}</p>
