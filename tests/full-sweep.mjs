@@ -84,9 +84,13 @@ await m.goto(`${BASE}/menu/show/`, { waitUntil: "domcontentloaded" });
 await m.waitForTimeout(3000);
 check("unprefixed /menu/show/ picks a language", /\/(es|en)\/menu\/show\//.test(m.url()), m.url().replace(BASE, ""));
 const drinks = await m.locator('button[aria-label^="+1"]').count();
-check("the real menu is listed", drinks === 13, `${drinks} drinks`);
+// 🚨 NOT a fixed count. The bar edits this menu from a phone at /mesas/carta/ now, so pinning 13 meant the
+// sweep went red the first time they added a drink: it failed on five new cocktails, which is the feature
+// working. Assert what must always be true instead: a menu with things on it, and a price against each one.
+check("the real menu is listed", drinks >= 8, `${drinks} drinks`);
 const menuText = await m.locator("body").innerText();
-check("prices are on the page", /\$60 MXN/.test(menuText) && /\$30 MXN/.test(menuText));
+const prices = (menuText.match(/\$\s?\d+(?:[.,]\d+)?\s*MXN/g) || []).length;
+check("every drink carries a price", prices >= drinks, `${prices} prices for ${drinks} drinks`);
 check("it says when you pay", /al final de la noche/i.test(menuText));
 check("it says phones on silent", /silencio/i.test(menuText) && /grabes/i.test(menuText));
 await m.locator('button[aria-label^="+1"]').first().click();
