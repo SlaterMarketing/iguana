@@ -362,6 +362,40 @@ ES = {
         '¿Vienes con alguien? Mándale esto y aparta su lugar gratis:',
     'I am going to the open mic at Iguana Comedy. Entry is free, reserve a seat here: {0}':
         'Voy al open mic de Iguana Comedy. La entrada es gratis, aparta tu lugar aquí: {0}',
+
+    # La cuenta de la mesa pagada desde el teléfono del cliente, y su QR.
+    'Your bill': 'Tu cuenta',
+    'Drinks': 'Bebidas',
+    'Tip for your waiter': 'Propina para tu mesero',
+    '{0}% is what the house suggests. Change it or leave none, it is up to you.':
+        '{0}% es lo que sugiere la casa. Cámbialo o déjalo en cero, tú decides.',
+    'None': 'Sin propina',
+    'Total': 'Total',
+    'Continue to card': 'Continuar con la tarjeta',
+    'Pay now': 'Pagar ahora',
+    'Pay by card': 'Pagar con tarjeta',
+    'One moment': 'Un momento',
+    'That did not go through. Please try again.': 'No se pudo cobrar. Inténtalo otra vez, por favor.',
+    'The card is handled by Stripe. Iguana Comedy never sees your card number.':
+        'El cobro lo procesa Stripe. Iguana Comedy nunca ve el número de tu tarjeta.',
+    'This bill has closed.': 'Esta cuenta ya está cerrada.',
+    'Ask your waiter to show the code again.': 'Pídele a tu mesero que te muestre el código otra vez.',
+    'Nothing to pay': 'No hay nada que pagar',
+    'This table has no open bill. Ask your waiter if you think that is wrong.':
+        'Esta mesa no tiene cuenta abierta. Si crees que es un error, pregúntale a tu mesero.',
+    'There is nothing to pay on this table.': 'Esta mesa no tiene nada que pagar.',
+    'Card payment is not available right now.': 'El pago con tarjeta no está disponible ahora mismo.',
+    'Paid': 'Pagado',
+    'Not paid': 'Sin pagar',
+    'Includes {0} tip': 'Incluye {0} de propina',
+    'Show this to your waiter on the way out. Thanks for coming.':
+        'Enséñale esto a tu mesero al salir. Gracias por venir.',
+    'Nothing was charged. Ask your waiter to show the code again.':
+        'No se cobró nada. Pídele a tu mesero que te muestre el código otra vez.',
+    'Show QR to pay': 'Mostrar QR para pagar',
+    'Hide QR': 'Ocultar QR',
+    'They scan this to pay the whole bill by card': 'Escanean esto para pagar toda la cuenta con tarjeta',
+    'Paid by card': 'Pagado con tarjeta',
 }
 
 

@@ -1,0 +1,193 @@
+{% extends "embed/base.html" %}
+{% load showtime %}
+{% block title %}{% t lang "Your bill" %} · Iguana Comedy{% endblock %}
+{% block head %}
+<style>
+  /* Un teléfono, en la mesa, con poca luz y prisa por irse. Todo en una columna y los importes grandes. */
+  .wrap { max-width: 460px; }
+  .bill { border: 1px solid var(--line); border-radius: 18px; background: #fff; padding: 16px; }
+  .bill h2 { margin: 0 0 2px; font-size: 1.1rem; }
+  .bill .where { font-size: .78rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+                 color: var(--muted); margin: 0 0 12px; }
+  .line { display: flex; justify-content: space-between; gap: 12px; padding: 7px 0;
+          border-bottom: 1px solid var(--line); font-size: .92rem; }
+  .line:last-of-type { border-bottom: 0; }
+  .line .qty { color: var(--muted); }
+  .sum { display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+         margin-top: 12px; padding-top: 12px; border-top: 2px solid var(--ink); }
+  .sum .big { font-family: "Bebas Neue", sans-serif; font-size: 2rem; line-height: 1; }
+  .tip { margin-top: 18px; }
+  .tip h3 { margin: 0 0 3px; font-size: .78rem; font-weight: 700; letter-spacing: .12em;
+            text-transform: uppercase; color: var(--muted); }
+  .tip .why { font-size: .8rem; color: var(--muted); margin: 0 0 10px; }
+  /* Cuatro opciones en una fila: la sugerida ya viene marcada y "sin propina" está a la vista, porque una
+     pantalla que no deja decir que no es una exigencia, no un ofrecimiento. */
+  .tips { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .tips label { position: relative; }
+  .tips input { position: absolute; opacity: 0; pointer-events: none; }
+  .tips span { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+               min-height: 60px; border: 1px solid var(--line); border-radius: 14px; cursor: pointer;
+               font-weight: 700; font-size: .95rem; text-align: center; padding: 4px 2px; }
+  .tips small { font-size: .62rem; font-weight: 600; color: var(--muted); letter-spacing: .02em; }
+  .tips input:checked + span { border-color: var(--ink); background: var(--ink); color: #fff; }
+  .tips input:checked + span small { color: rgba(255,255,255,.75); }
+  .tips input:focus-visible + span { outline: 2px solid var(--brand); outline-offset: 2px; }
+  .total { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; margin-top: 16px;
+           padding-top: 14px; border-top: 1px solid var(--line); }
+  .total .lab { font-size: .78rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
+                color: var(--muted); }
+  .total .big { font-family: "Bebas Neue", sans-serif; font-size: 2.6rem; line-height: 1; }
+  #card { margin-top: 18px; }
+  .go { width: 100%; min-height: 54px; margin-top: 16px; border-radius: 999px; border: 0; background: var(--ink);
+        color: #fff; font: 700 .8rem/1 inherit; letter-spacing: .12em; text-transform: uppercase;
+        cursor: pointer; }
+  .go[disabled] { opacity: .55; cursor: default; }
+  .err { margin-top: 12px; color: var(--danger); font-size: .88rem; }
+  .note { margin-top: 14px; font-size: .78rem; color: var(--muted); line-height: 1.5; }
+  .gone { text-align: center; padding: 40px 0; }
+</style>
+{% endblock %}
+{% block content %}
+{% if gone %}
+  <div class="gone">
+    <h1>{% t lang "This bill has closed." %}</h1>
+    <p class="note">{% t lang "Ask your waiter to show the code again." %}</p>
+  </div>
+{% elif settled %}
+  <div class="gone">
+    <h1>{% t lang "Nothing to pay" %}</h1>
+    <p class="note">{% t lang "This table has no open bill. Ask your waiter if you think that is wrong." %}</p>
+  </div>
+{% else %}
+  <div class="bill">
+    <p class="where">{% if show %}{{ show }}{% else %}Iguana Comedy{% endif %}</p>
+    <h2>{% if label %}{{ label }}{% else %}{% t lang "Table" %} {{ table }}{% endif %}</h2>
+    {% for l in lines %}
+      <div class="line"><span><span class="qty">{{ l.quantity }} &times;</span> {{ l.name }}</span>
+        <span>{{ l.money }}</span></div>
+    {% endfor %}
+    <div class="sum"><span>{% t lang "Drinks" %}</span><span class="big">{{ bill }}</span></div>
+  </div>
+
+  <form id="pay" class="tip" method="post" action="/mesa/pagar/{{ token }}/cobrar/">
+    {% csrf_token %}
+    <h3>{% t lang "Tip for your waiter" %}</h3>
+    <p class="why">{% t lang "{0}% is what the house suggests. Change it or leave none, it is up to you." default_tip %}</p>
+    <div class="tips">
+      {% for o in tips %}
+        <label>
+          <input type="radio" name="tip" value="{{ o.percent }}" data-total="{{ o.total }}"
+                 {% if o.on %}checked{% endif %}>
+          <span>{% if o.percent %}{{ o.percent }}%{% else %}{% t lang "None" %}{% endif %}
+            <small>{% if o.percent %}{{ o.money }}{% else %}&nbsp;{% endif %}</small></span>
+        </label>
+      {% endfor %}
+    </div>
+
+    <div class="total">
+      <span class="lab">{% t lang "Total" %}</span>
+      <span class="big" id="total">{% for o in tips %}{% if o.on %}{{ o.total }}{% endif %}{% endfor %}</span>
+    </div>
+
+    <div id="card"></div>
+    <button class="go" id="go" type="submit">{% t lang "Continue to card" %}</button>
+    <p class="err" id="err" hidden></p>
+  </form>
+  <p class="note">{% t lang "The card is handled by Stripe. Iguana Comedy never sees your card number." %}</p>
+
+  {{ token|json_script:"tok" }}
+  {{ stripe_key|json_script:"stripe-key" }}
+  {{ dev_payment|json_script:"dev-payment" }}
+  {% comment %}
+    Los textos del botón pasan por `t`, como todo lo que lee un cliente, y viajan como JSON en lugar de
+    interpolarse dentro del JavaScript: una comilla en una traducción rompería el script entero y la página se
+    quedaría sin forma de pagar, sin decir por qué.
+  {% endcomment %}
+  <script id="pay-texts" type="application/json">{
+    "card": {{ card_text }}, "pay": {{ pay_text }}, "working": {{ working_text }}, "failed": {{ failed_text }}
+  }</script>
+  <script src="https://js.stripe.com/v3/"></script>
+  <script>
+    (function () {
+      var form = document.getElementById("pay");
+      var go = document.getElementById("go");
+      var err = document.getElementById("err");
+      var totalEl = document.getElementById("total");
+      var token = JSON.parse(document.getElementById("tok").textContent);
+      var key = JSON.parse(document.getElementById("stripe-key").textContent);
+      var devPayment = JSON.parse(document.getElementById("dev-payment").textContent);
+      var texts = JSON.parse(document.getElementById("pay-texts").textContent);
+      var stripe = key ? Stripe(key) : null;
+      var elements = null;
+
+      function fail(message) {
+        err.textContent = message || texts.failed;
+        err.hidden = false;
+        go.disabled = false;
+      }
+
+      function chosenTip() {
+        var on = form.querySelector('input[name="tip"]:checked');
+        return on ? on.value : "{{ default_tip }}";
+      }
+
+      // El total lo recalcula el servidor en cada paso. Esto sólo refleja la opción marcada, para que nadie
+      // toque el botón sin ver antes lo que va a pagar.
+      form.addEventListener("change", function (e) {
+        if (e.target.name !== "tip") return;
+        totalEl.textContent = e.target.getAttribute("data-total");
+        // Cambiar la propina con la tarjeta ya montada dejaría en pantalla un importe que no es el que se
+        // cobra. Se vuelve a empezar, que es una pulsación más y ninguna sorpresa.
+        if (elements) {
+          document.getElementById("card").innerHTML = "";
+          elements = null;
+          go.textContent = texts.card;
+        }
+      });
+
+      function confirmPaid(paymentId) {
+        var body = new URLSearchParams();
+        body.set("paymentId", paymentId);
+        fetch("/mesa/pagar/" + token + "/confirmar/", { method: "POST", body: body })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+          .then(function (res) {
+            if (!res.ok) throw new Error(res.d.error || "");
+            window.location = res.d.doneUrl;
+          })
+          .catch(function (e) { fail(e.message); });
+      }
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        err.hidden = true;
+        go.disabled = true;
+
+        if (elements) {
+          stripe.confirmPayment({ elements: elements, redirect: "if_required" })
+            .then(function (out) {
+              if (out.error) return fail(out.error.message);
+              confirmPaid(form.dataset.paymentId);
+            });
+          return;
+        }
+
+        var body = new URLSearchParams();
+        body.set("tip", chosenTip());
+        body.set("csrfmiddlewaretoken", form.querySelector("[name=csrfmiddlewaretoken]").value);
+        fetch("/mesa/pagar/" + token + "/intent/", { method: "POST", body: body })
+          .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+          .then(function (res) {
+            if (!res.ok) throw new Error(res.d.error || "");
+            form.dataset.paymentId = res.d.paymentId;
+            if (res.d.devPayment) return confirmPaid(res.d.paymentId);
+            elements = stripe.elements({ clientSecret: res.d.clientSecret });
+            elements.create("payment").mount("#card");
+            go.disabled = false;
+            go.textContent = texts.pay;
+          })
+          .catch(function (e2) { fail(e2.message); });
+      });
+    })();
+  </script>
+{% endif %}
+{% endblock %}

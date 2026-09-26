@@ -221,6 +221,11 @@ class TableOrder(models.Model):
     # takings; it just stops being this table's running tab, so the next people do not sit down in front of
     # somebody else's bill. Without this a card carried its total until 6am and there was no way to clear it.
     closed_at = models.DateTimeField(null=True, blank=True)
+    # Set when the table paid by card from its own phone. A `Marcar pagado` tap leaves it blank, which is the
+    # difference between "somebody said they paid" and "a card was charged", and the takings should never have
+    # to guess which happened.
+    payment = models.ForeignKey('TablePayment', null=True, blank=True, on_delete=models.SET_NULL,
+                                related_name='orders')
 
     class Meta:
         ordering = ['-created_at']
@@ -242,6 +247,48 @@ class TableOrder(models.Model):
         self.total_cents = sum(item.line_cents for item in self.items.all())
         self.save(update_fields=['total_cents'])
         return self.total_cents
+
+
+class TablePayment(models.Model):
+    """A table settling its whole bill from a phone, by scanning the QR the waiter holds up.
+
+    🚨 The amount is NEVER taken from the browser. The page posts which TIP was chosen, out of a fixed list of
+    percentages, and the bill itself is summed here from the rounds that are actually on the table: a form
+    field carrying an amount is a form field somebody can edit, and a bar bill is exactly the thing worth
+    editing. What the customer sends is a choice; what they are charged is a fact.
+
+    One payment covers every unpaid round on the table, because that is what "the bill" means to the people
+    sitting at it. The rounds point back here (`TableOrder.payment`), so "what did this table pay and when"
+    survives the night, and so the takings can tell a card payment from a `Marcar pagado` tap.
+    """
+
+    PENDING, PAID, ABANDONED = 'PENDING', 'PAID', 'ABANDONED'
+    STATUS_CHOICES = [(s, s.title()) for s in (PENDING, PAID, ABANDONED)]
+
+    id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
+    table_number = models.PositiveSmallIntegerField()
+    event = models.ForeignKey('catalog.Event', null=True, blank=True, on_delete=models.SET_NULL,
+                              related_name='table_payments')
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=PENDING)
+    # The drinks, the tip, and what the card was actually charged. Kept apart on purpose: the tip is not the
+    # bar's takings and must never be added to them, and a single `total` would make that impossible to undo
+    # later without guessing.
+    bill_cents = models.PositiveIntegerField(default=0)
+    tip_cents = models.PositiveIntegerField(default=0)
+    tip_percent = models.PositiveSmallIntegerField(default=0)
+    total_cents = models.PositiveIntegerField(default=0)
+    currency = models.CharField(max_length=3, default='mxn')
+    locale = models.CharField(max_length=5, default='es')
+    stripe_payment_intent_id = models.CharField(max_length=120, blank=True)
+    stripe_charge_id = models.CharField(max_length=120, blank=True)
+    created_at = models.DateTimeField(default=timezone.now)
+    paid_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'Table {self.table_number}: {self.total_cents / 100:.2f} {self.currency.upper()}'
 
 
 class TableOrderItem(models.Model):

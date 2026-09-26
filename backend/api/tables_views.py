@@ -13,6 +13,7 @@ Staff only, on the API domain, sharing the admin session rather than inventing a
 from datetime import datetime, time, timedelta
 from zoneinfo import ZoneInfo
 
+from django.conf import settings
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 from django.utils import timezone
@@ -197,6 +198,26 @@ def mesas(request):
     return _render_board(request, 'es', floor=True)
 
 
+def pay_url(number):
+    """The address the QR carries. Absolute, because a phone camera has no page to be relative to."""
+    from sales.table_billing import token_for  # aquí y no arriba: `table_billing` lee de este módulo.
+
+    return f'{settings.BACKEND_URL}/mesa/pagar/{token_for(number)}/'
+
+
+def qr_svg(url):
+    """The QR as inline SVG, drawn on the server.
+
+    🔑 Server-side on purpose. The ticket QR on the order page is drawn by a script from a CDN, which is fine
+    for a page somebody opens at home; this one is held up in a bar, and a venue's wifi dropping would leave
+    the waiter showing an empty white square with nothing saying why. Inline SVG needs no network, no script
+    and no font, and it scales to whatever the tablet is.
+    """
+    import segno
+
+    return segno.make(url, error='m').svg_inline(scale=6, border=2)
+
+
 def _render_board(request, lang, floor):
     board = _board(lang)
     show = current_show()
@@ -222,6 +243,18 @@ def _render_board(request, lang, floor):
         opened = int(request.GET.get('open', ''))
     except ValueError:
         opened = 0
+    # Which table is showing its QR. Same idea as the breakdown and for the same reason: the board reloads
+    # itself every few seconds, so a panel held in the page would vanish while the customer is scanning it.
+    try:
+        showing_qr = int(request.GET.get('qr', ''))
+    except ValueError:
+        showing_qr = 0
+    if showing_qr:
+        for row in board:
+            if row['number'] == showing_qr and row['tab_cents']:
+                row['qr'] = qr_svg(pay_url(showing_qr))
+                row['qr_url'] = pay_url(showing_qr)
+
     if opened:
         # Its own name, never `rounds`: that one is the night's COUNT for the header, and shadowing it printed
         # a raw `<QuerySet [<TableOrder: ...>]>` across the top of the live board the moment anybody opened a
@@ -255,6 +288,7 @@ def _render_board(request, lang, floor):
         'max_table': MAX_TABLE,
         'tables_count': tables_on_show(),
         'board_version': board_version(),
+        'showing_qr': showing_qr,
         'show': show,
         'show_name': show.label(lang) if show else '',
         'show_time': show.show_time if show else '',

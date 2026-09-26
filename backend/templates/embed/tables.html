@@ -81,6 +81,17 @@
   .peek.add { display: flex; color: var(--ink); text-decoration: none; margin-top: 8px; justify-content: center;
               border: 1px solid var(--ink); border-radius: 999px; padding: 0 14px; }
   .peek.add:hover { background: var(--ink); color: #fff; }
+  /* Se sostiene delante de alguien sentado, así que ocupa la tarjeta entera y va sobre blanco: un QR sobre
+     el verde de una mesa con consumo se lee peor, y aquí sólo aparece en mesas con cuenta. */
+  /* La otra acción que se busca con prisa: cobrar. Con la misma forma que "apuntar una ronda" pero en
+     contorno, para que las dos se distingan de un vistazo sin competir entre ellas. */
+  .peek.cobro { display: flex; justify-content: center; margin-top: 8px; padding: 0 14px; border-radius: 999px;
+                border: 1px solid var(--brand); color: var(--brand); text-decoration: none; }
+  .peek.cobro:hover { background: var(--brand); color: #fff; }
+  .qr { margin-top: 10px; padding: 12px; border-radius: 16px; background: #fff; border: 1px solid var(--line);
+        text-align: center; }
+  .qr svg { width: 100%; max-width: 260px; height: auto; }
+  .qr-what { font-size: .74rem; color: var(--muted); margin: 6px 0 2px; line-height: 1.4; }
   /* Cuántas mesas hay. Va al final: se usa una vez por noche, no durante el servicio. */
   .howmany { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line); }
   .howmany label { font-size: .7rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
@@ -291,6 +302,20 @@
             <a class="peek" href="?#t{{ t.number }}">{% t lang "Hide breakdown" %}</a>
           {% else %}
             <a class="peek" href="?open={{ t.number }}#t{{ t.number }}">{% t lang "See breakdown" %}</a>
+          {% endif %}
+          {% comment %}
+            El QR para que la mesa pague sola con tarjeta. Va en la URL igual que el desglose, porque el
+            tablero se recarga cada pocos segundos y un panel guardado en la página desaparecería justo
+            mientras el cliente lo está escaneando.
+          {% endcomment %}
+          {% if t.qr %}
+            <div class="qr">
+              {{ t.qr|safe }}
+              <p class="qr-what">{% t lang "They scan this to pay the whole bill by card" %}</p>
+              <a class="peek" href="?#t{{ t.number }}">{% t lang "Hide QR" %}</a>
+            </div>
+          {% else %}
+            <a class="peek cobro" href="?qr={{ t.number }}#t{{ t.number }}">{% t lang "Show QR to pay" %}</a>
           {% endif %}
         {% endif %}
       </div>

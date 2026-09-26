@@ -1,0 +1,33 @@
+{% extends "embed/base.html" %}
+{% load showtime %}
+{% block title %}{% t lang "Paid" %} · Iguana Comedy{% endblock %}
+{% block head %}
+<style>
+  /* La pantalla que se le enseña al mesero al salir. Se lee de lejos y de un vistazo. */
+  .wrap { max-width: 460px; }
+  .done { text-align: center; padding: 34px 18px; border-radius: 22px; }
+  .done.yes { background: #1f7a35; color: #fff; }
+  .done.no { background: #f1f1f1; color: var(--muted); }
+  .done .big { font-family: "Bebas Neue", sans-serif; font-size: clamp(2.6rem, 14vw, 4rem); line-height: 1;
+               letter-spacing: .04em; margin: 0; }
+  .done .amount { font-family: "Bebas Neue", sans-serif; font-size: 2.2rem; line-height: 1; margin: 12px 0 0; }
+  .done .sub { font-size: .9rem; opacity: .92; margin: 8px 0 0; }
+  .note { margin-top: 16px; font-size: .82rem; color: var(--muted); line-height: 1.5; text-align: center; }
+</style>
+{% endblock %}
+{% block content %}
+{% if paid %}
+  <div class="done yes">
+    <p class="big">{% t lang "Paid" %}</p>
+    <p class="amount">{{ total }}</p>
+    {% if tip %}<p class="sub">{% t lang "Includes {0} tip" tip %}</p>{% endif %}
+    <p class="sub">{% t lang "Table" %} {{ table }}{% if when %} · {{ when|date:"H:i" }}{% endif %}</p>
+  </div>
+  <p class="note">{% t lang "Show this to your waiter on the way out. Thanks for coming." %}</p>
+{% else %}
+  <div class="done no">
+    <p class="big">{% t lang "Not paid" %}</p>
+  </div>
+  <p class="note">{% t lang "Nothing was charged. Ask your waiter to show the code again." %}</p>
+{% endif %}
+{% endblock %}

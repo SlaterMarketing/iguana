@@ -1,7 +1,8 @@
 from django.urls import path, re_path
 
 from . import (carta_views, door_views, embed_views, fan_views, floor_views, inventory_views,
-               menu_views, public_views, reservations_views, revenue_views, stats_views, tables_views)
+               menu_views, pay_views, public_views, reservations_views, revenue_views, stats_views,
+               tables_views)
 
 urlpatterns = [
     # Public catalogue (@kintana/sdk KintanaClient)
@@ -47,6 +48,12 @@ urlpatterns = [
     # The guest list, which is the DOOR list: same view, Spanish, and reached without the admin.
     path('mesas/reservas/', reservations_views.reservations, name='floor-reservations'),
     path('mesas/reservas/<str:order_id>/verificar/', reservations_views.check_in_order, name='floor-check-in'),
+    # La cuenta de la mesa, pagada desde el teléfono del cliente. Una sola ruta para los dos idiomas: el QR
+    # es el mismo papel y la página sigue al teléfono.
+    path('mesa/pagar/<str:token>/', pay_views.pay_page, name='table-pay'),
+    path('mesa/pagar/<str:token>/intent/', pay_views.pay_intent, name='table-pay-intent'),
+    path('mesa/pagar/<str:token>/confirmar/', pay_views.pay_confirm, name='table-pay-confirm'),
+    path('mesa/pagar/<str:token>/listo/', pay_views.pay_done, name='table-pay-done'),
     path('tables/<int:number>/close/', tables_views.close_table, name='close-table'),
     path('tables/<int:number>/settle/', tables_views.settle_table, name='settle-table'),
     path('tables/<int:number>/linea/<str:item_id>/quitar/', tables_views.void_item, name='void-item'),

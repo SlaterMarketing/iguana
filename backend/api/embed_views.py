@@ -326,6 +326,15 @@ def stripe_webhook(request):
             order = Order.objects.filter(pk=meta.get('order_id')).first()
             if order:
                 complete_order(order, obj.get('latest_charge') or '')
+        elif meta.get('purpose') == 'table':
+            # 🚨 The backstop that matters most here. A table pays, the phone loses signal on the way out of a
+            # basement room, and the browser never gets to confirm: without this the card is charged and the
+            # board still shows the table owing, so somebody gets chased for money they already paid.
+            from sales.models import TablePayment
+            from .pay_views import settle
+            payment = TablePayment.objects.filter(pk=meta.get('payment_id')).first()
+            if payment:
+                settle(payment, obj.get('latest_charge') or '')
         elif meta.get('purpose') == 'membership_oneoff':
             plan = MembershipPlan.objects.filter(pk=meta.get('plan_id')).first()
             contact_id = meta.get('contact_id')

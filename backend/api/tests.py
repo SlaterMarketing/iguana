@@ -2943,17 +2943,22 @@ class AddRoundFromTheFloorTests(ApiTestCase):
         self.assertEqual(order.note, 'sin hielo')
         self.assertEqual(order.items.get().quantity, 3)
 
-    def test_it_waits_for_the_bar_rather_than_counting_itself_delivered(self):
-        """🚨 The stock only moves on Delivered, so a round that arrived already delivered would take the
-        ingredients without anybody making the drink."""
+    def test_it_counts_as_delivered_and_takes_the_stock_in_the_same_breath(self):
+        """It used to land OPEN and wait for a Delivered tap. It does not any more.
+
+        Nobody orders through the table QR, so the person typing the round is the person carrying it (dueño,
+        2026-09-25) and confirming your own keystrokes is a tap that buys nothing. The stock still moves
+        exactly once, and it moves HERE rather than on a later tap, which is the whole point: the drink is
+        being poured as this is typed.
+        """
         from catalog.models import InventoryItem
         from sales.models import TableOrder
 
         self.client.post('/mesas/mesa/5/agregar/', {f'q:{self.beer.id}': '2'})
         order = TableOrder.objects.get(table_number=5)
-        self.assertEqual(order.status, TableOrder.OPEN)
-        self.assertIsNone(order.stock_applied_at)
-        self.assertEqual(InventoryItem.objects.get(pk=self.stock.pk).quantity, 10)
+        self.assertEqual(order.status, TableOrder.DELIVERED)
+        self.assertIsNotNone(order.stock_applied_at)
+        self.assertEqual(InventoryItem.objects.get(pk=self.stock.pk).quantity, 8)
 
     def test_delivering_it_then_moves_the_stock_exactly_as_a_customer_round_does(self):
         from catalog.models import InventoryItem
@@ -4525,6 +4530,252 @@ class AWaiterEntersWhatIsAlreadyGoingOutTests(ApiTestCase):
         order = TableOrder.objects.get(table_number=5)
         self.assertEqual(order.status, TableOrder.OPEN)
         self.assertIsNone(order.stock_applied_at, 'nothing leaves the shelf until it is poured')
+
+
+class PayTheTableFromAPhoneTests(ApiTestCase):
+    """End to end: the waiter shows a QR, the table pays by card, and the board lets them leave.
+
+    Stripe is stubbed at the boundary rather than mocked deep, so everything this project owns runs for real:
+    the token, the bill summed from the rounds, the tip, the intent, the settle and what the board draws
+    afterwards.
+    """
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        from django.core.management import call_command
+        from catalog.models import MenuCategory, MenuItem
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'mesero',
+                     verbosity=0)
+        self.staff = get_user_model().objects.create_user('duena', password='x', is_staff=True)
+        cat = MenuCategory.objects.create(name='Beers', name_es='Cervezas')
+        self.beer = MenuItem.objects.create(category=cat, name='Corona', name_es='Corona',
+                                            price_cents=6000, currency='mxn')
+
+    def order(self, table, qty=2):
+        self.client.login(username='mesero', password='no-es-la-real')
+        self.client.post(f'/mesas/mesa/{table}/agregar/', {f'q:{self.beer.id}': str(qty)})
+        self.client.logout()
+
+    def token(self, table):
+        from sales.table_billing import token_for
+
+        return token_for(table)
+
+    # --- the QR the waiter holds up -------------------------------------------------------------------
+
+    def test_the_board_offers_a_qr_only_once_the_table_owes_something(self):
+        self.client.login(username='mesero', password='no-es-la-real')
+        self.assertNotIn('?qr=6', self.client.get('/mesas/').content.decode())
+        self.client.logout()
+        self.order(6)
+        self.client.login(username='mesero', password='no-es-la-real')
+        self.assertIn('?qr=6', self.client.get('/mesas/').content.decode())
+
+    def test_showing_the_qr_draws_it_on_the_server(self):
+        self.order(6)
+        self.client.login(username='mesero', password='no-es-la-real')
+        page = self.client.get('/mesas/?qr=6').content.decode()
+        self.assertIn('<svg', page, 'drawn here, not fetched from a CDN a bar wifi can lose')
+        self.assertIn('class="qr"', page)
+        # What the QR actually encodes is checked directly, since an SVG carries paths and not the text.
+        from api.tables_views import pay_url
+        self.assertIn('/mesa/pagar/', pay_url(6))
+        self.assertEqual(self.client.get(pay_url(6).split('.com')[-1]).status_code, 200)
+
+    # --- the token ------------------------------------------------------------------------------------
+
+    def test_a_tampered_token_opens_nothing(self):
+        self.order(6)
+        bad = self.token(6)[:-4] + 'zzzz'
+        self.assertEqual(self.client.get(f'/mesa/pagar/{bad}/').status_code, 404)
+
+    def test_last_nights_qr_does_not_open_tonights_bill(self):
+        from datetime import timedelta as td
+
+        from sales.table_billing import token_for
+        from api.tables_views import service_start
+
+        self.order(6)
+        old = token_for(6, day=service_start().date() - td(days=1))
+        self.assertEqual(self.client.get(f'/mesa/pagar/{old}/').status_code, 404)
+
+    # --- the bill and the tip -------------------------------------------------------------------------
+
+    def test_the_bill_shows_the_drinks_and_defaults_the_tip_to_fifteen(self):
+        self.order(6, qty=2)
+        page = self.client.get(f'/mesa/pagar/{self.token(6)}/').content.decode()
+        self.assertIn('Corona', page)
+        self.assertIn('120', page, 'two at 60')
+        self.assertIn('value="15"\n                 checked', page.replace('  ', '  ')) if False else None
+        # 15 is the one that arrives already chosen; the others are offered, including none.
+        chosen = [chunk for chunk in page.split('<input type="radio"') if 'checked' in chunk.split('>')[0]]
+        self.assertEqual(len(chosen), 1, 'exactly one tip is preselected')
+        self.assertIn('value="15"', chosen[0])
+        for percent in ('value="0"', 'value="10"', 'value="20"'):
+            self.assertIn(percent, page)
+
+    def test_the_tip_is_a_percentage_of_the_bill_not_a_number_from_the_page(self):
+        from sales.models import TablePayment
+
+        self.order(6, qty=2)
+        with self.stripe():
+            self.client.post(f'/mesa/pagar/{self.token(6)}/intent/', {'tip': '20', 'amount': '1'})
+        payment = TablePayment.objects.get()
+        self.assertEqual(payment.bill_cents, 12000)
+        self.assertEqual(payment.tip_cents, 2400)
+        self.assertEqual(payment.total_cents, 14400)
+
+    def test_a_tip_that_is_not_on_the_list_falls_back_to_the_house_number(self):
+        from sales.models import TablePayment
+
+        self.order(6, qty=2)
+        with self.stripe():
+            self.client.post(f'/mesa/pagar/{self.token(6)}/intent/', {'tip': '95'})
+        self.assertEqual(TablePayment.objects.get().tip_percent, 15)
+
+    def test_no_tip_is_a_real_option(self):
+        from sales.models import TablePayment
+
+        self.order(6, qty=2)
+        with self.stripe():
+            self.client.post(f'/mesa/pagar/{self.token(6)}/intent/', {'tip': '0'})
+        payment = TablePayment.objects.get()
+        self.assertEqual(payment.tip_cents, 0)
+        self.assertEqual(payment.total_cents, 12000)
+
+    # --- paying, and leaving --------------------------------------------------------------------------
+
+    def stripe(self, status='succeeded'):
+        """Stripe answering the way it does, at the boundary and no deeper."""
+        from contextlib import contextmanager
+        from unittest import mock
+
+        @contextmanager
+        def ctx():
+            intent = mock.Mock(id='pi_test', client_secret='pi_test_secret', status=status,
+                               latest_charge='ch_test')
+            client = mock.Mock()
+            client.PaymentIntent.create.return_value = intent
+            client.PaymentIntent.retrieve.return_value = intent
+            with mock.patch('api.pay_views.stripe_enabled', return_value=True), \
+                 mock.patch('api.pay_views.stripe_client', return_value=client):
+                yield client
+
+        return ctx()
+
+    def pay(self, table, tip='15'):
+        token = self.token(table)
+        with self.stripe() as client:
+            start = self.client.post(f'/mesa/pagar/{token}/intent/', {'tip': tip})
+            payment_id = start.json()['paymentId']
+            done = self.client.post(f'/mesa/pagar/{token}/confirmar/', {'paymentId': payment_id})
+        return token, payment_id, start, done, client
+
+    def test_the_whole_thing(self):
+        """The one the owner asked for: pay on a phone, the board says paid, the table can leave."""
+        from sales.models import TableOrder, TablePayment
+
+        self.order(6, qty=2)
+        token, payment_id, start, done, client = self.pay(6)
+
+        # Stripe was asked for exactly what the bill says, in the bill's currency.
+        charged = client.PaymentIntent.create.call_args.kwargs
+        self.assertEqual(charged['amount'], 13800, '120 of drinks plus 15%')
+        self.assertEqual(charged['currency'], 'mxn')
+        self.assertEqual(charged['metadata']['purpose'], 'table')
+
+        self.assertEqual(done.status_code, 200)
+        payment = TablePayment.objects.get(pk=payment_id)
+        self.assertEqual(payment.status, TablePayment.PAID)
+        self.assertEqual(payment.stripe_charge_id, 'ch_test')
+
+        # Every round on the table is settled, and each one remembers which card settled it.
+        for order in TableOrder.objects.filter(table_number=6):
+            self.assertEqual(order.status, TableOrder.PAID)
+            self.assertEqual(order.payment_id, payment.id)
+
+        # The table's own screen says paid, which is what they show on the way out. In the phone's language:
+        # this one is Mexican, and a confirmation nobody can read is not a confirmation.
+        leaving = self.client.get(done.json()['doneUrl'], HTTP_ACCEPT_LANGUAGE='es-MX').content.decode()
+        self.assertIn('Pagado', leaving)
+        self.assertIn('138', leaving, 'what the card was charged, drinks and tip together')
+        self.assertIn('18', leaving, 'and the tip named separately, so nobody has to work it out')
+
+        # And the board no longer asks anybody for money.
+        self.client.login(username='mesero', password='no-es-la-real')
+        board = self.client.get('/mesas/').content.decode()
+        at = board.index('id="t6"')
+        card = board[board.rindex('<div', 0, at):board.index('id="t7"')]
+        self.assertNotIn('Marcar pagado', card)
+        self.assertIn('Liberar la mesa', card, 'settled, so the floor can clear it for the next party')
+
+    def test_paying_twice_settles_once(self):
+        """A double tap on a bad connection, or the webhook arriving after the browser. Same payment, once."""
+        from sales.models import TableOrder, TablePayment
+
+        self.order(6, qty=2)
+        token, payment_id, _start, _done, _c = self.pay(6)
+        with self.stripe():
+            again = self.client.post(f'/mesa/pagar/{token}/confirmar/', {'paymentId': payment_id})
+        self.assertEqual(again.status_code, 200)
+        self.assertEqual(TablePayment.objects.filter(status=TablePayment.PAID).count(), 1)
+        self.assertEqual(TableOrder.objects.filter(table_number=6, status=TableOrder.PAID).count(), 1)
+
+    def test_a_card_that_did_not_succeed_settles_nothing(self):
+        from sales.models import TableOrder, TablePayment
+
+        self.order(6, qty=2)
+        token = self.token(6)
+        with self.stripe(status='requires_payment_method'):
+            start = self.client.post(f'/mesa/pagar/{token}/intent/', {'tip': '15'})
+            done = self.client.post(f'/mesa/pagar/{token}/confirmar/',
+                                    {'paymentId': start.json()['paymentId']})
+        self.assertEqual(done.status_code, 409)
+        self.assertEqual(TablePayment.objects.get().status, TablePayment.PENDING)
+        self.assertEqual(TableOrder.objects.get(table_number=6).status, TableOrder.DELIVERED)
+
+    def test_a_round_added_after_the_card_went_through_is_a_new_bill(self):
+        """🚨 They pay, then order one more. The new round must not be settled by the old payment."""
+        from sales.models import TableOrder
+
+        self.order(6, qty=2)
+        self.pay(6)
+        self.order(6, qty=1)
+        unpaid = TableOrder.objects.filter(table_number=6).exclude(status=TableOrder.PAID)
+        self.assertEqual(unpaid.count(), 1)
+        self.assertEqual(unpaid.first().total_cents, 6000)
+        page = self.client.get(f'/mesa/pagar/{self.token(6)}/').content.decode()
+        self.assertIn('60', page, 'the new bill is the new round only')
+
+    def test_the_webhook_settles_a_table_whose_phone_never_came_back(self):
+        """The phone loses signal leaving a basement room. The card was charged; the board must know."""
+        from unittest import mock
+
+        from sales.models import TableOrder, TablePayment
+
+        self.order(6, qty=2)
+        with self.stripe():
+            start = self.client.post(f'/mesa/pagar/{self.token(6)}/intent/', {'tip': '15'})
+        payment_id = start.json()['paymentId']
+
+        event = {'type': 'payment_intent.succeeded',
+                 'data': {'object': {'id': 'pi_test', 'latest_charge': 'ch_hook',
+                                     'metadata': {'purpose': 'table', 'payment_id': payment_id}}}}
+        with mock.patch('stripe.Webhook.construct_event', return_value=event):
+            hooked = self.client.post('/api/stripe/webhook', data='{}', content_type='application/json')
+        self.assertEqual(hooked.status_code, 200)
+        self.assertEqual(TablePayment.objects.get(pk=payment_id).status, TablePayment.PAID)
+        self.assertEqual(TableOrder.objects.get(table_number=6).status, TableOrder.PAID)
+
+    def test_the_page_is_bilingual(self):
+        self.order(6, qty=2)
+        token = self.token(6)
+        es = self.client.get(f'/mesa/pagar/{token}/?lang=es').content.decode()
+        en = self.client.get(f'/mesa/pagar/{token}/?lang=en').content.decode()
+        self.assertIn('Propina para tu mesero', es)
+        self.assertIn('Tip for your waiter', en)
+        self.assertIn('Sin propina', es)
 
 
 class TableQueueAndBreakdownTests(ApiTestCase):
