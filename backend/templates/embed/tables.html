@@ -2,7 +2,9 @@
 {% load showtime %}
 {% block title %}{% t lang "Tables" %} · Iguana Comedy{% endblock %}
 {% block head %}
-<meta http-equiv="refresh" content="20">
+{# Un respaldo largo por si el JS no corre. #}
+{# El refresco de verdad lo hace el sondeo: no parpadea ni tira lo que alguien está escribiendo. #}
+<meta http-equiv="refresh" content="120">
 <style>
   /* Read on a phone, in a dark room, by somebody holding a tray. Big numbers, one colour that means one thing. */
   .wrap { max-width: 900px; }
@@ -56,6 +58,8 @@
   .q-table { font-family: "Bebas Neue", sans-serif; font-size: 1.5rem; line-height: 1; margin: 0; }
   .q-table .q-due { font-family: inherit; font-size: .95rem; font-weight: 700; margin-left: 8px; }
   .q-items { font-size: .85rem; color: var(--muted); margin: 4px 0 0; line-height: 1.35; }
+  .q-who { font-size: .8rem; font-weight: 700; margin: 2px 0 0; }
+  .round-who { font-size: .78rem; font-weight: 700; margin: 4px 0 0; }
   .q-act { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
   .q-when { font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; margin: 0; }
   .q.late .q-when { color: #8a5a00; }
@@ -147,6 +151,7 @@
           <div class="q-what">
             <p class="q-table">{% t lang "Table" %} {{ t.number }} <span class="q-due">{{ t.due }}</span></p>
             <p class="q-items">{{ t.items }}</p>
+            {% if t.who %}<p class="q-who">{{ t.who }}</p>{% endif %}
             <a class="peek" href="?open={{ t.number }}#t{{ t.number }}">{% t lang "See breakdown" %}</a>
             {# Para lo que se pide de viva voz: no todo el mundo escanea el QR de la mesa. #}
             {% if floor %}<a class="peek" href="/mesas/mesa/{{ t.number }}/agregar/">{% t lang "Add a round" %}</a>{% endif %}
@@ -215,6 +220,7 @@
                     {% endif %}
                   </div>
                 {% endfor %}
+                {% if r.who %}<p class="round-who">{{ r.who }}</p>{% endif %}
                 {% if r.note %}<p class="round-note">{{ r.note }}</p>{% endif %}
                 <p class="round-state">
                   {% if r.waiting %}{% t lang "Waiting" %}
@@ -274,4 +280,42 @@
     {% t lang "This page refreshes itself. A table disappears once it is marked delivered." %}
   </p>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  /**
+   * 🚨 Un sondeo, no un push. Gunicorn corre con TRES workers sync, así que una conexión SSE abierta ocupa un
+   * worker por tablet: tres tablets se comerían todos y el sitio entero, checkout incluido, dejaría de
+   * responder. Esto pregunta "¿cambió algo?" cada 3 segundos, y casi siempre la respuesta es no.
+   *
+   * Recarga sólo cuando la huella cambia, así que una ronda que entra desde el QR de una mesa aparece en
+   * segundos y el resto del tiempo la pantalla no parpadea.
+   */
+  var mine = "{{ board_version }}";
+  var EVERY = 3000;
+
+  function busy() {
+    // No recargar encima de alguien que está escribiendo: el campo de la nota y el de cuántas mesas hay
+    // perderían lo tecleado, y el motivo de la recarga sería invisible.
+    var el = document.activeElement;
+    if (!el) return false;
+    var tag = (el.tagName || "").toLowerCase();
+    return (tag === "input" || tag === "textarea" || tag === "select") && !el.readOnly;
+  }
+
+  function tick() {
+    fetch("/mesas/estado/", { credentials: "same-origin", cache: "no-store" })
+      .then(function (r) { return r.ok ? r.json() : null; })
+      .then(function (d) {
+        if (d && d.v && d.v !== mine && !busy()) location.reload();
+      })
+      .catch(function () {});
+  }
+  setInterval(tick, EVERY);
+  // Y al volver a la pantalla, sin esperar el siguiente ciclo.
+  document.addEventListener("visibilitychange", function () { if (!document.hidden) tick(); });
+})();
+</script>
 {% endblock %}

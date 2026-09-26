@@ -15,6 +15,9 @@ from .floor import is_floor
 
 HOME = '/mesas/'
 
+# How long a floor tablet stays signed in. See `sign_in`.
+SESSION_YEARS = 60 * 60 * 24 * 365
+
 
 def _safe_next(raw):
     """Only ever our own floor paths, so a crafted `?next=` cannot bounce somebody off the site."""
@@ -39,6 +42,11 @@ def sign_in(request):
             error = 'Usuario o contraseña incorrectos.'
         else:
             login(request, user)
+            # A year. These are tablets that live in the building and are meant to stay signed in across
+            # shifts; Django's two-week default would put somebody in front of a login screen mid-service with
+            # no obvious reason. Set per session rather than globally, so the owner's admin session keeps the
+            # short default it should have.
+            request.session.set_expiry(SESSION_YEARS)
             return redirect(destination)
     return render(request, 'floor/entrar.html', {'error': error, 'next': destination})
 

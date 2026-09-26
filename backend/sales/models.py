@@ -200,6 +200,9 @@ class TableOrder(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=OPEN)
     total_cents = models.PositiveIntegerField(default=0)
     currency = models.CharField(max_length=3, default='mxn')
+    # Who ordered it. Optional, and the table number is what actually routes the drink, but a name lets the
+    # waiter arrive saying one rather than holding a tray over a table asking who had the margarita.
+    guest_name = models.CharField(max_length=80, blank=True)
     note = models.CharField(max_length=300, blank=True)
     locale = models.CharField(max_length=5, default='en')
     # Settled at the table, which is the end of the round trip: ordered, carried over, paid for.

@@ -118,6 +118,9 @@ def _board(lang):
             'number': number,
             'orders': row['orders'] if row else [],
             'items': ', '.join(o.summary for o in row['orders']) if row else '',
+            # Whoever put their name on a round that is still waiting. A tray arriving with a name on it beats
+            # one held over a table asking who had the margarita.
+            'who': ', '.join(sorted({o.guest_name for o in row['orders'] if o.guest_name})) if row else '',
             'due': format_money(row['cents'], row['currency']) if row else '',
             'cents': row['cents'] if row else 0,
             # The whole tab for the night, delivered rounds included. Shown even when nothing is waiting,
@@ -134,6 +137,35 @@ def _board(lang):
             'late': waited is not None and waited >= 10,
         })
     return tables
+
+
+def board_version():
+    """A short fingerprint of everything the board draws, cheap enough to ask for every few seconds.
+
+    🚨 Deliberately NOT a push. Gunicorn runs three SYNC workers, so an SSE or long-poll connection pins one
+    worker for as long as a tablet has the page open: three tablets would consume every worker and the whole
+    site, checkout included, would stop answering. A poll that asks "has anything changed" and almost always
+    hears no costs one short query and holds nothing.
+
+    It hashes what is VISIBLE rather than a timestamp column, so it catches the cases a `max(created_at)` would
+    miss: a round marked delivered, a table settled, a line voided (which moves `total_cents`), and somebody
+    changing how many tables there are.
+    """
+    import hashlib
+
+    from catalog.models import FloorSettings
+
+    rows = (TableOrder.objects.filter(created_at__gte=service_start())
+            .order_by('pk').values_list('pk', 'status', 'total_cents', 'delivered_at', 'paid_at'))
+    digest = hashlib.blake2s(repr(list(rows)).encode(), digest_size=8)
+    digest.update(str(FloorSettings.load().tables).encode())
+    return digest.hexdigest()
+
+
+@floor_required
+def board_state(request):
+    """What the board polls. One number, so the answer is the same size whether anything happened or not."""
+    return JsonResponse({'v': board_version()})
 
 
 @floor_required
@@ -191,6 +223,7 @@ def _render_board(request, lang, floor):
                        'void_note': i.void_note, 'voided_by': i.voided_by}
                       for i in order.items.all()],
             'note': order.note,
+            'who': order.guest_name,
         } for order in rounds]
         for row in board:
             if row['number'] == opened:
@@ -204,6 +237,7 @@ def _render_board(request, lang, floor):
         'open_count': sum(1 for t in board if t['orders']),
         'max_table': MAX_TABLE,
         'tables_count': tables_on_show(),
+        'board_version': board_version(),
         'show': show,
         'show_name': show.label(lang) if show else '',
         'show_time': show.show_time if show else '',
@@ -271,7 +305,8 @@ def add_round(request, number):
         if quantities and items:
             # No email to the bar: the person entering this IS the bar, and a notification about your own
             # keystrokes is noise that teaches people to ignore the channel.
-            create_round(number, quantities, items, lang='es', note=request.POST.get('note', ''), notify=False)
+            create_round(number, quantities, items, lang='es', note=request.POST.get('note', ''),
+                         guest_name=request.POST.get('nombre', ''), notify=False)
             return redirect(f'/mesas/?open={number}#t{number}')
         return redirect(f'/mesas/mesa/{number}/agregar/?vacio=1')
 

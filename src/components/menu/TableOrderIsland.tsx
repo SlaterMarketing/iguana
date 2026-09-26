@@ -17,6 +17,8 @@ const copy = {
     whichTable: "Which table are you at?",
     tablePlaceholder: "Table number",
     needTable: "Put your table number in so we know where to bring it.",
+    yourName: "Your name (optional)",
+    namePlaceholder: "So we know who to hand it to",
     note: "Anything we should know?",
     notePlaceholder: "No ice, extra lime…",
     send: (total: string) => `Send to the bar · ${total}`,
@@ -33,6 +35,8 @@ const copy = {
     whichTable: "¿En qué mesa estás?",
     tablePlaceholder: "Número de mesa",
     needTable: "Pon tu número de mesa para saber a dónde llevarlo.",
+    yourName: "Tu nombre (opcional)",
+    namePlaceholder: "Para saber a quién entregarlo",
     note: "¿Algo que debamos saber?",
     notePlaceholder: "Sin hielo, con limón de más…",
     send: (total: string) => `Enviar a la barra · ${total}`,
@@ -59,6 +63,8 @@ export function TableOrderIsland({ locale, table: fixedTable, menu, baseUrl, api
   const table = fixedTable ?? (/^[0-9]{1,3}$/.test(typedTable) ? Number(typedTable) : 0);
   const [quantities, setQuantities] = useState<Record<string, number>>({});
   const [note, setNote] = useState("");
+  // Optional: the table number is what routes the drink, a name is what lets the waiter arrive saying one.
+  const [guestName, setGuestName] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [sent, setSent] = useState("");
@@ -92,7 +98,7 @@ export function TableOrderIsland({ locale, table: fixedTable, menu, baseUrl, api
       const response = await fetch(`${baseUrl.replace(/\/$/, "")}/api/public/v1/table-orders`, {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-        body: JSON.stringify({ table, items: quantities, note, lang: locale }),
+        body: JSON.stringify({ table, items: quantities, note, name: guestName, lang: locale }),
       });
       const body = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
       if (!response.ok) throw new Error(body.error || t.failed);
@@ -179,6 +185,18 @@ export function TableOrderIsland({ locale, table: fixedTable, menu, baseUrl, api
           />
         </label>
       )}
+
+      <label className="block text-left">
+        <span className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500">{t.yourName}</span>
+        <input
+          className="mt-2 min-h-12 w-full rounded-2xl border border-black/20 px-4 text-base"
+          value={guestName}
+          maxLength={80}
+          autoComplete="given-name"
+          placeholder={t.namePlaceholder}
+          onChange={(event) => setGuestName(event.target.value)}
+        />
+      </label>
 
       <label className="block text-left">
         <span className="text-xs font-semibold uppercase tracking-[0.3em] text-neutral-500">{t.note}</span>

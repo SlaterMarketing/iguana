@@ -25,6 +25,11 @@
   .total { font-weight: 700; }
   .warn { background: #fdf6e7; border: 1px solid #b7791f; border-radius: 14px; padding: 12px 14px;
           font-size: .85rem; }
+  /* 21px tall as a bare link, which is fine for a mouse and not for a thumb in a dark room. */
+  .cancel { display: inline-flex; align-items: center; justify-content: center; min-height: 44px;
+            border-radius: 999px; border: 1px solid var(--line); color: var(--muted); text-decoration: none;
+            font: 700 .68rem/1 inherit; letter-spacing: .12em; text-transform: uppercase; }
+  .cancel:hover { color: var(--ink); border-color: var(--ink); }
 </style>
 {% endblock %}
 {% block content %}
@@ -66,10 +71,11 @@
     {% endfor %}
 
     <div class="foot">
+      <label>Nombre (opcional)<input name="nombre" placeholder="para saber a quién entregarlo" maxlength="80"></label>
       <label>Nota para la barra<input name="note" placeholder="sin hielo, con limón…" maxlength="300"></label>
       <p class="total" id="total">Total 0 MXN</p>
       <button class="btn" type="submit">Mandar a la barra</button>
-      <a class="peek" href="/mesas/">Cancelar</a>
+      <a class="cancel" href="/mesas/">Cancelar</a>
     </div>
   </form>
 </div>

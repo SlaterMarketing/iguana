@@ -91,7 +91,8 @@ def table_order(request):
     if not items:
         return JsonResponse({'error': tr(lang, 'Those items are not available right now.')}, status=400)
 
-    order = create_round(table, quantities, items, lang=lang, note=str(body.get('note') or ''))
+    order = create_round(table, quantities, items, lang=lang, note=str(body.get('note') or ''),
+                         guest_name=str(body.get('name') or ''))
     return JsonResponse({
         'id': order.id,
         'table': order.table_number,
@@ -101,7 +102,14 @@ def table_order(request):
     })
 
 
-def create_round(table, quantities, items, lang='es', note='', notify=True):
+# How far past the tables we have a number may reach and still be believed. A club adds a table or two at a
+# time, so a 15 when the board says 12 is a table somebody carried in; an 87 is a typo, and auto-growing to it
+# would draw 75 empty cards and make the board useless. Past this the round still arrives and still shows,
+# because the board unions in any table that has one; only the count of EMPTY cards is left alone.
+AUTO_ADD_REACH = 6
+
+
+def create_round(table, quantities, items, lang='es', note='', notify=True, guest_name=''):
     """Put a round on a table's bill. One function, because there are two ways in and they must agree.
 
     The customer scans the QR and orders; a waiter takes it verbally and enters it at `/mesas/`. Those are the
@@ -114,9 +122,11 @@ def create_round(table, quantities, items, lang='es', note='', notify=True):
     with transaction.atomic():
         order = TableOrder.objects.create(
             table_number=table, locale=lang, note=str(note or '')[:300],
+            guest_name=str(guest_name or '').strip()[:80],
             currency=(next(iter(items.values())).currency or 'mxn'),
             event=current_show(),
         )
+        _stretch_to_fit(table)
         total = 0
         for item_id, qty in quantities.items():
             item = items.get(item_id)
@@ -133,6 +143,25 @@ def create_round(table, quantities, items, lang='es', note='', notify=True):
         # server having a bad night must not lose the round.
         transaction.on_commit(lambda: notify_table_order(order))
     return order
+
+
+def _stretch_to_fit(table):
+    """Somebody ordered from a table the board does not have, so add it.
+
+    The bar carries a table in and nobody stops to update a setting first: the round arrives from table 15
+    while the board says twelve. It showed up anyway (the board unions in any table with a round) but the
+    empty cards stopped at twelve, so the next table to be used was invisible until it ordered too.
+
+    Bounded by `AUTO_ADD_REACH` because the same field takes typos. 15 against 12 is a table; 87 is a slip,
+    and growing to it would draw 75 empty cards.
+    """
+    from catalog.models import FloorSettings
+
+    row = FloorSettings.load()
+    if row.tables < table <= row.tables + AUTO_ADD_REACH:
+        row.tables = table
+        row.updated_by = 'auto'
+        row.save(update_fields=['tables', 'updated_at', 'updated_by'])
 
 
 def notify_table_order(order):

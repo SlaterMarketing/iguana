@@ -2367,6 +2367,163 @@ class HowManyTablesTests(ApiTestCase):
         self.assertIn(9, self.cards())
 
 
+class BoardKeepsUpTests(ApiTestCase):
+    """The board noticing a customer's order within seconds, without holding a worker open."""
+
+    def setUp(self):
+        super().setUp()
+        from catalog.models import MenuCategory, MenuItem
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'mesero',
+                     verbosity=0)
+        self.client.login(username='mesero', password='no-es-la-real')
+        cat = MenuCategory.objects.create(name='Cervezas')
+        self.beer = MenuItem.objects.create(category=cat, name='Victoria', price_cents=5000, currency='mxn')
+
+    def version(self):
+        return self.client.get('/mesas/estado/').json()['v']
+
+    def order(self, table=3, qty=1, name=''):
+        return self.client.post('/api/public/v1/table-orders',
+                                data=json.dumps({'table': table, 'items': {self.beer.id: qty},
+                                                 'lang': 'es', 'name': name}),
+                                content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {KEY}')
+
+    def test_nothing_happening_means_the_same_answer(self):
+        """Almost every poll is this one, so it has to be cheap and stable."""
+        self.assertEqual(self.version(), self.version())
+
+    def test_a_customer_order_changes_it(self):
+        before = self.version()
+        self.order()
+        self.assertNotEqual(self.version(), before)
+
+    def test_delivering_changes_it(self):
+        self.order()
+        before = self.version()
+        self.client.post('/tables/3/close/')
+        self.assertNotEqual(self.version(), before)
+
+    def test_settling_changes_it(self):
+        self.order()
+        before = self.version()
+        self.client.post('/tables/3/settle/')
+        self.assertNotEqual(self.version(), before)
+
+    def test_voiding_a_line_changes_it(self):
+        """It hashes what is VISIBLE, so a void moves it through `total_cents` with no timestamp involved."""
+        from sales.models import TableOrderItem
+
+        self.order(qty=2)
+        before = self.version()
+        line = TableOrderItem.objects.get()
+        self.client.post(f'/tables/3/linea/{line.id}/quitar/', {'reason': 'WASTED'})
+        self.assertNotEqual(self.version(), before)
+
+    def test_adding_a_table_changes_it(self):
+        before = self.version()
+        self.client.post('/tables/cuantas/', {'more': '1'})
+        self.assertNotEqual(self.version(), before)
+
+    def test_a_stranger_cannot_poll_it(self):
+        self.client.logout()
+        self.assertEqual(self.client.get('/mesas/estado/').status_code, 302)
+
+
+class TableAppearsWhenSomebodyUsesItTests(ApiTestCase):
+    """A table the board does not have yet, ordered from."""
+
+    def setUp(self):
+        super().setUp()
+        from catalog.models import MenuCategory, MenuItem
+
+        cat = MenuCategory.objects.create(name='Cervezas')
+        self.beer = MenuItem.objects.create(category=cat, name='Victoria', price_cents=5000, currency='mxn')
+
+    def order(self, table):
+        return self.client.post('/api/public/v1/table-orders',
+                                data=json.dumps({'table': table, 'items': {self.beer.id: 1}, 'lang': 'es'}),
+                                content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {KEY}')
+
+    def test_a_table_just_past_the_count_is_added(self):
+        """The bar carries one in and nobody stops to change a setting first."""
+        from catalog.models import FloorSettings
+
+        self.assertEqual(FloorSettings.load().tables, 12)
+        self.order(15)
+        self.assertEqual(FloorSettings.load().tables, 15)
+
+    def test_a_typo_does_not_grow_the_board_to_87_cards(self):
+        """🚨 The same field takes mistakes. 15 against 12 is a table; 87 is a slip, and growing to it would
+        draw 75 empty cards. The round still arrives and still shows, because the board unions it in."""
+        from catalog.models import FloorSettings
+        from sales.models import TableOrder
+
+        self.order(87)
+        self.assertEqual(FloorSettings.load().tables, 12)
+        self.assertTrue(TableOrder.objects.filter(table_number=87).exists())
+
+    def test_a_table_we_already_have_changes_nothing(self):
+        from catalog.models import FloorSettings
+
+        self.order(4)
+        self.assertEqual(FloorSettings.load().tables, 12)
+
+    def test_the_customer_can_leave_their_name_on_it(self):
+        from sales.models import TableOrder
+
+        self.client.post('/api/public/v1/table-orders',
+                         data=json.dumps({'table': 4, 'items': {self.beer.id: 1}, 'lang': 'es', 'name': 'Ana'}),
+                         content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {KEY}')
+        self.assertEqual(TableOrder.objects.get().guest_name, 'Ana')
+
+    def test_the_name_shows_on_the_board(self):
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'mesero',
+                     verbosity=0)
+        self.client.post('/api/public/v1/table-orders',
+                         data=json.dumps({'table': 4, 'items': {self.beer.id: 1}, 'lang': 'es', 'name': 'Ana'}),
+                         content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {KEY}')
+        self.client.login(username='mesero', password='no-es-la-real')
+        self.assertIn('Ana', self.client.get('/mesas/').content.decode())
+
+
+class DeployDoesNotSignTheTabletsOutTests(ApiTestCase):
+    """🚨 `set_password` rotates the session auth hash, which kills every session that user has.
+
+    Calling it on every deploy signed out every tablet on every deploy, and on a fifteen-deploy day that is
+    fifteen logins behind a bar. The symptom ("it keeps logging us out") looks nothing like its cause.
+    """
+
+    def test_a_deploy_leaves_a_signed_in_tablet_signed_in(self):
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'bar', verbosity=0)
+        self.assertTrue(self.client.login(username='bar', password='no-es-la-real'))
+        self.assertEqual(self.client.get('/mesas/').status_code, 200)
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'bar', verbosity=0)
+        self.assertEqual(self.client.get('/mesas/').status_code, 200, 'the deploy signed the tablet out')
+
+    def test_but_an_actual_password_change_still_takes_effect(self):
+        from django.contrib.auth import get_user_model
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'bar', verbosity=0)
+        call_command('ensure_floor_accounts', '--password', 'otra-distinta', '--usernames', 'bar', verbosity=0)
+        self.assertTrue(get_user_model().objects.get(username='bar').check_password('otra-distinta'))
+
+    def test_a_floor_session_outlasts_a_shift(self):
+        """Django's two-week default would put somebody at a login screen mid-service for no visible reason."""
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'bar', verbosity=0)
+        self.client.post('/mesas/entrar/', {'username': 'bar', 'password': 'no-es-la-real'})
+        self.assertGreater(self.client.session.get_expiry_age(), 60 * 60 * 24 * 300)
+
+
 class AddRoundFromTheFloorTests(ApiTestCase):
     """A waiter putting a verbal order on the bill: the board could take a line off but never put one on."""
 

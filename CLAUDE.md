@@ -393,6 +393,14 @@ not undone by the next deploy.
 **`mesero`, `bar` and `door` are the floor accounts and they are NOT staff** (`floor_password`, shared, re-applied on
 every deploy because it is a short word typed on a shared phone behind a bar). They reach `/mesas/` and its
 inventory, and nothing else.
+🚨 **`ensure_floor_accounts` must only set the password when it actually DIFFERS.** `set_password` rotates
+the session auth hash, which invalidates every session that user has, so calling it unconditionally signed out
+every tablet on every deploy: on a fifteen-deploy day that is fifteen logins behind a bar, and the symptom
+("it keeps logging us out") looks nothing like its cause. The forcing behaviour is unchanged, since a password
+somebody changed still gets put back. `api.tests.DeployDoesNotSignTheTabletsOutTests` pins it.
+⚠ A floor login sets a **one-year** session expiry in `floor_views.sign_in`, set per session rather than
+globally so the owner's admin session keeps the short default. Django's two-week default would put somebody at
+a login screen mid-service for no visible reason.
 🚨 **`is_staff = False` is the entire security model, on purpose.** Django's admin turns away a non-staff
 account at the login form, before it consults a single permission, so `/admin/` is shut by construction rather
 than by remembering to withhold every model permission one at a time; a permission added to one of these
@@ -476,6 +484,24 @@ because of that, and is now reachable by the floor at `/mesas/reservas/`, which 
   that table for the service (an open one is marked delivered too, since they are paying for it) and turns into
   `Undo`. Reversible on purpose: it is a tap on a phone in a dark room, and a table wrongly marked paid is
   money out of the door. The board header names the show and totals the night.
+  🚨 **The board polls every 3 seconds; it is deliberately NOT a push.** Gunicorn runs **three SYNC workers**
+  (`supervisor.conf.j2`), so one held-open SSE or long-poll connection pins a worker for as long as a tablet
+  has the page open: three tablets would consume every worker and the whole site, checkout included, would
+  stop answering. `/mesas/estado/` returns one hash of what the board DRAWS (round ids, statuses, totals,
+  delivered/paid stamps, and the table count), the page reloads only when it changes, and the meta refresh
+  stays as a 120s backstop for a tablet whose JS died. Hashing what is visible rather than a `max(created_at)`
+  is what makes it catch a delivery, a settle and a void, none of which touch a creation timestamp.
+  ⚠ It will not reload while somebody has an input focused, or the note they are typing and the table count
+  they are halfway through would vanish for no visible reason.
+  **A table nobody has added yet is added when somebody orders from it** (`menu_views._stretch_to_fit`),
+  because the bar carries one in and does not stop to change a setting first.
+  🔑 **Bounded by `AUTO_ADD_REACH` (6), since the same field takes typos.** 15 against 12 is a table; 87 is a
+  slip, and growing to it would draw 75 empty cards and make the board useless. Past the reach the round still
+  arrives and its card still shows, because the board unions in any table that has one; only the count of
+  EMPTY cards is left alone.
+  **A round can carry the guest's name** (`TableOrder.guest_name`, optional, from the customer's own form and
+  from `Apuntar una ronda`). The table number routes the drink; the name is what lets the waiter arrive saying
+  one instead of holding a tray over a table asking who had the margarita.
   **How many tables the room has** is a number the bar edits at the foot of the board, not a constant in the
   code: `catalog.FloorSettings` (one row, `load()`), read per request so carrying another table in does not
   need a restart, let alone a deploy. A club still working out its own layout cannot wait for a developer, and

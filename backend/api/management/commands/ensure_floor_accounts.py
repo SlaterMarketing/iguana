@@ -38,9 +38,17 @@ class Command(BaseCommand):
             user.is_staff = False
             user.is_superuser = False
             user.is_active = True
-            user.set_password(opts['password'])
+            # 🚨 Only when it actually differs. `set_password` rotates the session auth hash, which invalidates
+            # every existing session for that user, so calling it unconditionally signed out every tablet on
+            # every deploy. Fifteen deploys in one day meant fifteen logouts behind the bar, and the symptom
+            # ("it keeps logging us out") looks nothing like its cause. The forcing behaviour is unchanged:
+            # if somebody changes the password, the next deploy still puts it back.
+            rotated = not user.check_password(opts['password'])
+            if rotated:
+                user.set_password(opts['password'])
             user.save()
             user.groups.add(group)
             note = 'created' if created else ('demoted from staff' if demoted else 'already there')
-            self.stdout.write(f'  {username}: {note}, group {FLOOR_GROUP}, admin closed')
+            self.stdout.write(f'  {username}: {note}, group {FLOOR_GROUP}, admin closed'
+                              + (', password reset (this signs its tablets out)' if rotated and not created else ''))
         self.stdout.write(f'{len(opts["usernames"])} floor account(s) ready for /mesas/')

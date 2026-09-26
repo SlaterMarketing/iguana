@@ -50,6 +50,7 @@ urlpatterns = [
     path('tables/<int:number>/linea/<str:item_id>/quitar/', tables_views.void_item, name='void-item'),
     path('tables/cuantas/', tables_views.set_tables, name='set-tables'),
     path('mesas/mesa/<int:number>/agregar/', tables_views.add_round, name='floor-add-round'),
+    path('mesas/estado/', tables_views.board_state, name='floor-board-state'),
     path('api/public/v1/menu', menu_views.menu),
     path('api/public/v1/table-orders', menu_views.table_order),
     path('api/public/v1/site', public_views.site),
