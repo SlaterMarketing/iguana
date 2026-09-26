@@ -66,8 +66,14 @@ const nearbyCity =
 // The page leads with what is on this month; everything after that lives in the calendar you can open, so the
 // weekly open mics do not bury the rest of the year.
 const { thisMonth, later } = splitByCurrentMonth(upcoming);
-const featured = thisMonth.length > 0 ? thisMonth : later.slice(0, 4);
-const calendar = thisMonth.length > 0 ? later : later.slice(4);
+// Never fewer than four up top (owner, 2026-09-26): at the end of a month "this month" can be two nights, and a
+// page that leads with two cards reads as a club with nothing on. Topped up from next month in date order.
+const FEATURED_MIN = 4;
+const featuredCount = Math.max(FEATURED_MIN, thisMonth.length);
+const featured = [...thisMonth, ...later].slice(0, featuredCount);
+const calendar = later.slice(featuredCount - thisMonth.length);
+// "This month" only while it is true; once next month's shows are in the list the heading says "Upcoming".
+const featuredIsThisMonth = featured.length === thisMonth.length;
 const calendarGrouped = groupEventsByMonth(calendar, "asc", locale);
 const pastGrouped = groupEventsByMonth(past, "desc", locale);
 const hasAnyShows = upcoming.length > 0 || pastGrouped.size > 0;
@@ -134,7 +140,9 @@ const emptyMessage =
           <h2 class="text-center font-display text-3xl text-neutral-950" style="font-family: var(--font-display);">
             {citySlugFilter && activeCityLabel
               ? t(locale, "home.upcomingIn").replace("{city}", activeCityLabel)
-              : t(locale, "events.thisMonth")}
+              : featuredIsThisMonth
+                ? t(locale, "events.thisMonth")
+                : t(locale, "home.upcoming")}
           </h2>
           {featured.length === 0 ? (
             nearbyCity ? (
