@@ -123,7 +123,11 @@
       undo.textContent = "Deshacer";
       undo.onclick = function () { send("/mesas/puerta/deshacer/", { token: lastToken }, function () {
         big.textContent = "DESHECHO"; verdict.className = "verdict idle"; sub.textContent = "Ese boleto vuelve a servir.";
-        if (admitted > 0) { admitted -= 1; tally.textContent = admitted + " boletos admitidos"; }
+        // El botón se va con la acción: dejarlo deja "DESHECHO ... DESHACER" en pantalla, que invita a un
+        // segundo toque que no hace nada y hace dudar de si el primero sirvió.
+        undo.remove();
+        last = "";   // y el mismo código se puede volver a leer enseguida, sin esperar la ventana de 2.5s
+        if (admitted > 0) { admitted -= 1; tally.textContent = admitted + (admitted === 1 ? " boleto admitido" : " boletos admitidos"); }
       }); };
       verdict.appendChild(undo);
     }
