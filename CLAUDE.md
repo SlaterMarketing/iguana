@@ -216,6 +216,10 @@ email per night and locks the ticket types while booking, because nothing paid u
 
 The site finds the next bookable night per language by the `open-mic` tag (`src/lib/open-mics.ts`), skipping sold-out
 nights, and the home page keeps open mics out of its six event slots.
+🚨 **A sold-out open mic is SHOWN, never skipped, on the lander** (owner, 2026-09-26). The reservations are gone
+but 20 walk-in seats are not, so the lander (`upcomingOpenMics`), the cards and the event page draw the AGOTADO
+strip plus `walkInLine()` ("we still keep 20 walk-in seats, show up early") and offer the next bookable date. The
+callout and hero badge still use `nextBookableOpenMics`, because they are a Reserve button.
 
 ### The nudges on a night, and the order they argue in
 
