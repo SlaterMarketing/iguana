@@ -170,7 +170,7 @@ const pixelContent = event
                 {
                   event.status === "sold-out" || event.status === "postponed" ? (
                     <span class="rounded-full bg-white/15 px-4 py-2 text-xs font-semibold uppercase tracking-[0.35em] text-white backdrop-blur-sm">
-                      {event.status === "sold-out" ? t(locale, "ui.soldOut") : t(locale, "ui.postponed")}
+                      {event.status === "sold-out" ? `${t(locale, "ui.soldOut")}${isOpenMic(event) ? "*" : ""}` : t(locale, "ui.postponed")}
                     </span>
                   ) : null
                 }
@@ -221,7 +221,7 @@ const pixelContent = event
                       class="px-4 pt-7 uppercase leading-none text-white"
                       style="font-family: var(--font-display); font-size: clamp(2.6rem, 9vw, 4rem); letter-spacing: 0.06em;"
                     >
-                      {t(locale, "ui.soldOut")}
+                      {t(locale, "ui.soldOut")}{isOpenMic(event) ? "*" : ""}
                     </p>
                     <p class="px-6 pb-6 pt-3 text-sm text-white/80">
                       {isOpenMic(event) ? walkInLine(event, locale) : t(locale, "events.soldOutNote")}
