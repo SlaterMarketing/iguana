@@ -71,7 +71,10 @@ const { thisMonth, later } = splitByCurrentMonth(upcoming);
 const FEATURED_MIN = 4;
 const featuredCount = Math.max(FEATURED_MIN, thisMonth.length);
 const featured = [...thisMonth, ...later].slice(0, featuredCount);
-const calendar = later.slice(featuredCount - thisMonth.length);
+// The calendar is whole months, so a month that also lends shows to the top still lists all of them: October
+// missing its first two nights read as a broken calendar. Repeating a show is the lesser evil (owner, 2026-09-26).
+// A night leaves both lists by itself the day after it happens, when the API marks it past.
+const calendar = later;
 // "This month" only while it is true; once next month's shows are in the list the heading says "Upcoming".
 const featuredIsThisMonth = featured.length === thisMonth.length;
 const calendarGrouped = groupEventsByMonth(calendar, "asc", locale);
