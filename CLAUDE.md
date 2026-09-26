@@ -38,6 +38,11 @@ npm run start:node               # run that build
 npx astro check                  # type check (pre-existing errors on Locals.brandOverrides in middleware.ts)
 
 # Backend (Django 6, SQLite locally via config.py, Postgres in production)
+# 🚨 That difference hides a whole class of bug: SQLite IGNORES select_for_update, so a lock that Postgres
+# refuses outright passes every local test. `select_for_update()` beside `select_related()` across a NULLABLE
+# FK is a LEFT OUTER JOIN, and Postgres answers "FOR UPDATE cannot be applied to the nullable side of an outer
+# join". It 500'd the door scanner on the first real scan with 12 green tests behind it. Use
+# `select_for_update(of=('self',))` when the query select_relates anything nullable.
 cd backend
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 cp config_example.py config.py   # DEBUG=True, SITE_URLS, PUBLIC_API_KEYS, EMAIL_BACKEND console for local

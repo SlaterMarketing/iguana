@@ -78,7 +78,12 @@ def verify(request):
 
     now = timezone.now()
     with transaction.atomic():
-        ticket = (Ticket.objects.select_for_update()
+        # 🚨 `of=('self',)` is load-bearing, and its absence passes every local test. `Order.event` is
+        # nullable, so `select_related('order__event')` is a LEFT OUTER JOIN, and Postgres refuses
+        # `FOR UPDATE cannot be applied to the nullable side of an outer join`. SQLite ignores
+        # `select_for_update` altogether, so the suite is green on a query that 500s in production the first
+        # time somebody scans a ticket. Locking the ticket row alone is also all this needs.
+        ticket = (Ticket.objects.select_for_update(of=('self',))
                   .select_related('order', 'order__event')
                   .filter(checkin_token=token).first())
         if ticket is None:
