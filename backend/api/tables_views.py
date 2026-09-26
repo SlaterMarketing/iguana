@@ -326,10 +326,21 @@ def add_round(request, number):
          'items': [i for i in c.items.all() if i.available]}
         for c in MenuCategory.objects.filter(active=True).prefetch_related('items')
     ]
+    # What this table already has, because "add more" without seeing the current bill is how a round gets
+    # ordered twice. Same service window and the same exclusions as the board, so the two agree.
+    running = (TableOrder.objects.filter(table_number=number, created_at__gte=service_start(),
+                                         closed_at__isnull=True)
+               .exclude(status=TableOrder.CANCELLED).prefetch_related('items').order_by('created_at'))
+    rounds = list(running)
+    so_far = sum(o.total_cents for o in rounds)
     return render(request, 'floor/agregar.html', {
         'number': number,
+        'label': table_labels().get(str(number), ''),
         'grupos': [c for c in categories if c['items']],
         'vacio': request.GET.get('vacio'),
+        'rounds': rounds,
+        'so_far': format_money(so_far, rounds[0].currency if rounds else 'mxn') if so_far else '',
+        'already': ', '.join(o.summary for o in rounds if o.summary),
     })
 
 

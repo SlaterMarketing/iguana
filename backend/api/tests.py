@@ -2844,6 +2844,28 @@ class AddRoundFromTheFloorTests(ApiTestCase):
         MenuItemIngredient.objects.create(menu_item=self.beer, inventory_item=self.stock, quantity=1)
         self.off = MenuItem.objects.create(category=cat, name='XX', price_cents=5000, available=False)
 
+    def test_it_shows_what_the_table_already_has(self):
+        """Adding "more" without seeing the current bill is how a round gets ordered twice."""
+        self.client.post('/mesas/mesa/5/agregar/', {f'q:{self.beer.id}': '2'})
+        page = self.client.get('/mesas/mesa/5/agregar/').content.decode()
+        self.assertIn('Ya tiene', page)
+        self.assertIn('100 MXN', page)
+        self.assertIn('2 x Victoria', page)
+
+    def test_an_empty_table_says_nothing_about_a_bill(self):
+        self.assertNotIn('Ya tiene', self.client.get('/mesas/mesa/5/agregar/').content.decode())
+
+    def test_a_cleared_table_starts_the_page_clean_too(self):
+        """A table freed for the next party must not show them the last party's drinks."""
+        self.client.post('/mesas/mesa/5/agregar/', {f'q:{self.beer.id}': '2'})
+        self.client.post('/tables/5/settle/')
+        self.client.post('/tables/5/cerrar/')
+        self.assertNotIn('Ya tiene', self.client.get('/mesas/mesa/5/agregar/').content.decode())
+
+    def test_the_page_is_titled_with_the_spot_name(self):
+        self.client.post('/tables/5/nombre/', {'label': 'Box 2'})
+        self.assertIn('Box 2', self.client.get('/mesas/mesa/5/agregar/').content.decode())
+
     def test_it_puts_the_round_on_the_bill(self):
         from sales.models import TableOrder
 

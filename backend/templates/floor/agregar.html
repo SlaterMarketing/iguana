@@ -25,6 +25,12 @@
   .total { font-weight: 700; }
   .warn { background: #fdf6e7; border: 1px solid #b7791f; border-radius: 14px; padding: 12px 14px;
           font-size: .85rem; }
+  .sofar { border: 1px solid var(--brand); background: var(--brand-soft); border-radius: 16px;
+           padding: 12px 14px; }
+  .sofar-head { margin: 0; font-size: .78rem; letter-spacing: .1em; text-transform: uppercase;
+                color: var(--muted); }
+  .sofar-head strong { font-size: 1.15rem; letter-spacing: 0; text-transform: none; color: var(--ink); }
+  .sofar-what { margin: 4px 0 0; font-size: .85rem; color: var(--muted); line-height: 1.35; }
   /* 21px tall as a bare link, which is fine for a mouse and not for a thumb in a dark room. */
   .cancel { display: inline-flex; align-items: center; justify-content: center; min-height: 44px;
             border-radius: 999px; border: 1px solid var(--line); color: var(--muted); text-decoration: none;
@@ -36,7 +42,7 @@
 <div class="stack">
   <div>
     <p class="eyebrow">Iguana Comedy</p>
-    <h1>Mesa {{ number }}</h1>
+    <h1>{% if label %}{{ label }}{% else %}Mesa {{ number }}{% endif %}</h1>
     <p class="muted">Apunta lo que pidieron. Entra a la fila como cualquier otra ronda.</p>
   </div>
 
@@ -49,6 +55,14 @@
   </div>
 
   {% if vacio %}<p class="warn">No elegiste nada, así que no se guardó nada.</p>{% endif %}
+
+  {# Lo que ya trae la mesa. Agregar "más" sin ver la cuenta es como se pide dos veces lo mismo. #}
+  {% if rounds %}
+    <div class="sofar">
+      <p class="sofar-head">Ya tiene <strong>{{ so_far }}</strong></p>
+      <p class="sofar-what">{{ already }}</p>
+    </div>
+  {% endif %}
 
   <form method="post" action="/mesas/mesa/{{ number }}/agregar/" id="round">
     {% csrf_token %}
