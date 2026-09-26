@@ -3,7 +3,7 @@ import type { KintanaPublicEvent } from "@kintana/sdk";
 import { eventCitySlug, eventSupportsOnSiteCheckout, eventLanguageLabel, formatEventScheduleLine, formatMinorUnitsPrice } from "../lib/events";
 import { demandLine } from "../lib/demand";
 import DemandLines from "./DemandLines.astro";
-import { isFreeToReserve, isOpenMic, walkInLine } from "../lib/open-mics";
+import { isFreeToReserve, isOpenMic, walkInNote } from "../lib/open-mics";
 import { t } from "../i18n/ui";
 import { localizePath } from "../i18n/routes";
 import type { Locale } from "../i18n/locale";
@@ -44,7 +44,7 @@ const demand = past ? null : demandLine(evt, locale);
 
 const soldOut = !past && evt.status === "sold-out";
 // An open mic with no reservations left still has its walk-in seats, so the strip says how to get in.
-const walkIn = soldOut && isOpenMic(evt) ? walkInLine(evt, locale) : null;
+const walkIn = soldOut && isOpenMic(evt) ? walkInNote(evt, locale) : null;
 
 const statusBadge =
   past
@@ -104,13 +104,20 @@ const emphasized =
           straight past: the card said AGOTADO and then offered a price and "book early" underneath. */}
       {
         soldOut ? (
-          <div class="pointer-events-none absolute inset-0 flex items-center justify-center bg-neutral-950/55">
+          <div class="pointer-events-none absolute inset-0 flex flex-col items-center justify-center bg-neutral-950/55">
             <p
               class="w-[115%] -rotate-6 border-y-4 border-white bg-neutral-950/85 py-3 text-center uppercase text-white"
               style="font-family: var(--font-display); font-size: clamp(2rem, 7vw, 3.75rem); line-height: 1; letter-spacing: 0.08em;"
             >
-              {t(locale, "ui.soldOut")}
+              {t(locale, "ui.soldOut")}{walkIn ? "*" : ""}
             </p>
+            {/* Right under the strip, at its angle, so it reads as the strip's footnote rather than a second
+                message somebody has to find. */}
+            {walkIn ? (
+              <p class="mt-4 max-w-[85%] -rotate-6 rounded-md bg-brand px-3 py-1.5 text-center text-sm font-semibold leading-snug text-white shadow-lg sm:text-base">
+                {walkIn}
+              </p>
+            ) : null}
           </div>
         ) : null
       }
@@ -172,7 +179,6 @@ const emphasized =
             <DemandLines demand={demand} tone={emphasized ? "dark" : "light"} class="mx-auto max-w-xs" />
           ) : null
         }
-        {walkIn ? <p class="mx-auto max-w-xs text-base font-semibold leading-snug">{walkIn}</p> : null}
       </div>
 
       <div class="relative z-10 mt-12 flex flex-wrap justify-center gap-6">

@@ -82,3 +82,10 @@ export function upcomingOpenMics(events: KintanaPublicEvent[]): { es: KintanaPub
     en: nights.filter((evt) => evt.language === "en"),
   };
 }
+
+/** The same fact, short enough to sit under the sold-out strip on a poster. The asterisk answers the strip's. */
+export function walkInNote(evt: KintanaPublicEvent, locale: Locale): string {
+  const doors = formatEventTime(evt.doorsOpen, locale);
+  const n = String(WALK_IN_SEATS);
+  return doors ? t(locale, "openMic.walkInNote", { n, doors }) : t(locale, "openMic.walkInNoteNoTime", { n });
+}
