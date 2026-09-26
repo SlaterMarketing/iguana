@@ -2531,6 +2531,58 @@ class HowManyTablesTests(ApiTestCase):
         self.assertIn(9, self.cards())
 
 
+class QueueOrderTests(ApiTestCase):
+    """The waiting list runs in table order, so a tray walks the room once."""
+
+    def setUp(self):
+        super().setUp()
+        from catalog.models import MenuCategory, MenuItem
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'mesero',
+                     verbosity=0)
+        self.client.login(username='mesero', password='no-es-la-real')
+        cat = MenuCategory.objects.create(name='Cervezas')
+        self.beer = MenuItem.objects.create(category=cat, name='Victoria', price_cents=5000, currency='mxn')
+
+    def waiting_order(self):
+        """The table numbers as the queue lists them, top to bottom."""
+        import re
+
+        body = self.client.get('/mesas/').content.decode()
+        queue = body[body.index('class="queue"'):body.index('class="board"')]
+        return [int(n) for n in re.findall(r'Mesa (\d+)', queue)]
+
+    def order_on(self, table, minutes_ago=0):
+        from datetime import timedelta
+
+        from sales.models import TableOrder, TableOrderItem
+
+        order = TableOrder.objects.create(table_number=table, currency='mxn', total_cents=5000)
+        TableOrderItem.objects.create(order=order, menu_item=self.beer, name='Victoria', quantity=1,
+                                      unit_price_cents=5000)
+        if minutes_ago:
+            TableOrder.objects.filter(pk=order.pk).update(
+                created_at=timezone.now() - timedelta(minutes=minutes_ago))
+        return order
+
+    def test_the_queue_runs_in_table_order(self):
+        """🚨 Not by how long each has waited, which sounds fairer and sends the carrier back and forth."""
+        self.order_on(9, minutes_ago=30)
+        self.order_on(2, minutes_ago=1)
+        self.order_on(6, minutes_ago=15)
+        self.assertEqual(self.waiting_order(), [2, 6, 9])
+
+    def test_a_round_that_has_been_sitting_still_stands_out(self):
+        """Nothing is lost by dropping the wait sort: the amber marker still says which one needs hurrying."""
+        self.order_on(9, minutes_ago=30)
+        self.order_on(2, minutes_ago=1)
+        body = self.client.get('/mesas/').content.decode()
+        queue = body[body.index('class="queue"'):body.index('class="board"')]
+        late = queue[queue.index('Mesa 9') - 400:queue.index('Mesa 9')]
+        self.assertIn('late', late, 'the long wait is still marked, just not sorted to the top')
+
+
 class ClearTheTableTests(ApiTestCase):
     """Closing a table out so the next party does not sit in front of somebody else's bill."""
 
@@ -2640,6 +2692,17 @@ class NameTheSpotTests(ApiTestCase):
         self.client.post('/tables/3/nombre/', {'label': 'Box 1'})
         body = self.client.get('/mesas/').content.decode()
         self.assertIn('Box 1', body)
+
+    def test_the_number_never_disappears_when_a_table_is_named(self):
+        """🚨 It did, and that is what broke it in service: a card reading only "Alonso-D(Jafet)" tells
+        nobody carrying a tray which table to walk to. The number is how the room is navigated; the name is
+        who is sitting there, and both have to be on the card."""
+        self.client.post('/tables/3/nombre/', {'label': 'Alonso'})
+        body = self.client.get('/mesas/').content.decode()
+        start = body.index('id="t3"')
+        card = body[start:body.index('id="t4"')]
+        self.assertIn('Mesa 3', card, 'the table number has to stay on the card')
+        self.assertIn('Alonso', card)
 
     def test_the_number_still_routes_the_drink(self):
         """🚨 Renaming is only what the board says. A customer still types a number and the QR still carries

@@ -209,9 +209,12 @@ def _render_board(request, lang, floor):
             taken += order.total_cents
         else:
             owed += order.total_cents
-    # The queue, oldest first, so somebody holding a tray reads what is outstanding in one place instead of
-    # picking the green cards out of a grid of twelve. Grouped by table because that is what Delivered closes.
-    waiting = sorted((t for t in board if t['orders']), key=lambda t: t['waited'] or 0, reverse=True)
+    # The queue, in TABLE ORDER, so somebody holding a tray walks the room in one direction instead of
+    # zig-zagging across it. It used to be longest-waiting first, which sounds fairer and makes the carrier
+    # cross the room between drinks (owner, 2026-09-25). Nothing is lost by the change: a round that has been
+    # sitting turns amber past ten minutes and says how long, so the one that needs hurrying still stands out
+    # wherever it is in the list. Grouped by table because that is what Delivered closes.
+    waiting = sorted((t for t in board if t['orders']), key=lambda t: t['number'])
 
     # Which table is showing its breakdown. It lives in the URL rather than in a <details> element because this
     # page reloads itself every twenty seconds, and a panel that snaps shut mid-read is worse than no panel.
