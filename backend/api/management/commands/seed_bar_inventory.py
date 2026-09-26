@@ -2,7 +2,7 @@
 
 The bar's menu splits in two, and the split decides what can be seeded and what cannot.
 
-Eight items are sold AS the unit: four beers and four bottled soft drinks. One sale is one bottle out of the
+Nine items are sold AS the unit: five beers and four bottled soft drinks. One sale is one bottle out of the
 fridge, so a 1:1 recipe is not an assumption, it is the fact. Those are seeded wired up.
 
 Five are pours: two shots, and three mixed drinks built from a spirit plus a mixer. One sale is some fraction
@@ -28,6 +28,7 @@ UNIT_SOLD = {
     'XX': 'botella',
     'Victoria': 'botella',
     'Coors Light': 'botella',
+    'Heineken Zero': 'botella',
     'Coca-Cola': 'botella',
     'Coca Zero': 'botella',
     'Topo Chico': 'botella',

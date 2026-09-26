@@ -223,8 +223,11 @@ def _render_board(request, lang, floor):
     except ValueError:
         opened = 0
     if opened:
-        rounds = (TableOrder.objects.filter(table_number=opened, created_at__gte=service_start())
-                  .exclude(status=TableOrder.CANCELLED).prefetch_related('items').order_by('created_at'))
+        # Its own name, never `rounds`: that one is the night's COUNT for the header, and shadowing it printed
+        # a raw `<QuerySet [<TableOrder: ...>]>` across the top of the live board the moment anybody opened a
+        # breakdown (2026-09-25). Django templates have no `int` to fall back on, so the repr just renders.
+        detail_rounds = (TableOrder.objects.filter(table_number=opened, created_at__gte=service_start())
+                         .exclude(status=TableOrder.CANCELLED).prefetch_related('items').order_by('created_at'))
         detail = [{
             'at': order.created_at.astimezone(CANCUN),
             'status': order.status,
@@ -238,7 +241,7 @@ def _render_board(request, lang, floor):
                       for i in order.items.all()],
             'note': order.note,
             'who': order.guest_name,
-        } for order in rounds]
+        } for order in detail_rounds]
         for row in board:
             if row['number'] == opened:
                 row['breakdown'] = detail

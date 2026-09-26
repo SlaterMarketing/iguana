@@ -154,30 +154,16 @@
     </div>
   {% endif %}
 
-  {% if waiting %}
-    <section class="queue">
-      <h2>{% t lang "Waiting now" %}</h2>
-      {% for t in waiting %}
-        <div class="q {% if t.late %}late{% endif %}">
-          <div class="q-what">
-            <p class="q-table">{% t lang "Table" %} {{ t.number }}{% if t.label %} <span class="q-named">{{ t.label }}</span>{% endif %} <span class="q-due">{{ t.due }}</span></p>
-            <p class="q-items">{{ t.items }}</p>
-            {% if t.who %}<p class="q-who">{{ t.who }}</p>{% endif %}
-            <a class="peek" href="?open={{ t.number }}#t{{ t.number }}">{% t lang "See breakdown" %}</a>
-            {# Para lo que se pide de viva voz: no todo el mundo escanea el QR de la mesa. #}
-            {% if floor %}<a class="peek" href="/mesas/mesa/{{ t.number }}/agregar/">{% t lang "Add a round" %}</a>{% endif %}
-          </div>
-          <div class="q-act">
-            <p class="q-when">{% if t.waited < 1 %}{% t lang "just now" %}{% else %}{% t lang "{0} min" t.waited %}{% endif %}</p>
-            <form method="post" action="{% url 'close-table' t.number %}">
-              {% csrf_token %}
-              <button type="submit">{% t lang "Delivered" %}</button>
-            </form>
-          </div>
-        </div>
-      {% endfor %}
-    </section>
-  {% endif %}
+  {% comment %}
+    🚨 {# #} ES DE UNA SOLA LÍNEA. Escrito en varias, Django NO lo trata como comentario y lo imprime tal cual
+    en la página: este mismo texto salió encima del tablero en vivo el 2026-09-25. Para varias líneas va
+    siempre {% comment %}.
+    La lista de "pendientes ahora" está retirada a propósito (dueño, 2026-09-25): mientras los pedidos los
+    capturen los meseros, esa lista repite lo que ya dicen las tarjetas. El que captura la ronda ES quien la
+    lleva, así que no hace falta una cola aparte que le diga lo que acaba de escribir. Cada tarjeta sigue
+    poniéndose verde, marcando los minutos y llevando su botón de Entregado.
+    Vuelve el día que existan pedidos desde el QR de la mesa: el `waiting` de la vista sigue calculándose.
+  {% endcomment %}
 
   <div class="board">
     {% for t in tables %}
@@ -206,6 +192,12 @@
         {% if t.orders %}
           <p class="due">{{ t.due }}</p>
           <p class="what">{{ t.items }}</p>
+          {% comment %}
+            El nombre de quien pidió, en la tarjeta. Vivía sólo en la cola de pendientes, así que al retirar
+            esa cola desapareció del tablero entero: la charola volvía a salir sin saber para quién es. El
+            número lleva la bebida a la mesa; el nombre es lo que evita preguntar quién pidió la margarita.
+          {% endcomment %}
+          {% if t.who %}<p class="q-who">{{ t.who }}</p>{% endif %}
           <p class="when">{% if t.waited < 1 %}{% t lang "just now" %}{% else %}{% t lang "{0} min ago" t.waited %}{% endif %}</p>
           <form method="post" action="{% url 'close-table' t.number %}">
             {% csrf_token %}

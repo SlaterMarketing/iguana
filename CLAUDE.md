@@ -578,7 +578,7 @@ once: the history is read by a person.
 🚨 **A menu item with NO recipe consumes nothing, and that is deliberate.** A guessed 1:1 between a cocktail and
 a bottle makes the sheet drift every night, invisibly, until somebody counts by hand and finds the numbers
 lying. `/mesas/carta/` prints how many items are `sin receta` so the hole is visible instead of silent.
-`manage.py seed_bar_inventory [--dry-run]` follows the same rule against the real menu: the four beers and four
+`manage.py seed_bar_inventory [--dry-run]` follows the same rule against the real menu: the five beers and four
 bottled soft drinks are sold AS the unit, so they are wired 1:1 because that is simply true; the two shots and
 three mixed drinks are pours whose measure depends on this bar's glassware, so their BOTTLES are created to be
 countable and the recipe is left for the bar to state. Re-runnable, and it never overwrites a count somebody

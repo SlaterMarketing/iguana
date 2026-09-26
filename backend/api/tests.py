@@ -2566,21 +2566,26 @@ class QueueOrderTests(ApiTestCase):
                 created_at=timezone.now() - timedelta(minutes=minutes_ago))
         return order
 
-    def test_the_queue_runs_in_table_order(self):
-        """🚨 Not by how long each has waited, which sounds fairer and sends the carrier back and forth."""
-        self.order_on(9, minutes_ago=30)
-        self.order_on(2, minutes_ago=1)
-        self.order_on(6, minutes_ago=15)
-        self.assertEqual(self.waiting_order(), [2, 6, 9])
-
-    def test_a_round_that_has_been_sitting_still_stands_out(self):
-        """Nothing is lost by dropping the wait sort: the amber marker still says which one needs hurrying."""
+    def test_the_pending_list_is_gone(self):
+        """🚨 Taken down on purpose while waiters capture the orders: the person typing the round IS the one
+        carrying it, so a separate queue repeated what the cards already said. The view still computes
+        `waiting`, so it comes back the day orders arrive from a table's QR."""
         self.order_on(9, minutes_ago=30)
         self.order_on(2, minutes_ago=1)
         body = self.client.get('/mesas/').content.decode()
-        queue = body[body.index('class="queue"'):body.index('class="board"')]
-        late = queue[queue.index('Mesa 9') - 400:queue.index('Mesa 9')]
-        self.assertIn('late', late, 'the long wait is still marked, just not sorted to the top')
+        self.assertNotIn('class="queue"', body)
+
+    def test_a_card_still_shows_the_round_and_how_long_it_has_waited(self):
+        """Nothing is lost by removing the list: the card is where the bar reads it now."""
+        self.order_on(9, minutes_ago=30)
+        body = self.client.get('/mesas/').content.decode()
+        # From the opening <div, not from the id: the class attribute carrying `late` sits BEFORE the id, so
+        # slicing at the id cuts off the very thing this asserts.
+        at = body.index('id="t9"')
+        card = body[body.rindex('<div', 0, at):body.index('id="t10"')]
+        self.assertIn('Victoria', card)
+        self.assertIn('late', card, 'and a long wait is still marked amber')
+        self.assertIn('/tables/9/close/', card, 'with Delivered on it')
 
 
 class ClearTheTableTests(ApiTestCase):
@@ -4475,16 +4480,25 @@ class TableQueueAndBreakdownTests(ApiTestCase):
     def board(self, **params):
         return self.client.get('/tables/', params).content.decode()
 
-    def test_the_queue_lists_every_waiting_table_longest_first(self):
-        page = self.board()
-        self.assertIn('Waiting now', page)
-        self.assertLess(page.index('Table 2'), page.index('Table 8'), '18 minutes waiting outranks just now')
+    def test_the_pending_list_is_gone_and_the_cards_carry_it(self):
+        """No separate queue while the waiters type the orders themselves (owner, 2026-09-25).
 
-    def test_a_table_with_nothing_waiting_is_not_in_the_queue(self):
+        The person entering the round is the person carrying it, so a list repeating what they just typed is
+        noise. Everything it said still has to be on the card.
+        """
+        page = self.board()
+        self.assertNotIn('Waiting now', page)
+        self.assertNotIn('class="queue"', page)
+        self.assertIn('2 x Mezcal', page)
+        self.assertIn('18 min ago', page)
+
+    def test_a_delivered_table_stops_asking_to_be_carried(self):
         self.client.post('/tables/2/close/')
-        queue = self.board().split('<div class="board">')[0]
-        self.assertNotIn('Table 2', queue)
-        self.assertIn('Table 8', queue)
+        page = self.board()
+        at = page.index('id="t2"')
+        card = page[page.rindex('<div', 0, at):page.index('id="t8"')]
+        self.assertIn('Nothing waiting', card)
+        self.assertNotIn('>Delivered<', card)
 
     def test_the_breakdown_is_closed_until_asked_for(self):
         page = self.board()
@@ -4516,7 +4530,25 @@ class TableQueueAndBreakdownTests(ApiTestCase):
         self.assertIn('Delivered at the table', page)
 
     def test_nonsense_in_the_url_does_not_break_the_board(self):
-        self.assertIn('Waiting now', self.board(open='not-a-table'))
+        self.assertIn('id="t2"', self.board(open='not-a-table'))
+
+    def test_opening_a_breakdown_does_not_print_a_queryset_across_the_header(self):
+        """🚨 A shadowed name renders as its repr, and Django templates have no way to complain.
+
+        The detail query was called `rounds`, the same name as the night's round COUNT in the header, so
+        `?open=N` put a literal `<QuerySet [<TableOrder: ...>]>` across the top of the live board. Nothing
+        errored: a template prints whatever it is handed.
+        """
+        page = self.board(open='2')
+        self.assertNotIn('QuerySet', page)
+        self.assertNotIn('TableOrder:', page)
+        self.assertIn('2 rounds tonight', page)
+
+    def test_a_template_comment_never_reaches_the_page(self):
+        """`{# #}` is ONE LINE. Written across several, Django prints it, and this one shipped."""
+        page = self.board()
+        for marker in ('{#', '#}', '{% comment %}', '{% endcomment %}'):
+            self.assertNotIn(marker, page)
 
 
 class RepliedUnsubscribeTests(ApiTestCase):
