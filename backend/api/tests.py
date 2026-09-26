@@ -2208,6 +2208,170 @@ class DoorScanTests(ApiTestCase):
         self.assertFalse(get_user_model().objects.get(username='door').is_staff)
 
 
+class DoorLookupTests(ApiTestCase):
+    """Finding a guest by name, which is the only way in on an iPhone or for a promoter's ticket.
+
+    Names here are invented. The real ones live only in the production database and in a file outside this
+    repository, because this repository is public.
+    """
+
+    def setUp(self):
+        super().setUp()
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'door',
+                     verbosity=0)
+        self.client.login(username='door', password='no-es-la-real')
+        self.order = Order.objects.create(event=self.event, event_name=self.event.name, currency='mxn',
+                                          customer_email='rosa@example.com', customer_name='Rosa Fixture',
+                                          status=Order.COMPLETED, total_amount_cents=30000)
+        self.ticket = Ticket.objects.create(order=self.order, ticket_type_name='General admission')
+
+    def find(self, term):
+        return self.client.get('/mesas/puerta/buscar/', {'q': term}).json()['guests']
+
+    def test_three_letters_finds_them(self):
+        found = self.find('ros')
+        self.assertEqual(len(found), 1)
+        self.assertEqual(found[0]['name'], 'Rosa Fixture')
+        self.assertEqual(found[0]['state'], 'valid')
+
+    def test_it_matches_the_email_too(self):
+        """Somebody who booked under a partner's name is found by the address on the phone they hold out."""
+        self.assertEqual(len(self.find('rosa@exa')), 1)
+
+    def test_one_letter_returns_nothing(self):
+        """Otherwise the first keystroke asks for the whole guest list."""
+        self.assertEqual(self.find('r'), [])
+
+    def test_tapping_a_result_admits_them_through_the_same_path_as_a_scan(self):
+        """🚨 If the two halves of the door used different code they would disagree about who is inside."""
+        token = self.find('ros')[0]['token']
+        out = self.client.post('/mesas/puerta/verificar/', {'code': token}).json()
+        self.assertEqual(out['state'], 'valid')
+        self.ticket.refresh_from_db()
+        self.assertIsNotNone(self.ticket.checked_in_at)
+
+    def test_it_says_who_is_already_in(self):
+        from datetime import timedelta
+
+        self.ticket.checked_in_at = timezone.now() - timedelta(minutes=30)
+        self.ticket.save(update_fields=['checked_in_at'])
+        self.assertEqual(self.find('ros')[0]['state'], 'used')
+
+    def test_a_promoter_ticket_is_marked_as_theirs(self):
+        self.order.source = 'goliiive'
+        self.order.save(update_fields=['source'])
+        self.assertEqual(self.find('ros')[0]['promoter'], 'goliiive')
+
+    def test_an_unpaid_order_is_not_offered_as_valid(self):
+        self.order.status = Order.PENDING
+        self.order.save(update_fields=['status'])
+        self.assertEqual(self.find('ros'), [], 'only completed orders are guests')
+
+    def test_a_stranger_cannot_search_the_guest_list(self):
+        self.client.logout()
+        self.assertEqual(self.client.get('/mesas/puerta/buscar/', {'q': 'ros'}).status_code, 302)
+
+
+class ImportPromoterSalesTests(ApiTestCase):
+    """A guest promoter's list becoming rows the door can find."""
+
+    def file(self, buyers, slug=None):
+        import json
+        import pathlib
+        import tempfile
+
+        path = pathlib.Path(tempfile.mkdtemp()) / 'promoter.json'
+        path.write_text(json.dumps({'event': slug or self.event.slug, 'source': 'goliiive', 'buyers': buyers}))
+        return str(path)
+
+    def buyer(self, email='uno@example.com', tickets=2, name='Fixture Uno', tier='VIP'):
+        return {'email': email, 'tickets': tickets, 'name': name, 'tier': tier}
+
+    def test_it_creates_a_ticket_per_seat(self):
+        from django.core.management import call_command
+
+        call_command('import_goliiive', self.file([self.buyer(tickets=3)]), '--apply', verbosity=0)
+        order = Order.objects.get(customer_email='uno@example.com')
+        self.assertEqual(order.tickets.count(), 3)
+        self.assertEqual(order.source, 'goliiive')
+
+    def test_their_money_is_not_counted_as_ours(self):
+        """🚨 The promoter took it. A total here would double count the night on /stats/ and /revenue/."""
+        from django.core.management import call_command
+
+        call_command('import_goliiive', self.file([self.buyer()]), '--apply', verbosity=0)
+        self.assertEqual(Order.objects.get(customer_email='uno@example.com').total_amount_cents, 0)
+
+    def test_sold_elsewhere_is_cleared_so_nobody_is_counted_twice(self):
+        """It was a COUNT standing in for these people; now they are rows, and both would double the room."""
+        from django.core.management import call_command
+
+        self.ga.sold_elsewhere = 25
+        self.ga.save(update_fields=['sold_elsewhere'])
+        call_command('import_goliiive', self.file([self.buyer(tickets=4)]), '--apply', verbosity=0)
+        self.ga.refresh_from_db()
+        self.assertEqual(self.ga.sold_elsewhere, 0)
+
+    def test_a_dry_run_writes_nothing(self):
+        from django.core.management import call_command
+
+        call_command('import_goliiive', self.file([self.buyer()]), verbosity=0)
+        self.assertFalse(Order.objects.filter(customer_email='uno@example.com').exists())
+
+    def test_running_it_twice_does_not_duplicate_a_guest(self):
+        from django.core.management import call_command
+
+        path = self.file([self.buyer()])
+        call_command('import_goliiive', path, '--apply', verbosity=0)
+        call_command('import_goliiive', path, '--apply', verbosity=0)
+        self.assertEqual(Order.objects.filter(customer_email='uno@example.com', source='goliiive').count(), 1)
+
+    def test_the_imported_guest_is_findable_at_the_door(self):
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'door',
+                     verbosity=0)
+        call_command('import_goliiive', self.file([self.buyer(name='Fixture Dos')]), '--apply', verbosity=0)
+        self.client.login(username='door', password='no-es-la-real')
+        found = self.client.get('/mesas/puerta/buscar/', {'q': 'fixture'}).json()['guests']
+        self.assertTrue(found)
+        self.assertEqual(found[0]['promoter'], 'goliiive')
+
+    def test_the_imported_guests_actually_fill_the_room(self):
+        """🚨 `sales.demand` counts OrderItem.quantity, NOT ticket rows, so an import that creates only
+        tickets is invisible to the board, the nudges and the sold-out logic. It read 39 of 80 immediately
+        after importing 37 more people."""
+        from django.core.management import call_command
+        from sales.demand import demand
+
+        before = demand(self.event)['taken']
+        call_command('import_goliiive', self.file([self.buyer(tickets=5)]), '--apply', verbosity=0)
+        self.assertEqual(demand(self.event)['taken'], before + 5)
+
+    def test_somebody_who_bought_twice_gets_both_purchases(self):
+        """🚨 The report lists each purchase separately, so keying on the address and skipping the repeat
+        drops a ticket silently: the file said 37 and a per-address import created 36. The missing seat only
+        surfaces as somebody turned away at the door."""
+        from django.core.management import call_command
+
+        path = self.file([self.buyer(email='dos@example.com', tickets=1, name='Fixture Tres'),
+                          self.buyer(email='dos@example.com', tickets=1, name='Fixture Tres')])
+        call_command('import_goliiive', path, '--apply', verbosity=0)
+        order = Order.objects.get(customer_email='dos@example.com')
+        self.assertEqual(order.tickets.count(), 2, 'both purchases, one guest')
+        self.assertEqual(Order.objects.filter(customer_email='dos@example.com').count(), 1)
+
+    def test_an_unknown_event_is_refused_rather_than_guessed(self):
+        from django.core.management import call_command
+        from django.core.management.base import CommandError
+
+        with self.assertRaises(CommandError):
+            call_command('import_goliiive', self.file([self.buyer()], slug='no-such-show'), '--apply',
+                         verbosity=0)
+
+
 class SoldOutIsStillAShowTests(ApiTestCase):
     """🚨 A sold-out night is still a night, and forgetting that costs money in two places.
 

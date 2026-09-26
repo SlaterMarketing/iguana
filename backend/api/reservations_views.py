@@ -15,8 +15,9 @@ shown to whoever can already see orders, because the door needs a name and does 
 from datetime import timedelta
 from zoneinfo import ZoneInfo
 
-from django.shortcuts import render
+from django.shortcuts import redirect, render
 from django.utils import timezone
+from django.views.decorators.http import require_POST
 
 from catalog.models import Event
 from sales.demand import demand_for
@@ -52,6 +53,13 @@ def _nights(events, can_see_email, lang):
                 'checked_in': here,
                 'booked_at': order.created_at.astimezone(CANCUN),
                 'token': order.public_view_token,
+                'id': order.id,
+                # What they bought, so a VIP is obvious on the list the door reads.
+                'tier': ', '.join(sorted({t.ticket_type_name for t in tickets if t.ticket_type_name})),
+                # A promoter's guest carries THEIR QR, which our scanner cannot read: this row is the only
+                # way that person gets admitted, so it has to say so.
+                'promoter': order.source or '',
+                'all_here': here >= len(tickets) and bool(tickets),
             })
         pressure_row = pressure.get(event.id) or {}
         capacity = pressure_row.get('capacity') or 0
@@ -71,6 +79,29 @@ def _nights(events, can_see_email, lang):
             'at_door': format_money(door_cents, event.currency) if door_cents else '',
         })
     return nights
+
+
+@floor_required
+@require_POST
+def check_in_order(request, order_id):
+    """Admit everybody on one booking from the guest list, without a scan.
+
+    🚨 This is the only way in for two kinds of guest, and both are common here: anybody whose ticket a guest
+    promoter sold carries THEIR QR, which our scanner can never read, and any door phone running iOS has no
+    barcode reader at all. A list that could only be looked at, never ticked, left the door with a piece of
+    paper and a pen.
+
+    It admits the whole booking rather than a seat at a time, because a booking arrives together. `?undo=1`
+    puts it back: it is one tap on a phone in a queue, and a guest wrongly marked as already inside is an
+    argument at the door.
+    """
+    order = Order.objects.filter(pk=order_id, status=Order.COMPLETED).first()
+    if order is not None:
+        undo = request.GET.get('undo') or request.POST.get('undo')
+        now = None if undo else timezone.now()
+        order.tickets.filter(checked_in_at__isnull=bool(not undo)).update(checked_in_at=now)
+    back = '/mesas/reservas/' if request.path.startswith('/mesas') else '/reservations/'
+    return redirect(f'{back}#o{order_id}')
 
 
 @floor_required

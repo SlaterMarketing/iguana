@@ -38,6 +38,10 @@ class Order(models.Model):
     # many times the cron runs or is re-run by hand.
     follow_up_sent_at = models.DateTimeField(null=True, blank=True)
     attribution = models.JSONField(default=dict, blank=True)
+    # Blank for our own sales. Set when the row came from somewhere else, currently a guest promoter's export:
+    # those guests need to be findable at the door, but their money is not ours and must not be counted twice.
+    source = models.CharField(max_length=20, blank=True, db_index=True,
+                              help_text="Blank for our own sales; 'goliiive' for an imported promoter list.")
     created_at = models.DateTimeField(default=timezone.now)
 
     class Meta:

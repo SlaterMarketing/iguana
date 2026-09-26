@@ -43,8 +43,10 @@ urlpatterns = [
     path('mesas/puerta/', door_views.door, name='floor-door'),
     path('mesas/puerta/verificar/', door_views.verify, name='floor-door-verify'),
     path('mesas/puerta/deshacer/', door_views.undo, name='floor-door-undo'),
+    path('mesas/puerta/buscar/', door_views.lookup, name='floor-door-lookup'),
     # The guest list, which is the DOOR list: same view, Spanish, and reached without the admin.
     path('mesas/reservas/', reservations_views.reservations, name='floor-reservations'),
+    path('mesas/reservas/<str:order_id>/verificar/', reservations_views.check_in_order, name='floor-check-in'),
     path('tables/<int:number>/close/', tables_views.close_table, name='close-table'),
     path('tables/<int:number>/settle/', tables_views.settle_table, name='settle-table'),
     path('tables/<int:number>/linea/<str:item_id>/quitar/', tables_views.void_item, name='void-item'),

@@ -12,9 +12,11 @@ guest. Here the camera stays open and the answer appears in place.
 for anything: a ticket with no check-in means nothing at all about whether that person came.
 """
 
+import logging
 from datetime import timedelta
 
 from django.db import transaction
+from django.db.models import Q
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.utils import timezone
@@ -29,6 +31,8 @@ from .floor import floor_required
 # somebody trying it on. Inside this window it reads as "just let in" rather than as a warning, because a red
 # screen at a door makes staff stop and argue with a guest who has done nothing wrong.
 JUST_NOW = timedelta(seconds=20)
+
+log = logging.getLogger(__name__)
 
 
 def _verdict(ticket, now):
@@ -87,6 +91,11 @@ def verify(request):
                   .select_related('order', 'order__event')
                   .filter(checkin_token=token).first())
         if ticket is None:
+            # 🚨 Log what was actually scanned. A refusal at the door is the one place where "it says the
+            # ticket does not work" has to be answerable in seconds, and the commonest cause is not a bug: it
+            # is a QR from the guest promoter's platform, which our scanner can never read. Without this the
+            # only evidence is a 200 in the access log with no body.
+            log.warning('door: no ticket for scanned code %r (len %d)', raw[:80], len(raw))
             return JsonResponse({'state': 'unknown', 'name': '', 'event': '', 'type': '', 'collect': '',
                                  'seen_at': '', 'order': ''})
         state = _verdict(ticket, now)
@@ -95,6 +104,50 @@ def verify(request):
             ticket.save(update_fields=['checked_in_at'])
         payload = _payload(ticket, state)
     return JsonResponse(payload)
+
+
+@floor_required
+def lookup(request):
+    """Find a guest by typing a few letters of their name.
+
+    🚨 This is the path that actually works on the iPhones at the door. iOS Safari has no `BarcodeDetector`,
+    so the in-page scanner cannot run there at all, and a guest whose ticket was sold by a promoter carries
+    THEIR QR, which our scanner could never read even on Android. Both of those people are admitted the same
+    way: the door types three letters of the name and taps the right row.
+
+    Matches on name or email, because somebody who booked under a partner's name is found by the address on
+    the phone they are holding out.
+    """
+    term = (request.GET.get('q') or '').strip()
+    if len(term) < 2:
+        return JsonResponse({'guests': []})
+
+    now = timezone.now()
+    tickets = (Ticket.objects
+               .filter(order__status=Order.COMPLETED)
+               .filter(Q(order__customer_name__icontains=term) | Q(order__customer_email__icontains=term))
+               .select_related('order', 'order__event')
+               .order_by('order__customer_name', 'pk')[:40])
+
+    guests = []
+    for ticket in tickets:
+        payload = _payload(ticket, _verdict(ticket, now))
+        payload['token'] = ticket.checkin_token
+        payload['promoter'] = ticket.order.source or ''
+        guests.append(payload)
+    return JsonResponse({'guests': guests})
+
+
+@floor_required
+@require_POST
+def admit(request):
+    """Let one in by hand, from the lookup. Same rules and the same marking as a scan.
+
+    Deliberately the SAME code path as the scanner: a hand-admitted guest has to be marked, counted and
+    refused-when-already-used exactly like a scanned one, or the two halves of the door disagree about who is
+    inside.
+    """
+    return verify(request)
 
 
 @floor_required

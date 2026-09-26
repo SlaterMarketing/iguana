@@ -30,6 +30,16 @@
   .here { color: var(--brand); font-weight: 700; }
   .empty { color: var(--muted); font-style: italic; }
   .past { opacity: .75; }
+  tr.in td { background: var(--brand-soft); }
+  td.tier { white-space: nowrap; font-size: .82rem; }
+  td.tier .src { font-size: .62rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+                 color: var(--muted); }
+  td.act form { margin: 0; }
+  .verify { min-height: 44px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--ink);
+            background: var(--ink); color: #fff; font: 700 .66rem/1 inherit; letter-spacing: .1em;
+            text-transform: uppercase; cursor: pointer; white-space: nowrap; }
+  .verify:hover { background: var(--brand-hover); border-color: var(--brand-hover); }
+  .verify.on { background: #fff; color: var(--muted); border-color: var(--line); }
 </style>
 {% endblock %}
 {% block content %}
@@ -90,17 +100,31 @@
               <tr>
                 <th>{% t lang "Name" %}</th>
                 {% if can_see_email %}<th>{% t lang "Email" %}</th>{% endif %}
+                <th>{% t lang "Ticket" %}</th>
                 <th>{% t lang "Seats" %}</th>
                 <th>{% t lang "Booked" %}</th>
+                {% if floor %}<th>{% t lang "At the door" %}</th>{% endif %}
               </tr>
             </thead>
             <tbody>
               {% for g in n.guests %}
-                <tr>
+                <tr id="o{{ g.id }}"{% if g.all_here %} class="in"{% endif %}>
                   <td>{{ g.name }}{% if g.checked_in %} <span class="here">✓</span>{% endif %}</td>
                   {% if can_see_email %}<td>{{ g.email }}</td>{% endif %}
+                  <td class="tier">{{ g.tier }}{% if g.promoter %} <span class="src">{{ g.promoter }}</span>{% endif %}</td>
                   <td class="seats">{{ g.seats }}</td>
                   <td class="muted">{{ g.booked_at|date:"j M H:i" }}</td>
+                  {# El único camino para quien trae el QR del promotor, y para cualquier iPhone en la puerta. #}
+                  {% if floor %}
+                    <td class="act">
+                      <form method="post" action="/mesas/reservas/{{ g.id }}/verificar/{% if g.all_here %}?undo=1{% endif %}">
+                        {% csrf_token %}
+                        <button class="verify{% if g.all_here %} on{% endif %}" type="submit">
+                          {% if g.all_here %}{% t lang "Undo" %}{% else %}{% t lang "Verified" %}{% endif %}
+                        </button>
+                      </form>
+                    </td>
+                  {% endif %}
                 </tr>
               {% endfor %}
             </tbody>

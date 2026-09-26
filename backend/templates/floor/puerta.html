@@ -28,6 +28,18 @@
   .manual input { min-height: 48px; }
   .note { font-size: .8rem; color: var(--muted); margin-top: 14px; }
   .tally { font-size: .8rem; color: var(--muted); margin-top: 6px; }
+  #hits { display: grid; gap: 8px; margin-top: 10px; }
+  .hit { display: flex; align-items: center; gap: 10px; border: 1px solid var(--line); border-radius: 16px;
+         padding: 10px 12px; background: #fff; text-align: left; width: 100%; cursor: pointer; }
+  .hit:hover { border-color: var(--ink); }
+  .hit .who { flex: 1 1 auto; min-width: 0; }
+  .hit .nm { font-weight: 700; margin: 0; }
+  .hit .sub { font-size: .78rem; color: var(--muted); margin: 2px 0 0; }
+  .hit .flag { flex: 0 0 auto; font-size: .62rem; font-weight: 700; letter-spacing: .1em;
+               text-transform: uppercase; border-radius: 999px; padding: 6px 10px; }
+  .hit .flag.valid { background: var(--brand-soft); color: #1f7a35; }
+  .hit .flag.used, .hit .flag.just_now { background: #fdf6e7; color: #8a5a00; }
+  .hit .flag.unpaid { background: #fde8e6; color: var(--danger); }
 </style>
 {% endblock %}
 {% block content %}
@@ -56,14 +68,15 @@
     <p class="sub" id="sub">Apunta la cámara al código del boleto.</p>
   </div>
 
-  {# Sin cámara, con un navegador que no trae lector, o con un código maltratado: se teclea. #}
+  {# 🚨 Este es el camino que sí funciona en iPhone: Safari no trae lector de códigos, y quien compró con el #}
+  {# promotor trae SU QR, que nuestro lector no puede leer ni en Android. A los dos se les busca por nombre. #}
   <form class="manual" id="manual">
     {% csrf_token %}
-    <label for="code">O escribe el código</label>
-    <input id="code" name="code" autocapitalize="none" autocorrect="off" spellcheck="false"
-           placeholder="Código del boleto">
-    <button class="btn" type="submit">Revisar</button>
+    <label for="q">Busca por nombre</label>
+    <input id="q" name="q" autocapitalize="words" autocorrect="off" spellcheck="false"
+           placeholder="Tres letras bastan">
   </form>
+  <div id="hits"></div>
 
   <p class="note" id="note"></p>
 </div>
@@ -158,15 +171,53 @@
     send("/mesas/puerta/verificar/", { code: code }, function (d) { paint(d); busy = false; });
   }
 
-  document.getElementById("manual").onsubmit = function (e) {
-    e.preventDefault();
-    var el = document.getElementById("code");
-    if (el.value.trim()) { last = ""; check(el.value.trim()); el.value = ""; }
-  };
+  var hits = document.getElementById("hits");
+  var q = document.getElementById("q");
+  var timer = null;
+
+  function draw(guests) {
+    hits.innerHTML = "";
+    if (!guests.length) return;
+    guests.forEach(function (g) {
+      var row = document.createElement("button");
+      row.type = "button";
+      row.className = "hit";
+      var who = document.createElement("div");
+      who.className = "who";
+      var nm = document.createElement("p");
+      nm.className = "nm";
+      nm.textContent = g.name || "(sin nombre)";
+      var sub = document.createElement("p");
+      sub.className = "sub";
+      sub.textContent = [g.type, g.promoter ? "vendido por " + g.promoter : "", g.collect ? "cobrar " + g.collect : ""]
+        .filter(Boolean).join(" · ");
+      who.appendChild(nm); who.appendChild(sub);
+      var flag = document.createElement("span");
+      flag.className = "flag " + g.state;
+      flag.textContent = WORDS[g.state] || "?";
+      row.appendChild(who); row.appendChild(flag);
+      // Un toque lo admite, por el MISMO camino que el escaneo: si no, las dos mitades de la puerta
+      // acabarían en desacuerdo sobre quién está adentro.
+      row.onclick = function () { last = ""; lastToken = g.token; check(g.token); hits.innerHTML = ""; q.value = ""; };
+      hits.appendChild(row);
+    });
+  }
+
+  function search() {
+    var term = q.value.trim();
+    if (term.length < 2) { hits.innerHTML = ""; return; }
+    fetch("/mesas/puerta/buscar/?q=" + encodeURIComponent(term), { credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { draw(d.guests || []); })
+      .catch(function () {});
+  }
+
+  q.addEventListener("input", function () { clearTimeout(timer); timer = setTimeout(search, 250); });
+  document.getElementById("manual").onsubmit = function (e) { e.preventDefault(); search(); };
 
   var video = document.getElementById("cam");
   if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    note.textContent = "Este navegador no abre la cámara. Usa la cámara del teléfono sobre el código: abre la página de admisión, o escribe el código aquí.";
+    note.textContent = "Este navegador no abre la cámara. Busca al invitado por nombre aquí abajo.";
     return;
   }
   navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
@@ -176,7 +227,7 @@
       if (!("BarcodeDetector" in window)) {
         // Safari no trae BarcodeDetector. En vez de cargar una librería de un CDN en la puerta, se dice qué
         // hacer: la cámara del propio teléfono abre la página de admisión, que es la misma revisión.
-        note.textContent = "Este navegador no lee códigos por sí solo. Apunta la cámara normal del teléfono al código y abre el enlace, o escribe el código aquí abajo.";
+        note.textContent = "Este navegador (iPhone) no lee códigos. Busca al invitado por nombre aquí abajo, o apunta la cámara normal del teléfono al QR y abre el enlace.";
         return;
       }
       var detector = new BarcodeDetector({ formats: ["qr_code"] });
@@ -188,7 +239,7 @@
       }, 350);
     })
     .catch(function () {
-      note.textContent = "No se pudo abrir la cámara. Dale permiso al navegador, o escribe el código aquí abajo.";
+      note.textContent = "No se pudo abrir la cámara. Dale permiso al navegador, o busca por nombre aquí abajo.";
     });
 })();
 </script>
