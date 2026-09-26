@@ -91,14 +91,30 @@ def table_order(request):
     if not items:
         return JsonResponse({'error': tr(lang, 'Those items are not available right now.')}, status=400)
 
-    with transaction.atomic():
-        from .tables_views import current_show
+    order = create_round(table, quantities, items, lang=lang, note=str(body.get('note') or ''))
+    return JsonResponse({
+        'id': order.id,
+        'table': order.table_number,
+        'totalCents': order.total_cents,
+        'currency': order.currency.upper(),
+        'message': tr(lang, 'Order sent to the bar. Someone will bring it to table {0}.', str(table)),
+    })
 
+
+def create_round(table, quantities, items, lang='es', note='', notify=True):
+    """Put a round on a table's bill. One function, because there are two ways in and they must agree.
+
+    The customer scans the QR and orders; a waiter takes it verbally and enters it at `/mesas/`. Those are the
+    same event as far as the bar, the bill and the store room are concerned, so they build the same row: the
+    name and unit price are snapshotted here, and the night is stamped now rather than worked out later,
+    because which night a round belongs to is obvious while it is being poured and guesswork afterwards.
+    """
+    from .tables_views import current_show
+
+    with transaction.atomic():
         order = TableOrder.objects.create(
-            table_number=table, locale=lang, note=str(body.get('note') or '')[:300],
+            table_number=table, locale=lang, note=str(note or '')[:300],
             currency=(next(iter(items.values())).currency or 'mxn'),
-            # Stamped now rather than worked out later: which night a round belongs to is obvious while it is
-            # being poured and guesswork afterwards.
             event=current_show(),
         )
         total = 0
@@ -112,16 +128,11 @@ def table_order(request):
         order.total_cents = total
         order.save(update_fields=['total_cents'])
 
-    # After commit and never blocking: an order the bar can see is worth more than an email, and a mail server
-    # having a bad night must not lose the round.
-    transaction.on_commit(lambda: notify_table_order(order))
-    return JsonResponse({
-        'id': order.id,
-        'table': order.table_number,
-        'totalCents': order.total_cents,
-        'currency': order.currency.upper(),
-        'message': tr(lang, 'Order sent to the bar. Someone will bring it to table {0}.', str(table)),
-    })
+    if notify:
+        # After commit and never blocking: an order the bar can see is worth more than an email, and a mail
+        # server having a bad night must not lose the round.
+        transaction.on_commit(lambda: notify_table_order(order))
+    return order
 
 
 def notify_table_order(order):

@@ -19,7 +19,8 @@ import { chromium } from "playwright";
 const BASE = "https://iguanacomedy.com";
 const WIDTHS = [320, 360, 390, 430];
 const PAGES = [["/mesas/", "Mesas"], ["/mesas/carta/", "Carta"],
-               ["/mesas/inventario/", "Inventario"], ["/mesas/reservas/", "Reservas"]];
+               ["/mesas/inventario/", "Inventario"], ["/mesas/reservas/", "Reservas"],
+               ["/mesas/puerta/", "Puerta"], ["/mesas/mesa/1/agregar/", "Apuntar"]];
 const USER = process.argv[process.argv.indexOf("--staff") + 1];
 const PASS = process.argv[process.argv.indexOf("--pass") + 1];
 

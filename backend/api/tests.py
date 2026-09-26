@@ -2367,6 +2367,110 @@ class HowManyTablesTests(ApiTestCase):
         self.assertIn(9, self.cards())
 
 
+class AddRoundFromTheFloorTests(ApiTestCase):
+    """A waiter putting a verbal order on the bill: the board could take a line off but never put one on."""
+
+    def setUp(self):
+        super().setUp()
+        from catalog.models import InventoryItem, MenuCategory, MenuItem, MenuItemIngredient
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'mesero',
+                     verbosity=0)
+        self.client.login(username='mesero', password='no-es-la-real')
+        cat = MenuCategory.objects.create(name='Cervezas')
+        self.stock = InventoryItem.objects.create(name='Victoria', unit='botella', quantity=10)
+        self.beer = MenuItem.objects.create(category=cat, name='Victoria', name_es='Victoria',
+                                            price_cents=5000, currency='mxn')
+        MenuItemIngredient.objects.create(menu_item=self.beer, inventory_item=self.stock, quantity=1)
+        self.off = MenuItem.objects.create(category=cat, name='XX', price_cents=5000, available=False)
+
+    def test_it_puts_the_round_on_the_bill(self):
+        from sales.models import TableOrder
+
+        self.client.post('/mesas/mesa/5/agregar/', {f'q:{self.beer.id}': '3', 'note': 'sin hielo'})
+        order = TableOrder.objects.get(table_number=5)
+        self.assertEqual(order.total_cents, 15000)
+        self.assertEqual(order.note, 'sin hielo')
+        self.assertEqual(order.items.get().quantity, 3)
+
+    def test_it_waits_for_the_bar_rather_than_counting_itself_delivered(self):
+        """🚨 The stock only moves on Delivered, so a round that arrived already delivered would take the
+        ingredients without anybody making the drink."""
+        from catalog.models import InventoryItem
+        from sales.models import TableOrder
+
+        self.client.post('/mesas/mesa/5/agregar/', {f'q:{self.beer.id}': '2'})
+        order = TableOrder.objects.get(table_number=5)
+        self.assertEqual(order.status, TableOrder.OPEN)
+        self.assertIsNone(order.stock_applied_at)
+        self.assertEqual(InventoryItem.objects.get(pk=self.stock.pk).quantity, 10)
+
+    def test_delivering_it_then_moves_the_stock_exactly_as_a_customer_round_does(self):
+        from catalog.models import InventoryItem
+
+        self.client.post('/mesas/mesa/5/agregar/', {f'q:{self.beer.id}': '2'})
+        self.client.post('/tables/5/close/')
+        self.assertEqual(InventoryItem.objects.get(pk=self.stock.pk).quantity, 8)
+
+    def test_it_is_stamped_with_tonights_show(self):
+        """So the night's takings still answer "what did the bar take on the Privilegio night"."""
+        from datetime import datetime, time
+
+        from api.tables_views import service_start
+        from sales.models import TableOrder
+
+        event = Event.objects.create(name='Privilegio', slug='p2', status=Event.ACTIVE, venue=self.venue,
+                                     date=datetime.combine(service_start().date(), time(21, 0), tzinfo=CANCUN_TZ))
+        self.client.post('/mesas/mesa/6/agregar/', {f'q:{self.beer.id}': '1'})
+        self.assertEqual(TableOrder.objects.get(table_number=6).event, event)
+
+    def test_choosing_nothing_creates_nothing(self):
+        from sales.models import TableOrder
+
+        res = self.client.post('/mesas/mesa/5/agregar/', {f'q:{self.beer.id}': '0'})
+        self.assertEqual(TableOrder.objects.count(), 0)
+        self.assertIn('vacio', res['Location'])
+
+    def test_an_item_that_is_off_the_menu_cannot_be_added(self):
+        from sales.models import TableOrder
+
+        self.client.post('/mesas/mesa/5/agregar/', {f'q:{self.off.id}': '2'})
+        self.assertEqual(TableOrder.objects.count(), 0)
+
+    def test_the_page_lists_only_what_is_on_sale(self):
+        page = self.client.get('/mesas/mesa/5/agregar/').content.decode()
+        self.assertIn('Victoria', page)
+        self.assertNotIn('XX', page)
+
+    def test_a_silly_quantity_is_capped_not_refused(self):
+        from sales.models import TableOrder
+
+        self.client.post('/mesas/mesa/5/agregar/', {f'q:{self.beer.id}': '9999'})
+        self.assertLessEqual(TableOrder.objects.get(table_number=5).items.get().quantity, 20)
+
+    def test_a_table_number_that_cannot_exist_goes_nowhere(self):
+        from sales.models import TableOrder
+
+        self.client.post('/mesas/mesa/999/agregar/', {f'q:{self.beer.id}': '1'})
+        self.assertEqual(TableOrder.objects.count(), 0)
+
+    def test_a_stranger_cannot_put_drinks_on_a_bill(self):
+        from sales.models import TableOrder
+
+        self.client.logout()
+        res = self.client.post('/mesas/mesa/5/agregar/', {f'q:{self.beer.id}': '2'})
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(TableOrder.objects.count(), 0)
+
+    def test_it_does_not_email_the_bar_about_the_bar_own_keystrokes(self):
+        from django.core import mail
+
+        mail.outbox = []
+        self.client.post('/mesas/mesa/5/agregar/', {f'q:{self.beer.id}': '1'})
+        self.assertEqual(len(mail.outbox), 0)
+
+
 class VoidLineTests(ApiTestCase):
     """Taking a drink off a table's bill, when it was not ordered or was not any good."""
 

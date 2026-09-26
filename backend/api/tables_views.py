@@ -239,6 +239,55 @@ def settle_table(request, number):
 
 
 @floor_required
+def add_round(request, number):
+    """Put a round on a table's bill from the floor, for an order taken verbally.
+
+    Not everybody scans the QR on the table, and a waiter who takes an order at the table had no way to get it
+    onto the bill: the board could take a line OFF and never put one on, so anything ordered out loud was
+    either lost or written on paper and added up by hand at the end of the night.
+
+    It creates the same row the customer's own order creates, through `menu_views.create_round`, and lands in
+    the queue as WAITING rather than delivered: the bar still has to make it, and the stock only moves when
+    somebody presses Delivered. A waiter entering what they have already carried just presses Delivered after.
+    """
+    from catalog.models import MenuCategory, MenuItem
+    from .menu_views import MAX_PER_ITEM, create_round, valid_table
+
+    if not valid_table(number):
+        return redirect('/mesas/')
+
+    if request.method == 'POST':
+        quantities = {}
+        for key, value in request.POST.items():
+            if not key.startswith('q:'):
+                continue
+            try:
+                qty = int(value)
+            except (TypeError, ValueError):
+                continue
+            if qty > 0:
+                quantities[key[2:]] = min(qty, MAX_PER_ITEM)
+        items = {i.id: i for i in MenuItem.objects.filter(id__in=quantities, available=True)}
+        if quantities and items:
+            # No email to the bar: the person entering this IS the bar, and a notification about your own
+            # keystrokes is noise that teaches people to ignore the channel.
+            create_round(number, quantities, items, lang='es', note=request.POST.get('note', ''), notify=False)
+            return redirect(f'/mesas/?open={number}#t{number}')
+        return redirect(f'/mesas/mesa/{number}/agregar/?vacio=1')
+
+    categories = [
+        {'name': c.name_es or c.name,
+         'items': [i for i in c.items.all() if i.available]}
+        for c in MenuCategory.objects.filter(active=True).prefetch_related('items')
+    ]
+    return render(request, 'floor/agregar.html', {
+        'number': number,
+        'grupos': [c for c in categories if c['items']],
+        'vacio': request.GET.get('vacio'),
+    })
+
+
+@floor_required
 @require_POST
 def set_tables(request):
     """Change how many tables the room has, from the board.

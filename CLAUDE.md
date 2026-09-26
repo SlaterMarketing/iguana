@@ -446,6 +446,16 @@ because of that, and is now reachable by the floor at `/mesas/reservas/`, which 
   **`See breakdown`** opens a table's rounds itemised, each with its time, its lines, its total and whether it
   is waiting, delivered or paid. Each line carries **`Quitar de la cuenta`** for a drink they did not order or
   that was not any good.
+  **`Apuntar una ronda`** on every card puts a verbally-taken order onto the bill (`/mesas/mesa/<n>/agregar/`).
+  Not everybody scans the QR, and until 2026-09-25 the board could take a line OFF and never put one on, so
+  anything ordered out loud was lost or kept on paper and added up by hand at the end of the night.
+  🔑 **It goes through `menu_views.create_round`, the same function the customer's own order uses**, so the two
+  ways in cannot drift: same snapshotted name and price, same show stamped on the round.
+  🔑 **It lands WAITING, not delivered.** The bar still has to make it, and the stock only moves on Delivered;
+  a round that arrived already delivered would take the ingredients out before anybody poured the drink. A
+  waiter entering what they already carried presses Delivered straight after.
+  ⚠ It sends no email to the bar. The person typing it IS the bar, and a notification about your own
+  keystrokes is noise that teaches people to ignore the channel.
   🚨 **Taking a line off asks WHICH of two things happened, because they are not the same fact about the store
   room.** `No se preparó` means the drink was never poured, so the ingredients are still in the bottle and the
   count comes back up. `Se preparó y se tiró` means it was made and binned, so the money comes off the bill and

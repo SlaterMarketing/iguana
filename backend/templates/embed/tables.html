@@ -149,6 +149,8 @@
             <p class="q-table">{% t lang "Table" %} {{ t.number }} <span class="q-due">{{ t.due }}</span></p>
             <p class="q-items">{{ t.items }}</p>
             <a class="peek" href="?open={{ t.number }}#t{{ t.number }}">{% t lang "See breakdown" %}</a>
+            {# Para lo que se pide de viva voz: no todo el mundo escanea el QR de la mesa. #}
+            {% if floor %}<a class="peek" href="/mesas/mesa/{{ t.number }}/agregar/">{% t lang "Add a round" %}</a>{% endif %}
           </div>
           <div class="q-act">
             <p class="q-when">{% if t.waited < 1 %}{% t lang "just now" %}{% else %}{% t lang "{0} min" t.waited %}{% endif %}</p>
@@ -178,6 +180,7 @@
           <p class="what">{% t lang "Nothing waiting" %}</p>
         {% else %}
           <p class="what">{% t lang "Nothing ordered" %}</p>
+        {% if floor %}<a class="peek" href="/mesas/mesa/{{ t.number }}/agregar/">{% t lang "Add a round" %}</a>{% endif %}
         {% endif %}
         {% comment %}
           The whole tab for the night, under a rule, because it is a different number from the one above it:
@@ -246,6 +249,8 @@
             <a class="peek" href="?#t{{ t.number }}">{% t lang "Hide breakdown" %}</a>
           {% else %}
             <a class="peek" href="?open={{ t.number }}#t{{ t.number }}">{% t lang "See breakdown" %}</a>
+            {# Para lo que se pide de viva voz: no todo el mundo escanea el QR de la mesa. #}
+            {% if floor %}<a class="peek" href="/mesas/mesa/{{ t.number }}/agregar/">{% t lang "Add a round" %}</a>{% endif %}
           {% endif %}
         {% endif %}
       </div>
