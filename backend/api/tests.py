@@ -2531,6 +2531,144 @@ class HowManyTablesTests(ApiTestCase):
         self.assertIn(9, self.cards())
 
 
+class ClearTheTableTests(ApiTestCase):
+    """Closing a table out so the next party does not sit in front of somebody else's bill."""
+
+    def setUp(self):
+        super().setUp()
+        from catalog.models import MenuCategory, MenuItem
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'mesero',
+                     verbosity=0)
+        self.client.login(username='mesero', password='no-es-la-real')
+        cat = MenuCategory.objects.create(name='Cervezas')
+        self.beer = MenuItem.objects.create(category=cat, name='Victoria', price_cents=5000, currency='mxn')
+
+    def round_on(self, table=2, qty=2):
+        from sales.models import TableOrder, TableOrderItem
+
+        order = TableOrder.objects.create(table_number=table, currency='mxn', total_cents=5000 * qty)
+        TableOrderItem.objects.create(order=order, menu_item=self.beer, name='Victoria', quantity=qty,
+                                      unit_price_cents=5000)
+        return order
+
+    def board(self):
+        return self.client.get('/mesas/').content.decode()
+
+    def card(self, number=2):
+        """Just that table's card.
+
+        🚨 Asserting against the whole page is wrong here and the first version of this test did it: the
+        night's takings line in the header still says the money, which is the entire point of clearing rather
+        than deleting. Only the CARD has to go quiet.
+        """
+        body = self.board()
+        start = body.index(f'id="t{number}"')
+        return body[start:body.index('</div>', body.index('</div>', start) + 1)]
+
+    def test_a_paid_table_can_be_cleared_and_the_card_goes_quiet(self):
+        self.round_on()
+        self.client.post('/tables/2/settle/')
+        self.assertIn('100 MXN', self.card())
+        self.client.post('/tables/2/cerrar/')
+        self.assertNotIn('100 MXN', self.card(), 'the next party must not see the last one\'s bill')
+        self.assertIn('100 MXN', self.board(), 'but the night still counts it')
+
+    def test_the_money_stays_in_the_night(self):
+        """🚨 Clearing is not deleting. /stats/ and the takings still count the round."""
+        from sales.models import TableOrder
+
+        order = self.round_on()
+        self.client.post('/tables/2/settle/')
+        self.client.post('/tables/2/cerrar/')
+        order.refresh_from_db()
+        self.assertEqual(order.total_cents, 10000)
+        self.assertEqual(order.status, TableOrder.PAID)
+        self.assertIsNotNone(order.closed_at)
+
+    def test_a_table_that_still_owes_money_cannot_be_cleared(self):
+        """🚨 Otherwise clearing takes the one number the bar is owed off the only screen anybody looks at."""
+        from sales.models import TableOrder
+
+        order = self.round_on()
+        self.client.post('/tables/2/cerrar/')
+        order.refresh_from_db()
+        self.assertIsNone(order.closed_at)
+        self.assertIn('100 MXN', self.card())
+
+    def test_clearing_can_be_undone(self):
+        from sales.models import TableOrder
+
+        order = self.round_on()
+        self.client.post('/tables/2/settle/')
+        self.client.post('/tables/2/cerrar/')
+        self.client.post('/tables/2/cerrar/?undo=1')
+        order.refresh_from_db()
+        self.assertIsNone(order.closed_at)
+
+    def test_a_new_round_after_clearing_starts_from_zero(self):
+        self.round_on(qty=2)
+        self.client.post('/tables/2/settle/')
+        self.client.post('/tables/2/cerrar/')
+        self.round_on(qty=1)
+        card = self.card()
+        self.assertIn('50 MXN', card)
+        self.assertNotIn('150 MXN', card, 'the new party pays for their own drinks only')
+
+
+class NameTheSpotTests(ApiTestCase):
+    """Not everything in this room is a table, and the board should say what the staff say."""
+
+    def setUp(self):
+        super().setUp()
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'mesero',
+                     verbosity=0)
+        self.client.login(username='mesero', password='no-es-la-real')
+
+    def test_the_name_box_is_ON_the_card_not_hidden_behind_a_panel(self):
+        """🚨 The first version put it inside the breakdown, so from the card there was no sign you could
+        rename anything at all. A control nobody can find is not a feature."""
+        body = self.client.get('/mesas/').content.decode()
+        start = body.index('id="t3"')
+        card = body[start:body.index('id="t4"')]
+        self.assertIn('/tables/3/nombre/', card, 'the name box has to be on the card itself')
+
+    def test_a_table_can_be_renamed(self):
+        self.client.post('/tables/3/nombre/', {'label': 'Box 1'})
+        body = self.client.get('/mesas/').content.decode()
+        self.assertIn('Box 1', body)
+
+    def test_the_number_still_routes_the_drink(self):
+        """🚨 Renaming is only what the board says. A customer still types a number and the QR still carries
+        one, so a renamed spot has to keep taking orders."""
+        from sales.models import TableOrder
+
+        self.client.post('/tables/3/nombre/', {'label': 'Box 1'})
+        res = self.client.post('/api/public/v1/table-orders',
+                               data=json.dumps({'table': 3, 'items': {}, 'lang': 'es'}),
+                               content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {KEY}')
+        self.assertEqual(res.status_code, 400, 'refused for the empty basket, not for the name')
+        TableOrder.objects.create(table_number=3, currency='mxn', total_cents=5000)
+        self.assertIn('Box 1', self.client.get('/mesas/').content.decode())
+
+    def test_clearing_the_name_puts_the_number_back(self):
+        self.client.post('/tables/3/nombre/', {'label': 'Box 1'})
+        self.client.post('/tables/3/nombre/', {'label': '  '})
+        body = self.client.get('/mesas/').content.decode()
+        self.assertNotIn('Box 1', body)
+        self.assertIn('Mesa 3', body)
+
+    def test_a_stranger_cannot_rename_the_room(self):
+        from catalog.models import FloorSettings
+
+        self.client.logout()
+        self.client.post('/tables/3/nombre/', {'label': 'Hacked'})
+        self.assertEqual(FloorSettings.load().labels, {})
+
+
 class BoardKeepsUpTests(ApiTestCase):
     """The board noticing a customer's order within seconds, without holding a worker open."""
 

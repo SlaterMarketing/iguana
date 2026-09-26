@@ -28,6 +28,14 @@ from .menu_views import MAX_TABLE
 
 # What the board lays out when the room is quiet. The club has fewer tables than the 100 a QR can name, and a
 # board of a hundred empty squares is unreadable; the rest appear the moment somebody orders from one.
+def table_labels():
+    """What each spot is called. Missing means the plain "Mesa N" the template falls back to."""
+    from catalog.models import FloorSettings
+
+    raw = FloorSettings.load().labels or {}
+    return {str(k): str(v).strip()[:40] for k, v in raw.items() if str(v).strip()}
+
+
 def tables_on_show():
     """How many table cards to draw, from the floor settings the bar edits at `/mesas/`.
 
@@ -97,7 +105,7 @@ def _board(lang):
     # end, so a round already delivered is still money on that table, and the board was the only place anybody
     # would look for it.
     tab = {}
-    for order in (TableOrder.objects.filter(created_at__gte=service_start())
+    for order in (TableOrder.objects.filter(created_at__gte=service_start(), closed_at__isnull=True)
                   .exclude(status=TableOrder.CANCELLED)):
         row = tab.setdefault(order.table_number, {'cents': 0, 'currency': order.currency, 'rounds': 0,
                                                   'paid_cents': 0})
@@ -107,6 +115,7 @@ def _board(lang):
             row['paid_cents'] += order.total_cents
 
     numbers = sorted(set(by_table) | set(tab) | set(range(1, tables_on_show() + 1)))
+    labels = table_labels()
     tables = []
     for number in numbers:
         row = by_table.get(number)
@@ -116,6 +125,8 @@ def _board(lang):
         running = tab.get(number)
         tables.append({
             'number': number,
+            # Blank unless somebody named it; the template prints "Mesa N" when it is.
+            'label': labels.get(str(number), ''),
             'orders': row['orders'] if row else [],
             'items': ', '.join(o.summary for o in row['orders']) if row else '',
             # Whoever put their name on a round that is still waiting. A tray arriving with a name on it beats
@@ -347,6 +358,54 @@ def set_tables(request):
     settings_row.tables = max(1, min(MAX_TABLE, wanted))
     settings_row.updated_by = _who(request)
     settings_row.save(update_fields=['tables', 'updated_at', 'updated_by'])
+    return redirect(_back(request))
+
+
+@floor_required
+@require_POST
+def name_table(request, number):
+    """Call a spot what the staff call it: Box 1, Barra, Terraza.
+
+    The NUMBER still routes everything, so a renamed spot keeps working for the QR on it and for a customer
+    typing a number into the menu. This is only what the board and the bill say.
+    """
+    from catalog.models import FloorSettings
+
+    row = FloorSettings.load()
+    labels = dict(row.labels or {})
+    name = (request.POST.get('label') or '').strip()[:40]
+    if name:
+        labels[str(number)] = name
+    else:
+        labels.pop(str(number), None)   # cleared: back to "Mesa N"
+    row.labels = labels
+    row.updated_by = _who(request)
+    row.save(update_fields=['labels', 'updated_at', 'updated_by'])
+    destination = _back(request)
+    if destination == '/mesas/':
+        return redirect(f'/mesas/?open={number}#t{number}')
+    return redirect(destination)
+
+
+@floor_required
+@require_POST
+def close_out(request, number):
+    """The party paid and left: clear the table for the next one.
+
+    🚨 Only once everything on it is paid. Clearing a table that still owes money would take the one number
+    the bar is owed off the only screen anybody looks at, which is the same mistake pressing Delivered used to
+    make. Unpaid rounds are settled first, or taken off the bill one line at a time.
+
+    The rounds are not deleted and the money stays in the night: `/stats/` and the takings count every
+    non-cancelled round whether or not it was closed. All this does is stop it being this table's running tab,
+    so the next people do not sit down in front of somebody else's bill.
+    """
+    rounds = TableOrder.objects.filter(table_number=number, created_at__gte=service_start(),
+                                       closed_at__isnull=True).exclude(status=TableOrder.CANCELLED)
+    if request.GET.get('undo') or request.POST.get('undo'):
+        TableOrder.objects.filter(table_number=number, created_at__gte=service_start()).update(closed_at=None)
+    elif rounds.exists() and not rounds.exclude(status=TableOrder.PAID).exists():
+        rounds.update(closed_at=timezone.now())
     return redirect(_back(request))
 
 

@@ -476,6 +476,10 @@ class FloorSettings(models.Model):
     # be dealt with, not be refused at the one moment somebody is trying to buy a drink. The board unions in
     # any table that has a round, so an unexpected number still appears.
     tables = models.PositiveSmallIntegerField(default=12, help_text='Cuántas mesas hay en el salón.')
+    # What each spot is called, keyed by its number: {"3": "Box 1"}. Not every seat in this room is a table,
+    # and a board that insists on calling a box "Mesa 3" makes the staff translate in their heads every time.
+    # The NUMBER still routes the drink, so a renamed spot keeps working for the QR and for the customer.
+    labels = models.JSONField(default=dict, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
     updated_by = models.CharField(max_length=80, blank=True)
 

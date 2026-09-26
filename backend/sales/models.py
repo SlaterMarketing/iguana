@@ -217,6 +217,10 @@ class TableOrder(models.Model):
     # so the only way to double-count is to clear it deliberately. Delivering a round twice, a double-tap on a
     # phone, or a page reload must not empty the fridge twice: see `sales/stock.py`.
     stock_applied_at = models.DateTimeField(null=True, blank=True)
+    # The party paid, got up and left, and the table is free for the next one. The round stays in the night's
+    # takings; it just stops being this table's running tab, so the next people do not sit down in front of
+    # somebody else's bill. Without this a card carried its total until 6am and there was no way to clear it.
+    closed_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ['-created_at']

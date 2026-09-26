@@ -255,6 +255,8 @@ ES = {
     'At the door': 'En la puerta',
     'Verified': 'Verificado',
     'Undo': 'Deshacer',
+    'What this spot is called': 'Cómo se llama este lugar',
+    'Clear the table': 'Liberar la mesa',
     'Add a round': 'Apuntar una ronda',
     'Tables in the room': 'Cuántas mesas hay',
     'One table fewer': 'Una mesa menos',

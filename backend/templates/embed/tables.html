@@ -88,6 +88,15 @@
                              color: var(--ink); border: 1px solid var(--ink); font: 700 .68rem/1 inherit;
                              letter-spacing: .12em; text-transform: uppercase; }
   .howmany-row button.save:hover { background: var(--ink); color: #fff; }
+  .rename { display: flex; gap: 8px; margin-top: 10px; }
+  .rename input { flex: 1 1 auto; min-width: 0; min-height: 44px; font: inherit; padding: 0 12px;
+                  border: 1px solid rgba(0,0,0,.2); border-radius: 12px; }
+  .rename button { flex: 0 0 auto; width: auto; min-width: max-content; min-height: 44px; padding: 0 14px;
+                   border-radius: 999px; border: 1px solid var(--ink); background: #fff; color: var(--ink);
+                   font: 700 .66rem/1 inherit; letter-spacing: .1em; text-transform: uppercase;
+                   cursor: pointer; }
+  .rename button:hover { background: var(--ink); color: #fff; }
+  .rename button.clear { flex: 1 1 auto; background: var(--ink); color: #fff; }
   .rounds-list { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); }
   .round + .round { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); }
   .round-head { display: flex; justify-content: space-between; gap: 8px; margin: 0; font-size: .8rem;
@@ -149,7 +158,7 @@
       {% for t in waiting %}
         <div class="q {% if t.late %}late{% endif %}">
           <div class="q-what">
-            <p class="q-table">{% t lang "Table" %} {{ t.number }} <span class="q-due">{{ t.due }}</span></p>
+            <p class="q-table">{% if t.label %}{{ t.label }}{% else %}{% t lang "Table" %} {{ t.number }}{% endif %} <span class="q-due">{{ t.due }}</span></p>
             <p class="q-items">{{ t.items }}</p>
             {% if t.who %}<p class="q-who">{{ t.who }}</p>{% endif %}
             <a class="peek" href="?open={{ t.number }}#t{{ t.number }}">{% t lang "See breakdown" %}</a>
@@ -171,7 +180,24 @@
   <div class="board">
     {% for t in tables %}
       <div class="t {% if t.orders %}open{% endif %} {% if t.late %}late{% endif %} {% if not t.orders and not t.tab_cents %}quiet{% endif %}" id="t{{ t.number }}">
-        <p class="no">{% t lang "Table" %} {{ t.number }}</p>
+        <p class="no">{% if t.label %}{{ t.label }}{% else %}{% t lang "Table" %} {{ t.number }}{% endif %}</p>
+        {# 🚨 En la TARJETA, no escondido tras "Ver desglose". La primera versión lo puso dentro del panel #}
+        {# desplegable y desde la tarjeta no había forma de ver que se podía renombrar. #}
+        {% if floor %}
+          <form class="rename" method="post" action="/tables/{{ t.number }}/nombre/">
+            {% csrf_token %}
+            <input name="label" value="{{ t.label }}" maxlength="40"
+                   placeholder="{% t lang "Table" %} {{ t.number }}"
+                   aria-label="{% t lang "What this spot is called" %}">
+            <button type="submit">{% t lang "Save" %}</button>
+          </form>
+          {% if t.settled %}
+            <form class="rename" method="post" action="/tables/{{ t.number }}/cerrar/">
+              {% csrf_token %}
+              <button class="clear" type="submit">{% t lang "Clear the table" %}</button>
+            </form>
+          {% endif %}
+        {% endif %}
         {% if t.orders %}
           <p class="due">{{ t.due }}</p>
           <p class="what">{{ t.items }}</p>
