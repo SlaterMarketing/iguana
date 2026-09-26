@@ -428,6 +428,19 @@
           timeout 5m {{ app_dir }}/backend/venv/bin/python {{ app_dir }}/backend/manage.py
           snapshot_ad_spend 2>&1 | logger -t iguana-ad-spend
 
+    - name: Keep the open mic ads on unless their night is full or an hour from starting
+      become: true
+      cron:
+        name: iguana open mic ads autopilot
+        disabled: "{{ not (open_mic_ads_autopilot | default(true) | bool) }}"
+        user: "{{ deploy_user }}"
+        # Every ten minutes so the stop lands close to the hour-before mark (20:00 for a 21:00 show). It reads
+        # the account's campaigns once and posts only when a status is wrong, so a quiet run is one GET.
+        minute: "*/10"
+        job: >-
+          timeout 5m {{ app_dir }}/backend/venv/bin/python {{ app_dir }}/backend/manage.py
+          open_mic_ads --apply 2>&1 | logger -t iguana-open-mic-ads
+
     - name: Morning-after note to last night's audience
       become: true
       cron:

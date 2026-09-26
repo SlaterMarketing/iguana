@@ -5161,3 +5161,83 @@ class DemandNudgeTests(ApiTestCase):
         self.ga.sold_elsewhere = 11
         self.ga.save(update_fields=['capacity', 'sold_elsewhere'])
         self.assertEqual(self.line(), 'half')
+
+
+class OpenMicAdsAutopilotTests(ApiTestCase):
+    """The open mic ads run always, and stop when their night is full or an hour from its show (owner, 2026-09-26).
+
+    Driven by the clock rather than by today's date, because the moment that matters is 20:00 in Playa, which is
+    01:00 UTC the next day: a test built from a bare UTC now() would put the night on the wrong day.
+    """
+
+    def setUp(self):
+        self.day = (timezone.now().astimezone(CANCUN_TZ) + timedelta(days=3)).date()
+        self.mic = Event.objects.create(name='Open Mic', slug='mic-ads', status=Event.ACTIVE, venue=self.venue,
+                                        language='es', tags=['open-mic'], doors_open='20:00', show_time='21:00',
+                                        date=datetime.combine(self.day, time.min, tzinfo=CANCUN_TZ))
+        self.seat = TicketType.objects.create(event=self.mic, name='Free reserved seat', price_cents=0, capacity=60)
+
+    def at(self, hour, minute=0, days=0):
+        return datetime.combine(self.day + timedelta(days=days), time(hour, minute), tzinfo=CANCUN_TZ)
+
+    def test_it_runs_while_the_night_has_seats_and_is_more_than_an_hour_away(self):
+        from crm.open_mic_ads import decide
+
+        self.assertTrue(decide('es', self.at(9, days=-2))[0])
+        self.assertTrue(decide('es', self.at(19, 59))[0])
+
+    def test_it_stops_an_hour_before_the_show(self):
+        from crm.open_mic_ads import decide
+
+        run, reason, _ = decide('es', self.at(20, 0))
+        self.assertFalse(run)
+        self.assertIn('less than an hour', reason)
+        self.assertFalse(decide('es', self.at(23, 30))[0])
+
+    def test_it_comes_back_for_next_week_the_morning_after(self):
+        from crm.open_mic_ads import decide
+
+        Event.objects.create(name='Open Mic', slug='mic-ads-next', status=Event.ACTIVE, venue=self.venue,
+                             language='es', tags=['open-mic'], show_time='21:00',
+                             date=datetime.combine(self.day + timedelta(days=7), time.min, tzinfo=CANCUN_TZ))
+        run, _, event = decide('es', self.at(0, 5, days=1))
+        self.assertTrue(run)
+        self.assertEqual(event.slug, 'mic-ads-next')
+
+    def test_a_full_room_stops_it_and_so_does_a_sold_out_mark(self):
+        from crm.open_mic_ads import decide
+
+        self.seat.sold_elsewhere = 60
+        self.seat.save()
+        self.assertFalse(decide('es', self.at(9, days=-2))[0])
+        self.seat.sold_elsewhere = 0
+        self.seat.save()
+        self.mic.status = Event.SOLD_OUT
+        self.mic.save()
+        self.assertFalse(decide('es', self.at(9, days=-2))[0])
+
+    def test_the_other_language_is_judged_on_its_own_night(self):
+        from crm.open_mic_ads import decide
+
+        run, reason, _ = decide('en', self.at(9, days=-2))
+        self.assertFalse(run)
+        self.assertIn('no upcoming night', reason)
+
+    def test_only_the_campaign_that_is_wrong_is_changed(self):
+        from crm import open_mic_ads
+
+        posts = []
+
+        def graph(method, path, **params):
+            if method == 'GET':
+                return {'data': [{'id': '1', 'name': open_mic_ads.CAMPAIGNS['es'], 'status': 'PAUSED'},
+                                 {'id': '2', 'name': open_mic_ads.CAMPAIGNS['en'], 'status': 'PAUSED'}]}
+            posts.append((path, params))
+            return {'success': True}
+
+        with self.settings(META_ADS_TOKEN='t'), patch.object(open_mic_ads, '_graph', side_effect=graph):
+            dry = open_mic_ads.sync(apply=False, now=self.at(9, days=-2))
+            self.assertEqual(posts, [])
+            open_mic_ads.sync(apply=True, now=self.at(9, days=-2))
+        self.assertIn('PAUSED -> ACTIVE (dry run)', dry[0])
+        self.assertEqual(posts, [('1', {'status': 'ACTIVE'})])

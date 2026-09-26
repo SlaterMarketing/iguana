@@ -353,6 +353,16 @@ costs clicks.
 | Open mic English · reservations / ad set | `120250126057820182` / `120250126057990182` |
 | Open mic English · local reach / ad set | `120250126062910182` / `120250126063000182` |
 
+🚨 **The two open mic reservation campaigns are switched by the server, not by hand** (owner, 2026-09-26:
+"keep running open mics always", stopping only when the night sells out or an hour before it). `manage.py
+open_mic_ads --apply` runs every 10 minutes (`journalctl -t iguana-open-mic-ads`) and sets each campaign
+ACTIVE or PAUSED by its series' next night: paused when that night is SOLD_OUT, full by `sales.demand`, or
+less than an hour from `show_time`, and back on the next day for the following week's night. It touches the
+CAMPAIGN status only, never the ad sets, so the builder's choices (superseded ad sets, retired reach) stand.
+⚠ A pause in Ads Manager is undone within ten minutes. To stop them deliberately set
+`open_mic_ads_autopilot: false` in `group_vars/all`, deploy, then run `meta-openmic-campaigns.py pause`.
+Found 2026-09-26 with both campaigns paused by hand alongside Privilegio and nothing delivering.
+
 🚨 **The Meta app must be in LIVE mode or no ad creative can be made at all.** App `Iguana 2026`
 (`1616667029816710`) is the business's only app, and while it is in Development mode every POST to
 `/adcreatives` returns 400 "se creó con una app que se encuentra en modo de desarrollo", with or without
