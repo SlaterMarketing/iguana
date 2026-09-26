@@ -209,14 +209,14 @@ const emptyMessage =
               </span>
               <span class="text-3xl leading-none text-brand transition group-open:rotate-45" aria-hidden="true">+</span>
             </summary>
-            <p class="mt-6 max-w-2xl text-neutral-600">{t(locale, "events.pastDescription")}</p>
+            <p class="mx-auto mt-6 max-w-2xl text-center text-neutral-600">{t(locale, "events.pastDescription")}</p>
             <div class="mx-auto mt-10 max-w-4xl space-y-12">
               {Array.from(pastGrouped.entries()).map(([month, rows]) => (
                 <div>
                   <p class="text-xs font-semibold uppercase tracking-[0.45em] text-neutral-500">{month}</p>
                   <div class="mt-4 border-t border-black/10">
                     {rows.map((evt) => (
-                      <EventCalendarRow evt={evt} locale={locale} />
+                      <EventCalendarRow evt={evt} locale={locale} past />
                     ))}
                   </div>
                 </div>
