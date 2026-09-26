@@ -45,5 +45,12 @@ def sign_in(request):
 
 @require_POST
 def sign_out(request):
+    """Still here, but deliberately NOT offered as a button anywhere on the console.
+
+    These run on tablets that live in the building and are meant to stay signed in across shifts. A `Salir`
+    sitting in the nav beside Mesas and Carta is a mis-tap away at all times, and the cost of that mis-tap is
+    somebody hunting for a password behind a bar mid-service. Signing out is a deliberate act: POST to this
+    path, or use the admin's own logout, which is where the owner signs out anyway.
+    """
     logout(request)
     return redirect('/mesas/entrar/')

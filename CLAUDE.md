@@ -513,7 +513,11 @@ because of that, and is now reachable by the floor at `/mesas/reservas/`, which 
   Fredy night" answerable at all; `/stats/` prints it per night, rounds, drinks and collected against still
   owed. A round poured on a night with no show has no event, and that is correct rather than missing.
 - **`/mesas/`** (floor accounts, and the owner): the same board as `/tables/`, **in Spanish whatever the phone
-  says**, with a nav strip because a floor account has no admin to navigate from. Its own login at
+  says**, with a nav strip because a floor account has no admin to navigate from.
+  🚨 **The nav offers NO logout, deliberately** (owner, 2026-09-25: the console runs on tablets that live in
+  the building). A `Salir` sitting beside Mesas and Carta is a mis-tap away at all times, and the cost of that
+  mis-tap is somebody hunting for a password behind a bar mid-service. `/mesas/salir/` still exists for a
+  deliberate sign-out, and the owner signs out through the admin as before. Do not put the button back. Its own login at
   `/mesas/entrar/`, never `/admin/login/`: the admin tells a non-staff account its correct password is wrong,
   which at the start of service reads as a broken account and becomes a phone call. `?next=` is restricted to
   `/mesas` paths so a crafted link cannot bounce somebody off the site.
