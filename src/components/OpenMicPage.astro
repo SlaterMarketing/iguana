@@ -30,9 +30,10 @@ import { loadEventsForCalendarPages } from "../lib/events-catalog";
 import { holidayNotice } from "../lib/holiday-notice";
 import { createLocalizedKintanaClient, getKintanaEnv } from "../lib/kintana-env";
 import { logKintanaError, logKintanaSuccess } from "../lib/kintana-error";
-import { bookableOpenMics, formatSeatPrice, isFreeToReserve } from "../lib/open-mics";
+import { formatSeatPrice, isFreeToReserve, upcomingOpenMics, walkInLine } from "../lib/open-mics";
 import type { Locale } from "../i18n/locale";
 import { localizePath } from "../i18n/routes";
+import { t } from "../i18n/ui";
 
 interface Props {
   locale: Locale;
@@ -52,20 +53,27 @@ if (hasCredentials) {
   }
 }
 
-const bookable = bookableOpenMics(upcoming);
+// Sold-out nights stay in the list (owner, 2026-09-26). The night is still on and 20 walk-in seats are kept
+// back, so hiding it told somebody who came from an ad for Tuesday that there was no Tuesday.
+const byNight = upcomingOpenMics(upcoming);
 
 // Which night. The default is the language of the page the visitor is on, because a Spanish speaker is not
 // coming to the English night and the reverse is just as true; `?night=` lets an ad be explicit about it.
 const askedNight = Astro.url.searchParams.get("night");
 const nightKey: "es" | "en" = askedNight === "es" || askedNight === "en" ? askedNight : locale;
-// Fall back to the other night rather than showing nothing, on a week where one of them has sold out.
-const shownKey: "es" | "en" = bookable[nightKey].length ? nightKey : nightKey === "es" ? "en" : "es";
-const nights = bookable[shownKey];
+// Fall back to the other night rather than showing nothing, when one series has no dates up at all.
+const shownKey: "es" | "en" = byNight[nightKey].length ? nightKey : nightKey === "es" ? "en" : "es";
+const nights = byNight[shownKey];
 
 const DATES_SHOWN = 4;
 const askedDate = Astro.url.searchParams.get("date");
 const selected = nights.find((evt) => evt.date === askedDate) ?? nights[0];
 const dateChoices = nights.slice(0, DATES_SHOWN);
+const soldOut = selected?.status === "sold-out";
+// Where somebody who wanted a guaranteed seat goes instead: the next night of the same series that has one.
+const nextBookable = soldOut
+  ? nights.find((evt) => evt.status === "on-sale" && evt.date > (selected?.date ?? ""))
+  : undefined;
 
 /** Keeps the ad's click id on the URL when somebody switches night or date, so attribution survives a tap. */
 const fbclid = Astro.url.searchParams.get("fbclid");
@@ -134,7 +142,7 @@ const night = copy.nights[shownKey];
 // trust. The event pages have had the map all along; the page the ads actually pay for did not.
 const mapEmbedUrl = selected ? eventVenueMapEmbedUrl(selected) : null;
 // Rendered here rather than inside the checkout iframe, which is told to stop drawing its own copy.
-const pressure = selected ? demandLine(selected, locale) : null;
+const pressure = selected && !soldOut ? demandLine(selected, locale) : null;
 /**
  * When the night actually is, taken from the night itself.
  *
@@ -216,7 +224,7 @@ function nightDetail(event: KintanaPublicEvent | null, fallback: string, locale:
           <span> · {nightDetail(selected, night.detail, locale)}</span>
         </p>
         {
-          selected ? (
+          selected && !soldOut ? (
             <p class="mt-0.5 text-sm text-neutral-600">
               {isFreeToReserve(selected) ? (
                 <span class="font-semibold text-brand">{copy.freeToReserve}</span>
@@ -252,6 +260,7 @@ function nightDetail(event: KintanaPublicEvent | null, fallback: string, locale:
                       evt.id === selected?.id
                         ? "border-neutral-900 bg-neutral-900 text-white"
                         : "border-black/15 text-neutral-700 hover:border-neutral-900 hover:text-neutral-900",
+                      evt.status === "sold-out" && "line-through decoration-2",
                     ]}
                     href={href(shownKey, evt.date)}
                     aria-current={evt.id === selected?.id ? "true" : undefined}
@@ -266,7 +275,26 @@ function nightDetail(event: KintanaPublicEvent | null, fallback: string, locale:
       }
 
       {
-        selected ? (
+        selected && soldOut ? (
+          /* Where the form was: the answer across the width in one word, then how to get in anyway. */
+          <div class="bg-neutral-950 px-4 pb-6 pt-8 text-center text-white">
+            <p
+              class="-mx-8 -rotate-3 border-y-4 border-white bg-brand py-3 uppercase leading-none text-neutral-950"
+              style="font-family: var(--font-display); font-size: clamp(2.6rem, 11vw, 4.25rem); letter-spacing: 0.08em;"
+            >
+              {t(locale, "ui.soldOut")}
+            </p>
+            <p class="mx-auto mt-7 max-w-sm text-base font-semibold leading-snug">{walkInLine(selected, locale)}</p>
+            {nextBookable ? (
+              <a
+                class="mt-5 inline-flex min-h-12 items-center justify-center rounded-full bg-white px-6 py-3 text-sm font-semibold uppercase tracking-[0.15em] text-neutral-950 transition hover:bg-brand"
+                href={href(shownKey, nextBookable.date)}
+              >
+                {t(locale, "openMic.reserveNext", { date: formatEventDateShort(nextBookable.date, locale) })} →
+              </a>
+            ) : null}
+          </div>
+        ) : selected ? (
           <EventCheckoutWidget
             eventId={selected.id}
             locale={locale}

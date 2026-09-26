@@ -24,7 +24,7 @@ import { eventReviews, formatStarRating } from "../../lib/event-reviews";
 import { t } from "../../i18n/ui";
 import { localizePath } from "../../i18n/routes";
 import type { Locale } from "../../i18n/locale";
-import { isOpenMic } from "../../lib/open-mics";
+import { isOpenMic, walkInLine } from "../../lib/open-mics";
 import { eventSchema } from "../../lib/structured-data";
 import { stillOnSale } from "../../lib/still-on-sale";
 
@@ -223,7 +223,9 @@ const pixelContent = event
                     >
                       {t(locale, "ui.soldOut")}
                     </p>
-                    <p class="px-6 pb-6 pt-3 text-sm text-white/80">{t(locale, "events.soldOutNote")}</p>
+                    <p class="px-6 pb-6 pt-3 text-sm text-white/80">
+                      {isOpenMic(event) ? walkInLine(event, locale) : t(locale, "events.soldOutNote")}
+                    </p>
                     {
                       alsoOn.length ? (
                         <div class="border-t border-white/15 px-4 pb-5 pt-5 text-left sm:px-5">

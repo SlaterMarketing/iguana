@@ -3,7 +3,7 @@ import type { KintanaPublicEvent } from "@kintana/sdk";
 import { eventCitySlug, eventSupportsOnSiteCheckout, eventLanguageLabel, formatEventScheduleLine, formatMinorUnitsPrice } from "../lib/events";
 import { demandLine } from "../lib/demand";
 import DemandLines from "./DemandLines.astro";
-import { isFreeToReserve, isOpenMic } from "../lib/open-mics";
+import { isFreeToReserve, isOpenMic, walkInLine } from "../lib/open-mics";
 import { t } from "../i18n/ui";
 import { localizePath } from "../i18n/routes";
 import type { Locale } from "../i18n/locale";
@@ -43,6 +43,8 @@ const ticketsLabel = isOpenMic(evt) ? t(locale, "ui.reserveSeat") : t(locale, "u
 const demand = past ? null : demandLine(evt, locale);
 
 const soldOut = !past && evt.status === "sold-out";
+// An open mic with no reservations left still has its walk-in seats, so the strip says how to get in.
+const walkIn = soldOut && isOpenMic(evt) ? walkInLine(evt, locale) : null;
 
 const statusBadge =
   past
@@ -170,6 +172,7 @@ const emphasized =
             <DemandLines demand={demand} tone={emphasized ? "dark" : "light"} class="mx-auto max-w-xs" />
           ) : null
         }
+        {walkIn ? <p class="mx-auto max-w-xs text-base font-semibold leading-snug">{walkIn}</p> : null}
       </div>
 
       <div class="relative z-10 mt-12 flex flex-wrap justify-center gap-6">

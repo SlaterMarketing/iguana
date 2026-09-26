@@ -1,7 +1,8 @@
 import type { KintanaPublicEvent } from "@kintana/sdk";
 
 import type { Locale } from "../i18n/locale";
-import { sortEventsAscending } from "./events";
+import { t } from "../i18n/ui";
+import { formatEventTime, sortEventsAscending } from "./events";
 
 /** Set on the weekly open mic nights by `manage.py setup_open_mics`. */
 export const OPEN_MIC_TAG = "open-mic";
@@ -52,4 +53,32 @@ export function formatSeatPrice(evt: KintanaPublicEvent, locale: Locale): string
     evt.priceFrom / 100,
   );
   return `${amount} ${(evt.priceCurrency ?? "").toUpperCase()}`.trim();
+}
+
+/**
+ * Seats kept back from reservations on every open mic: the room holds 80 and 60 are reservable. A night whose
+ * reservations are gone is NOT a night nobody can come to, so a sold-out open mic says so and says how.
+ */
+export const WALK_IN_SEATS = 20;
+
+export function walkInLine(evt: KintanaPublicEvent, locale: Locale): string {
+  const doors = formatEventTime(evt.doorsOpen, locale);
+  const n = String(WALK_IN_SEATS);
+  // es-MX writes "8:00 p.m.", which would end the sentence on a doubled full stop.
+  const line = doors ? t(locale, "openMic.walkIn", { n, doors }) : t(locale, "openMic.walkInNoTime", { n });
+  return line.replace(/\.\.$/, ".");
+}
+
+/**
+ * Every open mic night still to come in each language, sold-out ones included, soonest first. The lander shows a
+ * sold-out night as sold out (with the walk-in seats) rather than hiding it, since it is still happening.
+ */
+export function upcomingOpenMics(events: KintanaPublicEvent[]): { es: KintanaPublicEvent[]; en: KintanaPublicEvent[] } {
+  const nights = sortEventsAscending(
+    events.filter((evt) => isOpenMic(evt) && (evt.status === "on-sale" || evt.status === "sold-out")),
+  );
+  return {
+    es: nights.filter((evt) => evt.language === "es"),
+    en: nights.filter((evt) => evt.language === "en"),
+  };
 }
