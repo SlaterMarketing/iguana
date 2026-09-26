@@ -448,9 +448,19 @@ because of that, and is now reachable by the floor at `/mesas/reservas/`, which 
   interchangeable: the one at the top is what is **waiting to be carried over**, and the one under the rule is
   **Due**, everything that table has ordered tonight including rounds already delivered. They pay at the end,
   so pressing Delivered used to make the money disappear from the only screen anybody looks at.
-  **The queue comes first**: every table with something waiting, longest wait at the top, amber past ten
-  minutes, with the round and a Delivered button on each row. The grid of twelve below it is for state; the
-  queue is for somebody holding a tray, who should not have to find the green cards in it.
+  🚨 **There is no separate pending list** (owner, 2026-09-25). It repeated what the cards already said, for
+  the same reason the Delivered button went: the person who typed the round is the person carrying it. Each
+  card still turns green, counts the minutes and carries the name of whoever ordered.
+  ⚠ **The name lived ONLY in that list**, so removing the list silently took it off the board altogether and a
+  tray went out with nobody's name on it. It is on the card now. Anything a list like this shows has to be
+  checked against the cards before the list goes.
+  ⚠ **A `{# #}` comment is ONE LINE.** Written across several, Django does not treat it as a comment and
+  prints it: the note explaining this removal rendered across the top of the live board during service. Use
+  `{% comment %}`, and `TableQueueAndBreakdownTests` now asserts no comment marker reaches the page.
+  🚨 **Never give a context variable the same name as another one in the same view.** `?open=N` printed a raw
+  `<QuerySet [<TableOrder: ...>]>` beside the night's takings, because the breakdown query was called `rounds`
+  and so was the header's round COUNT. Nothing errored; a template renders whatever it is handed, repr and
+  all. It only showed with a breakdown open, which is why every check that loaded the plain board missed it.
   **`See breakdown`** opens a table's rounds itemised, each with its time, its lines, its total and whether it
   is waiting, delivered or paid. Each line carries **`Quitar de la cuenta`** for a drink they did not order or
   that was not any good.
@@ -459,9 +469,15 @@ because of that, and is now reachable by the floor at `/mesas/reservas/`, which 
   anything ordered out loud was lost or kept on paper and added up by hand at the end of the night.
   🔑 **It goes through `menu_views.create_round`, the same function the customer's own order uses**, so the two
   ways in cannot drift: same snapshotted name and price, same show stamped on the round.
-  🔑 **It lands WAITING, not delivered.** The bar still has to make it, and the stock only moves on Delivered;
-  a round that arrived already delivered would take the ingredients out before anybody poured the drink. A
-  waiter entering what they already carried presses Delivered straight after.
+  🚨 **It lands DELIVERED, not waiting** (owner, 2026-09-25: "entregado no aplica porque nadie está ordenando
+  por el sitio web ahorita, son los meseros poniendo órdenes"). Waiting-then-Delivered is a QUEUE, and a queue
+  only means anything when the order arrives from somebody other than the person who will carry it. While the
+  waiters are the ones typing, every round is entered and then confirmed by the same pair of hands: one
+  pointless tap per round during service, and a button that says nothing when it is pressed. The stock still
+  moves exactly once, through `stock.deliver` rather than a status write, so the count sheet is unchanged.
+  ⚠ **The customer's own QR order still lands WAITING**, because there the bar genuinely has not poured it. That
+  is what Delivered is for, and the button returns on its own the day anybody scans a table QR.
+  `api.tests.AWaiterEntersWhatIsAlreadyGoingOutTests` pins both halves.
   ⚠ It sends no email to the bar. The person typing it IS the bar, and a notification about your own
   keystrokes is noise that teaches people to ignore the channel.
   🚨 **Taking a line off asks WHICH of two things happened, because they are not the same fact about the store

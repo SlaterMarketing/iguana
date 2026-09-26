@@ -4463,6 +4463,70 @@ class ServiceShowTests(ApiTestCase):
         self.assertEqual(current_show(after_midnight), tonight, 'the tab has not changed hands at 00:40')
 
 
+class AWaiterEntersWhatIsAlreadyGoingOutTests(ApiTestCase):
+    """🚨 Waiting-then-Delivered is a QUEUE, and a queue needs two parties.
+
+    Nobody orders through the table QR yet, so the person typing the round is the person carrying it (dueño,
+    2026-09-25). Making them confirm their own keystrokes is one pointless tap per round mid-service. A round
+    entered on the floor therefore lands DELIVERED; the customer's own QR order still lands WAITING, because
+    there the bar really has not made it.
+    """
+
+    def setUp(self):
+        from django.core.management import call_command
+        from catalog.models import MenuCategory, MenuItem
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'mesero',
+                     verbosity=0)
+        self.client.login(username='mesero', password='no-es-la-real')
+        cat = MenuCategory.objects.create(name='Beers', name_es='Cervezas')
+        self.beer = MenuItem.objects.create(category=cat, name='Corona', name_es='Corona',
+                                            price_cents=6000, currency='mxn')
+
+    def test_a_round_the_waiter_enters_is_already_delivered(self):
+        from sales.models import TableOrder
+
+        self.client.post('/mesas/mesa/3/agregar/', {f'q:{self.beer.id}': '2'})
+        order = TableOrder.objects.get()
+        self.assertEqual(order.status, TableOrder.DELIVERED)
+        self.assertIsNotNone(order.delivered_at)
+        self.assertIsNotNone(order.stock_applied_at, 'the stock moves with it, once')
+
+    def test_the_board_does_not_ask_the_waiter_to_confirm_their_own_typing(self):
+        self.client.post('/mesas/mesa/3/agregar/', {f'q:{self.beer.id}': '1'})
+        page = self.client.get('/mesas/').content.decode()
+        at = page.index('id="t3"')
+        card = page[page.rindex('<div', 0, at):]
+        card = card[:card.index('id="t4"')]
+        self.assertNotIn('Entregado', card)
+        self.assertIn('60 MXN', card, 'the money is still on the table')
+
+    def test_every_card_offers_to_add_a_round_whatever_state_it_is_in(self):
+        """🚨 It lived in two conditional branches and both could be false at once.
+
+        A table with its breakdown open lost the only way to put anything on its bill, mid-service. A link
+        that appears only in certain card states is a link that disappears exactly when it is needed, and here
+        nearly every order is taken out loud because nobody scans the table QR.
+        """
+        self.client.post('/mesas/mesa/3/agregar/', {f'q:{self.beer.id}': '1'})
+        for url in ('/mesas/', '/mesas/?open=3', '/mesas/?open=9'):
+            page = self.client.get(url).content.decode()
+            for table in (3, 4, 9):
+                self.assertIn(f'/mesas/mesa/{table}/agregar/', page,
+                              f'table {table} has no way to add a round on {url}')
+
+    def test_the_customers_own_qr_order_still_waits(self):
+        """That path is untouched: there the bar genuinely has not poured it yet."""
+        from sales.models import TableOrder
+
+        self.client.post('/api/public/v1/table-orders',
+                         data=json.dumps({'table': 5, 'items': {self.beer.id: 1}, 'lang': 'es'}),
+                         content_type='application/json', HTTP_AUTHORIZATION=f'Bearer {KEY}')
+        order = TableOrder.objects.get(table_number=5)
+        self.assertEqual(order.status, TableOrder.OPEN)
+        self.assertIsNone(order.stock_applied_at, 'nothing leaves the shelf until it is poured')
+
+
 class TableQueueAndBreakdownTests(ApiTestCase):
     """The queue across the room, and the per-table breakdown behind it."""
 

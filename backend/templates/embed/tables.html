@@ -76,6 +76,11 @@
           font-weight: 700; letter-spacing: .12em;
           text-transform: uppercase; color: var(--muted); text-decoration: underline; text-underline-offset: 3px; }
   .peek:hover { color: var(--ink); }
+  /* Es LA acción del servicio: casi todo se pide de viva voz, así que no puede leerse como un enlace
+     secundario perdido entre los demás. */
+  .peek.add { display: flex; color: var(--ink); text-decoration: none; margin-top: 8px; justify-content: center;
+              border: 1px solid var(--ink); border-radius: 999px; padding: 0 14px; }
+  .peek.add:hover { background: var(--ink); color: #fff; }
   /* Cuántas mesas hay. Va al final: se usa una vez por noche, no durante el servicio. */
   .howmany { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line); }
   .howmany label { font-size: .7rem; font-weight: 700; letter-spacing: .16em; text-transform: uppercase;
@@ -207,7 +212,16 @@
           <p class="what">{% t lang "Nothing waiting" %}</p>
         {% else %}
           <p class="what">{% t lang "Nothing ordered" %}</p>
-        {% if floor %}<a class="peek" href="/mesas/mesa/{{ t.number }}/agregar/">{% t lang "Add a round" %}</a>{% endif %}
+        {% endif %}
+        {% comment %}
+          🚨 Apuntar una ronda va SIEMPRE, sin condición. Estaba en dos ramas distintas y las dos podían ser
+          falsas a la vez, así que una mesa con la cuenta desplegada se quedaba sin la única forma de
+          agregarle algo (2026-09-25, mesa 4 en pleno servicio). Un enlace que sólo aparece en ciertos
+          estados de la tarjeta es un enlace que desaparece justo cuando hace falta: aquí se pide de viva voz
+          casi siempre, porque nadie escanea el QR de la mesa.
+        {% endcomment %}
+        {% if floor %}
+          <a class="peek add" href="/mesas/mesa/{{ t.number }}/agregar/">{% t lang "Add a round" %}</a>
         {% endif %}
         {% comment %}
           The whole tab for the night, under a rule, because it is a different number from the one above it:
@@ -277,8 +291,6 @@
             <a class="peek" href="?#t{{ t.number }}">{% t lang "Hide breakdown" %}</a>
           {% else %}
             <a class="peek" href="?open={{ t.number }}#t{{ t.number }}">{% t lang "See breakdown" %}</a>
-            {# Para lo que se pide de viva voz: no todo el mundo escanea el QR de la mesa. #}
-            {% if floor %}<a class="peek" href="/mesas/mesa/{{ t.number }}/agregar/">{% t lang "Add a round" %}</a>{% endif %}
           {% endif %}
         {% endif %}
       </div>

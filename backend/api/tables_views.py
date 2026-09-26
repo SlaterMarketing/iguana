@@ -297,9 +297,18 @@ def add_round(request, number):
     onto the bill: the board could take a line OFF and never put one on, so anything ordered out loud was
     either lost or written on paper and added up by hand at the end of the night.
 
-    It creates the same row the customer's own order creates, through `menu_views.create_round`, and lands in
-    the queue as WAITING rather than delivered: the bar still has to make it, and the stock only moves when
-    somebody presses Delivered. A waiter entering what they have already carried just presses Delivered after.
+    It creates the same row the customer's own order creates, through `menu_views.create_round`.
+
+    🚨 It lands DELIVERED, not waiting (dueño, 2026-09-25: "entregado no aplica porque nadie está ordenando
+    por el sitio web ahorita, son los meseros poniendo órdenes"). Waiting-then-Delivered is a QUEUE, and a
+    queue only means something when the order arrives from somewhere other than the person who will carry it.
+    While the waiters are the ones typing, every round would be entered and then immediately confirmed by the
+    same pair of hands, which is one pointless tap per round during service and a button that says nothing
+    when it is pressed.
+    The stock still moves exactly once, through `deliver` rather than a status write, so the count sheet
+    behaves the same as it always did.
+    ⚠ The CUSTOMER's own QR order still lands WAITING, because there the bar genuinely has not made it yet.
+    That is what Delivered is for, and it comes back on its own the day anybody scans a table QR.
     """
     from catalog.models import MenuCategory, MenuItem
     from .menu_views import MAX_PER_ITEM, create_round, valid_table
@@ -322,8 +331,11 @@ def add_round(request, number):
         if quantities and items:
             # No email to the bar: the person entering this IS the bar, and a notification about your own
             # keystrokes is noise that teaches people to ignore the channel.
-            create_round(number, quantities, items, lang='es', note=request.POST.get('note', ''),
-                         guest_name=request.POST.get('nombre', ''), notify=False)
+            order = create_round(number, quantities, items, lang='es', note=request.POST.get('note', ''),
+                                 guest_name=request.POST.get('nombre', ''), notify=False)
+            # Through `deliver`, never a status write: it is what moves the stock, and it is guarded so a
+            # double post cannot take the ingredients out twice.
+            deliver(order, who=_who(request))
             return redirect(f'/mesas/?open={number}#t{number}')
         return redirect(f'/mesas/mesa/{number}/agregar/?vacio=1')
 
