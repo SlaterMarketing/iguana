@@ -45,6 +45,8 @@ const demand = past ? null : demandLine(evt, locale);
 const soldOut = !past && evt.status === "sold-out";
 // An open mic with no reservations left still has its walk-in seats, so the strip says how to get in.
 const walkIn = soldOut && isOpenMic(evt) ? walkInNote(evt, locale) : null;
+// The sold-out line under the bar points at the same footnote as the strip, so both carry the asterisk.
+const shownDemand = walkIn && demand?.room ? { ...demand, room: `${demand.room}*` } : demand;
 
 const statusBadge =
   past
@@ -175,8 +177,8 @@ const emphasized =
         {/* A price for something nobody can buy is noise, and the demand bar under it read as an invitation. */}
         {priceLabel && !soldOut ? <p class="text-sm font-medium opacity-[0.9]">{priceLabel}</p> : null}
         {
-          demand ? (
-            <DemandLines demand={demand} tone={emphasized ? "dark" : "light"} class="mx-auto max-w-xs" />
+          shownDemand ? (
+            <DemandLines demand={shownDemand} tone={emphasized ? "dark" : "light"} class="mx-auto max-w-xs" />
           ) : null
         }
       </div>
