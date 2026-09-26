@@ -1,0 +1,192 @@
+{% extends "embed/base.html" %}
+{% block title %}Puerta · Iguana Comedy{% endblock %}
+{% block head %}
+<style>
+  /* Un teléfono en la mano, de noche, con gente esperando. El veredicto ocupa la pantalla y se lee de lejos. */
+  .wrap { max-width: 560px; }
+  #cam { width: 100%; aspect-ratio: 3/4; background: #000; border-radius: 18px; object-fit: cover; }
+  .camwrap { position: relative; }
+  .aim { position: absolute; inset: 18% 12%; border: 3px solid rgba(255,255,255,.75); border-radius: 16px;
+         pointer-events: none; }
+  .verdict { border-radius: 18px; padding: 20px 18px; margin-top: 14px; text-align: center; color: #fff; }
+  .verdict.idle { background: #f1f1f1; color: var(--muted); }
+  .verdict.valid { background: #1f7a35; }
+  .verdict.just_now { background: #2b5c2a; }
+  .verdict.used { background: #b7791f; }
+  .verdict.unknown, .verdict.unpaid { background: var(--danger); }
+  .verdict .big { font-family: "Bebas Neue", sans-serif; font-size: clamp(2.4rem, 12vw, 3.6rem);
+                  line-height: 1; letter-spacing: .04em; }
+  .verdict .who { font-size: 1.05rem; font-weight: 700; margin: 8px 0 0; }
+  .verdict .sub { font-size: .85rem; opacity: .9; margin: 4px 0 0; }
+  .verdict .collect { display: inline-block; margin-top: 10px; background: #fff; color: var(--ink);
+                      border-radius: 999px; padding: 8px 16px; font-weight: 700; }
+  .verdict button { margin-top: 14px; min-height: 44px; padding: 0 18px; border-radius: 999px;
+                    border: 1px solid rgba(255,255,255,.8); background: transparent; color: #fff;
+                    font: 700 .68rem/1 inherit; letter-spacing: .12em; text-transform: uppercase;
+                    cursor: pointer; }
+  .manual { margin-top: 16px; display: grid; gap: 10px; }
+  .manual input { min-height: 48px; }
+  .note { font-size: .8rem; color: var(--muted); margin-top: 14px; }
+  .tally { font-size: .8rem; color: var(--muted); margin-top: 6px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="stack">
+  <div>
+    <p class="eyebrow">Iguana Comedy</p>
+    <h1>Puerta</h1>
+  </div>
+
+  <div class="floornav">
+    <a href="/mesas/">Mesas</a>
+    <a href="/mesas/carta/">Carta</a>
+    <a href="/mesas/inventario/">Inventario</a>
+    <a href="/mesas/reservas/">Reservas</a>
+    <a class="on" href="/mesas/puerta/">Puerta</a>
+    <form method="post" action="/mesas/salir/">{% csrf_token %}<button type="submit">Salir</button></form>
+  </div>
+
+  <div class="camwrap">
+    <video id="cam" playsinline muted></video>
+    <div class="aim"></div>
+  </div>
+  <p class="tally" id="tally">0 boletos admitidos</p>
+
+  <div class="verdict idle" id="verdict">
+    <p class="big" id="big">Listo</p>
+    <p class="sub" id="sub">Apunta la cámara al código del boleto.</p>
+  </div>
+
+  {# Sin cámara, con un navegador que no trae lector, o con un código maltratado: se teclea. #}
+  <form class="manual" id="manual">
+    {% csrf_token %}
+    <label for="code">O escribe el código</label>
+    <input id="code" name="code" autocapitalize="none" autocorrect="off" spellcheck="false"
+           placeholder="Código del boleto">
+    <button class="btn" type="submit">Revisar</button>
+  </form>
+
+  <p class="note" id="note"></p>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var token = document.querySelector('input[name=csrfmiddlewaretoken]').value;
+  var verdict = document.getElementById("verdict");
+  var big = document.getElementById("big"), sub = document.getElementById("sub");
+  var note = document.getElementById("note"), tally = document.getElementById("tally");
+  var admitted = 0, last = "", lastAt = 0, busy = false, lastToken = "";
+
+  var WORDS = {
+    valid:    "PASA",
+    just_now: "YA PASÓ",
+    used:     "REPETIDO",
+    unknown:  "NO SIRVE",
+    unpaid:   "SIN PAGAR"
+  };
+  var SUBS = {
+    just_now: "Lo acabas de admitir.",
+    used:     "Este boleto ya se usó",
+    unknown:  "Ese código no es de aquí.",
+    unpaid:   "El pedido no está pagado. Cobra en la puerta o mándalos con el encargado."
+  };
+
+  function paint(d) {
+    verdict.className = "verdict " + d.state;
+    big.textContent = WORDS[d.state] || "?";
+    var bits = [];
+    if (d.state === "used" && d.seen_at) bits.push(SUBS.used + " a las " + d.seen_at + ".");
+    else if (SUBS[d.state]) bits.push(SUBS[d.state]);
+    if (d.event) bits.push(d.event);
+    if (d.type) bits.push(d.type);
+    // Se reconstruye desde cero en cada lectura: la puerta escanea decenas de boletos seguidos, y añadir sin
+    // limpiar deja el nombre del invitado anterior debajo del actual, que es la peor forma de equivocarse aquí.
+    Array.prototype.slice.call(verdict.querySelectorAll(".who, .collect, button"))
+      .forEach(function (el) { el.remove(); });
+    var who = document.createElement("p");
+    who.className = "who";
+    who.textContent = d.name || "";
+    sub.textContent = bits.join(" · ");
+    verdict.insertBefore(who, sub);
+    if (d.collect) {
+      var c = document.createElement("span");
+      c.className = "collect";
+      c.textContent = "Cobrar " + d.collect;
+      verdict.appendChild(c);
+    }
+    if (d.state === "valid" || d.state === "just_now") {
+      // Deshacer, porque un lector que no se puede equivocar es un lector en el que nadie confía: se cuela el
+      // QR de atrás, o se escanea el boleto equivocado, y sin esto la puerta deja el registro mintiendo.
+      var undo = document.createElement("button");
+      undo.type = "button";
+      undo.textContent = "Deshacer";
+      undo.onclick = function () { send("/mesas/puerta/deshacer/", { token: lastToken }, function () {
+        big.textContent = "DESHECHO"; verdict.className = "verdict idle"; sub.textContent = "Ese boleto vuelve a servir.";
+        if (admitted > 0) { admitted -= 1; tally.textContent = admitted + " boletos admitidos"; }
+      }); };
+      verdict.appendChild(undo);
+    }
+    if (d.state === "valid") {
+      admitted += 1;
+      tally.textContent = admitted + (admitted === 1 ? " boleto admitido" : " boletos admitidos");
+      if (navigator.vibrate) navigator.vibrate(60);
+    } else if (d.state === "unknown" || d.state === "unpaid" || d.state === "used") {
+      if (navigator.vibrate) navigator.vibrate([60, 60, 60]);
+    }
+  }
+
+  function send(url, body, done) {
+    var form = new FormData();
+    form.append("csrfmiddlewaretoken", token);
+    for (var k in body) form.append(k, body[k]);
+    fetch(url, { method: "POST", body: form, credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) { done(d); })
+      .catch(function () { note.textContent = "Sin conexión. Vuelve a intentar."; });
+  }
+
+  function check(code) {
+    var now = Date.now();
+    // El lector ve el mismo QR muchas veces por segundo mientras está frente a la cámara.
+    if (busy || (code === last && now - lastAt < 2500)) return;
+    busy = true; last = code; lastAt = now;
+    lastToken = code.split("?")[0].replace(/\/+$/, "").split("/").filter(Boolean).pop() || code;
+    send("/mesas/puerta/verificar/", { code: code }, function (d) { paint(d); busy = false; });
+  }
+
+  document.getElementById("manual").onsubmit = function (e) {
+    e.preventDefault();
+    var el = document.getElementById("code");
+    if (el.value.trim()) { last = ""; check(el.value.trim()); el.value = ""; }
+  };
+
+  var video = document.getElementById("cam");
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    note.textContent = "Este navegador no abre la cámara. Usa la cámara del teléfono sobre el código: abre la página de admisión, o escribe el código aquí.";
+    return;
+  }
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+    .then(function (stream) {
+      video.srcObject = stream;
+      video.play();
+      if (!("BarcodeDetector" in window)) {
+        // Safari no trae BarcodeDetector. En vez de cargar una librería de un CDN en la puerta, se dice qué
+        // hacer: la cámara del propio teléfono abre la página de admisión, que es la misma revisión.
+        note.textContent = "Este navegador no lee códigos por sí solo. Apunta la cámara normal del teléfono al código y abre el enlace, o escribe el código aquí abajo.";
+        return;
+      }
+      var detector = new BarcodeDetector({ formats: ["qr_code"] });
+      setInterval(function () {
+        if (video.readyState < 2) return;
+        detector.detect(video).then(function (codes) {
+          if (codes && codes.length) check(codes[0].rawValue);
+        }).catch(function () {});
+      }, 350);
+    })
+    .catch(function () {
+      note.textContent = "No se pudo abrir la cámara. Dale permiso al navegador, o escribe el código aquí abajo.";
+    });
+})();
+</script>
+{% endblock %}

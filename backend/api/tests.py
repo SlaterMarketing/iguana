@@ -2105,6 +2105,109 @@ class SeedBarInventoryTests(ApiTestCase):
         self.assertEqual(InventoryItem.objects.filter(name='Victoria').count(), 1, 'and nothing is duplicated')
 
 
+class DoorScanTests(ApiTestCase):
+    """La puerta: escanear un boleto, decir si sirve, y marcarlo, una sola vez."""
+
+    def setUp(self):
+        super().setUp()
+        from django.core.management import call_command
+
+        call_command('ensure_floor_accounts', '--password', 'no-es-la-real', '--usernames', 'door',
+                     verbosity=0)
+        self.client.login(username='door', password='no-es-la-real')
+
+    def ticket(self, status=Order.COMPLETED, pay_at_door=0):
+        order = Order.objects.create(event=self.event, event_name=self.event.name, currency='mxn',
+                                     customer_email='ana@example.com', customer_name='Ana Lopez',
+                                     status=status, pay_at_door_cents=pay_at_door,
+                                     total_amount_cents=30000)
+        return Ticket.objects.create(order=order, ticket_type_name='General admission')
+
+    def scan(self, code):
+        return self.client.post('/mesas/puerta/verificar/', {'code': code}).json()
+
+    def test_a_good_ticket_passes_and_names_the_guest(self):
+        t = self.ticket()
+        out = self.scan(t.checkin_token)
+        self.assertEqual(out['state'], 'valid')
+        self.assertEqual(out['name'], 'Ana Lopez')
+
+    def test_it_marks_the_ticket_used_in_the_same_breath(self):
+        """A door that asks for a confirming tap gets one reflexively: delay, and no extra safety."""
+        t = self.ticket()
+        self.scan(t.checkin_token)
+        t.refresh_from_db()
+        self.assertIsNotNone(t.checked_in_at)
+
+    def test_the_qr_holds_a_url_and_the_scanner_reads_that(self):
+        t = self.ticket()
+        out = self.scan(f'https://iguanacomedy.com/checkin/{t.checkin_token}/')
+        self.assertEqual(out['state'], 'valid')
+
+    def test_scanning_the_same_code_again_moments_later_is_not_an_alarm(self):
+        """🚨 The scanner sees one QR many times a second. A red screen would make staff argue with a guest
+        who has done nothing wrong, so inside the window it reads as "you just let them in"."""
+        t = self.ticket()
+        self.scan(t.checkin_token)
+        self.assertEqual(self.scan(t.checkin_token)['state'], 'just_now')
+
+    def test_a_ticket_used_earlier_in_the_night_IS_an_alarm(self):
+        from datetime import timedelta
+
+        t = self.ticket()
+        t.checked_in_at = timezone.now() - timedelta(minutes=40)
+        t.save(update_fields=['checked_in_at'])
+        out = self.scan(t.checkin_token)
+        self.assertEqual(out['state'], 'used')
+        self.assertTrue(out['seen_at'], 'and says when, so the door can ask about it')
+
+    def test_an_unpaid_order_does_not_get_in(self):
+        t = self.ticket(status=Order.PENDING)
+        self.assertEqual(self.scan(t.checkin_token)['state'], 'unpaid')
+        t.refresh_from_db()
+        self.assertIsNone(t.checked_in_at, 'and is not marked, so it still works once they pay')
+
+    def test_a_code_from_somewhere_else_is_refused(self):
+        self.assertEqual(self.scan('not-a-real-token')['state'], 'unknown')
+        self.assertEqual(self.scan('')['state'], 'unknown')
+
+    def test_a_pay_at_the_door_ticket_says_what_to_collect(self):
+        from sales.models import OrderItem
+
+        t = self.ticket(pay_at_door=15000)
+        OrderItem.objects.create(order=t.order, ticket_type=self.ga, name='General admission',
+                                 quantity=1, unit_price_cents=15000)
+        self.assertIn('150', self.scan(t.checkin_token)['collect'])
+
+    def test_it_can_be_undone(self):
+        """A scanner that cannot be wrong is one nobody trusts: the QR behind the one being held up reads too."""
+        t = self.ticket()
+        self.scan(t.checkin_token)
+        self.client.post('/mesas/puerta/deshacer/', {'token': t.checkin_token})
+        t.refresh_from_db()
+        self.assertIsNone(t.checked_in_at)
+        self.assertEqual(self.scan(t.checkin_token)['state'], 'valid', 'and the ticket works again')
+
+    def test_the_door_account_can_open_the_page_the_ticket_QR_leads_to(self):
+        """The QR holds the check-in URL, so a phone's camera app opens it. That was staff-only, which would
+        have refused this account at the one moment it mattered."""
+        t = self.ticket()
+        self.assertEqual(self.client.get(f'/checkin/{t.checkin_token}/').status_code, 200)
+
+    def test_a_customer_cannot_check_themselves_in(self):
+        t = self.ticket()
+        self.client.logout()
+        res = self.client.post('/mesas/puerta/verificar/', {'code': t.checkin_token})
+        self.assertEqual(res.status_code, 302)
+        t.refresh_from_db()
+        self.assertIsNone(t.checked_in_at)
+
+    def test_the_door_account_is_not_staff(self):
+        from django.contrib.auth import get_user_model
+
+        self.assertFalse(get_user_model().objects.get(username='door').is_staff)
+
+
 class SoldOutIsStillAShowTests(ApiTestCase):
     """🚨 A sold-out night is still a night, and forgetting that costs money in two places.
 

@@ -385,7 +385,7 @@ everything including the money (`owner_password`). `admin` is the account the fi
 (`admin_password`). Both passwords are set only when the account is created, so changing one in the admin is
 not undone by the next deploy.
 
-**`mesero` and `bar` are the floor accounts and they are NOT staff** (`floor_password`, shared, re-applied on
+**`mesero`, `bar` and `door` are the floor accounts and they are NOT staff** (`floor_password`, shared, re-applied on
 every deploy because it is a short word typed on a shared phone behind a bar). They reach `/mesas/` and its
 inventory, and nothing else.
 🚨 **`is_staff = False` is the entire security model, on purpose.** Django's admin turns away a non-staff
@@ -395,9 +395,8 @@ accounts later still cannot open the admin. `manage.py ensure_floor_accounts --p
 off every deploy, because somebody ticking "staff status" in the admin to be helpful is the realistic way that
 protection disappears. `api.tests.FloorConsoleTests` asserts the refusal rather than asserting an empty admin,
 and the production sweep checks it against the live box.
-⚠ **`bar` used to be a staff account and this DEMOTED it, so `/reservations/` is now owner-only.** That page is
-the door's guest list, because nobody scans the QR codes. If the door needs it back, the fix is to let
-`is_floor` through `reservations_views` as well; it was left alone because the ask was "just that page".
+⚠ **`bar` used to be a staff account and this DEMOTED it.** `/reservations/` was owner-only for a few hours
+because of that, and is now reachable by the floor at `/mesas/reservas/`, which is where the door reads it.
 
 - **`/reservations/`** (any staff, so the `bar` login reaches it): every night with seats against capacity, a
   fill bar, bookings, seats left, what was taken online and what is owed at the door, and under each night the
@@ -552,6 +551,24 @@ took or a recipe somebody set.
   codes. Email addresses stay behind `can_see_the_money`, which is what makes the page shareable: the door needs
   to know whether somebody is on the list, not the mailing list, and a phone behind a bar is the least private
   screen in the building.
+- **`/mesas/puerta/`** (same accounts): the door. The camera stays open, a ticket's QR is read in place, and
+  the verdict fills the screen: `PASA`, `YA PASÓ`, `REPETIDO`, `NO SIRVE`, `SIN PAGAR`, with the guest's name,
+  the night, and what to collect when the seat was reserved to pay at the door.
+  🔑 **A good scan marks the ticket used in the same breath, with no confirming tap.** A door that asks for one
+  gets it reflexively, so the tap buys delay and no safety. What it does need is to be atomic, because two
+  people scanning the same queue at once is normal and the second scanner must be told `REPETIDO`.
+  🚨 **The same code read again within 20 seconds is `YA PASÓ`, not an alarm.** The scanner sees one QR many
+  times a second, and a red screen would have staff arguing with a guest who has done nothing wrong. Past that
+  window it IS a warning, and it says what time the ticket was first used so the door can ask about it.
+  ⚠ **`Deshacer` is on every good scan.** The QR behind the one being held up reads too, and a scanner that
+  cannot be wrong is one nobody trusts.
+  ⚠ **An unpaid order is refused and NOT marked**, so the ticket still works the moment they pay.
+  ⚠ **iOS Safari has no `BarcodeDetector`.** Rather than pull a QR library off a CDN at the door, the page says
+  what to do: the phone's own camera app opens the check-in page, which is the same check, and there is a box
+  to type the code. `/checkin/<token>/` is what that QR holds, and it moved from `staff_member_required` to
+  `floor_required` so the door account can actually open it.
+  🚨 **Nobody has ever been checked in here** (0 of 24 on one night, 0 of 16 on another), so `checked_in_at`
+  means nothing yet about whether somebody came, and `/mesas/reservas/` is what the door actually uses.
 - **`/revenue/`** as before.
 
 🚨 **No request path may call Meta, and `/stats/` does not.** The ad account's rate limit clears only by

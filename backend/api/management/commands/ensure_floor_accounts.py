@@ -16,9 +16,10 @@ from django.core.management.base import BaseCommand
 
 from api.floor import FLOOR_GROUP, floor_group
 
-# A waiter and the bar. Named for the job rather than the person, because the phone is shared and the person
-# on it changes; an account per human would mean a new account every few weeks and a password nobody knows.
-USERNAMES = ('mesero', 'bar')
+# A waiter, the bar and the door. Named for the job rather than the person, because the phone is shared and
+# the person on it changes; an account per human would mean a new account every few weeks and a password
+# nobody knows.
+USERNAMES = ('mesero', 'bar', 'door')
 
 
 class Command(BaseCommand):

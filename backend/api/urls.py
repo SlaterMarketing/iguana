@@ -1,7 +1,7 @@
 from django.urls import path, re_path
 
-from . import (carta_views, embed_views, fan_views, floor_views, inventory_views, menu_views,
-               public_views, reservations_views, revenue_views, stats_views, tables_views)
+from . import (carta_views, door_views, embed_views, fan_views, floor_views, inventory_views,
+               menu_views, public_views, reservations_views, revenue_views, stats_views, tables_views)
 
 urlpatterns = [
     # Public catalogue (@kintana/sdk KintanaClient)
@@ -40,6 +40,9 @@ urlpatterns = [
     path('mesas/carta/<str:item_id>/cambiar/', carta_views.toggle_item, name='floor-carta-toggle'),
     path('mesas/carta/<str:item_id>/receta/', carta_views.link_ingredient, name='floor-carta-recipe'),
     path('mesas/carta/receta/<str:pk>/quitar/', carta_views.unlink_ingredient, name='floor-carta-unrecipe'),
+    path('mesas/puerta/', door_views.door, name='floor-door'),
+    path('mesas/puerta/verificar/', door_views.verify, name='floor-door-verify'),
+    path('mesas/puerta/deshacer/', door_views.undo, name='floor-door-undo'),
     # The guest list, which is the DOOR list: same view, Spanish, and reached without the admin.
     path('mesas/reservas/', reservations_views.reservations, name='floor-reservations'),
     path('tables/<int:number>/close/', tables_views.close_table, name='close-table'),

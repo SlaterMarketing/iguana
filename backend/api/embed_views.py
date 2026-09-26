@@ -28,6 +28,7 @@ from sales.services import (DATE_FORMATS, CheckoutError, collects_payment, compl
 
 from .auth import contact_from_fan_token, error, json_body
 from .fan_views import fan_event_json
+from .floor import floor_required
 from .public_views import _add_to_lists as add_to_lists
 from .public_views import _by_id_or_slug, public_events
 
@@ -287,7 +288,7 @@ def order_page(request, token):
     })
 
 
-@staff_member_required
+@floor_required
 def checkin(request, token):
     ticket = get_object_or_404(Ticket.objects.select_related('order__event'), checkin_token=token)
     just_checked_in = False
