@@ -2,6 +2,12 @@
 
     manage.py setup_open_mics --dry-run
     manage.py setup_open_mics --show-time 20:00 --doors 19:30
+    manage.py setup_open_mics --weeks-ahead 13 --only-new     # what the weekly cron runs
+
+`--weeks-ahead` CREATES the nights that are missing, one per series per week, so the calendar (and the ads,
+which sell whatever night is next) never run dry. `--only-new` then sets up just those, and leaves every night
+that already existed exactly as it is: a night somebody set to DRAFT for a holiday stays a draft, rather than
+being republished by a cron on Sunday morning.
 
 Entry is always free, but walk-ins can be turned away when the room is full. Reserving is free too and holds a
 seat. The room holds 80: 60 are reservable and 20 are kept for walk-ins.
@@ -112,6 +118,7 @@ SERIES = {
         'name': 'Open Mic Night in Spanish',
         'name_es': 'Noche de Open Mic en Español',
         'language': 'es',
+        'weekday': 1,                  # Tuesday (Monday is 0)
         'currency': 'mxn',
         'price_cents': 0,
         # From the night's own flyer: sign-up list at 8, show at 9.
@@ -126,6 +133,7 @@ SERIES = {
         'name': 'Open Mic Night in English',
         'name_es': 'Noche de Open Mic en Inglés',
         'language': 'en',
+        'weekday': 2,                  # Wednesday
         'currency': 'usd',
         'price_cents': 0,
         # Doors at 8, show at 9, matching the Spanish night. The flyer says 8:30 and the room never did,
@@ -149,6 +157,10 @@ class Command(BaseCommand):
         parser.add_argument('--doors', default='', help="24h clock, e.g. 19:30; blank uses each series' own time")
         parser.add_argument('--pay-at-door', action='store_true',
                             help='Book online but collect the money on arrival (stopgap while Stripe is not set up)')
+        parser.add_argument('--weeks-ahead', type=int, default=0,
+                            help='Create any missing night of each series up to this many weeks out')
+        parser.add_argument('--only-new', action='store_true',
+                            help='Set up only the nights this run created; leave existing ones untouched')
         parser.add_argument('--dry-run', action='store_true', help='Print what would change and roll back')
 
     def handle(self, *args, **opts):
@@ -168,6 +180,11 @@ class Command(BaseCommand):
                 found.append((event, series))
 
         with transaction.atomic():
+            created = self.extend(found, start, opts['weeks_ahead']) if opts['weeks_ahead'] else []
+            if opts['only_new']:
+                found = created
+            else:
+                found = sorted(found + created, key=lambda pair: pair[0].date)
             for event, series in found:
                 self.stdout.write(self.setup(event, series, opts))
             mode = ('paid at the door' if opts['pay_at_door'] else
@@ -177,6 +194,36 @@ class Command(BaseCommand):
             if opts['dry_run']:
                 transaction.set_rollback(True)
                 self.stdout.write(self.style.WARNING('dry run: nothing saved'))
+
+    def extend(self, found, start, weeks):
+        """Create the missing nights of each series up to `weeks` out. Returns [(event, series)] it made.
+
+        A date that already has a night of that series, in ANY status, is left alone: a cancelled or drafted
+        night is a decision, and making a fresh one beside it would quietly reverse it.
+        """
+        taken = {(series['tag'], event.date.astimezone(CANCUN).date()) for event, series in found}
+        horizon = start + dt.timedelta(weeks=weeks)
+        made = []
+        for series in SERIES.values():
+            # Model a new night on the latest one of the series, so it lands in the same room.
+            template = next((e for e, s in reversed(found) if s is series), None)
+            venue = template.venue if template else None
+            day = start + dt.timedelta(days=(series['weekday'] - start.weekday()) % 7)
+            while day <= horizon:
+                if (series['tag'], day) not in taken:
+                    slug = f'playa-del-carmen-{day.isoformat()}'
+                    if Event.objects.filter(slug=slug).exists():
+                        slug = f'{slug}-{series["language"]}'
+                    event = Event.objects.create(
+                        name=series['name'], name_es=series['name_es'], slug=slug, venue=venue,
+                        venue_label=template.venue_label if template else '',
+                        date=dt.datetime.combine(day, dt.time.min, tzinfo=CANCUN), status=Event.DRAFT,
+                        language=series['language'], currency=series['currency'],
+                        tags=[OPEN_MIC_TAG, series['tag']])
+                    made.append((event, series))
+                    self.stdout.write(f'created {slug}')
+                day += dt.timedelta(weeks=1)
+        return made
 
     def setup(self, event, series, opts):
         notes = []

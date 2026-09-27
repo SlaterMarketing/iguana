@@ -5273,3 +5273,47 @@ class PastShowSummaryTests(ApiTestCase):
         from api.serializers import event_json
 
         self.assertIsNone(event_json(self.event)['past'])
+
+
+class OpenMicCalendarExtendsItselfTests(ApiTestCase):
+    """The weekly cron keeps a quarter of open mic nights on the calendar without touching the ones there."""
+
+    def run_it(self, *args):
+        from io import StringIO
+        from django.core.management import call_command
+
+        call_command('setup_open_mics', *args, stdout=StringIO())
+
+    def mics(self, lang):
+        return [e for e in Event.objects.filter(language=lang).order_by('date') if 'open-mic' in (e.tags or [])]
+
+    def test_it_creates_one_night_a_week_per_series_with_a_free_seat(self):
+        start = timezone.now().astimezone(CANCUN_TZ).date()
+        self.run_it('--from', start.isoformat(), '--weeks-ahead', '4', '--only-new')
+        es, en = self.mics('es'), self.mics('en')
+        self.assertIn(len(es), (4, 5))
+        self.assertTrue(all(e.date.astimezone(CANCUN_TZ).weekday() == 1 for e in es))
+        self.assertTrue(all(e.date.astimezone(CANCUN_TZ).weekday() == 2 for e in en))
+        night = es[0]
+        self.assertEqual(night.status, Event.ACTIVE)
+        self.assertEqual((night.show_time, night.doors_open), ('21:00', '20:00'))
+        seat = night.ticket_types.get(active=True)
+        self.assertEqual((seat.price_cents, seat.capacity), (0, 60))
+
+    def test_a_rerun_creates_nothing_twice(self):
+        start = timezone.now().astimezone(CANCUN_TZ).date().isoformat()
+        self.run_it('--from', start, '--weeks-ahead', '4', '--only-new')
+        before = Event.objects.count()
+        self.run_it('--from', start, '--weeks-ahead', '4', '--only-new')
+        self.assertEqual(Event.objects.count(), before)
+
+    def test_a_night_set_to_draft_stays_a_draft(self):
+        start = timezone.now().astimezone(CANCUN_TZ).date().isoformat()
+        self.run_it('--from', start, '--weeks-ahead', '2', '--only-new')
+        holiday = self.mics('es')[0]
+        holiday.status = Event.DRAFT
+        holiday.save()
+        self.run_it('--from', start, '--weeks-ahead', '6', '--only-new')
+        holiday.refresh_from_db()
+        self.assertEqual(holiday.status, Event.DRAFT)
+        self.assertEqual(len([e for e in self.mics('es') if e.date == holiday.date]), 1)

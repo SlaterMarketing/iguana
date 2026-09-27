@@ -206,6 +206,11 @@ cost-per-booking summary.)
 series definition, the lander, the ad copy and the 15 nights already on the calendar, and the lander now reads
 the time off the night it is showing rather than repeating it in a copy table.
 
+🔑 **The calendar extends itself.** A Sunday cron runs `setup_open_mics --weeks-ahead 14 --only-new`
+(`journalctl -t iguana-open-mic-calendar`), which creates any missing Tuesday/Wednesday night up to 14 weeks out
+and sets up only those. A night that already exists is never touched, in any status, so drafting or cancelling a
+holiday night sticks. Without it the ads would run out of nights to sell and switch themselves off.
+
 `manage.py setup_open_mics [--show-time 20:00 --doors 19:30] [--dry-run]` publishes every upcoming night of the two
 series (`Noche de Open Mic - Espanol!`, `Open Mic Night - English!`), sets currency/language, turns off member
 benefits, tags them `open-mic`, and creates or updates the reservation type. It is re-runnable and never drops
