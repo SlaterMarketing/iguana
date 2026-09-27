@@ -415,6 +415,25 @@
           timeout 30m {{ app_dir }}/backend/venv/bin/python {{ app_dir }}/backend/manage.py send_whats_on
           --send --lede-file {{ newsletter_lede }} 2>&1 | logger -t iguana-newsletter
 
+    - name: Install the nightly database backup (dump, restore test, prune)
+      become: true
+      copy:
+        src: files/iguana-db-backup.sh
+        dest: /usr/local/sbin/iguana-db-backup
+        mode: "0755"
+
+    - name: Back the database up every night, after service
+      become: true
+      cron:
+        name: iguana database backup
+        cron_file: iguana-backup
+        user: root
+        # 07:20 UTC is 02:20 in Playa: the bar has closed and nobody is booking. Tested restore included, it
+        # takes seconds at this size; the timeout is for a wedged Postgres, not for the work.
+        hour: "7"
+        minute: "20"
+        job: "timeout 30m /usr/local/sbin/iguana-db-backup >/dev/null 2>&1"
+
     - name: Snapshot what the ads cost, for /stats/
       become: true
       cron:

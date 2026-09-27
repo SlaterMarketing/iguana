@@ -154,6 +154,15 @@ pointing at Cloudflare IPs caused the old Error 1000); `iguanacomedy.mx` 301s to
   folder with a dangling symlink, and every event image returned 404 for about 4 minutes until it was restored from
   the local copy. The exclude is now anchored and type-agnostic (`/backend/media`), and deploy.yml asserts both the
   server path and `media_src` are real directories before syncing.
+- **Backups.** `/usr/local/sbin/iguana-db-backup` (from `ansible/files/iguana-db-backup.sh`, `/etc/cron.d/iguana-backup`,
+  07:20 UTC nightly) dumps Postgres to `/var/backups/iguana/daily/`, **restores it into a scratch database and
+  checks seven key tables' row counts before pruning anything**, copies Sunday's dump to `weekly/` and tars
+  `backend/media` to `media/`. Kept 30 days / 26 weeks / 8 weeks. Any failure prunes nothing, logs
+  `journalctl -t iguana-backup` and emails `john@iguanacomedy.com`; `LAST_OK` holds the last verified run.
+  The dev box pulls the folder at 03:40 local (`ansible/files/pull-iguana-backups.sh`, john's crontab) into
+  `~/backups/iguana/`, never with `--delete`, keeping 90 days; errors are `ERROR iguana_backup_pull` in its
+  `pull.log`. Restore: `gunzip -c <dump> | sudo -u postgres psql -d iguana` into an EMPTY database (the dump
+  is `--no-owner --no-acl`, so re-grant to `iguana` afterwards).
 - Mail (`ansible/mail.yml`): Postfix + OpenDKIM for every zone in `mail_zones` (`iguanacomedy.mx` and
   `iguanacomedy.com`, each with its own DKIM key under selector `mail`), one mail host `mail.iguanacomedy.mx`
   because the PTR points there. `mail_human_aliases` (hello, info, bills, andrew, john, will, will.slater) deliver to the local
