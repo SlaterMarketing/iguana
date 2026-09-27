@@ -102,8 +102,10 @@ def message_for(order, now=None):
         lines.append(', '.join(x for x in (event.venue.name, event.venue.address) if x))
     elif event.venue_label:
         lines.append(event.venue_label)
-    if free_mic:
-        lines += ['', tr(lang, 'Arrive when doors open so your seat is still yours.')]
+    # The free seat can be given away if they are late; a paid one cannot, so the paid line is about getting
+    # a good seat, never about losing it (owner, 2026-09-27).
+    lines += ['', tr(lang, 'Arrive when doors open so your seat is still yours.') if free_mic
+              else tr(lang, 'Arrive when doors open to get the best seats.')]
     lines += ['', tr(lang, 'Your seats (show this at the door): {0}', order_url(order)) if free_mic
               else tr(lang, 'Your tickets (show this at the door): {0}', order_url(order))]
     if free_mic:

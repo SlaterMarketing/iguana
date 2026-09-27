@@ -292,6 +292,8 @@ ES = {
     # Day-of reminder and giving an open mic seat back (sales/reminders.py, embed/release.html)
     'See you tonight at {0}, {1}.':
         'Te esperamos hoy en {0}, {1}.',
+    'Arrive when doors open to get the best seats.':
+        'Llega cuando abran las puertas para alcanzar los mejores lugares.',
     'Arrive when doors open so your seat is still yours.':
         'Llega cuando abran las puertas para que tu lugar siga siendo tuyo.',
     'Cannot make it any more? Give your seat back so somebody else can come in:':

@@ -5353,6 +5353,8 @@ class DayOfReminderTests(ApiTestCase):
         self.assertIn(release_url(free), free_body)
         self.assertIn('Devuelve tu lugar', free_body)
         self.assertNotIn('/release/', paid_body)
+        self.assertIn('mejores lugares', paid_body)
+        self.assertNotIn('siga siendo tuyo', paid_body)
 
     def test_the_command_sends_once(self):
         from io import StringIO
