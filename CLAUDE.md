@@ -121,6 +121,10 @@ URLs or `/media/...` paths; `serializers.media()` makes them absolute with `BACK
 - React islands only where hooks are needed: contact form (`ContactFormIsland`, `useKintanaSubmit(slug)` with
   endpoint slugs `contact`, `perform-with-us`, `hotels-and-resorts`), account/sign-in, membership (Stripe
   Elements), event member offer.
+- **A past show sells nothing and says what happened.** The API adds `past: {soldOut, seats, capacity}` once
+  `status` is `past` (`serializers.past_summary`; `soldOut` keeps the owner's SOLD_OUT mark, `seats` is only what
+  we counted). `eventSupportsOnSiteCheckout` refuses `past`, the event page puts "this show has already happened",
+  AGOTADO or "It's over", and "76 of 80 tickets sold" where the form was, and past calendar rows say the same.
 - Event dates come from the API as `YYYY-MM-DD` (Cancun day) and the API sets `status: "past"` by the Cancun
   calendar, so filter on status rather than comparing against the server clock (`src/lib/home-page-data.ts`).
 - Static brand media (logo, city photos, hero video) is self-hosted in `public/media/`, not on Kintana.
