@@ -37,6 +37,12 @@ class Order(models.Model):
     # Stamped by `send_after_show`, so the morning-after note can only ever go out once per booking however
     # many times the cron runs or is re-run by hand.
     follow_up_sent_at = models.DateTimeField(null=True, blank=True)
+    # Stamped by `send_show_reminders` so the day-of reminder goes out once per booking.
+    reminder_sent_at = models.DateTimeField(null=True, blank=True)
+    # Set when the guest gave their open mic seat back from the reminder. The order becomes CANCELLED, which is
+    # what frees the seat everywhere (every count reads COMPLETED); this says it was THEIR choice, so the door
+    # can say "gave their seat back" rather than "unpaid".
+    released_at = models.DateTimeField(null=True, blank=True)
     attribution = models.JSONField(default=dict, blank=True)
     # Blank for our own sales. Set when the row came from somewhere else, currently a guest promoter's export:
     # those guests need to be findable at the door, but their money is not ours and must not be counted twice.

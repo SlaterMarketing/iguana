@@ -25,7 +25,9 @@
       {% if order.event.venue %}{{ order.event.venue.name }}{% if order.event.venue.address %}, {{ order.event.venue.address }}{% endif %}{% else %}{{ order.event.venue_label }}{% endif %}
     </p>
   {% endif %}
-  {% if order.status != "COMPLETED" %}
+  {% if order.released_at %}
+    <p class="ok">{% t lang "You gave this seat back, so somebody else could come in. Thank you." %}</p>
+  {% elif order.status != "COMPLETED" %}
     <p class="ok">{% t lang "This order is {0}. Tickets appear here once payment completes." status_label %}</p>
   {% else %}
     <p class="muted">{% t lang "Booked by {0}. Show the code for each ticket at the door." order.customer_name|default:order.customer_email %}</p>

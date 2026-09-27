@@ -22,6 +22,7 @@ from sales.ad_reporting import report_checkout_engaged, report_payment_info_adde
 from sales.sharing import is_open_mic, share_is_free, share_message, share_url, whatsapp_url
 from sales.i18n import lang_from_request, normalize, tr
 from sales.links import order_url
+from sales.reminders import can_release, release
 from sales.models import Membership, MembershipPlan, Order, Ticket
 from sales.services import (DATE_FORMATS, CheckoutError, collects_payment, complete_order, create_order,
                             current_membership, price_cart, reserve_at_door, stripe_client, stripe_enabled)
@@ -285,6 +286,28 @@ def order_page(request, token):
         'share_is_free': share_is_free(order),
         'whatsapp_url': whatsapp_url(order),
         'share_message': share_message(order),
+    })
+
+
+@csrf_exempt
+def release_seat(request, token):
+    """The link in the open mic reminder. GET asks, POST gives the seat back. The token in the URL is the proof,
+    the same one the order page uses, so a forwarded reminder can release the seat it names and nothing else.
+    CSRF-exempt for the same reason as the unsubscribe page: it is reached from an email with no session."""
+    order = get_object_or_404(Order.objects.select_related('event__venue'), public_view_token=token)
+    lang = normalize(order.locale)
+    state = None
+    if request.method == 'POST':
+        state = release(order.id)
+        order.refresh_from_db()
+    elif order.released_at:
+        state = 'already'
+    elif not can_release(order):
+        state = 'refused'
+    seats = sum(i.quantity for i in order.items.all() if not i.is_addon)
+    return render(request, 'embed/release.html', {
+        'order': order, 'lang': lang, 'state': state, 'seats': seats, 'order_url': order_url(order),
+        'site_url': settings.SITE_URLS[0] if settings.SITE_URLS else '',
     })
 
 

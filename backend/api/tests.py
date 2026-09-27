@@ -5317,3 +5317,87 @@ class OpenMicCalendarExtendsItselfTests(ApiTestCase):
         holiday.refresh_from_db()
         self.assertEqual(holiday.status, Event.DRAFT)
         self.assertEqual(len([e for e in self.mics('es') if e.date == holiday.date]), 1)
+
+
+class DayOfReminderTests(ApiTestCase):
+    """Tonight's bookings get one reminder; an open mic seat can be given back from it, a paid ticket cannot."""
+
+    def night(self, slug, tags, price=0):
+        today = timezone.now().astimezone(CANCUN_TZ).date()
+        event = Event.objects.create(name=slug, slug=slug, status=Event.ACTIVE, venue=self.venue, tags=tags,
+                                     show_time='23:59', doors_open='23:00',
+                                     date=datetime.combine(today, time.min, tzinfo=CANCUN_TZ))
+        seat = TicketType.objects.create(event=event, name='Seat', price_cents=price, capacity=2)
+        return event, seat
+
+    def book(self, event, seat, email, price=0, qty=1):
+        order = Order.objects.create(event=event, event_name=event.name, customer_email=email, customer_name='Ana Paz',
+                                     status=Order.COMPLETED, completed_at=timezone.now(), locale='es',
+                                     total_amount_cents=price * qty)
+        OrderItem.objects.create(order=order, ticket_type=seat, name='Seat', quantity=qty, unit_price_cents=price)
+        Ticket.objects.create(order=order, ticket_type_name='Seat')
+        return order
+
+    def early(self):
+        return datetime.combine(timezone.now().astimezone(CANCUN_TZ).date(), time(8), tzinfo=CANCUN_TZ)
+
+    def test_an_open_mic_reminder_carries_the_give_back_link_and_a_paid_one_does_not(self):
+        from sales.reminders import message_for, release_url
+
+        mic, mic_seat = self.night('mic-tonight', ['open-mic'])
+        show, show_seat = self.night('show-tonight', [], price=30000)
+        free = self.book(mic, mic_seat, 'a@example.com')
+        paid = self.book(show, show_seat, 'b@example.com', price=30000)
+        _, free_body = message_for(free, self.early())
+        _, paid_body = message_for(paid, self.early())
+        self.assertIn(release_url(free), free_body)
+        self.assertIn('Devuelve tu lugar', free_body)
+        self.assertNotIn('/release/', paid_body)
+
+    def test_the_command_sends_once(self):
+        from io import StringIO
+        from django.core.management import call_command
+
+        mic, seat = self.night('mic-once', ['open-mic'])
+        self.book(mic, seat, 'a@example.com')
+        self.book(mic, seat, 'e2e-probe@example.com')
+        call_command('send_show_reminders', '--send', stdout=StringIO())
+        call_command('send_show_reminders', '--send', stdout=StringIO())
+        self.assertEqual([m.to for m in mail.outbox], [['a@example.com']])
+        self.assertEqual(mail.outbox[0].subject, 'Hoy: mic-once')
+
+    def test_giving_the_seat_back_frees_it_and_the_door_says_so(self):
+        from sales.demand import demand
+        from sales.reminders import release
+
+        mic, seat = self.night('mic-free', ['open-mic'])
+        order = self.book(mic, seat, 'a@example.com', qty=2)
+        self.assertEqual(demand(mic)['left'], 0)
+        page = self.client.get(f'/orders/{order.public_view_token}/release/')
+        self.assertContains(page, 'Devolver mis lugares')
+        self.client.post(f'/orders/{order.public_view_token}/release/')
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.CANCELLED)
+        self.assertIsNotNone(order.released_at)
+        self.assertEqual(demand(mic)['left'], 2)
+        self.assertEqual(release(order.id), 'already')
+        from api.door_views import _verdict
+        self.assertEqual(_verdict(order.tickets.first(), timezone.now()), 'released')
+
+    def test_a_paid_ticket_cannot_be_given_back(self):
+        from sales.reminders import release
+
+        show, seat = self.night('paid-tonight', [], price=30000)
+        order = self.book(show, seat, 'b@example.com', price=30000)
+        self.client.post(f'/orders/{order.public_view_token}/release/')
+        order.refresh_from_db()
+        self.assertEqual(order.status, Order.COMPLETED)
+        self.assertEqual(release(order.id), 'refused')
+
+    def test_a_seat_already_used_at_the_door_cannot_be_given_back(self):
+        from sales.reminders import release
+
+        mic, seat = self.night('mic-used', ['open-mic'])
+        order = self.book(mic, seat, 'a@example.com')
+        order.tickets.update(checked_in_at=timezone.now())
+        self.assertEqual(release(order.id), 'refused')

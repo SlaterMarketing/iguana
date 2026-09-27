@@ -694,8 +694,14 @@ are excluded from every denominator.
 Meta's `time_range` is inclusive at both ends, so `--days 1` is yesterday AND today. It reported 1,162 MXN as
 "today" when today was 226, which reads as a fivefold overspend. `--days 0` is today.
 
-### The two mails that go out on their own
+### The mails that go out on their own
 
+- **Daily 10:00 Playa**: `send_show_reminders` writes to everyone booked for TONIGHT (`sales/reminders.py`,
+  stamped with `Order.reminder_sent_at`, probes and promoter imports skipped). **Open mics carry a "give your seat
+  back" link** (`/orders/<token>/release/`); **paid shows get the reminder only**, because a paid ticket given
+  back is a refund conversation (owner, 2026-09-27). Releasing sets the order CANCELLED plus `released_at`, and
+  since every count reads COMPLETED the seat is instantly back on sale on the lander, the demand lines and the ads
+  autopilot. Refused once the show has started or a ticket was scanned. The door shows `LIBERÓ SU LUGAR`.
 - **Monday 09:00 Playa**: the what-is-on newsletter (`send_whats_on`, `newsletter_enabled`).
 - **Daily 11:00 Playa**: `send_after_show` writes to everyone who booked the night before. It hopes they made
   it, asks them to pass the open mic on, and asks them to reply with anything that could have been better;

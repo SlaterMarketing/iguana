@@ -1,0 +1,31 @@
+{% extends "embed/base.html" %}
+{% load i18n showtime %}
+
+{% block title %}{% t lang "Give your seat back" %}{% endblock %}
+
+{% block content %}
+<div class="stack" style="text-align:center">
+  <p class="eyebrow">Iguana Comedy</p>
+  <h1>{{ order.event_name }}</h1>
+  {% if order.event %}
+    <p class="muted">{% language lang %}{{ order.event.date|date:"j F" }}{% endlanguage %}{% if order.event.show_time %} · {% t lang "show {0}" order.event.show_time|clock12:lang %}{% endif %}</p>
+  {% endif %}
+
+  {% if state == "released" or state == "already" %}
+    <h2>{% t lang "Done. Your seat is free for somebody else." %}</h2>
+    <p class="muted">{% t lang "Thank you for letting us know. The open mic is every week, so come to the next one." %}</p>
+    <p><a class="btn" href="{{ site_url }}/{{ lang }}/open-mic/">{% t lang "See the next open mic" %}</a></p>
+  {% elif state == "refused" %}
+    <h2>{% t lang "This booking cannot be given back here." %}</h2>
+    <p class="muted">{% t lang "The show may already have started, or the seat was already used. Write to hello@iguanacomedy.com if you need help." %}</p>
+    <p><a href="{{ order_url }}">{% t lang "See your booking" %}</a></p>
+  {% else %}
+    <h2>{% t lang "Cannot make it tonight?" %}</h2>
+    <p class="muted">{% if seats == 1 %}{% t lang "Giving your seat back lets somebody else come in. Entry is still free if you change your mind, but your seat will not be held." %}{% else %}{% t lang "Giving your {0} seats back lets other people come in. Entry is still free if you change your mind, but your seats will not be held." seats %}{% endif %}</p>
+    <form method="post" class="stack">
+      <button class="btn" type="submit">{% if seats == 1 %}{% t lang "Give my seat back" %}{% else %}{% t lang "Give my seats back" %}{% endif %}</button>
+    </form>
+    <p><a href="{{ order_url }}">{% t lang "Keep my booking" %}</a></p>
+  {% endif %}
+</div>
+{% endblock %}

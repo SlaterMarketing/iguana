@@ -38,6 +38,8 @@ log = logging.getLogger(__name__)
 def _verdict(ticket, now):
     """What the door should do, as one word plus the facts behind it."""
     order = ticket.order
+    if order.released_at:
+        return 'released'
     if order.status != Order.COMPLETED:
         return 'unpaid'
     if ticket.checked_in_at is None:

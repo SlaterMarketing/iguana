@@ -474,6 +474,21 @@
           timeout 5m {{ app_dir }}/backend/venv/bin/python {{ app_dir }}/backend/manage.py
           open_mic_ads --apply 2>&1 | logger -t iguana-open-mic-ads
 
+    - name: Morning-of reminder to tonight's audience
+      become: true
+      cron:
+        name: iguana show reminders
+        disabled: "{{ not (show_reminders_enabled | default(true) | bool) }}"
+        user: "{{ deploy_user }}"
+        # 15:00 UTC is 10:00 in Playa: early enough that a released open mic seat can still be booked by
+        # somebody else during the day, late enough not to land before people are up. Stamped per booking, so
+        # a double fire or a hand re-run sends nothing twice.
+        hour: "15"
+        minute: "0"
+        job: >-
+          timeout 20m {{ app_dir }}/backend/venv/bin/python {{ app_dir }}/backend/manage.py send_show_reminders
+          --send 2>&1 | logger -t iguana-show-reminders
+
     - name: Morning-after note to last night's audience
       become: true
       cron:

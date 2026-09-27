@@ -94,6 +94,7 @@ urlpatterns = [
     path('api/checkout/<str:event_id>/engaged', embed_views.checkout_engaged),
     path('api/checkout/orders/<str:order_id>/confirm', embed_views.checkout_confirm),
     path('orders/<str:token>/', embed_views.order_page),
+    path('orders/<str:token>/release/', embed_views.release_seat, name='release-seat'),
     path('checkin/<str:token>/', embed_views.checkin, name='checkin'),
     path('api/stripe/webhook', embed_views.stripe_webhook),
     re_path(r'^api/ingest/(?P<kind>pageview|event|identify)$', embed_views.ingest),

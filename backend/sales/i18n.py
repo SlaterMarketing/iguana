@@ -289,6 +289,45 @@ ES = {
     'Recent nights': 'Noches recientes',
     'nobody was scanned at the door': 'nadie fue registrado en la puerta',
     'How was last night?': '¿Qué tal estuvo anoche?',
+    # Day-of reminder and giving an open mic seat back (sales/reminders.py, embed/release.html)
+    'See you tonight at {0}, {1}.':
+        'Te esperamos hoy en {0}, {1}.',
+    'Arrive when doors open so your seat is still yours.':
+        'Llega cuando abran las puertas para que tu lugar siga siendo tuyo.',
+    'Cannot make it any more? Give your seat back so somebody else can come in:':
+        '¿Ya no puedes venir? Devuelve tu lugar para que alguien más pueda entrar:',
+    'Cannot make it any more? Give your seats back so somebody else can come in:':
+        '¿Ya no pueden venir? Devuelve tus lugares para que alguien más pueda entrar:',
+    'Tonight: {0}':
+        'Hoy: {0}',
+    'Give your seat back':
+        'Devuelve tu lugar',
+    'Done. Your seat is free for somebody else.':
+        'Listo. Tu lugar quedó libre para alguien más.',
+    'Thank you for letting us know. The open mic is every week, so come to the next one.':
+        'Gracias por avisarnos. El open mic es cada semana, así que ven al siguiente.',
+    'See the next open mic':
+        'Ver el próximo open mic',
+    'This booking cannot be given back here.':
+        'Esta reservación no se puede devolver aquí.',
+    'The show may already have started, or the seat was already used. Write to hello@iguanacomedy.com if you need help.':
+        'Puede que el show ya haya empezado o que el lugar ya se haya usado. Escríbenos a hello@iguanacomedy.com si necesitas ayuda.',
+    'See your booking':
+        'Ver tu reservación',
+    'Cannot make it tonight?':
+        '¿No puedes venir hoy?',
+    'Giving your seat back lets somebody else come in. Entry is still free if you change your mind, but your seat will not be held.':
+        'Si devuelves tu lugar, alguien más puede entrar. La entrada sigue siendo gratis si cambias de opinión, pero ya no te apartaremos el lugar.',
+    'Giving your {0} seats back lets other people come in. Entry is still free if you change your mind, but your seats will not be held.':
+        'Si devuelves tus {0} lugares, otras personas pueden entrar. La entrada sigue siendo gratis si cambian de opinión, pero ya no les apartaremos los lugares.',
+    'Give my seat back':
+        'Devolver mi lugar',
+    'Give my seats back':
+        'Devolver mis lugares',
+    'Keep my booking':
+        'Conservar mi reservación',
+    'You gave this seat back, so somebody else could come in. Thank you.':
+        'Devolviste este lugar para que alguien más pudiera entrar. Gracias.',
     'You had a seat for {0} last night. We hope you made it, and that it was a good one.':
         'Tenías lugar para {0} anoche. Esperamos que hayas podido venir y que la hayas pasado bien.',
     'If you enjoyed it, tell somebody. The open mic is every week and free to reserve:':
