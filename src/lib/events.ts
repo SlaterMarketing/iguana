@@ -2,6 +2,7 @@ import type { KintanaPublicEvent } from "@kintana/sdk";
 import { slugify } from "./slug";
 import { localizePath } from "../i18n/routes";
 import type { Locale } from "../i18n/locale";
+import { t } from "../i18n/ui";
 
 /** Best-effort city slug derived from ticketing rows. */
 export function eventCitySlug(event: KintanaPublicEvent): string {
@@ -22,7 +23,10 @@ export function eventSupportsOnSiteCheckout(
   event: Pick<KintanaPublicEvent, "id" | "status" | "ticketingType">
 ): boolean {
   if (event.ticketingType === "EXTERNAL") return false;
-  return Boolean(event.id?.trim()) && event.status !== "sold-out" && event.status !== "postponed";
+  // A show that has happened sells nothing: the checkout comes down the day after, not when somebody notices.
+  return (
+    Boolean(event.id?.trim()) && event.status !== "sold-out" && event.status !== "postponed" && event.status !== "past"
+  );
 }
 
 /** Whether the checkout will draw a card form, which decides how much height the page reserves for it.
@@ -282,4 +286,27 @@ export function groupEventsByMonth(
     map.set(bucket, row);
   }
   return map;
+}
+
+/** What happened at a show that is over (`past` from the API), or null while it is still to come. */
+export interface PastSummary {
+  soldOut: boolean;
+  seats: number;
+  capacity: number | null;
+}
+
+export function pastSummary(event: KintanaPublicEvent | null | undefined): PastSummary | null {
+  if (!event || event.status !== "past") return null;
+  const raw = (event as unknown as { past?: PastSummary | null }).past;
+  return raw ?? { soldOut: false, seats: 0, capacity: null };
+}
+
+/** "76 of 80 tickets sold" / "16 lugares reservados", or null when we counted nothing (older imported shows). */
+export function pastSeatsLine(summary: PastSummary, locale: Locale, free: boolean): string | null {
+  if (!summary.seats) return null;
+  const n = String(summary.seats);
+  if (summary.capacity) {
+    return t(locale, free ? "events.pastSeatsOf" : "events.pastTicketsOf", { n, capacity: String(summary.capacity) });
+  }
+  return t(locale, free ? "events.pastSeats" : "events.pastTickets", { n });
 }

@@ -5241,3 +5241,35 @@ class OpenMicAdsAutopilotTests(ApiTestCase):
             open_mic_ads.sync(apply=True, now=self.at(9, days=-2))
         self.assertIn('PAUSED -> ACTIVE (dry run)', dry[0])
         self.assertEqual(posts, [('1', {'status': 'ACTIVE'})])
+
+
+class PastShowSummaryTests(ApiTestCase):
+    """A show that is over says whether it sold out and how many seats went, and sells nothing."""
+
+    def past_night(self, **kw):
+        event = Event.objects.create(name='Gone', slug=kw.pop('slug', 'gone'), venue=self.venue,
+                                     date=timezone.now() - timedelta(days=3), **kw)
+        seat = TicketType.objects.create(event=event, name='Seat', price_cents=0, capacity=10)
+        order = Order.objects.create(event=event, event_name='Gone', customer_email='a@example.com',
+                                     status=Order.COMPLETED, completed_at=timezone.now() - timedelta(days=4))
+        OrderItem.objects.create(order=order, ticket_type=seat, name='Seat', quantity=4, unit_price_cents=0)
+        return event
+
+    def test_a_past_show_reports_its_seats(self):
+        from api.serializers import event_json
+
+        data = event_json(self.past_night(status=Event.ACTIVE))
+        self.assertEqual(data['status'], 'past')
+        self.assertEqual(data['past'], {'soldOut': False, 'seats': 4, 'capacity': 10})
+
+    def test_the_owners_sold_out_mark_survives_the_show_ending(self):
+        from api.serializers import event_json
+
+        data = event_json(self.past_night(status=Event.SOLD_OUT, slug='gone-full'))
+        self.assertTrue(data['past']['soldOut'])
+        self.assertEqual(data['past']['seats'], 4)
+
+    def test_an_upcoming_show_has_no_summary(self):
+        from api.serializers import event_json
+
+        self.assertIsNone(event_json(self.event)['past'])

@@ -31,7 +31,7 @@ const venueLine = event?.venue?.name
   : [event?.city, event?.country].filter(Boolean).join(", ");
 
 const ticketingBlocked =
-  Boolean(event?.status === "sold-out" || event?.status === "postponed");
+  Boolean(event?.status === "sold-out" || event?.status === "postponed" || event?.status === "past");
 
 const siteOrigin = Astro.site?.origin ?? "https://iguanacomedy.com";
 const socialDescription = event

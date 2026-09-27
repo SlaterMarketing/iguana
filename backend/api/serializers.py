@@ -168,6 +168,30 @@ def _demand(event):
     return demand(event)
 
 
+def past_summary(event, status, room):
+    """What happened, for a show that is over: whether it sold out and how many seats went.
+
+    None while the show is still to come. `soldOut` trusts the owner's mark as well as the count, because a guest
+    promoter can sell a block we never see; `seats` is only what we can count, so it is never inflated to match.
+    """
+    if status != 'past':
+        return None
+    if room is not None:
+        seats, capacity = room['taken'], room['capacity']
+    else:
+        from sales.models import Order, OrderItem
+
+        seats = sum(OrderItem.objects.filter(order__event=event, order__status=Order.COMPLETED)
+                    .exclude(ticket_type__is_addon=True).values_list('quantity', flat=True))
+        seats += sum(t.sold_elsewhere or 0 for t in event.ticket_types.all())
+        capacity = None
+    return {
+        'soldOut': event.status == Event.SOLD_OUT or bool(capacity and seats >= capacity),
+        'seats': seats,
+        'capacity': capacity,
+    }
+
+
 def event_json(event, plan=None, lang='en', demand=None):
     """`demand` is passed in by listing views, which compute it for the whole page at once; a single event
     works it out for itself."""
@@ -179,6 +203,8 @@ def event_json(event, plan=None, lang='en', demand=None):
     if venue is None and event.venue_label:
         venue = {'id': None, 'slug': None, 'name': event.venue_label, 'city': None, 'country': None, 'address': None,
                  'description': None, 'lat': None, 'lng': None, 'timeZone': 'America/Cancun', 'wheelchairAccessible': None}
+    room = demand if demand is not None else _demand(event)
+    status = listing_status(event, types)
     data = {
         'id': event.id,
         'slug': event.slug,
@@ -190,13 +216,14 @@ def event_json(event, plan=None, lang='en', demand=None):
         'imageUrlMobile': media(event.poster_mobile(lang)),
         'ticketUrl': ticket_url,
         'embedUrl': embed_url,
-        'demand': demand if demand is not None else _demand(event),
+        'demand': room,
         'doorsOpen': event.doors_open or None,
         'showTime': event.show_time or None,
         'endTime': event.end_time or None,
         'description': event.details(lang) or None,
         'longDescription': event.long_details(lang) or None,
-        'status': listing_status(event, types),
+        'status': status,
+        'past': past_summary(event, status, room),
         'language': event.language or 'en',
         'venue': venue,
         'tour': {'id': event.tour.id, 'slug': event.tour.slug, 'name': event.tour.name, 'imageUrl': media(event.tour.image_url)} if event.tour else None,

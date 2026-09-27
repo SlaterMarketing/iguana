@@ -4,7 +4,7 @@ import type { KintanaPublicEvent } from "@kintana/sdk";
 import type { Locale } from "../../i18n/locale";
 import { localizePath } from "../../i18n/routes";
 import { t } from "../../i18n/ui";
-import { eventCalendarDate, eventLanguageLabel, formatEventTime, formatMinorUnitsPrice } from "../../lib/events";
+import { eventCalendarDate, eventLanguageLabel, formatEventTime, formatMinorUnitsPrice, pastSeatsLine, pastSummary } from "../../lib/events";
 import { isFreeToReserve, isOpenMic } from "../../lib/open-mics";
 
 interface Props {
@@ -25,6 +25,13 @@ const day = date ? String(date.getDate()) : "";
 const price = past ? null : isFreeToReserve(evt) ? t(locale, "ui.free") : formatMinorUnitsPrice(evt, locale);
 const showTime = formatEventTime(evt.showTime, locale);
 const meta = [eventLanguageLabel(evt, locale), evt.venue?.name || evt.city, showTime].filter(Boolean).join(" · ");
+// On a past row the price column says what happened instead: sold out, or how many came.
+const summary = past ? pastSummary(evt) : null;
+const outcome = summary
+  ? summary.soldOut
+    ? t(locale, "ui.soldOut")
+    : pastSeatsLine({ ...summary, capacity: null }, locale, isOpenMic(evt) || evt.priceFrom === 0)
+  : null;
 const action = past ? t(locale, "ui.viewShow") : isOpenMic(evt) ? t(locale, "ui.reserveSeat") : t(locale, "ui.getTickets");
 ---
 
@@ -43,6 +50,16 @@ const action = past ? t(locale, "ui.viewShow") : isOpenMic(evt) ? t(locale, "ui.
       {evt.name}
     </span>
     <span class="mt-1 block text-sm leading-snug text-neutral-600">{meta}</span>
+    {outcome ? (
+      <span
+        class:list={[
+          "mt-1 block text-xs font-semibold",
+          summary?.soldOut ? "uppercase tracking-[0.2em] text-brand" : "text-neutral-800",
+        ]}
+      >
+        {outcome}
+      </span>
+    ) : null}
   </span>
   <span class="hidden text-sm text-neutral-600 sm:block">{price ?? ""}</span>
   <span class="col-start-2 justify-self-center whitespace-nowrap text-[0.62rem] font-semibold uppercase tracking-[0.25em] text-brand group-hover:underline sm:col-start-4">
