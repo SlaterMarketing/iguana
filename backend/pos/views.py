@@ -21,7 +21,7 @@ from api.floor import is_floor
 from catalog.models import InventoryChange, InventoryItem, MenuCategory, MenuItem, MenuItemIngredient
 
 from . import services
-from .api import table_states
+from .api import cuenta_json, table_states
 from .auth import current_staff, pos_required, sign_in_staff, sign_out_staff
 from .models import (CashMove, Check, CheckLine, Comanda, ItemCost, Modifier, ModifierGroup, Payment, Printer,
                      PrintJob, Purchase, Shift, Staff, StockCount, StockCountLine, Supplier, Table, Zone)
@@ -139,7 +139,7 @@ def cuenta(request, cuenta_id):
 
     return render(request, 'pos/cuenta.html', _ctx(
         request, cuenta=cuenta, pay_qr=qr_svg(pay_link(cuenta)),
-        boot={'cuentaId': cuenta.id, 'menu': menu_payload(), 'tables': tables, 'others': others,
+        boot={'cuentaId': cuenta.id, 'cuenta': cuenta_json(cuenta), 'menu': menu_payload(), 'tables': tables, 'others': others,
               'staff': {'name': request.staff.name, 'manager': request.staff.is_manager,
                         'cashier': request.staff.can_charge},
               'shiftOpen': Shift.current() is not None,

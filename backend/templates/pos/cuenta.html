@@ -198,7 +198,9 @@
 (function () {
   var boot = JSON.parse(document.getElementById("boot").textContent);
   var API = "/pos/api/cuenta/" + boot.cuentaId + "/";
-  var cuenta = null, selected = null, cat = boot.menu.length ? boot.menu[0].id : null;
+  // The check arrives WITH the page: loading it by a second request left a moment where a tap on a product
+  // hit `cuenta === null`, threw, and silently dropped the drink.
+  var cuenta = boot.cuenta, selected = null, cat = boot.menu.length ? boot.menu[0].id : null;
   var PALETTE = ["#2563eb", "#16a34a", "#9333ea", "#ea580c", "#0891b2", "#be123c", "#4d7c0f", "#b45309", "#1d4ed8", "#7c3aed"];
   var $ = function (id) { return document.getElementById(id); };
 
@@ -441,8 +443,7 @@
   });
   if (boot.staff.manager) document.querySelectorAll(".mgr").forEach(function (m) { m.style.display = "none"; });
 
-  drawCats(); drawItems();
-  fetch(API, { credentials: "same-origin" }).then(function (r) { return r.json(); }).then(function (d) { cuenta = d.cuenta; render(); });
+  drawCats(); drawItems(); render();
   // A QR order or another tablet can change this check; keep it current while nothing is selected.
   setInterval(function () {
     if (selected || document.querySelector("dialog[open]") || busy) return;
