@@ -7,7 +7,7 @@
   {% if error %}<p class="error">{{ error }}</p>{% endif %}
   <form method="post" class="card grid">{% csrf_token %}
     <h2>Registrar compra</h2>
-    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(200px, 100%), 1fr))">
       <label>Proveedor<select name="supplier"><option value="">-</option>{% for s in suppliers %}<option value="{{ s.pk }}">{{ s.name }}</option>{% endfor %}</select></label>
       <label>o proveedor nuevo<input name="supplier_new"></label>
       <label>Factura / ticket<input name="reference"></label>

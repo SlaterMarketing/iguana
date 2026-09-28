@@ -5,7 +5,7 @@
   {% with tab='productos' %}{% include "pos/_setuptabs.html" %}{% endwith %}
   {% if ok %}<p class="ok">Guardado. El cambio de precio aplica a lo que se pida desde ahora.</p>{% endif %}
   {% if error %}<p class="error">{{ error }}</p>{% endif %}
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(320px, 100%), 1fr))">
     <form method="post" class="card grid">{% csrf_token %}<input type="hidden" name="action" value="save">
       <h2>{% if item.pk %}{{ item.label }}{% else %}Nuevo producto{% endif %}</h2>
       <label>Nombre<input name="name" value="{{ item.name_es|default:item.name }}" required></label>

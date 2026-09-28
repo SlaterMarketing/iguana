@@ -18,7 +18,7 @@
         <tr><th>Total</th><th class="num">{{ s.checks }} cuentas</th><th class="num">{{ s.sales|pesos }}</th><th class="num">{{ s.tips|pesos }}</th></tr></table></div>
       <div class="row"><span class="chip" style="background:#e5e7eb">Fondo {{ s.shift.opening_cash_cents|pesos }}</span><span class="chip" style="background:#e5e7eb">Entradas {{ s.ins|pesos }}</span><span class="chip" style="background:#e5e7eb">Retiros {{ s.outs|pesos }}</span><span class="chip" style="background:#dcfce7">Efectivo esperado {{ s.expected_cash|pesos }}</span></div>
     </div>
-    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(280px, 100%), 1fr))">
       <form method="post" class="card grid">{% csrf_token %}<h3>Retiro / entrada de efectivo</h3>
         <label>Monto<input name="amount" inputmode="decimal" required></label><label>Motivo<input name="reason" placeholder="retiro a caja fuerte, cambio..."></label>
         <div class="row"><button class="btn red" name="action" value="out">Retiro</button><button class="btn" name="action" value="in">Entrada</button></div></form>

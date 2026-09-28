@@ -3,7 +3,7 @@
 {% block content %}
 <div class="page grid">
   <h1>{{ table.label }}: {{ checks|length }} cuentas</h1>
-  <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(220px,1fr))">
+  <div class="grid" style="grid-template-columns:repeat(auto-fill,minmax(min(220px, 100%), 1fr))">
     {% for c in checks %}
       <a class="btn blue" style="min-height:90px;flex-direction:column" href="/pos/cuenta/{{ c.id }}/">Cuenta {{ c.folio }}<small>{{ c.label|default:"" }} · {{ c.waiter.name|default:"" }}</small></a>
     {% endfor %}

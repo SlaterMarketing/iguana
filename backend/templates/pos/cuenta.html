@@ -39,14 +39,14 @@
   .cats button { flex: 0 0 auto; min-height: 50px; padding: 0 16px; border-radius: 10px; border: 0; cursor: pointer;
                  font: 800 .8rem "DM Sans", sans-serif; text-transform: uppercase; letter-spacing: .05em; color: #fff; }
   .cats button.on { outline: 3px solid #111; outline-offset: -3px; }
-  .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; padding: 10px;
+  .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(128px, 100%), 1fr)); gap: 8px; padding: 10px;
            overflow-y: auto; align-content: start; }
   .items button { min-height: 92px; border-radius: 12px; border: 0; cursor: pointer; color: #fff; padding: 8px;
                   display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start;
                   text-align: left; font: 700 .9rem/1.15 "DM Sans", sans-serif; box-shadow: 0 4px 10px -6px rgba(0,0,0,.45); }
   .items button .p { font-family: "Bebas Neue", sans-serif; font-size: 1.25rem; font-weight: 400; }
   .items button:active { transform: scale(.97); }
-  .fkeys { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 6px; padding: 8px; background: var(--top); }
+  .fkeys { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(104px, 100%), 1fr)); gap: 6px; padding: 8px; background: var(--top); }
   .fkeys button, .fkeys a { min-height: 58px; border-radius: 10px; border: 0; color: #fff; background: var(--top2); cursor: pointer;
            font: 800 .78rem "DM Sans", sans-serif; text-transform: uppercase; letter-spacing: .04em; display: flex;
            align-items: center; justify-content: center; text-align: center; text-decoration: none; padding: 4px; }
@@ -56,10 +56,10 @@
   dialog { border: 0; border-radius: 16px; padding: 16px; width: min(460px, 96vw); max-height: 92vh; }
   dialog::backdrop { background: rgba(0,0,0,.5); }
   dialog h2 { margin-bottom: 8px; }
-  .opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
+  .opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(120px, 100%), 1fr)); gap: 6px; }
   .opts button { min-height: 50px; border-radius: 10px; border: 1px solid var(--line); background: #fff; font: 700 .85rem "DM Sans", sans-serif; cursor: pointer; }
   .opts button.on { background: var(--top2); color: #fff; border-color: var(--top2); }
-  .methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; }
+  .methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(96px, 100%), 1fr)); gap: 6px; }
   .methods button { min-height: 58px; border-radius: 10px; border: 2px solid var(--line); background: #fff; font: 800 .78rem "DM Sans", sans-serif; text-transform: uppercase; cursor: pointer; }
   .methods button.on { border-color: var(--blue); background: #eff6ff; }
   .bills { display: flex; gap: 6px; flex-wrap: wrap; }
@@ -71,6 +71,8 @@
   .msg.err { background: var(--red); }
   @media (max-width: 820px) {
     .work { grid-template-columns: 1fr; }
+    .bar { gap: 5px; padding: 6px 8px; font-size: .75rem; } .bar .f { padding: 4px 8px; } .bar button.f { min-height: 34px; }
+    .bar .f.opened { display: none; }
     .mobiletabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px 8px; background: #dfe4ec; }
     .mobiletabs button { min-height: 44px; border-radius: 10px; border: 1px solid var(--line); background: #fff; font-weight: 800; text-transform: uppercase; font-size: .8rem; }
     .mobiletabs button.on { background: var(--top2); color: #fff; }
@@ -85,7 +87,7 @@
   <span class="f">Folio <strong id="h-folio"></strong></span>
   <span class="f">Mesero: <strong id="h-waiter"></strong></span>
   <button class="f" type="button" id="h-guests"></button>
-  <span class="f">Abierta <strong id="h-open"></strong></span>
+  <span class="f opened">Abierta <strong id="h-open"></strong></span>
   <span class="f" id="h-status"></span>
 </div>
 <div class="mobiletabs"><button type="button" class="on" data-tab="menu">Productos</button><button type="button" data-tab="ticket">Cuenta <span id="mt-total"></span></button></div>
@@ -112,16 +114,17 @@
   </section>
 </div>
 <nav class="fkeys" id="fkeys">
-  <a href="/pos/">◀ Mesas</a>
-  <button type="button" class="send" data-f="send">Enviar</button>
-  <button type="button" class="bill" data-f="bill">Cuenta</button>
-  <button type="button" class="pay" data-f="pay">Cobrar</button>
+  <a href="/pos/" data-p>◀ Mesas</a>
+  <button type="button" class="send" data-f="send" data-p>Enviar</button>
+  <button type="button" class="bill" data-f="bill" data-p>Cuenta</button>
+  <button type="button" class="pay" data-f="pay" data-p>Cobrar</button>
   <button type="button" data-f="discount">Descuento</button>
   <button type="button" data-f="split">Dividir</button>
   <button type="button" data-f="move">Cambiar mesa</button>
   <button type="button" data-f="join">Juntar</button>
   <button type="button" data-f="phone">Pago celular</button>
   <button type="button" class="danger" data-f="cancel">Cancelar cuenta</button>
+  <button type="button" class="more">Más ▴</button>
 </nav>
 
 <dialog id="d-mods"><h2 id="mods-title"></h2><div id="mods-body"></div>
@@ -267,7 +270,7 @@
     $("t-due").textContent = POS.money(cuenta.due);
     $("mt-total").textContent = POS.money(cuenta.total);
     var closed = cuenta.status !== "OPEN";
-    document.querySelectorAll("#fkeys button").forEach(function (b) { b.disabled = closed; });
+    document.querySelectorAll("#fkeys button[data-f]").forEach(function (b) { b.disabled = closed; });
     document.querySelector('[data-f="send"]').textContent = cuenta.unsent ? "Enviar (" + cuenta.unsent + ")" : "Enviar";
   }
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }

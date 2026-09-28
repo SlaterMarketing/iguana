@@ -10,7 +10,7 @@
     <button class="btn" style="align-self:end">Ver</button>
     <span class="muted" style="align-self:end">El día de servicio va de 6am a 6am.</span>
   </form>
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(160px, 100%), 1fr))">
     <div class="card"><p class="muted">Venta</p><h1>{{ sales|pesos }}</h1></div>
     <div class="card"><p class="muted">Cuentas</p><h1>{{ checks }}</h1></div>
     <div class="card"><p class="muted">Personas</p><h1>{{ guests }}</h1></div>
@@ -18,14 +18,14 @@
     <div class="card"><p class="muted">Propinas</p><h1>{{ tips|pesos }}</h1></div>
     <div class="card"><p class="muted">Costo teórico</p><h1>{{ cogs|pesos }}</h1></div>
   </div>
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(340px, 100%), 1fr))">
     <div class="card scroll"><h3>Formas de pago</h3><table class="t"><tr><th>Forma</th><th class="num">Cobros</th><th class="num">Monto</th><th class="num">Propinas</th></tr>{% for m in methods %}<tr><td>{{ m.label }}</td><td class="num">{{ m.count }}</td><td class="num">{{ m.amount|pesos }}</td><td class="num">{{ m.tips|pesos }}</td></tr>{% empty %}<tr><td class="muted">Sin cobros.</td></tr>{% endfor %}</table></div>
     <div class="card scroll"><h3>Por mesero</h3><table class="t"><tr><th>Mesero</th><th class="num">Cuentas</th><th class="num">Venta</th><th class="num">Propinas</th></tr>{% for w in waiters %}<tr><td>{{ w.name }}</td><td class="num">{{ w.checks }}</td><td class="num">{{ w.cents|pesos }}</td><td class="num">{{ w.tips|pesos }}</td></tr>{% endfor %}</table></div>
     <div class="card scroll"><h3>Por categoría</h3><table class="t"><tr><th>Categoría</th><th class="num">Piezas</th><th class="num">Venta</th></tr>{% for c in categories %}<tr><td>{{ c.name }}</td><td class="num">{{ c.qty }}</td><td class="num">{{ c.cents|pesos }}</td></tr>{% endfor %}</table></div>
     <div class="card scroll"><h3>Por show</h3><table class="t"><tr><th>Show</th><th class="num">Cuentas</th><th class="num">Venta</th></tr>{% for s in shows %}<tr><td>{{ s.name }}</td><td class="num">{{ s.checks }}</td><td class="num">{{ s.cents|pesos }}</td></tr>{% endfor %}</table></div>
   </div>
   <div class="card scroll"><h3>Productos vendidos</h3><table class="t"><tr><th>Producto</th><th>Categoría</th><th class="num">Piezas</th><th class="num">Venta</th></tr>{% for p in products %}<tr><td>{{ p.name }}</td><td>{{ p.category }}</td><td class="num">{{ p.qty }}</td><td class="num">{{ p.cents|pesos }}</td></tr>{% empty %}<tr><td class="muted">Nada vendido en estas fechas.</td></tr>{% endfor %}</table></div>
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(340px,1fr))">
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(340px, 100%), 1fr))">
     <div class="card scroll"><h3>Cancelaciones ({{ void_cents|pesos }})</h3><table class="t">{% for v in voids %}<tr><td>{{ v.voided_at|date:"d/m H:i" }}</td><td>{{ v.quantity }} × {{ v.name }}</td><td>{{ v.get_void_reason_display }}</td><td>{{ v.voided_by.name }}</td></tr>{% empty %}<tr><td class="muted">Ninguna.</td></tr>{% endfor %}</table></div>
     <div class="card scroll"><h3>Descuentos ({{ discount_cents|pesos }})</h3><table class="t">{% for c in discounts %}<tr><td>Cuenta {{ c.folio }}</td><td>{{ c.discount_reason }}</td><td>{{ c.discount_by.name }}</td><td class="num">{{ c.discount_cents|pesos }}</td></tr>{% empty %}<tr><td class="muted">Ninguno.</td></tr>{% endfor %}</table></div>
   </div>

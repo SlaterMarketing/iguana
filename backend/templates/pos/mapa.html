@@ -30,7 +30,7 @@
   .loose a { background: var(--top2); color: #fff; border-radius: 10px; padding: 10px 14px; text-decoration: none;
              font-weight: 700; font-size: .85rem; }
   /* Soft Restaurant's function keys along the bottom. */
-  .fkeys { position: sticky; bottom: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  .fkeys { position: sticky; bottom: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(118px, 100%), 1fr));
            gap: 6px; padding: 8px; background: var(--top); }
   .fkeys a, .fkeys button { min-height: 58px; border-radius: 10px; border: 0; color: #fff; background: var(--top2);
            display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
@@ -41,7 +41,7 @@
   dialog { border: 0; border-radius: 16px; padding: 18px; width: min(380px, 94vw); }
   dialog::backdrop { background: rgba(0,0,0,.45); }
   @media (max-width: 700px) {
-    .floor { min-height: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; padding: 10px; background-image: none; }
+    .floor { min-height: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(92px, 100%), 1fr)); gap: 8px; padding: 10px; background-image: none; align-content: start; }
     .tbl { position: static; width: auto !important; height: 88px !important; }
   }
 </style>
@@ -59,10 +59,10 @@
 </div>
 <div class="loose" id="loose"></div>
 <nav class="fkeys">
-  <button type="button" class="hl" onclick="document.getElementById('quick').showModal()"><span class="k">+</span>Barra / Rápido</button>
-  <a href="/pos/barra/"><span class="k">🍹</span>Comandas</a>
-  {% if staff.can_charge %}<a href="/pos/caja/"><span class="k">$</span>Caja</a>{% endif %}
-  <a href="/mesas/reservas/"><span class="k">📋</span>Reservas</a>
+  <button type="button" class="hl" data-p onclick="document.getElementById('quick').showModal()"><span class="k">+</span>Barra / Rápido</button>
+  <a href="/pos/barra/" data-p><span class="k">🍹</span>Comandas</a>
+  {% if staff.can_charge %}<a href="/pos/caja/" data-p><span class="k">$</span>Caja</a>{% endif %}
+  <a href="/mesas/reservas/" data-p><span class="k">📋</span>Reservas</a>
   <a href="/mesas/puerta/"><span class="k">📷</span>Puerta</a>
   <a href="/pos/inventario/"><span class="k">📦</span>Inventario</a>
   {% if staff.is_manager %}
@@ -73,6 +73,7 @@
     <a href="/pos/impresoras/"><span class="k">🖨</span>Impresoras</a>
   {% endif %}
   <a href="/pos/salir/"><span class="k">⏻</span>Salir</a>
+  <button type="button" class="more">Más ▴</button>
 </nav>
 <dialog id="quick">
   <form method="post" action="/pos/rapida/" class="grid">

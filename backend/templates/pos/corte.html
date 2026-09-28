@@ -4,7 +4,7 @@
 <div class="page grid">
   <div class="row" style="justify-content:space-between"><h1>Corte · {{ s.shift.opened_at|date:"d/m/Y H:i" }}{% if s.shift.closed_at %} a {{ s.shift.closed_at|date:"H:i" }}{% endif %}</h1>
     <div class="row">{% if job %}<a class="btn" target="_blank" href="/pos/imprimir/{{ job.id }}/?auto=1">Imprimir</a>{% endif %}<a class="btn ghost" href="/pos/caja/">◀ Caja</a></div></div>
-  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(min(170px, 100%), 1fr))">
     <div class="card"><p class="muted">Venta</p><h1>{{ s.sales|pesos }}</h1></div>
     <div class="card"><p class="muted">Propinas</p><h1>{{ s.tips|pesos }}</h1></div>
     <div class="card"><p class="muted">Efectivo esperado</p><h1>{{ s.expected_cash|pesos }}</h1></div>
