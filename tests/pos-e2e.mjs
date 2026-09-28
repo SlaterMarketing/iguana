@@ -15,6 +15,7 @@ const BASE = (args[args.indexOf("--base") + 1] && args.includes("--base") ? args
 const OUT = "/tmp/claude-1000/-home-john-iguana/4efc6e7b-85c5-4bf4-9ee7-3edeeda0bddb/scratchpad/e2e";
 const FLOOR = { user: process.env.FLOOR_USER || "mesero", pass: process.env.FLOOR_PASS };
 const results = [];
+const popups = [];
 let failures = 0;
 function check(name, ok, detail = "") {
   results.push(`${ok ? "PASS" : "FAIL"}  ${name}${detail ? "  (" + detail + ")" : ""}`);
@@ -29,6 +30,9 @@ process.on('unhandledRejection', async (e) => { console.log(results.join('\n'));
 async function signIn(ctx, pin) {
   const p = await ctx.newPage();
   p.on("pageerror", (e) => check("no script error on " + p.url(), false, e.message));
+  p.on("popup", (pg) => popups.push(pg));
+  // Whoever used the tablet before signs out, as the "Salir" chip does, so the next person types their PIN.
+  await p.goto(BASE + "/pos/salir/");
   await p.goto(BASE + "/mesas/entrar/?next=/pos/");
   if (p.url().includes("/mesas/entrar/")) {
     await p.fill('input[name="username"]', FLOOR.user);
@@ -44,12 +48,19 @@ async function signIn(ctx, pin) {
 }
 async function total(p) { return money(await p.textContent("#t-total")); }
 async function settle(p) { await p.waitForTimeout(900); }
-async function toastText(p) { const t = p.locator(".msg").last(); await t.waitFor({ timeout: 6000 }); return t.textContent(); }
+async function toastText(p, pattern) {
+  // Wait for the message that answers THIS action, not whichever older one is still fading out.
+  const t = p.locator(".msg", { hasText: pattern });
+  await t.last().waitFor({ timeout: 10000 });
+  return t.last().textContent();
+}
+async function totalIs(p, cents) {
+  await p.waitForFunction((c) => { const e = document.getElementById("t-total"); return e && Math.round(parseFloat(e.textContent.replace(/[^0-9.]/g, "")) * 100) === c; }, cents, { timeout: 10000 }).catch(() => {});
+  return total(p);
+}
 
 // ------------------------------------------------------------ A: the waiter, on a tablet
 const tablet = await b.newContext({ viewport: { width: 1180, height: 820 } });
-const popups = [];
-tablet.on("page", (pg) => { if (pg.url().includes("/pos/imprimir/") || pg.url() === "about:blank") popups.push(pg); });
 let p = await signIn(tablet, "4343");
 check("waiter signs in with PIN and lands on the map", (await p.textContent(".top")).includes("E2E Mesero"));
 await p.screenshot({ path: `${OUT}-map.png` });
@@ -84,30 +95,30 @@ await p.click('[data-t="void"]');
 await p.waitForSelector("#d-void[open]");
 await p.click('#void-reasons [data-r="NOT_MADE"]');
 await p.click("#void-ok");
-const refusal = await toastText(p);
+const refusal = await toastText(p, /gerente/i);
 check("voiding a sent drink without a manager is refused", /gerente/i.test(refusal), refusal);
 await p.fill("#void-pin", "4242"); await p.fill("#void-note", "prueba");
 await p.click("#void-ok");
 await settle(p);
-check("with the manager's PIN it is voided and off the bill", (await total(p)) === 27000, `total ${await total(p)}`);
+{ const t = await totalIs(p, 27000); check("with the manager's PIN it is voided and off the bill", t === 27000, `total ${t}`); }
 
 await p.click('[data-f="discount"]');
 await p.click('#disc-pcts [data-p="10"]');
 await p.fill("#disc-reason", "prueba"); await p.fill("#disc-pin", "4242");
 await p.click("#disc-ok");
 await settle(p);
-check("10% discount with manager PIN", (await total(p)) === 24300, `total ${await total(p)}`);
+{ const t = await totalIs(p, 24300); check("10% discount with manager PIN", t === 24300, `total ${t}`); }
 
 await p.click('[data-f="split"]');
 await p.waitForSelector("#d-split[open]");
 const shotBoxes = p.locator('#split-list label:has-text("E2E Shot") input');
 await shotBoxes.last().check();
 await p.click("#split-ok");
-const splitMsg = await toastText(p);
+const splitMsg = await toastText(p, /separó/);
 check("Dividir moves a line to its own check", /separó/.test(splitMsg), splitMsg);
 
 await p.click('[data-f="pay"]');
-const noShift = await toastText(p);
+const noShift = await toastText(p, /caja/i);
 check("no till shift: charging is refused with a reason", /caja/i.test(noShift), noShift);
 await p.screenshot({ path: `${OUT}-cuenta-waiter.png` });
 await p.close();
@@ -151,9 +162,10 @@ await p.waitForURL(BASE + "/pos/", { timeout: 8000 }).catch(() => {});
 check("split check paid by transfer", p.url() === BASE + "/pos/");
 
 // a customer QR order
-const qr = await fetch(BASE + "/api/public/v1/menu?locale=es", { headers: { Authorization: "Bearer " + process.env.API_KEY } }).then((r) => r.json());
+const API = BASE.replace("://", "://api.");
+const qr = await fetch(API + "/api/public/v1/menu?locale=es", { headers: { Authorization: "Bearer " + process.env.API_KEY } }).then((r) => r.json());
 const shot = qr.categories.flatMap((c) => c.items).find((i) => i.name === "E2E Shot");
-const placed = await fetch(BASE + "/api/public/v1/table-orders", {
+const placed = await fetch(API + "/api/public/v1/table-orders", {
   method: "POST", headers: { Authorization: "Bearer " + process.env.API_KEY, "Content-Type": "application/json" },
   body: JSON.stringify({ table: 99, items: { [shot.id]: 1 }, name: "E2E", note: "prueba", lang: "es" }),
 });

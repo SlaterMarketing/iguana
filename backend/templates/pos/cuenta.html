@@ -225,11 +225,11 @@
       if (d.message) toast(d.message);
       if (done) done(d);
       return d;
-    }).catch(function (e) { toast(e.message, true); throw e; });
+    }).catch(function (e) { toast(e.message, true); e.shown = true; throw e; });
   }
   function lineCall(id, path, body) {
     return serial(function () { return POS.post("/pos/api/linea/" + id + "/" + path + "/", body); }).then(function (d) { cuenta = d.cuenta; render(); })
-      .catch(function (e) { toast(e.message, true); throw e; });
+      .catch(function (e) { toast(e.message, true); e.shown = true; throw e; });
   }
 
   // ---------------- the check
@@ -275,6 +275,9 @@
     document.querySelectorAll("#fkeys button[data-f]").forEach(function (b) { b.disabled = closed; });
     document.querySelector('[data-f="send"]').textContent = cuenta.unsent ? "Enviar (" + cuenta.unsent + ")" : "Enviar";
   }
+  // A refused action has already been shown to the person as a red message; the rejected promise behind it is
+  // not a second error, so it must not surface as one in the browser.
+  window.addEventListener("unhandledrejection", function (e) { if (e.reason && e.reason.shown) e.preventDefault(); });
   function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
 
   // ---------------- the menu
