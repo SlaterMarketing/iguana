@@ -61,11 +61,11 @@ def pos_required(view=None, *, manager=False, cashier=False, api=False):
                 return redirect(f'/pos/entrar/?next={request.path}')
             if manager and not staff.is_manager:
                 if api:
-                    return JsonResponse({'error': 'Solo el gerente.'}, status=403)
+                    return JsonResponse({'error': 'Solo administración.'}, status=403)
                 return redirect('/pos/?denied=1')
-            if cashier and not staff.can_charge:
+            if cashier and not staff.runs_the_till:
                 if api:
-                    return JsonResponse({'error': 'Solo caja o gerente.'}, status=403)
+                    return JsonResponse({'error': 'Solo barra o administración.'}, status=403)
                 return redirect('/pos/?denied=1')
             request.staff = staff
             return fn(request, *args, **kwargs)

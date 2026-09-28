@@ -29,6 +29,7 @@ def cuenta_json(cuenta):
               .prefetch_related('lines__created_by', 'lines__voided_by', 'payments').get(pk=cuenta.pk))
     return {
         'id': cuenta.id, 'folio': cuenta.folio, 'status': cuenta.status, 'where': cuenta.where,
+        'name': cuenta.label if cuenta.table_id else '',
         'tableId': cuenta.table_id, 'guests': cuenta.guests,
         'waiter': cuenta.waiter.name if cuenta.waiter else '',
         'openedAt': timezone.localtime(cuenta.opened_at).strftime('%H:%M'),
@@ -60,13 +61,28 @@ def _fail(exc, status=400):
     return JsonResponse({'error': str(exc)}, status=status)
 
 
+def claim(staff, cuenta):
+    """May `staff` work this check? A waiter who opens a check nobody has claimed (a QR order) takes it.
+    Returns an error message, or '' when allowed."""
+    if not staff.may_open(cuenta.table, cuenta):
+        owner = cuenta.waiter.name if cuenta.waiter else 'otro mesero'
+        return f'Esta cuenta es de {owner}.'
+    if cuenta.waiter_id is None and cuenta.status == Check.OPEN:
+        Check.objects.filter(pk=cuenta.pk, waiter__isnull=True).update(waiter=staff)
+    return ''
+
+
 def _jobs_since(mark):
     return list(PrintJob.objects.filter(created_at__gte=mark))
 
 
 @pos_required(api=True)
 def cuenta(request, cuenta_id):
-    return _answer(get_object_or_404(Check, pk=cuenta_id))
+    found = get_object_or_404(Check, pk=cuenta_id)
+    denied = claim(request.staff, found)
+    if denied:
+        return _fail(denied, 403)
+    return _answer(found)
 
 
 def _action(fn):
@@ -76,6 +92,9 @@ def _action(fn):
     @require_POST
     def view(request, cuenta_id):
         cuenta = get_object_or_404(Check, pk=cuenta_id)
+        denied = claim(request.staff, cuenta)
+        if denied:
+            return _fail(denied, 403)
         mark = timezone.now()
         body = _body(request)
         try:
@@ -122,6 +141,12 @@ def descuento(request, cuenta, body):
 
 
 @_action
+def nombre(request, cuenta, body):
+    """The name on the order, written by the waiter or the bar: who it is for."""
+    Check.objects.filter(pk=cuenta.pk).update(label=str(body.get('name') or '').strip()[:60])
+
+
+@_action
 def personas(request, cuenta, body):
     guests = int(body.get('guests') or 1)
     if not 1 <= guests <= 99:
@@ -158,11 +183,7 @@ def cancelar(request, cuenta, body):
 
 @_action
 def pagar(request, cuenta, body):
-    if not request.staff.can_charge and body.get('method') != Payment.PHONE:
-        # A waiter can still take the money if a cashier or manager types their PIN.
-        approver = authorizer(request, body)
-        if approver is None:
-            raise PosError('Cobrar requiere caja o gerente.')
+    # Anyone closes the checks they serve (2026-09-28); a courtesy still needs administration.
     services.pay(cuenta, method=body.get('method'), amount_cents=_cents(body.get('amount')),
                  tip_cents=_cents(body.get('tip')), received_cents=_cents(body.get('received')),
                  reference=str(body.get('reference') or ''), by=request.staff, manager=authorizer(request, body))
@@ -187,6 +208,8 @@ def _cents(value):
 @require_POST
 def linea_cantidad(request, line_id):
     line = get_object_or_404(CheckLine, pk=line_id)
+    if claim(request.staff, line.cuenta):
+        return _fail(claim(request.staff, line.cuenta), 403)
     try:
         services.change_quantity(line, int(_body(request).get('qty') or 0))
     except (PosError, ValueError) as exc:
@@ -198,6 +221,8 @@ def linea_cantidad(request, line_id):
 @require_POST
 def linea_nota(request, line_id):
     line = get_object_or_404(CheckLine, pk=line_id)
+    if claim(request.staff, line.cuenta):
+        return _fail(claim(request.staff, line.cuenta), 403)
     services.set_line_note(line, str(_body(request).get('note') or ''))
     return _answer(line.cuenta)
 
@@ -206,6 +231,8 @@ def linea_nota(request, line_id):
 @require_POST
 def linea_cancelar(request, line_id):
     line = get_object_or_404(CheckLine, pk=line_id)
+    if claim(request.staff, line.cuenta):
+        return _fail(claim(request.staff, line.cuenta), 403)
     body = _body(request)
     try:
         services.void_line(line, reason=body.get('reason'), note=str(body.get('note') or ''), by=request.staff,
@@ -215,7 +242,7 @@ def linea_cancelar(request, line_id):
     return _answer(line.cuenta)
 
 
-def table_states():
+def table_states(staff=None):
     """What the map colours each table by. Soft Restaurant's colours: libre, ocupada, cuenta impresa, and ours
     for a QR order nobody has sent yet (which is the one that needs a person to walk over)."""
     open_checks = (Check.objects.filter(status=Check.OPEN)
@@ -224,8 +251,20 @@ def table_states():
     for c in open_checks:
         (by_table.setdefault(c.table_id, []) if c.table_id else loose).append(c)
     tables = []
+    section = set()
+    if staff is not None and not staff.sees_everything:
+        section = set(staff.tables.values_list('pk', flat=True))
     for t in Table.objects.filter(active=True).select_related('zone'):
         checks = by_table.get(t.id, [])
+        if staff is not None and not staff.sees_everything:
+            # A waiter's map: their section (or the whole room without one), their own checks anywhere, and
+            # nobody else's. Another waiter's table simply is not on it.
+            own = [c for c in checks if c.waiter_id == staff.pk]
+            others = [c for c in checks if c.waiter_id and c.waiter_id != staff.pk]
+            in_section = not section or t.id in section
+            if not own and (others or not in_section):
+                continue
+            checks = [c for c in checks if not c.waiter_id or c.waiter_id == staff.pk]
         state = 'free'
         if checks:
             state = 'busy'
@@ -243,10 +282,11 @@ def table_states():
     return {
         'tables': tables,
         'loose': [{'id': c.id, 'folio': c.folio, 'where': c.where, 'total': c.total_cents,
-                   'waiter': c.waiter.name if c.waiter else ''} for c in loose],
+                   'waiter': c.waiter.name if c.waiter else ''} for c in loose
+                  if staff is None or staff.sees_everything or c.waiter_id in (None, staff.pk)],
     }
 
 
 @pos_required(api=True)
 def mapa(request):
-    return JsonResponse(table_states())
+    return JsonResponse(table_states(request.staff))

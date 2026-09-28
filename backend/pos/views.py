@@ -83,7 +83,7 @@ def salir(request):
 def mapa(request):
     zones = list(Zone.objects.all())
     return render(request, 'pos/mapa.html', _ctx(
-        request, zones=zones, state=table_states(), denied=request.GET.get('denied'),
+        request, zones=zones, state=table_states(request.staff), denied=request.GET.get('denied'),
         show=services.current_show()))
 
 
@@ -91,7 +91,12 @@ def mapa(request):
 def mesa(request, table_id):
     """Tapping a table: its open check, a choice if it has been divided, or a new one."""
     table = get_object_or_404(Table, pk=table_id, active=True)
-    checks = list(Check.objects.filter(table=table, status=Check.OPEN).order_by('folio'))
+    checks = [c for c in Check.objects.filter(table=table, status=Check.OPEN).select_related('waiter').order_by('folio')
+              if request.staff.may_open(table, c)]
+    if not checks and not request.staff.may_open(table):
+        return redirect('/pos/?denied=mesa')
+    if not checks and Check.objects.filter(table=table, status=Check.OPEN).exists():
+        return redirect('/pos/?denied=mesa')
     if request.method == 'POST' and request.POST.get('new'):
         cuenta = Check.objects.create(folio=services.next_folio(), table=table, waiter=request.staff,
                                       guests=int(request.POST.get('guests') or 1), event=services.current_show())
@@ -102,6 +107,35 @@ def mesa(request, table_id):
     if len(checks) == 1:
         return redirect(f'/pos/cuenta/{checks[0].id}/')
     return render(request, 'pos/elegir.html', _ctx(request, table=table, checks=checks))
+
+
+@pos_required
+@require_POST
+def mesa_nueva(request):
+    """Anyone on the floor can put a table on the map (2026-09-28): the bar carries one in mid-service."""
+    zone = Zone.objects.filter(pk=request.POST.get('zone')).first() or Zone.objects.order_by('sort_order').first() \
+        or Zone.objects.create(name='Salón')
+    try:
+        number = int(request.POST.get('number') or 0)
+    except ValueError:
+        number = 0
+    number = number or (Table.objects.order_by('-number').values_list('number', flat=True).first() or 0) + 1
+    if not 1 <= number <= 999 or Table.objects.filter(number=number, active=True).exists():
+        return redirect('/pos/?denied=numero')
+    table = Table.objects.filter(number=number).first()
+    taken = [(t.x, t.y) for t in Table.objects.filter(zone=zone, active=True)]
+    spot = next(((x, y) for y in range(6, 90, 20) for x in range(4, 90, 16)
+                 if all(abs(x - tx) > 10 or abs(y - ty) > 14 for tx, ty in taken)), (80, 80))
+    if table:  # an archived number comes back
+        table.zone, table.active, table.x, table.y = zone, True, spot[0], spot[1]
+        table.name = request.POST.get('name', '')[:40]
+        table.save()
+    else:
+        table = Table.objects.create(zone=zone, number=number, name=request.POST.get('name', '')[:40],
+                                     x=spot[0], y=spot[1], w=12, h=15)
+    if request.staff.role == Staff.MESERO and request.staff.tables.exists():
+        request.staff.tables.add(table)
+    return redirect(f'/pos/mesa/{table.pk}/')
 
 
 @pos_required
@@ -135,16 +169,22 @@ def menu_payload():
 @pos_required
 def cuenta(request, cuenta_id):
     cuenta = get_object_or_404(Check, pk=cuenta_id)
+    from .api import claim
+
+    if claim(request.staff, cuenta):
+        return redirect('/pos/?denied=mesa')
+    cuenta.refresh_from_db()
     tables = [{'id': t.id, 'label': t.label, 'zone': t.zone.name} for t in Table.objects.filter(active=True).select_related('zone')]
     others = [{'id': c.id, 'label': f'{c.folio} · {c.where}'} for c in
-              Check.objects.filter(status=Check.OPEN).exclude(pk=cuenta.pk).select_related('table')]
+              Check.objects.filter(status=Check.OPEN).exclude(pk=cuenta.pk).select_related('table', 'waiter')
+              if request.staff.may_open(c.table, c)]
     from api.tables_views import qr_svg
 
     return render(request, 'pos/cuenta.html', _ctx(
         request, cuenta=cuenta, pay_qr=qr_svg(pay_link(cuenta)),
         boot={'cuentaId': cuenta.id, 'cuenta': cuenta_json(cuenta), 'menu': menu_payload(), 'tables': tables, 'others': others,
               'staff': {'name': request.staff.name, 'manager': request.staff.is_manager,
-                        'cashier': request.staff.can_charge},
+                        'cashier': True},
               'shiftOpen': Shift.current() is not None,
               'payUrl': pay_link(cuenta)}))
 
@@ -535,6 +575,9 @@ def personal(request):
                     raise PosError('No te puedes quitar el rol de gerente a ti mismo.')
                 s.role = request.POST.get('role') or s.role
                 s.save(update_fields=['role'])
+            elif action == 'section':
+                s = get_object_or_404(Staff, pk=request.POST.get('staff'))
+                s.tables.set(Table.objects.filter(number__in=_numbers(request.POST.get('section', ''))))
             elif action == 'toggle':
                 s = get_object_or_404(Staff, pk=request.POST.get('staff'))
                 if s.pk == request.staff.pk:
@@ -544,7 +587,36 @@ def personal(request):
             return redirect('/pos/personal/')
         except PosError as exc:
             error = str(exc)
-    return render(request, 'pos/personal.html', _ctx(request, people=Staff.objects.all(), roles=Staff.ROLES, error=error))
+    people = [{'s': s, 'section': _ranges(sorted(s.tables.values_list('number', flat=True)))}
+              for s in Staff.objects.prefetch_related('tables')]
+    return render(request, 'pos/personal.html', _ctx(request, people=people, roles=Staff.ROLES, error=error))
+
+
+def _numbers(text):
+    """'1-6, 9' -> {1,2,3,4,5,6,9}."""
+    out = set()
+    for part in str(text).replace(' ', '').split(','):
+        if '-' in part:
+            a, _, b = part.partition('-')
+            if a.isdigit() and b.isdigit() and int(b) - int(a) < 300:
+                out.update(range(int(a), int(b) + 1))
+        elif part.isdigit():
+            out.add(int(part))
+    return out
+
+
+def _ranges(numbers):
+    """[1,2,3,6] -> '1-3, 6'."""
+    out, start, prev = [], None, None
+    for n in numbers + [None]:
+        if start is None:
+            start = prev = n
+        elif n == prev + 1:
+            prev = n
+        else:
+            out.append(f'{start}-{prev}' if prev != start else str(start))
+            start = prev = n
+    return ', '.join(out)
 
 
 @pos_required(manager=True)

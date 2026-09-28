@@ -31,7 +31,9 @@ from iguana.ids import new_id, new_token
 
 class Staff(models.Model):
     MESERO, CAJERO, GERENTE = 'MESERO', 'CAJERO', 'GERENTE'
-    ROLES = [(MESERO, 'Mesero'), (CAJERO, 'Cajero'), (GERENTE, 'Gerente')]
+    # The hierarchy the floor asked for (2026-09-28): Mesero < Barra < Administración. The codes are the original
+    # ones so accounts made before the rename keep their rights; only the names changed.
+    ROLES = [(MESERO, 'Mesero'), (CAJERO, 'Barra'), (GERENTE, 'Administración')]
 
     id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
     name = models.CharField(max_length=80)
@@ -39,6 +41,8 @@ class Staff(models.Model):
     pin_hash = models.CharField(max_length=200)
     active = models.BooleanField(default=True)
     created_at = models.DateTimeField(default=timezone.now)
+    # A waiter's section. Empty means no section: the whole room. Bar and administration always see everything.
+    tables = models.ManyToManyField('Table', blank=True, related_name='section_staff')
 
     class Meta:
         ordering = ['name']
@@ -59,7 +63,29 @@ class Staff(models.Model):
 
     @property
     def can_charge(self):
+        # Everyone closes their own checks (2026-09-28: "que puedan cerrar cuenta").
+        return True
+
+    @property
+    def sees_everything(self):
         return self.role in (self.CAJERO, self.GERENTE)
+
+    @property
+    def runs_the_till(self):
+        return self.role in (self.CAJERO, self.GERENTE)
+
+    def may_open(self, table, cuenta=None):
+        """Whether this person may work this table or check. Bar and administration: always. A waiter: their own
+        checks, a check nobody has claimed yet (a QR order), and free tables in their section or anywhere if they
+        have no section."""
+        if self.sees_everything:
+            return True
+        if cuenta is not None and cuenta.waiter_id:
+            return cuenta.waiter_id == self.pk
+        if table is None:
+            return True
+        section = set(self.tables.values_list('pk', flat=True))
+        return not section or table.pk in section
 
     @classmethod
     def by_pin(cls, pin):
@@ -215,7 +241,10 @@ class Check(models.Model):
 
     @property
     def where(self):
-        return self.table.label if self.table else (self.label or 'Barra')
+        """The table, and the name on the order when somebody wrote one: "Mesa 3 · Ana"."""
+        if self.table:
+            return f'{self.table.label} · {self.label}' if self.label else self.table.label
+        return self.label or 'Barra'
 
     def live_lines(self):
         return [line for line in self.lines.all() if not line.voided_at]

@@ -7,18 +7,20 @@
   {% if error %}<p class="error">{{ error }}</p>{% endif %}
   <form method="post" class="card grid" style="max-width:640px">{% csrf_token %}<input type="hidden" name="action" value="add">
     <h2>Dar de alta</h2>
-    <p class="muted">Mesero: toma órdenes y envía a barra. Cajero: además cobra y hace el corte. Gerente: todo, incluidas cancelaciones, descuentos, productos, personal y reportes.</p>
+    <p class="muted"><strong>Mesero</strong>: abre y atiende sus mesas, envía a barra, cobra y cierra sus cuentas; solo ve su sección y sus propias mesas. <strong>Barra</strong>: ve y atiende todas las mesas, abre y cierra la caja. <strong>Administración</strong>: todo, incluidas cancelaciones de lo ya enviado, descuentos, cortesías, productos, personal y reportes.</p>
     <div class="grid" style="grid-template-columns:2fr 1fr 1fr">
       <label>Nombre<input name="name" required></label>
       <label>Puesto<select name="role">{% for code, name in roles %}<option value="{{ code }}">{{ name }}</option>{% endfor %}</select></label>
       <label>PIN (4 a 6 números)<input name="pin" inputmode="numeric" autocomplete="off" required></label>
     </div>
-    <button class="btn green">Crear</button></form>
-  <div class="card scroll" style="padding:0"><table class="t"><tr><th>Nombre</th><th>Puesto</th><th>Nuevo PIN</th><th>Estado</th></tr>
-    {% for p in people %}<tr style="{% if not p.active %}opacity:.5{% endif %}"><td><strong>{{ p.name }}</strong></td>
+    <button class="btn green">Crear</button>
+    <p class="muted">Sección: las mesas que atiende un mesero, como <strong>1-6, 9</strong>. Vacío: todo el salón. Una mesa que el mesero abre fuera de su sección también es suya.</p></form>
+  <div class="card scroll" style="padding:0"><table class="t"><tr><th>Nombre</th><th>Puesto</th><th>Sección (mesas)</th><th>Nuevo PIN</th><th>Estado</th></tr>
+    {% for row in people %}{% with p=row.s %}<tr style="{% if not p.active %}opacity:.5{% endif %}"><td><strong>{{ p.name }}</strong></td>
       <td><form method="post" class="row">{% csrf_token %}<input type="hidden" name="action" value="role"><input type="hidden" name="staff" value="{{ p.pk }}"><select name="role" onchange="this.form.submit()" style="min-width:130px">{% for code, name in roles %}<option value="{{ code }}" {% if p.role == code %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></form></td>
+      <td>{% if p.role == 'MESERO' %}<form method="post" class="row">{% csrf_token %}<input type="hidden" name="action" value="section"><input type="hidden" name="staff" value="{{ p.pk }}"><input name="section" value="{{ row.section }}" placeholder="todas" style="width:110px"><button class="btn small">Guardar</button></form>{% else %}<span class="muted">todas</span>{% endif %}</td>
       <td><form method="post" class="row">{% csrf_token %}<input type="hidden" name="action" value="pin"><input type="hidden" name="staff" value="{{ p.pk }}"><input name="pin" inputmode="numeric" autocomplete="off" placeholder="nuevo PIN" style="width:120px"><button class="btn small">Cambiar</button></form></td>
-      <td><form method="post">{% csrf_token %}<input type="hidden" name="action" value="toggle"><input type="hidden" name="staff" value="{{ p.pk }}"><button class="btn small {% if p.active %}ghost{% else %}green{% endif %}">{% if p.active %}Dar de baja{% else %}Reactivar{% endif %}</button></form></td></tr>{% endfor %}
+      <td><form method="post">{% csrf_token %}<input type="hidden" name="action" value="toggle"><input type="hidden" name="staff" value="{{ p.pk }}"><button class="btn small {% if p.active %}ghost{% else %}green{% endif %}">{% if p.active %}Dar de baja{% else %}Reactivar{% endif %}</button></form></td></tr>{% endwith %}{% endfor %}
   </table></div>
 </div>
 {% endblock %}

@@ -118,6 +118,7 @@
   <button type="button" class="send" data-f="send" data-p>Enviar</button>
   <button type="button" class="bill" data-f="bill" data-p>Cuenta</button>
   <button type="button" class="pay" data-f="pay" data-p>Cobrar</button>
+  <button type="button" data-f="name">Nombre</button>
   <button type="button" data-f="discount">Descuento</button>
   <button type="button" data-f="split">Dividir</button>
   <button type="button" data-f="move">Cambiar mesa</button>
@@ -130,6 +131,8 @@
 <dialog id="d-mods"><h2 id="mods-title"></h2><div id="mods-body"></div>
   <label style="margin-top:10px">Nota para barra<input id="mods-note" placeholder="sin hielo, doble..."></label>
   <div class="row" style="margin-top:12px"><button class="btn green" id="mods-ok" type="button">Agregar</button><button class="btn ghost" type="button" data-close>Cancelar</button></div></dialog>
+
+<dialog id="d-name"><h2>Nombre de la orden</h2><p class="muted">De quién es: el cliente, "la del cumpleaños"... Sale en la comanda y en el mapa.</p><input id="name-text" placeholder="Ana"><div class="row" style="margin-top:12px"><button class="btn green" id="name-ok" type="button">Guardar</button><button class="btn ghost" type="button" data-close>Cancelar</button></div></dialog>
 
 <dialog id="d-note"><h2>Nota del producto</h2><input id="note-text" placeholder="sin hielo, michelada..."><div class="row" style="margin-top:12px"><button class="btn green" id="note-ok" type="button">Guardar</button><button class="btn ghost" type="button" data-close>Cancelar</button></div></dialog>
 
@@ -349,7 +352,9 @@
 
   // ---------------- function keys
   var F = {
-    send: function () { call("enviar/", {}).then(function () { toast("Enviado a barra"); }); },
+    // After sending, back to the map (2026-09-28: "que después de ordenar suban"), as Soft Restaurant does.
+    send: function () { call("enviar/", {}).then(function () { toast("Enviado a barra"); setTimeout(function () { location = "/pos/"; }, 700); }); },
+    name: function () { $("name-text").value = cuenta.name || ""; $("name-ok").onclick = function () { call("nombre/", { name: $("name-text").value }).then(function () { $("d-name").close(); }); }; $("d-name").showModal(); setTimeout(function () { $("name-text").focus(); }, 50); },
     bill: function () { call("precuenta/", {}).then(function () { toast("Cuenta impresa"); }); },
     discount: function () {
       var pct = null;

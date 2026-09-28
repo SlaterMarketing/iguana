@@ -79,9 +79,11 @@ await settle(p);
 check("+ on an unsent line", (await total(p)) === 34000, `total ${await total(p)}`);
 
 await p.click('[data-f="send"]');
-await settle(p);
-check("Enviar sends everything", (await p.textContent("#h-status")).includes("Todo enviado"));
-await p.waitForTimeout(1200);
+await p.waitForURL(BASE + "/pos/", { timeout: 8000 }).catch(() => {});
+check("Enviar sends and goes back to the map", p.url() === BASE + "/pos/");
+await p.goto(cuentaUrl);
+check("everything went to the bar", (await p.textContent("#h-status")).includes("Todo enviado"));
+await p.waitForTimeout(300);
 check("no printer yet: the comanda opens for the tablet to print", popups.length >= 1, `${popups.length} popup(s)`);
 for (const pg of popups.splice(0)) await pg.close().catch(() => {});
 
@@ -97,6 +99,11 @@ await p.click("#void-ok");
 await settle(p);
 { const t = await totalIs(p, 27000); check("with the manager's PIN it is voided and off the bill", t === 27000, `total ${t}`); }
 
+await p.click('[data-f="name"]');
+await p.fill("#name-text", "Prueba E2E");
+await p.click("#name-ok");
+await settle(p);
+check("the order carries a name", (await p.textContent("#h-where")).includes("Prueba E2E"));
 await p.click('[data-f="discount"]');
 await p.click('#disc-pcts [data-p="10"]');
 await p.fill("#disc-reason", "prueba"); await p.fill("#disc-pin", "4242");
@@ -185,8 +192,9 @@ if (p.url().includes("/pos/mesa/")) {
 await p.waitForURL(/\/pos\/cuenta\//);
 check("the QR line waits, marked QR", await p.locator('#lines tr.qr').count() === 1);
 await p.click('[data-f="send"]');
-await settle(p);
-await p.click('[data-f="more"]').catch(() => {});
+await p.waitForURL(BASE + "/pos/", { timeout: 8000 }).catch(() => {});
+await p.goBack();
+await p.waitForSelector("#lines tr");
 await p.click('[data-f="cancel"]');
 await p.fill("#cancel-reason", "prueba e2e");
 await p.click("#cancel-ok");

@@ -287,14 +287,54 @@ class ScreensTests(PosTestCase):
         ok = self.post(f'/pos/api/linea/{line}/cancelar/', {'reason': 'NOT_MADE', 'managerPin': '3333'})
         self.assertEqual(ok.json()['cuenta']['total'], 0)
 
-    def test_a_waiter_charges_only_with_a_cashiers_pin(self):
+    def test_a_waiter_closes_their_own_check(self):
         services.open_shift(self.cashier, 0)
         self.floor_client('1111')
         cuenta = services.open_check(table=self.t1, waiter=self.waiter)
         services.add_line(cuenta, self.beer)
-        self.assertEqual(self.post(f'/pos/api/cuenta/{cuenta.pk}/pagar/', {'method': 'CASH', 'amount': '60'}).status_code, 400)
-        res = self.post(f'/pos/api/cuenta/{cuenta.pk}/pagar/', {'method': 'CASH', 'amount': '60', 'managerPin': '3333'})
+        res = self.post(f'/pos/api/cuenta/{cuenta.pk}/pagar/', {'method': 'CASH', 'amount': '60'})
         self.assertEqual(res.json()['cuenta']['status'], 'PAID')
+
+    def test_a_waiter_cannot_touch_another_waiters_check(self):
+        other = staff('Luis', Staff.MESERO, '4444')
+        cuenta = services.open_check(table=self.t2, waiter=other)
+        self.floor_client('1111')
+        self.assertEqual(self.client.get(f'/pos/cuenta/{cuenta.pk}/')['Location'], '/pos/?denied=mesa')
+        self.assertEqual(self.post(f'/pos/api/cuenta/{cuenta.pk}/agregar/', {'item': self.beer.pk}).status_code, 403)
+        numbers = [t['number'] for t in self.client.get('/pos/api/mapa/').json()['tables']]
+        self.assertNotIn(2, numbers, "another waiter's table is not on my map")
+
+    def test_the_bar_sees_and_works_every_table(self):
+        cuenta = services.open_check(table=self.t2, waiter=self.waiter)
+        self.floor_client('2222')
+        self.assertEqual(self.client.get(f'/pos/cuenta/{cuenta.pk}/').status_code, 200)
+        numbers = [t['number'] for t in self.client.get('/pos/api/mapa/').json()['tables']]
+        self.assertEqual(sorted(numbers), [1, 2])
+
+    def test_a_section_limits_the_free_tables_a_waiter_sees(self):
+        self.waiter.tables.set([self.t1])
+        self.floor_client('1111')
+        numbers = [t['number'] for t in self.client.get('/pos/api/mapa/').json()['tables']]
+        self.assertEqual(numbers, [1])
+        self.assertEqual(self.client.get(f'/pos/mesa/{self.t2.pk}/')['Location'], '/pos/?denied=mesa')
+
+    def test_the_waiter_who_opens_a_qr_order_takes_it(self):
+        cuenta, _ = services.customer_order(1, {self.beer.id: 1})
+        self.floor_client('1111')
+        self.client.get(f'/pos/cuenta/{cuenta.pk}/')
+        cuenta.refresh_from_db()
+        self.assertEqual(cuenta.waiter, self.waiter)
+
+    def test_anyone_can_add_a_table_and_name_the_order(self):
+        self.floor_client('1111')
+        res = self.client.post('/pos/mesa/nueva/', {'number': '15', 'name': 'Box'})
+        table = Table.objects.get(number=15)
+        self.assertEqual(res['Location'], f'/pos/mesa/{table.pk}/')
+        self.assertEqual(self.client.post('/pos/mesa/nueva/', {'number': '15'})['Location'], '/pos/?denied=numero')
+        cuenta = services.open_check(table=table, waiter=self.waiter)
+        self.post(f'/pos/api/cuenta/{cuenta.pk}/nombre/', {'name': 'Ana'})
+        cuenta.refresh_from_db()
+        self.assertEqual(cuenta.where, 'Box · Ana')
 
     def test_the_map_colours_a_waiting_qr_order(self):
         services.customer_order(2, {self.beer.id: 1})

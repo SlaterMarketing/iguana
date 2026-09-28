@@ -47,8 +47,10 @@
 </style>
 {% endblock %}
 {% block content %}
-{% if denied %}<p class="error" style="margin:10px 12px 0">Esa pantalla es solo para gerente o caja.</p>{% endif %}
-{% if not shift %}<p class="error" style="margin:10px 12px 0">La caja está cerrada: se puede tomar orden, pero para cobrar hay que <a href="/pos/caja/">abrir turno</a>.</p>{% endif %}
+{% if denied == 'mesa' %}<p class="error" style="margin:10px 12px 0">Esa mesa la atiende otro mesero.</p>
+{% elif denied == 'numero' %}<p class="error" style="margin:10px 12px 0">Ese número de mesa ya existe.</p>
+{% elif denied %}<p class="error" style="margin:10px 12px 0">Esa pantalla es solo para barra o administración.</p>{% endif %}
+{% if not shift %}<p class="error" style="margin:10px 12px 0">La caja está cerrada: se puede tomar orden, pero para cobrar la barra tiene que <a href="/pos/caja/">abrir turno</a>.</p>{% endif %}
 <div class="zones" id="zones">
   {% for z in zones %}<button type="button" data-zone="{{ z.id }}" {% if forloop.first %}class="on"{% endif %}>{{ z.name }}</button>{% endfor %}
 </div>
@@ -60,8 +62,9 @@
 <div class="loose" id="loose"></div>
 <nav class="fkeys">
   <button type="button" class="hl" data-p onclick="document.getElementById('quick').showModal()"><span class="k">+</span>Barra / Rápido</button>
+  <button type="button" onclick="document.getElementById('newtable').showModal()"><span class="k">▦+</span>Mesa</button>
   <a href="/pos/barra/" data-p><span class="k">🍹</span>Comandas</a>
-  {% if staff.can_charge %}<a href="/pos/caja/" data-p><span class="k">$</span>Caja</a>{% endif %}
+  {% if staff.runs_the_till %}<a href="/pos/caja/" data-p><span class="k">$</span>Caja</a>{% endif %}
   <a href="/mesas/reservas/" data-p><span class="k">📋</span>Reservas</a>
   <a href="/mesas/puerta/"><span class="k">📷</span>Puerta</a>
   <a href="/pos/inventario/"><span class="k">📦</span>Inventario</a>
@@ -81,6 +84,17 @@
     <h2>Cuenta sin mesa</h2>
     <label>Nombre o lugar<input name="label" value="Barra" autofocus></label>
     <div class="row"><button class="btn green" type="submit">Abrir</button>
+      <button class="btn ghost" type="button" onclick="this.closest('dialog').close()">Cancelar</button></div>
+  </form>
+</dialog>
+<dialog id="newtable">
+  <form method="post" action="/pos/mesa/nueva/" class="grid">
+    {% csrf_token %}
+    <h2>Agregar mesa</h2>
+    <label>Número (vacío = el siguiente)<input name="number" inputmode="numeric"></label>
+    <label>Nombre (opcional)<input name="name" placeholder="Box 1, Terraza..."></label>
+    {% if zones|length > 1 %}<label>Área<select name="zone">{% for z in zones %}<option value="{{ z.id }}">{{ z.name }}</option>{% endfor %}</select></label>{% endif %}
+    <div class="row"><button class="btn green" type="submit">Agregar y abrir</button>
       <button class="btn ghost" type="button" onclick="this.closest('dialog').close()">Cancelar</button></div>
   </form>
 </dialog>
