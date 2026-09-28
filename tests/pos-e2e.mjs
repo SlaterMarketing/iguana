@@ -112,14 +112,20 @@ await p.click("#split-ok");
 const splitMsg = await toastText(p, /separó/);
 check("Dividir moves a line to its own check", /separó/.test(splitMsg), splitMsg);
 
-await p.click('[data-f="pay"]');
-const noShift = await toastText(p, /caja/i);
-check("no till shift: charging is refused with a reason", /caja/i.test(noShift), noShift);
+if (!process.env.SKIP_TILL) {
+  await p.click('[data-f="pay"]');
+  const noShift = await toastText(p, /caja/i);
+  check("no till shift: charging is refused with a reason", /caja/i.test(noShift), noShift);
+}
 await p.screenshot({ path: `${OUT}-cuenta-waiter.png` });
 await p.close();
 
 // ------------------------------------------------------------ B: the manager
 p = await signIn(tablet, "4242");
+if (process.env.SKIP_TILL) {
+  // A real till shift is open (somebody is using the system): never open, charge into or close it.
+  check("till steps skipped: a real shift is open", true);
+} else {
 await p.goto(BASE + "/pos/caja/");
 await p.fill('input[name="opening"]', "500");
 await p.click('button:has-text("Abrir caja")');
@@ -156,6 +162,7 @@ await p.click("#pay-ok");
 await p.waitForURL(BASE + "/pos/", { timeout: 8000 }).catch(() => {});
 check("split check paid by transfer", p.url() === BASE + "/pos/");
 
+}
 // a customer QR order
 const API = BASE.replace("://", "://api.");
 const qr = await fetch(API + "/api/public/v1/menu?locale=es", { headers: { Authorization: "Bearer " + process.env.API_KEY } }).then((r) => r.json());
@@ -168,6 +175,13 @@ check("customer QR order accepted", placed.status === 200, String(placed.status)
 await p.waitForTimeout(6000);
 check("the map flashes the table orange", await p.locator('.tbl.order:has-text("E2E")').count() === 1);
 await p.click('.tbl:has-text("E2E")');
+await p.waitForLoadState("load");
+if (p.url().includes("/pos/mesa/")) {
+  // More than one open check on the table: the chooser, as Soft Restaurant shows it. Open each until the QR one.
+  check("a divided table asks which check", (await p.locator('a.btn.blue').count()) >= 2);
+  const links = await p.locator('a.btn.blue').evaluateAll((as) => as.map((a) => a.href));
+  for (const href of links) { await p.goto(href); if (await p.locator('#lines tr.qr').count()) break; }
+}
 await p.waitForURL(/\/pos\/cuenta\//);
 check("the QR line waits, marked QR", await p.locator('#lines tr.qr').count() === 1);
 await p.click('[data-f="send"]');
@@ -185,6 +199,7 @@ check("the bar screen lists the E2E comandas", pending >= 1, `${pending}`);
 while (await p.locator('.ko:has-text("E2E") button').count()) { await p.locator('.ko:has-text("E2E") button').first().click(); await p.waitForLoadState("load"); }
 check("the bar marks them done", (await p.locator('.ko:has-text("E2E")').count()) === 0);
 
+if (!process.env.SKIP_TILL) {
 await p.goto(BASE + "/pos/caja/");
 const expected = money((await p.textContent("body")).match(/Efectivo esperado \$[0-9,.]+/)[0]);
 await p.fill('input[name="counted_cash"]', String(expected / 100));
@@ -194,8 +209,9 @@ const corte = await p.textContent("body");
 check("corte with the counted cash matching", corte.includes("Diferencia") && /Diferencia\s*\$0\.00/.test(corte.replace(/\s+/g, " ")), `expected ${expected}`);
 await p.screenshot({ path: `${OUT}-corte.png`, fullPage: true });
 
+}
 await p.goto(BASE + "/pos/reportes/");
-check("reports list what was sold", (await p.textContent("body")).includes("E2E Shot"));
+if (!process.env.SKIP_TILL) check("reports list what was sold", (await p.textContent("body")).includes("E2E Shot"));
 await p.close();
 await tablet.close();
 
