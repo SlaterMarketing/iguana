@@ -1,21 +1,26 @@
-"""Two locks, as in Soft Restaurant: the DEVICE, and the PERSON.
+"""The PIN is the whole door (owner, 2026-09-28: "they can just log in with their pin").
 
-The tablet is signed in as a floor account (api/floor.py), which is what keeps /admin/ shut on a phone behind a
-bar. On top of that, whoever is using it types their PIN: that is who every check, void and payment is recorded
-against. The PIN session is short on purpose (a waiter walks away and the next person must not be them), while
-the device session stays signed in for a year.
+There used to be a second lock, the tablet signed in as a floor account first. It was dropped because staff
+met a username/password screen before the PIN pad. What protects the pad now, since it is on the open internet:
+
+  - five wrong PINs from one address in fifteen minutes locks that address out (`PinFailure`);
+  - a PIN session is a person, not a Django user, so it can never reach /admin/ (that still needs a staff
+    account, and nothing here makes one);
+  - it lapses after IDLE_MINUTES without a tap, so a phone left on the bar does not stay somebody.
 """
 
 import json
 import time
+from datetime import timedelta
 from functools import wraps
 
 from django.http import JsonResponse
 from django.shortcuts import redirect
+from django.utils import timezone
 
-from api.floor import is_floor
+from crm.geo import client_ip
 
-from .models import Staff
+from .models import PinFailure, Staff
 
 PERSON_KEY = 'pos_staff'
 SEEN_KEY = 'pos_seen'
@@ -44,15 +49,11 @@ def sign_out_staff(request):
 
 
 def pos_required(view=None, *, manager=False, cashier=False, api=False):
-    """The device must be a floor login and a person must have typed a PIN. `manager`/`cashier` narrow it."""
+    """A person must have typed a PIN. `manager`/`cashier` narrow it to those roles."""
 
     def decorate(fn):
         @wraps(fn)
         def guard(request, *args, **kwargs):
-            if not is_floor(request.user):
-                if api:
-                    return JsonResponse({'error': 'Esta tableta no ha iniciado sesión.'}, status=401)
-                return redirect(f'/mesas/entrar/?next={request.path}')
             staff = current_staff(request)
             if staff is None:
                 if api:
@@ -80,8 +81,17 @@ def authorizer(request, body=None):
     if staff and staff.is_manager:
         return staff
     body = body if body is not None else _body(request)
-    found = Staff.by_pin(body.get('managerPin') or body.get('manager_pin'))
-    return found if found and found.is_manager else None
+    pin = body.get('managerPin') or body.get('manager_pin')
+    if not pin:
+        return None
+    # The PIN box in a dialog is a second place to guess one, so it shares the pad's lockout.
+    if locked_out(request):
+        return None
+    found = Staff.by_pin(pin)
+    if not (found and found.is_manager):
+        record_failure(request)
+        return None
+    return found
 
 
 def _body(request):
@@ -91,3 +101,26 @@ def _body(request):
         except ValueError:
             return {}
     return request.POST
+
+
+MAX_FAILURES = 5
+WINDOW = timedelta(minutes=15)
+
+
+def locked_out(request):
+    """Minutes left on this address's lockout, or 0."""
+    since = timezone.now() - WINDOW
+    recent = list(PinFailure.objects.filter(ip=client_ip(request) or '?', created_at__gte=since)
+                  .order_by('created_at').values_list('created_at', flat=True))
+    if len(recent) < MAX_FAILURES:
+        return 0
+    return max(1, int((recent[-MAX_FAILURES] + WINDOW - timezone.now()).total_seconds() // 60) + 1)
+
+
+def record_failure(request):
+    PinFailure.objects.create(ip=client_ip(request) or '?')
+    PinFailure.objects.filter(created_at__lt=timezone.now() - WINDOW * 4).delete()
+
+
+def clear_failures(request):
+    PinFailure.objects.filter(ip=client_ip(request) or '?').delete()

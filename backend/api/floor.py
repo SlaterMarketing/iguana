@@ -47,6 +47,13 @@ def floor_required(view):
     def guard(request, *args, **kwargs):
         if is_floor(request.user):
             return view(request, *args, **kwargs)
-        return redirect(f'{LOGIN_URL}?next={request.path}')
+        # Since the point of sale (2026-09-28) a staff PIN is the everyday way in, so the door and the guest list
+        # take it too rather than asking for a second login. It is a person, never a Django user: /admin/ stays
+        # shut to it by construction.
+        from pos.auth import current_staff
+
+        if current_staff(request) is not None:
+            return view(request, *args, **kwargs)
+        return redirect(f'/pos/entrar/?next={request.path}')
 
     return guard

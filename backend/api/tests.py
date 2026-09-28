@@ -1791,10 +1791,11 @@ class FloorConsoleTests(ApiTestCase):
 
 
     def test_signed_out_visitors_go_to_the_floor_login_not_the_admin_one(self):
+        # Since 2026-09-28 the PIN pad is the door, for the point of sale and the door pages alike.
         for path in ('/pos/', '/pos/inventario/', '/mesas/reservas/'):
             res = self.client.get(path)
             self.assertEqual(res.status_code, 302)
-            self.assertTrue(res['Location'].startswith('/mesas/entrar/'), f'{path} -> {res["Location"]}')
+            self.assertTrue(res['Location'].startswith('/pos/entrar/'), f'{path} -> {res["Location"]}')
 
     def test_the_owner_reaches_the_pin_pad(self):
         """The owner's admin login counts as a signed-in tablet; the POS still asks who is using it."""
@@ -3433,7 +3434,7 @@ class ReservationsBoardTests(ApiTestCase):
         """
         res = self.client.get('/reservations/')
         self.assertEqual(res.status_code, 302)
-        self.assertIn('/mesas/entrar/', res['Location'])
+        self.assertIn('/pos/entrar/', res['Location'])
         self.assertNotIn(b'Ana Lopez', res.content)
 
     def test_it_counts_the_seats_and_names_the_guests(self):

@@ -6,7 +6,6 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.utils import timezone
 
-from api.floor import floor_group
 from catalog.models import InventoryItem, MenuCategory, MenuItem, MenuItemIngredient
 
 from . import services
@@ -40,10 +39,7 @@ class PosTestCase(TestCase):
         cls.manager = staff('Caro', Staff.GERENTE, '3333')
 
     def floor_client(self, pin=None):
-        user = get_user_model().objects.create_user(f'mesero{Staff.objects.count()}{timezone.now().timestamp()}',
-                                                    password='x')
-        user.groups.add(floor_group())
-        self.client.force_login(user)
+        """The PIN pad is the only door now: no floor account first."""
         if pin:
             self.client.post('/pos/entrar/', {'pin': pin})
         return self.client
@@ -229,9 +225,35 @@ class ScreensTests(PosTestCase):
         self.client.post('/pos/entrar/', {'pin': '1111'})
         self.assertContains(self.client.get('/pos/'), 'Ana')
 
-    def test_a_tablet_that_is_not_signed_in_goes_to_the_floor_login(self):
-        res = self.client.get('/pos/entrar/')
-        self.assertTrue(res['Location'].startswith('/mesas/entrar/'))
+    def test_there_is_no_login_before_the_pin_pad(self):
+        self.assertEqual(self.client.get('/pos/entrar/').status_code, 200)
+
+    def test_five_wrong_pins_lock_the_address_out(self):
+        for _ in range(5):
+            self.client.post('/pos/entrar/', {'pin': '0000'})
+        res = self.client.post('/pos/entrar/', {'pin': '1111'})
+        self.assertContains(res, 'Demasiados intentos')
+        self.assertNotIn('pos_staff', self.client.session)
+
+    def test_guessing_a_manager_pin_in_a_dialog_counts_too(self):
+        self.floor_client('1111')
+        cuenta = services.open_check(table=self.t1)
+        line = services.add_line(cuenta, self.beer)
+        services.send(cuenta)
+        for pin in ('0001', '0002', '0003', '0004', '0005'):
+            self.post(f'/pos/api/linea/{line.pk}/cancelar/', {'reason': 'NOT_MADE', 'managerPin': pin})
+        refused = self.post(f'/pos/api/linea/{line.pk}/cancelar/', {'reason': 'NOT_MADE', 'managerPin': '3333'})
+        self.assertEqual(refused.status_code, 400, 'locked out even with the right PIN')
+
+    def test_the_door_and_guest_list_take_a_pin(self):
+        self.assertTrue(self.client.get('/mesas/puerta/')['Location'].startswith('/pos/entrar/'))
+        self.floor_client('1111')
+        self.assertEqual(self.client.get('/mesas/puerta/').status_code, 200)
+        self.assertEqual(self.client.get('/mesas/reservas/').status_code, 200)
+
+    def test_a_pin_is_never_an_admin(self):
+        self.floor_client('3333')
+        self.assertNotEqual(self.client.get('/admin/').status_code, 200)
 
     def test_every_screen_opens_for_a_manager(self):
         self.floor_client('3333')

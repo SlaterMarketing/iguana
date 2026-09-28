@@ -443,3 +443,11 @@ class StockCountLine(models.Model):
     @property
     def variance(self):
         return None if self.counted is None else self.counted - self.expected
+
+
+class PinFailure(models.Model):
+    """A wrong PIN, by address. The PIN pad is on the open internet (owner, 2026-09-28: PIN only, no username),
+    so guessing is capped: five wrong in fifteen minutes locks that address out for the rest of the window."""
+
+    ip = models.CharField(max_length=64, db_index=True)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)

@@ -1,7 +1,7 @@
 /**
  * End to end against the point of sale, the way a waiter and a manager use it on a night.
  *
- *   FLOOR_PASS=... API_KEY=... node tests/pos-e2e.mjs [--base https://iguanacomedy.com]
+ *   API_KEY=... node tests/pos-e2e.mjs [--base https://iguanacomedy.com]
  *
  * 🚨 It needs the fixtures from a setup run (staff "E2E Gerente" 4242 / "E2E Mesero" 4343, table 99 "E2E",
  * category "E2E prueba" with "E2E Cerveza" (recipe: 1 "E2E stock", modifier "E2E Michelada") and "E2E Shot"),
@@ -31,14 +31,9 @@ async function signIn(ctx, pin) {
   const p = await ctx.newPage();
   p.on("pageerror", (e) => check("no script error on " + p.url(), false, e.message));
   p.on("popup", (pg) => popups.push(pg));
-  // Whoever used the tablet before signs out, as the "Salir" chip does, so the next person types their PIN.
+  // Whoever used the tablet before signs out, as the "Salir" chip does; the PIN pad is the only door.
   await p.goto(BASE + "/pos/salir/");
-  await p.goto(BASE + "/mesas/entrar/?next=/pos/");
-  if (p.url().includes("/mesas/entrar/")) {
-    await p.fill('input[name="username"]', FLOOR.user);
-    await p.fill('input[name="password"]', FLOOR.pass);
-    await p.click('button[type="submit"]');
-  }
+  await p.goto(BASE + "/pos/");
   await p.waitForURL(/\/pos\/entrar\//);
   for (const k of pin) await p.click(`[data-k="${k}"]`);
   await p.click("button.ok");

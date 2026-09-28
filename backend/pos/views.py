@@ -17,12 +17,11 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from api.floor import is_floor
 from catalog.models import InventoryChange, InventoryItem, MenuCategory, MenuItem, MenuItemIngredient
 
 from . import services
 from .api import cuenta_json, table_states
-from .auth import current_staff, pos_required, sign_in_staff, sign_out_staff
+from .auth import clear_failures, current_staff, locked_out, pos_required, record_failure, sign_in_staff, sign_out_staff
 from .models import (CashMove, Check, CheckLine, Comanda, ItemCost, Modifier, ModifierGroup, Payment, Printer,
                      PrintJob, Purchase, Shift, Staff, StockCount, StockCountLine, Supplier, Table, Zone)
 from .services import PosError
@@ -52,19 +51,23 @@ def _ctx(request, **kw):
 # ---------------------------------------------------------------- sign in
 
 def entrar(request):
-    """The PIN keypad. The tablet itself must already be a floor login."""
-    if not is_floor(request.user):
-        return redirect('/mesas/entrar/?next=/pos/')
+    """The PIN keypad, and the only way in."""
     error = ''
     nxt = request.GET.get('next') or request.POST.get('next') or '/pos/'
-    if not nxt.startswith('/pos'):
+    if not nxt.startswith(('/pos', '/mesas', '/checkin')):
         nxt = '/pos/'
     if request.method == 'POST':
-        staff = Staff.by_pin(request.POST.get('pin'))
-        if staff:
-            sign_in_staff(request, staff)
-            return redirect(nxt)
-        error = 'PIN incorrecto.'
+        wait = locked_out(request)
+        if wait:
+            error = f'Demasiados intentos. Espera {wait} min.'
+        else:
+            staff = Staff.by_pin(request.POST.get('pin'))
+            if staff:
+                clear_failures(request)
+                sign_in_staff(request, staff)
+                return redirect(nxt)
+            record_failure(request)
+            error = 'PIN incorrecto.'
     return render(request, 'pos/entrar.html', {'error': error, 'next': nxt,
                                                'first_run': not Staff.objects.exists()})
 
