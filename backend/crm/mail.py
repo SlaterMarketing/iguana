@@ -21,6 +21,22 @@ def marketing_recipients(contacts):
     return [c for c in contacts if c.subscribed and c.email_marketing_eligible and c.email]
 
 
+def reader_language(contact):
+    """The ONE language a person gets marketing mail in (owner, 2026-09-28: one language, never both).
+
+    What they told us, in order: the site language they signed up in or last clicked through from
+    (`contact.locale`), else the language of their most recent booking, else English. The blank ones are almost
+    all the Kintana import, which predates any record of language.
+    """
+    locale = getattr(contact, 'locale', '') or ''
+    if not locale and getattr(contact, 'email', ''):
+        from sales.models import Order
+
+        locale = (Order.objects.filter(customer_email__iexact=contact.email).exclude(locale='')
+                  .order_by('-created_at').values_list('locale', flat=True).first() or '')
+    return normalize(locale or 'en')
+
+
 def with_footer(body, email, lang):
     """Every marketing message ends the same way: why they got it, and how to stop it."""
     return '\n\n'.join([
@@ -70,7 +86,7 @@ def send_marketing(subject, body, contacts, dry_run=False, campaign=None, rate=0
     # alert said so, because the only evidence was a traceback in journalctl under `iguana-newsletter`.
     connection = get_connection(fail_silently=True)
     for index, contact in enumerate(recipients):
-        lang = normalize(getattr(contact, 'locale', '') or 'en')
+        lang = reader_language(contact)
         message = EmailMessage(
             subject=_resolve(subject, lang, contact),
             body=with_footer(_resolve(body, lang, contact), contact.email, lang),

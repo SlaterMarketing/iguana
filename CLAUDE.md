@@ -724,11 +724,11 @@ Meta's `time_range` is inclusive at both ends, so `--days 1` is yesterday AND to
   ⚠ **It must not thank them for coming.** Nobody is scanned at the door (0 of 24 on 2026-09-23), so
   attendance is not a fact we hold.
 
-🔑 **Which language the weekly mail leads with.** It always carries both, but the order and the SUBJECT follow
-`contact.locale`, and 595 of 666 mailable contacts came from the Kintana import with that field blank. Blank
-used to resolve to English through `normalize('')` rather than through any decision. An unknown reader now
-gets **Spanish first** (`whats_on.UNKNOWN_READS`), because the club is in Playa del Carmen and the bookings say
-so: 31 of 47 completed orders were made in Spanish.
+🔑 **The weekly mail is ONE language per reader, never both** (owner, 2026-09-28). `crm.mail.reader_language`
+decides it for the subject, body and footer alike: `contact.locale` (set at sign-up from the site language, and
+again whenever they click through a marked link), else the language of their latest booking, else **English**.
+Most of the blank contacts are the Kintana import. Until 2026-09-28 it carried both languages, reader's first,
+and led unknowns with Spanish; do not bring that back without asking.
 
 ### Reading the mail the server keeps
 

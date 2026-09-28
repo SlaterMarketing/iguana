@@ -824,20 +824,17 @@ class WeeklyEmailTests(ApiTestCase):
             date=timezone.now() + timedelta(days=1), doors_open='20:00', show_time='21:00', tags=['open-mic'])
         TicketType.objects.create(event=self.mic, name='Reserved seat', price_cents=5000, capacity=60)
 
-    def test_carries_both_languages_with_the_readers_own_first(self):
+    def test_carries_only_the_readers_language(self):
+        """One language per person (owner, 2026-09-28); it used to carry both, the reader's own first."""
         from crm.whats_on import body, week_events
 
         events = week_events()
-        contact = Contact.objects.create(email='lector@example.com', locale='es')
-        text = body(events, contact)
-        self.assertIn('Esta semana en Iguana Comedy', text)
-        self.assertIn('This week at Iguana Comedy', text)
-        # Their own language leads; the other follows, because 92% of this list has no language recorded and a
-        # mail somebody cannot read is worse than one that is twice as long.
-        self.assertLess(text.index('Esta semana'), text.index('This week'))
-
+        spanish = body(events, Contact.objects.create(email='lector@example.com', locale='es'))
+        self.assertIn('Esta semana en Iguana Comedy', spanish)
+        self.assertNotIn('This week at Iguana Comedy', spanish)
         english = body(events, Contact.objects.create(email='reader@example.com', locale='en'))
-        self.assertLess(english.index('This week'), english.index('Esta semana'))
+        self.assertIn('This week at Iguana Comedy', english)
+        self.assertNotIn('Esta semana en Iguana Comedy', english)
 
     def test_every_link_is_marked_with_the_contact(self):
         from crm.whats_on import body, week_events
@@ -3979,12 +3976,10 @@ class AfterShowTests(ApiTestCase):
 
 
 class NewsletterLanguageTests(ApiTestCase):
-    """Which language the weekly mail leads with, and what the subject line says.
+    """The weekly mail goes out in ONE language per reader, never both (owner, 2026-09-28).
 
-    The body carries both languages, so nobody is ever locked out of the content. What the locale decides is
-    the order and the subject, and the subject is the only part of a bilingual email that cannot carry both.
-    595 of 666 mailable contacts came from the Kintana import and have never told us anything, and a blank
-    locale used to resolve to English by accident, through `normalize('')`, rather than by any decision.
+    The language is what they told us: the site language they signed up or clicked through in, else the language
+    they booked in, else English, which is where the blank Kintana-import contacts land.
     """
 
     @classmethod
@@ -4000,45 +3995,53 @@ class NewsletterLanguageTests(ApiTestCase):
 
         return list(week_events())
 
-    def test_a_spanish_reader_gets_spanish_first(self):
+    def test_a_spanish_reader_gets_only_spanish(self):
         from crm.whats_on import body
 
-        contact = Contact.objects.create(email='es@example.com', locale='es')
+        text = body(self.week(), Contact.objects.create(email='es@example.com', locale='es'))
+        self.assertIn('Hola', text)
+        self.assertNotIn('Hi there', text)
+
+    def test_an_english_reader_gets_only_english(self):
+        from crm.whats_on import body
+
+        text = body(self.week(), Contact.objects.create(email='en@example.com', locale='en'))
+        self.assertIn('Hi there', text)
+        self.assertNotIn('Hola', text)
+
+    def test_a_reader_we_know_nothing_about_gets_english(self):
+        from crm.whats_on import body
+
+        text = body(self.week(), Contact.objects.create(email='unknown@example.com', locale=''))
+        self.assertIn('Hi there', text)
+        self.assertNotIn('Hola', text)
+
+    def test_a_blank_contact_who_booked_in_spanish_gets_spanish(self):
+        from crm.whats_on import body
+
+        contact = Contact.objects.create(email='booker@example.com', locale='')
+        Order.objects.create(event=self.event, event_name='x', customer_email='Booker@example.com', locale='es',
+                             status=Order.COMPLETED)
         text = body(self.week(), contact)
-        self.assertLess(text.index('Hola'), text.index('Hi there'))
+        self.assertIn('Hola', text)
+        self.assertNotIn('Hi there', text)
 
-    def test_an_english_reader_gets_english_first(self):
-        from crm.whats_on import body
+    def test_the_subject_and_footer_follow_the_same_language(self):
+        from crm.mail import send_marketing
+        from crm.whats_on import body, subject
 
-        contact = Contact.objects.create(email='en@example.com', locale='en')
-        text = body(self.week(), contact)
-        self.assertLess(text.index('Hi there'), text.index('Hola'))
-
-    def test_a_reader_we_know_nothing_about_gets_spanish_first(self):
-        """The club is in Playa del Carmen and 31 of 47 completed orders were made in Spanish."""
-        from crm.whats_on import body
-
-        contact = Contact.objects.create(email='unknown@example.com', locale='')
-        text = body(self.week(), contact)
-        self.assertLess(text.index('Hola'), text.index('Hi there'))
-
-    def test_both_languages_are_always_in_the_body(self):
-        from crm.whats_on import body
-
-        for locale in ('es', 'en', ''):
-            text = body(self.week(), Contact.objects.create(email=f'{locale or "x"}@example.com', locale=locale))
-            self.assertIn('Hola', text)
-            self.assertIn('Hi there', text)
-
-    def test_the_subject_follows_the_same_rule(self):
-        from io import StringIO
-
-        from django.core.management import call_command
-
-        Contact.objects.create(email='unknown2@example.com', locale='', subscribed=True)
-        out = StringIO()
-        call_command('send_whats_on', stdout=out)
-        self.assertIn('Esta semana en Iguana Comedy', out.getvalue())
+        events = self.week()
+        es = Contact.objects.create(email='es2@example.com', locale='es', subscribed=True)
+        en = Contact.objects.create(email='en2@example.com', locale='', subscribed=True)
+        send_marketing(lambda lang, contact=None: subject(events, lang),
+                       lambda lang, contact: body(events, contact),
+                       [es, en])
+        by_to = {m.to[0]: m for m in mail.outbox}
+        self.assertIn('Esta semana', by_to['es2@example.com'].subject)
+        self.assertIn('Cancelar suscripción', by_to['es2@example.com'].body)
+        self.assertIn('Unsubscribe:', by_to['en2@example.com'].body)
+        self.assertIn('This week', by_to['en2@example.com'].subject)
+        self.assertNotIn('Hola', by_to['en2@example.com'].body)
 
 
 class ReservationsBoardTests(ApiTestCase):

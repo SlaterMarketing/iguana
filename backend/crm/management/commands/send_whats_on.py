@@ -25,7 +25,7 @@ import pathlib
 
 from django.core.management.base import BaseCommand, CommandError
 
-from crm.mail import marketing_recipients, send_marketing
+from crm.mail import marketing_recipients, reader_language, send_marketing
 from crm.models import Campaign, Contact, ContactList
 from crm.whats_on import CANCUN, UNKNOWN_READS, body, subject, week_events
 
@@ -98,7 +98,7 @@ class Command(BaseCommand):
         if not opts['send']:
             sample = eligible[0] if eligible else None
             self.stdout.write('\n' + '=' * 78)
-            self.stdout.write(subject(events, getattr(sample, 'locale', '') or UNKNOWN_READS))
+            self.stdout.write(subject(events, reader_language(sample) if sample else UNKNOWN_READS))
             self.stdout.write('-' * 78)
             self.stdout.write(body(events, sample, **lede))
             self.stdout.write('=' * 78)
@@ -106,10 +106,9 @@ class Command(BaseCommand):
             return
 
         campaign = already or Campaign.objects.create(name=campaign_name, status='SENDING')
-        # The subject is the only part of a bilingual mail that cannot carry both languages, so it follows the
-        # same rule as the body: the reader's own when we know it, otherwise Spanish.
+        # `lang` is crm.mail.reader_language(contact), the same one the body and the footer use.
         sent, skipped = send_marketing(
-            lambda lang, contact=None: subject(events, getattr(contact, 'locale', '') or UNKNOWN_READS),
+            lambda lang, contact=None: subject(events, lang),
             lambda lang, contact: body(events, contact, **lede),
             contacts,
             campaign=campaign,
