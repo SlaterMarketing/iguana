@@ -262,6 +262,17 @@
       no_log: true
       changed_when: true
 
+    # The point of sale's map and its first manager. Re-runnable: creates what is missing, and never rewrites a
+    # PIN (a manager who changed theirs at /pos/personal/ keeps it).
+    - name: Point of sale setup
+      become: true
+      become_user: "{{ deploy_user }}"
+      command:
+        cmd: "{{ app_dir }}/backend/venv/bin/python manage.py pos_setup --manager {{ pos_manager_name | quote }} --pin {{ pos_manager_pin }}"
+        chdir: "{{ app_dir }}/backend"
+      no_log: true
+      changed_when: true
+
     # ------------------------------------------------------------------ site
     # `npm ci` DELETES node_modules and rebuilds it, under a Node server that is still serving and still
     # resolving Astro's imports lazily. So every deploy opened a window where a live request could throw

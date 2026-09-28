@@ -1,0 +1,66 @@
+{% extends "pos/base.html" %}
+{% block title %}Entrar · Iguana POS{% endblock %}
+{% block heading %}Acceso{% endblock %}
+{% block head %}
+<style>
+  main { display: grid; place-items: center; }
+  .pad { width: min(360px, 100%); background: #fff; border-radius: 18px; padding: 20px; border: 1px solid var(--line);
+         box-shadow: 0 20px 50px -25px rgba(0,0,0,.35); }
+  .pad h1 { text-align: center; margin-bottom: 4px; }
+  .dots { display: flex; justify-content: center; gap: 12px; margin: 14px 0 18px; min-height: 22px; }
+  .dots i { width: 16px; height: 16px; border-radius: 50%; background: #d1d5db; }
+  .dots i.on { background: var(--top2); }
+  .keys { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .keys button { min-height: 68px; border-radius: 14px; border: 1px solid var(--line); background: #f8fafc;
+                 font: 700 1.6rem/1 "DM Sans", sans-serif; cursor: pointer; }
+  .keys button:active { background: #e2e8f0; }
+  .keys .ok { background: var(--brand); color: #fff; border-color: var(--brand); font-size: 1rem; letter-spacing: .08em; }
+  .keys .del { font-size: 1rem; }
+</style>
+{% endblock %}
+{% block content %}
+<form class="pad" method="post" id="f">
+  {% csrf_token %}
+  <input type="hidden" name="next" value="{{ next }}">
+  <input type="hidden" name="pin" id="pin">
+  <h1>Escribe tu PIN</h1>
+  <p class="muted" style="text-align:center;margin:0">Cada quien con el suyo: así la cuenta sabe quién la atendió.</p>
+  {% if error %}<p class="error" style="margin-top:12px">{{ error }}</p>{% endif %}
+  {% if first_run %}<p class="error" style="margin-top:12px">Todavía no hay personal dado de alta. El administrador debe crear el primer gerente (ver el correo de instrucciones).</p>{% endif %}
+  <div class="dots" id="dots"></div>
+  <div class="keys">
+    <button type="button" data-k="1">1</button><button type="button" data-k="2">2</button><button type="button" data-k="3">3</button>
+    <button type="button" data-k="4">4</button><button type="button" data-k="5">5</button><button type="button" data-k="6">6</button>
+    <button type="button" data-k="7">7</button><button type="button" data-k="8">8</button><button type="button" data-k="9">9</button>
+    <button type="button" class="del" data-k="del">Borrar</button><button type="button" data-k="0">0</button>
+    <button type="submit" class="ok">Entrar</button>
+  </div>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    var pin = "", input = document.getElementById("pin"), dots = document.getElementById("dots");
+    function draw() {
+      dots.innerHTML = "";
+      for (var i = 0; i < Math.max(4, pin.length); i++) {
+        var d = document.createElement("i"); if (i < pin.length) d.className = "on"; dots.appendChild(d);
+      }
+      input.value = pin;
+    }
+    document.querySelectorAll("[data-k]").forEach(function (b) {
+      b.addEventListener("click", function () {
+        var k = b.getAttribute("data-k");
+        if (k === "del") pin = pin.slice(0, -1); else if (pin.length < 6) pin += k;
+        draw();
+      });
+    });
+    document.addEventListener("keydown", function (e) {
+      if (/^[0-9]$/.test(e.key) && pin.length < 6) { pin += e.key; draw(); }
+      else if (e.key === "Backspace") { pin = pin.slice(0, -1); draw(); }
+      else if (e.key === "Enter") document.getElementById("f").submit();
+    });
+    draw();
+  })();
+</script>
+{% endblock %}

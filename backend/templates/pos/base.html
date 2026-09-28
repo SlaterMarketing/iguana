@@ -1,0 +1,106 @@
+{% load static %}<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="robots" content="noindex">
+  <meta name="theme-color" content="#16233a">
+  <title>{% block title %}Iguana POS{% endblock %}</title>
+  <style>
+    @font-face { font-family: "Bebas Neue"; src: url("{% static 'fonts/bebas-neue-latin-400-normal.woff2' %}") format("woff2"); font-display: block; }
+    @font-face { font-family: "DM Sans"; src: url("{% static 'fonts/dm-sans-latin-wght-normal.woff2' %}") format("woff2"); font-weight: 100 1000; font-display: swap; }
+    /* Soft Restaurant's look, in Iguana's colours: a dark bar across the top, big square buttons, colour that
+       means something (green free, blue occupied, amber bill printed, orange a QR order waiting). */
+    :root { --top: #16233a; --top2: #22324f; --ink: #111827; --muted: #6b7280; --line: #d6dbe4; --bg: #eef1f6;
+            --brand: #3f7d3e; --brand2: #2b5c2a; --blue: #2563eb; --amber: #f59e0b; --orange: #ea580c;
+            --red: #dc2626; --free: #16a34a; --card: #fff; }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body { margin: 0; height: 100%; }
+    body { font-family: "DM Sans", system-ui, sans-serif; background: var(--bg); color: var(--ink);
+           display: flex; flex-direction: column; min-height: 100vh; }
+    a { color: inherit; }
+    .top { background: linear-gradient(180deg, var(--top2), var(--top)); color: #fff; display: flex;
+           align-items: center; gap: 12px; padding: 8px 12px; min-height: 52px; flex-wrap: wrap; }
+    .top .brand { font-family: "Bebas Neue", sans-serif; font-size: 1.6rem; letter-spacing: .04em; text-decoration: none; }
+    .top .brand b { color: #86efac; font-weight: 400; }
+    .top .title { font-family: "Bebas Neue", sans-serif; font-size: 1.35rem; letter-spacing: .04em; opacity: .9; }
+    .top .grow { flex: 1 1 auto; }
+    .chip { display: inline-flex; align-items: center; gap: 6px; background: rgba(255,255,255,.12); border-radius: 999px;
+            padding: 6px 12px; font-size: .8rem; font-weight: 600; white-space: nowrap; }
+    .chip.warn { background: #fef3c7; color: #92400e; }
+    .chip.ok { background: rgba(134,239,172,.2); }
+    .top a.chip { text-decoration: none; }
+    main { flex: 1 1 auto; padding: 14px; width: 100%; }
+    .page { max-width: 1200px; margin: 0 auto; }
+    h1, h2, h3 { font-family: "Bebas Neue", sans-serif; font-weight: 400; letter-spacing: .02em; margin: 0 0 10px; }
+    h1 { font-size: 2rem; } h2 { font-size: 1.5rem; } h3 { font-size: 1.2rem; }
+    .muted { color: var(--muted); }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; }
+    .grid { display: grid; gap: 12px; }
+    .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 48px;
+           padding: 0 18px; border: 0; border-radius: 10px; background: var(--top2); color: #fff; cursor: pointer;
+           font: 700 .85rem/1.1 "DM Sans", sans-serif; letter-spacing: .04em; text-transform: uppercase;
+           text-decoration: none; text-align: center; }
+    .btn:active { transform: translateY(1px); }
+    .btn.green { background: var(--brand); } .btn.blue { background: var(--blue); }
+    .btn.amber { background: var(--amber); color: #111; } .btn.red { background: var(--red); }
+    .btn.orange { background: var(--orange); }
+    .btn.ghost { background: #fff; color: var(--ink); border: 1px solid var(--line); }
+    .btn.small { min-height: 40px; padding: 0 12px; font-size: .75rem; }
+    .btn[disabled] { opacity: .45; cursor: not-allowed; }
+    input, select, textarea { font: inherit; padding: 11px 12px; border: 1px solid #b8c0cc; border-radius: 10px;
+                              background: #fff; min-height: 46px; width: 100%; }
+    label { display: grid; gap: 5px; font-size: .8rem; font-weight: 700; color: #374151; }
+    table.t { width: 100%; border-collapse: collapse; background: #fff; }
+    table.t th, table.t td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: left; font-size: .9rem; }
+    table.t th { background: #f3f5f9; font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; color: #4b5563; }
+    table.t td.num, table.t th.num { text-align: right; white-space: nowrap; }
+    .scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .error { background: #fee2e2; color: #991b1b; border-radius: 10px; padding: 10px 12px; font-weight: 600; }
+    .ok { background: #dcfce7; color: #166534; border-radius: 10px; padding: 10px 12px; font-weight: 600; }
+    .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+    .tabs a { padding: 10px 14px; border-radius: 10px; background: #fff; border: 1px solid var(--line);
+              text-decoration: none; font-weight: 700; font-size: .8rem; text-transform: uppercase; letter-spacing: .04em; min-height: 44px; display: inline-flex; align-items: center; }
+    .tabs a.on { background: var(--top2); color: #fff; border-color: var(--top2); }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: .7rem; font-weight: 700; }
+    .badge.low { background: #fee2e2; color: #991b1b; } .badge.okb { background: #dcfce7; color: #166534; }
+    @media (max-width: 520px) { main { padding: 10px; } .top .title { display: none; } }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="/pos/">IGUANA <b>POS</b></a>
+    <span class="title">{% block heading %}{% endblock %}</span>
+    <span class="grow"></span>
+    {% if staff %}
+      {% if shift %}<a class="chip ok" href="/pos/caja/">Caja abierta</a>{% else %}<a class="chip warn" href="/pos/caja/">Caja cerrada</a>{% endif %}
+      <span class="chip">{{ staff.name }} · {{ staff.get_role_display }}</span>
+      <span class="chip" id="clock"></span>
+      <a class="chip" href="/pos/salir/">Cambiar usuario</a>
+    {% endif %}
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+  <script>
+    (function () {
+      var c = document.getElementById("clock");
+      function tick() { if (c) c.textContent = new Date().toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" }); }
+      tick(); setInterval(tick, 20000);
+    })();
+    window.POS = {
+      csrf: "{{ csrf_token }}",
+      post: function (url, body) {
+        return fetch(url, { method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": POS.csrf },
+                            body: JSON.stringify(body || {}), credentials: "same-origin" })
+          .then(function (r) { return r.json().then(function (d) { if (r.status === 401 && d.pin) location = "/pos/entrar/?next=" + encodeURIComponent(location.pathname); if (!r.ok) throw new Error(d.error || "Error"); return d; }); });
+      },
+      money: function (c) { return "$" + (c / 100).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); },
+      printJobs: function (jobs) {
+        (jobs || []).forEach(function (j) { if (j.browser) window.open("/pos/imprimir/" + j.id + "/?auto=1", "_blank", "width=420,height=640"); });
+      }
+    };
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,11 @@
+{% extends "pos/base.html" %}
+{% block heading %}Impresiones pendientes{% endblock %}
+{% block content %}
+<div class="page grid">
+  <h1>Tickets por imprimir desde la tableta</h1>
+  <p class="muted">Aparecen aquí cuando no hay impresora configurada para ese tipo de ticket.</p>
+  <div class="scroll"><table class="t"><tr><th>Hora</th><th>Ticket</th><th></th></tr>
+  {% for j in jobs %}<tr><td>{{ j.created_at|time:"H:i" }}</td><td>{{ j.title }}</td><td><a class="btn small" href="/pos/imprimir/{{ j.id }}/?auto=1" target="_blank">Imprimir</a></td></tr>
+  {% empty %}<tr><td colspan="3" class="muted">Nada pendiente.</td></tr>{% endfor %}</table></div>
+</div>
+{% endblock %}

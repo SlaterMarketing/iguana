@@ -1,0 +1,21 @@
+{% extends "pos/base.html" %}{% load pos_extras %}
+{% block heading %}Corte de caja{% endblock %}
+{% block content %}
+<div class="page grid">
+  <div class="row" style="justify-content:space-between"><h1>Corte · {{ s.shift.opened_at|date:"d/m/Y H:i" }}{% if s.shift.closed_at %} a {{ s.shift.closed_at|date:"H:i" }}{% endif %}</h1>
+    <div class="row">{% if job %}<a class="btn" target="_blank" href="/pos/imprimir/{{ job.id }}/?auto=1">Imprimir</a>{% endif %}<a class="btn ghost" href="/pos/caja/">◀ Caja</a></div></div>
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(170px,1fr))">
+    <div class="card"><p class="muted">Venta</p><h1>{{ s.sales|pesos }}</h1></div>
+    <div class="card"><p class="muted">Propinas</p><h1>{{ s.tips|pesos }}</h1></div>
+    <div class="card"><p class="muted">Efectivo esperado</p><h1>{{ s.expected_cash|pesos }}</h1></div>
+    <div class="card"><p class="muted">Efectivo contado</p><h1>{{ s.counted_cash|pesos }}</h1></div>
+    <div class="card" style="{% if s.cash_difference %}background:#fee2e2{% else %}background:#dcfce7{% endif %}"><p class="muted">Diferencia</p><h1>{{ s.cash_difference|pesos }}</h1></div>
+  </div>
+  <div class="card scroll"><table class="t"><tr><th>Forma de pago</th><th class="num">Cobros</th><th class="num">Venta</th><th class="num">Propinas</th></tr>
+    {% for m in s.methods %}{% if m.count %}<tr><td>{{ m.label }}</td><td class="num">{{ m.count }}</td><td class="num">{{ m.amount|pesos }}</td><td class="num">{{ m.tips|pesos }}</td></tr>{% endif %}{% endfor %}</table>
+    {% if s.counted_card is not None %}<p>Vouchers de terminal: esperado {{ s.expected_card|pesos }}, contado {{ s.counted_card|pesos }}.</p>{% endif %}</div>
+  <div class="card scroll"><h3>Cancelaciones ({{ s.void_cents|pesos }})</h3><table class="t">{% for v in s.voids %}<tr><td>{{ v.voided_at|time:"H:i" }}</td><td>{{ v.quantity }} × {{ v.name }}</td><td>{{ v.get_void_reason_display }} {{ v.void_note }}</td><td>{{ v.voided_by.name }}</td></tr>{% empty %}<tr><td class="muted">Ninguna.</td></tr>{% endfor %}</table></div>
+  <div class="card scroll"><h3>Descuentos ({{ s.discount_cents|pesos }})</h3><table class="t">{% for c in s.discounts %}<tr><td>Cuenta {{ c.folio }}</td><td>{{ c.discount_reason }}</td><td>{{ c.discount_by.name }}</td><td class="num">{{ c.discount_cents|pesos }}</td></tr>{% empty %}<tr><td class="muted">Ninguno.</td></tr>{% endfor %}</table></div>
+  {% if s.shift.note %}<p>Nota: {{ s.shift.note }}</p>{% endif %}
+</div>
+{% endblock %}

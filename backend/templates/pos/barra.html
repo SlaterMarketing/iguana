@@ -1,0 +1,33 @@
+{% extends "pos/base.html" %}
+{% block title %}Comandas · Iguana POS{% endblock %}
+{% block heading %}Comandas de barra{% endblock %}
+{% block head %}
+<meta http-equiv="refresh" content="15">
+<style>
+  .kds { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .ko { background: #fff; border-radius: 12px; border: 2px solid var(--line); display: flex; flex-direction: column; }
+  .ko header { background: var(--top2); color: #fff; padding: 8px 10px; border-radius: 10px 10px 0 0; display: flex; justify-content: space-between; font-weight: 800; }
+  .ko.late header { background: var(--red); }
+  .ko ul { list-style: none; margin: 0; padding: 8px 10px; flex: 1; }
+  .ko li { padding: 5px 0; border-bottom: 1px dashed var(--line); font-size: 1.05rem; font-weight: 700; }
+  .ko li small { display: block; font-weight: 500; color: var(--orange); font-size: .8rem; }
+  .ko form { padding: 8px; }
+</style>
+{% endblock %}
+{% block content %}
+<div class="page grid">
+  <div class="row" style="justify-content:space-between"><h1>Por preparar ({{ rows|length }})</h1><a class="btn ghost" href="/pos/">◀ Mesas</a></div>
+  <div class="kds">
+    {% for r in rows %}
+      <div class="ko {% if r.minutes >= 10 %}late{% endif %}">
+        <header><span>#{{ r.c.number }} · {{ r.c.cuenta.where }}</span><span>{{ r.minutes }}′</span></header>
+        <ul>{% for l in r.lines %}<li>{{ l.quantity }} × {{ l.name }}{% for m in l.modifiers %}<small>+ {{ m.name }}</small>{% endfor %}{% if l.note %}<small>* {{ l.note }}</small>{% endif %}</li>{% endfor %}</ul>
+        <p class="muted" style="margin:0 10px;font-size:.8rem">{{ r.c.created_by.name|default:"Cliente (QR)" }} · {{ r.c.created_at|time:"H:i" }}</p>
+        <form method="post">{% csrf_token %}<input type="hidden" name="comanda" value="{{ r.c.id }}"><button class="btn green" style="width:100%">Listo, entregado</button></form>
+      </div>
+    {% empty %}<p class="muted">No hay comandas pendientes.</p>{% endfor %}
+  </div>
+  {% if done %}<h2>Entregadas hace poco</h2>
+    <div class="row">{% for c in done %}<form method="post">{% csrf_token %}<input type="hidden" name="comanda" value="{{ c.id }}"><input type="hidden" name="undo" value="1"><button class="btn small ghost">#{{ c.number }} {{ c.cuenta.where }} · deshacer</button></form>{% endfor %}</div>{% endif %}
+</div>
+{% endblock %}

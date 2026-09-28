@@ -1,0 +1,17 @@
+{% extends "pos/base.html" %}
+{% block heading %}Insumo{% endblock %}
+{% block content %}
+<div class="page grid">
+  {% with tab='insumo' %}{% include "pos/_invtabs.html" %}{% endwith %}
+  <form method="post" class="card grid" style="max-width:520px">{% csrf_token %}
+    <h2>{% if item.pk %}Editar {{ item.name }}{% else %}Nuevo insumo{% endif %}</h2>
+    <label>Nombre<input name="name" value="{{ item.name }}" required></label>
+    <label>Unidad (botella, caja, kg, pieza)<input name="unit" value="{{ item.unit }}"></label>
+    <label>Área<select name="area">{% for code, name in areas %}<option value="{{ code }}" {% if item.area == code %}selected{% endif %}>{{ name }}</option>{% endfor %}</select></label>
+    <label>Pedir cuando queden (0 = nunca avisar)<input name="par" inputmode="decimal" value="{{ item.par|default:0 }}"></label>
+    {% if not item.pk %}<label>Cantidad que hay ahora<input name="quantity" inputmode="decimal" value="0"></label>{% endif %}
+    {% if item.pk %}<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="active" {% if item.active %}checked{% endif %} style="width:22px;min-height:22px"> Activo (desmárcalo para archivarlo)</label>{% else %}<input type="hidden" name="active" value="on">{% endif %}
+    <button class="btn green">Guardar</button>
+  </form>
+</div>
+{% endblock %}

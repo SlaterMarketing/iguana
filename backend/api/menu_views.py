@@ -91,15 +91,46 @@ def table_order(request):
     if not items:
         return JsonResponse({'error': tr(lang, 'Those items are not available right now.')}, status=400)
 
-    order = create_round(table, quantities, items, lang=lang, note=str(body.get('note') or ''),
-                         guest_name=str(body.get('name') or ''))
+    # Since 2026-09-28 a QR round lands on the table's check in the point of sale (pos.services), UNSENT, so the
+    # waiter confirms it and sends it to the bar; the map flashes the table orange until they do.
+    from django.db import transaction as _tx
+
+    from pos.services import PosError, customer_order
+
+    try:
+        with _tx.atomic():
+            cuenta, lines = customer_order(table, quantities, note=str(body.get('note') or ''),
+                                           name=str(body.get('name') or ''))
+    except PosError:
+        return JsonResponse({'error': tr(lang, 'Those items are not available right now.')}, status=400)
+    total = sum(l.total_cents for l in lines)
+    _notify_pos_order(table, lines, total, str(body.get('note') or ''))
     return JsonResponse({
-        'id': order.id,
-        'table': order.table_number,
-        'totalCents': order.total_cents,
-        'currency': order.currency.upper(),
+        'id': cuenta.id,
+        'table': table,
+        'totalCents': total,
+        'currency': 'MXN',
         'message': tr(lang, 'Order sent to the bar. Someone will bring it to table {0}.', str(table)),
     })
+
+
+def _notify_pos_order(table, lines, total, note):
+    """The bar's email for a QR order, now pointing at the point of sale."""
+    if not settings.NOTIFY_EMAILS or not lines:
+        return 0
+    from django.core.mail import EmailMessage
+
+    summary = ', '.join(f'{l.quantity} {l.name}' for l in lines)
+    body = [f'Table {table}', f'Ordered: {summary}', f'Total: {format_money(total, "mxn")}',
+            'Confirm and send it from the point of sale.']
+    if note:
+        body += ['', f'Note: {note}']
+    body += ['', f'{public_base()}/pos/']
+    try:
+        return EmailMessage(f'Table {table}: {summary}'[:150], '\n'.join(body), settings.DEFAULT_FROM_EMAIL,
+                            list(settings.NOTIFY_EMAILS)).send(fail_silently=True)
+    except Exception:
+        return 0
 
 
 # How far past the tables we have a number may reach and still be believed. A club adds a table or two at a

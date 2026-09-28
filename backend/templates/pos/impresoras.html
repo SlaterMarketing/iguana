@@ -1,0 +1,28 @@
+{% extends "pos/base.html" %}
+{% block heading %}Impresoras{% endblock %}
+{% block content %}
+<div class="page grid">
+  {% with tab='impresoras' %}{% include "pos/_setuptabs.html" %}{% endwith %}
+  <div class="card grid">
+    <h2>Cómo funciona</h2>
+    <p>El sistema vive en internet, así que la impresora es la que viene a buscar sus tickets cada pocos segundos. Funciona con <strong>Epson TM-m30II / TM-m30III</strong> (Server Direct Print) o <strong>Star</strong> con CloudPRNT, conectadas al wifi o al cable del bar. Recomendada: <strong>Epson TM-m30III</strong>.</p>
+    <ol>
+      <li>Agrega la impresora aquí (una para comandas en barra, otra para tickets en caja, o la misma para las dos).</li>
+      <li>Abre la configuración web de la impresora (su IP en el navegador), busca <em>Server Direct Print</em> (Epson) o <em>CloudPRNT</em> (Star), actívalo y pega la URL de abajo. Intervalo: 5 segundos.</li>
+      <li>Presiona <em>Prueba</em>: en unos segundos debe salir el ticket.</li>
+    </ol>
+    <p class="muted">Mientras no haya impresora, cada comanda y cuenta se abre en la tableta para imprimir desde ahí, y queda en <a href="/pos/imprimir/">Impresiones pendientes</a>.</p>
+  </div>
+  <form method="post" class="card row">{% csrf_token %}<input type="hidden" name="action" value="add">
+    <input name="name" placeholder="Nombre (Barra, Caja)" style="flex:2">
+    <select name="role" style="flex:1"><option value="COMANDA">Comandas (barra)</option><option value="TICKET">Tickets (caja)</option></select>
+    <select name="protocol" style="flex:1"><option value="EPSON">Epson</option><option value="STAR">Star</option></select>
+    <button class="btn green">Agregar</button></form>
+  <div class="card scroll" style="padding:0"><table class="t"><tr><th>Impresora</th><th>Imprime</th><th>URL para la impresora</th><th>Última conexión</th><th></th></tr>
+    {% for r in printers %}<tr style="{% if not r.p.active %}opacity:.5{% endif %}"><td><strong>{{ r.p.name }}</strong><br><span class="muted">{{ r.p.get_protocol_display }}</span></td><td>{{ r.p.get_role_display }}</td>
+      <td style="word-break:break-all;font-family:monospace;font-size:.8rem">{{ r.url }}</td><td>{{ r.p.last_seen_at|date:"d/m H:i:s"|default:"nunca" }}</td>
+      <td class="row"><form method="post">{% csrf_token %}<input type="hidden" name="action" value="test"><input type="hidden" name="printer" value="{{ r.p.pk }}"><button class="btn small">Prueba</button></form>
+        <form method="post">{% csrf_token %}<input type="hidden" name="action" value="toggle"><input type="hidden" name="printer" value="{{ r.p.pk }}"><button class="btn small ghost">{% if r.p.active %}Desactivar{% else %}Activar{% endif %}</button></form></td></tr>
+    {% empty %}<tr><td colspan="5" class="muted">Ninguna impresora todavía.</td></tr>{% endfor %}</table></div>
+</div>
+{% endblock %}

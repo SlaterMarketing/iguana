@@ -1,0 +1,7 @@
+<nav class="tabs">
+  <a href="/pos/inventario/" class="{% if tab == 'stock' %}on{% endif %}">Existencias</a>
+  <a href="/pos/inventario/compras/" class="{% if tab == 'compras' %}on{% endif %}">Compras</a>
+  <a href="/pos/inventario/conteo/" class="{% if tab == 'conteo' %}on{% endif %}">Inventario físico</a>
+  {% if staff.is_manager %}<a href="/pos/inventario/insumo/" class="{% if tab == 'insumo' %}on{% endif %}">+ Nuevo insumo</a><a href="/pos/productos/">Recetas</a>{% endif %}
+  <a href="/pos/">◀ Mesas</a>
+</nav>

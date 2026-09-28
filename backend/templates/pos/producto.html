@@ -1,0 +1,31 @@
+{% extends "pos/base.html" %}{% load pos_extras %}
+{% block heading %}Producto{% endblock %}
+{% block content %}
+<div class="page grid">
+  {% with tab='productos' %}{% include "pos/_setuptabs.html" %}{% endwith %}
+  {% if ok %}<p class="ok">Guardado. El cambio de precio aplica a lo que se pida desde ahora.</p>{% endif %}
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(320px,1fr))">
+    <form method="post" class="card grid">{% csrf_token %}<input type="hidden" name="action" value="save">
+      <h2>{% if item.pk %}{{ item.label }}{% else %}Nuevo producto{% endif %}</h2>
+      <label>Nombre<input name="name" value="{{ item.name_es|default:item.name }}" required></label>
+      <label>Precio en pesos<input name="price" inputmode="decimal" value="{% if item.pk %}{{ item.price_cents|pesos|slice:'1:' }}{% endif %}" required></label>
+      <label>Categoría<select name="category">{% for c in categories %}<option value="{{ c.pk }}" {% if item.category_id == c.pk %}selected{% endif %}>{{ c.label }}</option>{% endfor %}</select></label>
+      <label>Descripción (carta del cliente)<input name="description" value="{{ item.description_es|default:item.description }}"></label>
+      <label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="available" {% if item.available or not item.pk %}checked{% endif %} style="width:22px;min-height:22px"> Disponible</label>
+      {% if groups %}<fieldset style="border:1px solid var(--line);border-radius:10px"><legend>Modificadores que pregunta</legend>{% for g in groups %}<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="groups" value="{{ g.pk }}" {% if g.pk in chosen %}checked{% endif %} style="width:22px;min-height:22px"> {{ g.name }}</label>{% endfor %}</fieldset>{% endif %}
+      <button class="btn green">Guardar</button>
+    </form>
+    {% if item.pk %}
+    <div class="card grid">
+      <h2>Receta (lo que descuenta del inventario)</h2>
+      <p class="muted">Por UNA venta. Un tequila de 1.5 oz de una botella de 750 ml son 0.06 botellas. Sin receta, venderlo no descuenta nada.</p>
+      <table class="t">{% for ing in ingredients %}<tr><td>{{ ing.quantity|qty }} {{ ing.inventory_item.unit }} {{ ing.inventory_item.name }}</td><td><form method="post">{% csrf_token %}<input type="hidden" name="action" value="unlink"><input type="hidden" name="ingredient" value="{{ ing.pk }}"><button class="btn small ghost">Quitar</button></form></td></tr>{% empty %}<tr><td class="muted">Sin receta.</td></tr>{% endfor %}</table>
+      <form method="post" class="row">{% csrf_token %}<input type="hidden" name="action" value="ingredient">
+        <select name="inventory" style="flex:2">{% for i in inventory %}<option value="{{ i.pk }}">{{ i.name }} ({{ i.unit }})</option>{% endfor %}</select>
+        <input name="quantity" inputmode="decimal" placeholder="cantidad" style="flex:1"><button class="btn">Agregar</button></form>
+      {% if cost %}<p>Costo por receta: <strong>{{ cost|pesos }}</strong> · margen <strong>{{ margin|pesos }}</strong></p>{% endif %}
+    </div>{% endif %}
+  </div>
+</div>
+{% endblock %}

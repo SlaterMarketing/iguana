@@ -1,0 +1,14 @@
+{% extends "pos/base.html" %}
+{% block heading %}Inventario físico{% endblock %}
+{% block content %}
+<div class="page grid">
+  {% with tab='conteo' %}{% include "pos/_invtabs.html" %}{% endwith %}
+  <form method="post" class="card grid" style="max-width:520px">{% csrf_token %}
+    <h2>Nuevo inventario físico</h2>
+    <p class="muted">Genera una hoja con todo lo que el sistema cree que hay. Cuenten, escriban lo que encontraron y al aplicar se corrige todo de una vez, con la diferencia registrada.</p>
+    <button class="btn green">Empezar conteo</button></form>
+  <div class="card scroll"><table class="t"><tr><th>Fecha</th><th>Quién</th><th>Estado</th><th></th></tr>
+    {% for c in counts %}<tr><td>{{ c.created_at|date:"d/m/Y H:i" }}</td><td>{{ c.by.name|default:"" }}</td><td>{% if c.status == 'OPEN' %}En proceso{% else %}Aplicado {{ c.applied_at|date:"d/m H:i" }}{% endif %}</td><td><a class="btn small ghost" href="/pos/inventario/conteo/{{ c.id }}/">Abrir</a></td></tr>
+    {% empty %}<tr><td colspan="4" class="muted">Ninguno todavía.</td></tr>{% endfor %}</table></div>
+</div>
+{% endblock %}

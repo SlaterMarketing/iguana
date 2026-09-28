@@ -1,0 +1,450 @@
+{% extends "pos/base.html" %}
+{% block title %}Cuenta {{ cuenta.folio }} · Iguana POS{% endblock %}
+{% block heading %}Captura{% endblock %}
+{% block head %}
+<style>
+  main { padding: 0; display: flex; flex-direction: column; min-height: 0; }
+  .bar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px 10px; background: #dfe4ec;
+         border-bottom: 1px solid var(--line); font-size: .85rem; }
+  .bar b { font-family: "Bebas Neue", sans-serif; font-size: 1.3rem; font-weight: 400; letter-spacing: .03em; }
+  .bar .f { background: #fff; border-radius: 8px; padding: 6px 10px; border: 1px solid var(--line); }
+  .bar button.f { cursor: pointer; font: inherit; min-height: 40px; }
+  .work { display: grid; grid-template-columns: minmax(300px, 40%) 1fr; flex: 1 1 auto; min-height: 0; }
+  /* Left: the check, as Soft Restaurant draws it. */
+  .ticket { display: flex; flex-direction: column; border-right: 1px solid var(--line); background: #fff; min-height: 0; }
+  .lines { flex: 1 1 auto; overflow-y: auto; min-height: 220px; }
+  .lines table { width: 100%; border-collapse: collapse; }
+  .lines th { position: sticky; top: 0; background: var(--top2); color: #fff; font-size: .7rem; letter-spacing: .08em;
+              text-transform: uppercase; padding: 8px; text-align: left; }
+  .lines td { padding: 9px 8px; border-bottom: 1px solid #edf0f4; font-size: .92rem; vertical-align: top; cursor: pointer; }
+  .lines td.q { width: 42px; text-align: center; font-weight: 800; }
+  .lines td.m { text-align: right; white-space: nowrap; width: 90px; font-weight: 700; }
+  .lines tr.new td { background: #fffbeb; }
+  .lines tr.qr td { background: #ffedd5; }
+  .lines tr.sel td { background: #dbeafe !important; }
+  .lines tr.void td { color: #b91c1c; text-decoration: line-through; background: #fff5f5; }
+  .lines .sub { display: block; font-size: .75rem; color: var(--muted); text-decoration: none; }
+  .lines .tag { font-size: .62rem; font-weight: 800; letter-spacing: .06em; padding: 1px 6px; border-radius: 99px; margin-left: 4px; vertical-align: 1px; }
+  .lines .tag.n { background: #fde68a; } .lines .tag.o { background: #fdba74; } .lines .tag.s { background: #dcfce7; color: #166534; }
+  .linetools { display: none; gap: 6px; padding: 8px; background: #eff6ff; border-top: 1px solid #bfdbfe; flex-wrap: wrap; }
+  .linetools.on { display: flex; }
+  .linetools .btn { flex: 1 1 auto; }
+  .totals { padding: 10px 12px; border-top: 2px solid var(--top2); background: #f8fafc; }
+  .totals div { display: flex; justify-content: space-between; font-size: .95rem; padding: 2px 0; }
+  .totals .big { font-family: "Bebas Neue", sans-serif; font-size: 2rem; line-height: 1.1; }
+  .totals .due { color: var(--red); font-weight: 800; }
+  /* Right: categories and products, big enough for a thumb. */
+  .menu { display: grid; grid-template-rows: auto 1fr; min-height: 0; background: var(--bg); }
+  .cats { display: flex; gap: 6px; padding: 8px; overflow-x: auto; background: #e5e9f0; border-bottom: 1px solid var(--line); }
+  .cats button { flex: 0 0 auto; min-height: 50px; padding: 0 16px; border-radius: 10px; border: 0; cursor: pointer;
+                 font: 800 .8rem "DM Sans", sans-serif; text-transform: uppercase; letter-spacing: .05em; color: #fff; }
+  .cats button.on { outline: 3px solid #111; outline-offset: -3px; }
+  .items { display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 8px; padding: 10px;
+           overflow-y: auto; align-content: start; }
+  .items button { min-height: 92px; border-radius: 12px; border: 0; cursor: pointer; color: #fff; padding: 8px;
+                  display: flex; flex-direction: column; justify-content: space-between; align-items: flex-start;
+                  text-align: left; font: 700 .9rem/1.15 "DM Sans", sans-serif; box-shadow: 0 4px 10px -6px rgba(0,0,0,.45); }
+  .items button .p { font-family: "Bebas Neue", sans-serif; font-size: 1.25rem; font-weight: 400; }
+  .items button:active { transform: scale(.97); }
+  .fkeys { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 6px; padding: 8px; background: var(--top); }
+  .fkeys button, .fkeys a { min-height: 58px; border-radius: 10px; border: 0; color: #fff; background: var(--top2); cursor: pointer;
+           font: 800 .78rem "DM Sans", sans-serif; text-transform: uppercase; letter-spacing: .04em; display: flex;
+           align-items: center; justify-content: center; text-align: center; text-decoration: none; padding: 4px; }
+  .fkeys .send { background: var(--brand); } .fkeys .pay { background: var(--blue); } .fkeys .bill { background: var(--amber); color: #111; }
+  .fkeys .danger { background: #7f1d1d; }
+  .mobiletabs { display: none; }
+  dialog { border: 0; border-radius: 16px; padding: 16px; width: min(460px, 96vw); max-height: 92vh; }
+  dialog::backdrop { background: rgba(0,0,0,.5); }
+  dialog h2 { margin-bottom: 8px; }
+  .opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 6px; }
+  .opts button { min-height: 50px; border-radius: 10px; border: 1px solid var(--line); background: #fff; font: 700 .85rem "DM Sans", sans-serif; cursor: pointer; }
+  .opts button.on { background: var(--top2); color: #fff; border-color: var(--top2); }
+  .methods { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 6px; }
+  .methods button { min-height: 58px; border-radius: 10px; border: 2px solid var(--line); background: #fff; font: 800 .78rem "DM Sans", sans-serif; text-transform: uppercase; cursor: pointer; }
+  .methods button.on { border-color: var(--blue); background: #eff6ff; }
+  .bills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .bills button { min-height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: #f8fafc; font-weight: 800; cursor: pointer; }
+  .change { font-family: "Bebas Neue", sans-serif; font-size: 1.8rem; }
+  .qr svg { width: 220px; height: 220px; display: block; margin: 0 auto; }
+  .msg { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); background: #111; color: #fff; padding: 12px 18px;
+         border-radius: 12px; font-weight: 700; z-index: 50; max-width: 90vw; }
+  .msg.err { background: var(--red); }
+  @media (max-width: 820px) {
+    .work { grid-template-columns: 1fr; }
+    .mobiletabs { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px 8px; background: #dfe4ec; }
+    .mobiletabs button { min-height: 44px; border-radius: 10px; border: 1px solid var(--line); background: #fff; font-weight: 800; text-transform: uppercase; font-size: .8rem; }
+    .mobiletabs button.on { background: var(--top2); color: #fff; }
+    .work[data-show="menu"] .ticket, .work[data-show="ticket"] .menu { display: none; }
+    .lines { min-height: 180px; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+<div class="bar">
+  <b id="h-where"></b>
+  <span class="f">Folio <strong id="h-folio"></strong></span>
+  <span class="f">Mesero: <strong id="h-waiter"></strong></span>
+  <button class="f" type="button" id="h-guests"></button>
+  <span class="f">Abierta <strong id="h-open"></strong></span>
+  <span class="f" id="h-status"></span>
+</div>
+<div class="mobiletabs"><button type="button" class="on" data-tab="menu">Productos</button><button type="button" data-tab="ticket">Cuenta <span id="mt-total"></span></button></div>
+<div class="work" id="work" data-show="menu">
+  <section class="ticket">
+    <div class="lines"><table><thead><tr><th>Cant</th><th>Descripción</th><th style="text-align:right">Importe</th></tr></thead><tbody id="lines"></tbody></table></div>
+    <div class="linetools" id="tools">
+      <button class="btn small ghost" data-t="minus" type="button">−</button>
+      <button class="btn small ghost" data-t="plus" type="button">+</button>
+      <button class="btn small ghost" data-t="note" type="button">Nota</button>
+      <button class="btn small red" data-t="void" type="button">Cancelar</button>
+    </div>
+    <div class="totals">
+      <div><span>Subtotal</span><span id="t-sub"></span></div>
+      <div id="t-disc-row"><span id="t-disc-lab">Descuento</span><span id="t-disc"></span></div>
+      <div class="big"><span>Total</span><span id="t-total"></span></div>
+      <div id="t-paid-row"><span>Pagado</span><span id="t-paid"></span></div>
+      <div id="t-due-row" class="due"><span>Por pagar</span><span id="t-due"></span></div>
+    </div>
+  </section>
+  <section class="menu">
+    <div class="cats" id="cats"></div>
+    <div class="items" id="items"></div>
+  </section>
+</div>
+<nav class="fkeys" id="fkeys">
+  <a href="/pos/">◀ Mesas</a>
+  <button type="button" class="send" data-f="send">Enviar</button>
+  <button type="button" class="bill" data-f="bill">Cuenta</button>
+  <button type="button" class="pay" data-f="pay">Cobrar</button>
+  <button type="button" data-f="discount">Descuento</button>
+  <button type="button" data-f="split">Dividir</button>
+  <button type="button" data-f="move">Cambiar mesa</button>
+  <button type="button" data-f="join">Juntar</button>
+  <button type="button" data-f="phone">Pago celular</button>
+  <button type="button" class="danger" data-f="cancel">Cancelar cuenta</button>
+</nav>
+
+<dialog id="d-mods"><h2 id="mods-title"></h2><div id="mods-body"></div>
+  <label style="margin-top:10px">Nota para barra<input id="mods-note" placeholder="sin hielo, doble..."></label>
+  <div class="row" style="margin-top:12px"><button class="btn green" id="mods-ok" type="button">Agregar</button><button class="btn ghost" type="button" data-close>Cancelar</button></div></dialog>
+
+<dialog id="d-note"><h2>Nota del producto</h2><input id="note-text" placeholder="sin hielo, michelada..."><div class="row" style="margin-top:12px"><button class="btn green" id="note-ok" type="button">Guardar</button><button class="btn ghost" type="button" data-close>Cancelar</button></div></dialog>
+
+<dialog id="d-void"><h2>Cancelar producto</h2><p class="muted" id="void-what"></p>
+  <div class="opts" id="void-reasons">
+    <button type="button" data-r="NOT_MADE" class="on">No se preparó</button>
+    <button type="button" data-r="WASTED">Se preparó y se tiró</button>
+    <button type="button" data-r="MISTAKE">Error de captura</button>
+  </div>
+  <label style="margin-top:10px">Motivo<input id="void-note" placeholder="el cliente no lo quiso..."></label>
+  <label class="mgr" style="margin-top:10px">PIN del gerente<input id="void-pin" type="password" inputmode="numeric" autocomplete="off"></label>
+  <div class="row" style="margin-top:12px"><button class="btn red" id="void-ok" type="button">Cancelar producto</button><button class="btn ghost" type="button" data-close>Volver</button></div></dialog>
+
+<dialog id="d-disc"><h2>Descuento</h2>
+  <div class="opts" id="disc-pcts"><button type="button" data-p="10">10%</button><button type="button" data-p="15">15%</button><button type="button" data-p="20">20%</button><button type="button" data-p="50">50%</button><button type="button" data-p="100">100%</button><button type="button" data-p="0">Quitar</button></div>
+  <label style="margin-top:10px">O un monto en pesos<input id="disc-amount" inputmode="decimal" placeholder="0.00"></label>
+  <label style="margin-top:10px">Motivo<input id="disc-reason" placeholder="cumpleaños, cortesía de la casa..."></label>
+  <label class="mgr" style="margin-top:10px">PIN del gerente<input id="disc-pin" type="password" inputmode="numeric" autocomplete="off"></label>
+  <div class="row" style="margin-top:12px"><button class="btn green" id="disc-ok" type="button">Aplicar</button><button class="btn ghost" type="button" data-close>Volver</button></div></dialog>
+
+<dialog id="d-move"><h2>Cambiar de mesa</h2><p class="muted">Si la mesa ya tiene cuenta, se juntan.</p><div class="opts" id="move-list"></div><div class="row" style="margin-top:12px"><button class="btn ghost" type="button" data-close>Volver</button></div></dialog>
+
+<dialog id="d-join"><h2>Juntar con otra cuenta</h2><p class="muted">Los productos y pagos de la otra cuenta pasan a esta.</p><div class="opts" id="join-list"></div><div class="row" style="margin-top:12px"><button class="btn ghost" type="button" data-close>Volver</button></div></dialog>
+
+<dialog id="d-split"><h2>Dividir cuenta</h2><p class="muted">Marca lo que pasa a una cuenta aparte (por ejemplo, lo que paga una persona). Para dividir en partes iguales, cobra por partes en Cobrar.</p><div id="split-list" class="grid" style="gap:6px"></div>
+  <div class="row" style="margin-top:12px"><button class="btn green" id="split-ok" type="button">Separar</button><button class="btn ghost" type="button" data-close>Volver</button></div></dialog>
+
+<dialog id="d-cancel"><h2>Cancelar la cuenta</h2><p class="muted">Se cancelan todos los productos. Lo que ya se envió regresa al inventario como no preparado.</p>
+  <label>Motivo<input id="cancel-reason" placeholder="se fueron sin consumir..."></label>
+  <label class="mgr" style="margin-top:10px">PIN del gerente<input id="cancel-pin" type="password" inputmode="numeric" autocomplete="off"></label>
+  <div class="row" style="margin-top:12px"><button class="btn red" id="cancel-ok" type="button">Cancelar cuenta</button><button class="btn ghost" type="button" data-close>Volver</button></div></dialog>
+
+<dialog id="d-guests"><h2>Personas en la mesa</h2><div class="opts" id="guest-opts"></div><div class="row" style="margin-top:12px"><button class="btn ghost" type="button" data-close>Volver</button></div></dialog>
+
+<dialog id="d-phone"><h2>Pago con celular</h2><p class="muted">El cliente escanea y paga con tarjeta en su teléfono, con propina. La cuenta se cierra sola cuando pasa el pago.</p>
+  <div class="qr">{{ pay_qr|safe }}</div><p style="text-align:center;word-break:break-all;font-size:.8rem" id="phone-url"></p>
+  <div class="row" style="margin-top:12px"><button class="btn ghost" type="button" data-close>Cerrar</button></div></dialog>
+
+<dialog id="d-pay"><h2>Cobrar</h2>
+  <div class="row" style="justify-content:space-between"><span>Por pagar</span><span class="change" id="pay-due"></span></div>
+  <div class="methods" id="methods">
+    <button type="button" data-m="CASH" class="on">Efectivo</button>
+    <button type="button" data-m="CARD">Tarjeta terminal</button>
+    <button type="button" data-m="TRANSFER">Transferencia</button>
+    <button type="button" data-m="COURTESY">Cortesía</button>
+  </div>
+  <div class="grid" style="margin-top:10px;gap:10px">
+    <label>Monto a cobrar (puedes cobrar por partes)<input id="pay-amount" inputmode="decimal"></label>
+    <div class="bills" id="split-even"></div>
+    <label>Propina<input id="pay-tip" inputmode="decimal" placeholder="0.00"></label>
+    <div class="bills" id="tip-quick"></div>
+    <div id="cash-box" class="grid" style="gap:8px">
+      <label>Recibido<input id="pay-received" inputmode="decimal"></label>
+      <div class="bills" id="bill-quick"></div>
+      <div class="row" style="justify-content:space-between"><span>Cambio</span><span class="change" id="pay-change">$0.00</span></div>
+    </div>
+    <label id="ref-box" hidden>Referencia / últimos 4 dígitos<input id="pay-ref"></label>
+    <label id="pay-pin-box" hidden>PIN de caja o gerente<input id="pay-pin" type="password" inputmode="numeric" autocomplete="off"></label>
+  </div>
+  <div class="row" style="margin-top:12px"><button class="btn blue" id="pay-ok" type="button">Registrar pago</button><button class="btn ghost" type="button" data-close>Volver</button></div></dialog>
+
+{{ boot|json_script:"boot" }}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var boot = JSON.parse(document.getElementById("boot").textContent);
+  var API = "/pos/api/cuenta/" + boot.cuentaId + "/";
+  var cuenta = null, selected = null, cat = boot.menu.length ? boot.menu[0].id : null;
+  var PALETTE = ["#2563eb", "#16a34a", "#9333ea", "#ea580c", "#0891b2", "#be123c", "#4d7c0f", "#b45309", "#1d4ed8", "#7c3aed"];
+  var $ = function (id) { return document.getElementById(id); };
+
+  function toast(text, err) {
+    var d = document.createElement("div"); d.className = "msg" + (err ? " err" : ""); d.textContent = text;
+    document.body.appendChild(d); setTimeout(function () { d.remove(); }, err ? 4200 : 2200);
+  }
+  // Every change goes through one queue, in the order it was tapped. Two fast taps used to race: both requests
+  // in flight at once, and whichever answer arrived last redrew the check, so a drink could vanish from the
+  // screen (or, on a busy database, be refused) although the waiter had clearly tapped it.
+  var queue = Promise.resolve(), busy = 0;
+  function serial(fn) {
+    busy++;
+    var run = queue.then(fn, fn);
+    queue = run.catch(function () {}).then(function () { busy--; });
+    return run;
+  }
+  function call(path, body, done) {
+    return serial(function () { return POS.post(API + path, body); }).then(function (d) {
+      if (d.switched) { location = "/pos/cuenta/" + d.cuenta.id + "/"; return; }
+      cuenta = d.cuenta; render(); POS.printJobs(d.print);
+      if (d.message) toast(d.message);
+      if (done) done(d);
+      return d;
+    }).catch(function (e) { toast(e.message, true); throw e; });
+  }
+  function lineCall(id, path, body) {
+    return serial(function () { return POS.post("/pos/api/linea/" + id + "/" + path + "/", body); }).then(function (d) { cuenta = d.cuenta; render(); })
+      .catch(function (e) { toast(e.message, true); throw e; });
+  }
+
+  // ---------------- the check
+  function render() {
+    $("h-where").textContent = cuenta.where;
+    $("h-folio").textContent = cuenta.folio;
+    $("h-waiter").textContent = cuenta.waiter || "-";
+    $("h-guests").textContent = cuenta.guests + " pers.";
+    $("h-open").textContent = cuenta.openedAt;
+    $("h-status").textContent = cuenta.status === "OPEN" ? (cuenta.unsent ? cuenta.unsent + " sin enviar" : "Todo enviado") : (cuenta.status === "PAID" ? "PAGADA" : "CANCELADA");
+    var tb = $("lines"); tb.innerHTML = "";
+    cuenta.lines.forEach(function (l) {
+      var tr = document.createElement("tr");
+      tr.className = (l.voided ? "void" : !l.sent ? (l.customer ? "qr" : "new") : "") + (selected === l.id ? " sel" : "");
+      var tag = l.voided ? "" : !l.sent ? (l.customer ? '<span class="tag o">QR</span>' : '<span class="tag n">NUEVO</span>') : '<span class="tag s">ENVIADO</span>';
+      var sub = [];
+      if (l.mods.length) sub.push("+ " + l.mods.join(", "));
+      if (l.note) sub.push("* " + l.note);
+      if (l.voided) sub.push("Cancelado: " + l.voidReason);
+      tr.innerHTML = '<td class="q">' + l.qty + "</td><td>" + esc(l.name) + tag + (sub.length ? '<span class="sub">' + esc(sub.join(" · ")) + "</span>" : "") +
+        '</td><td class="m">' + POS.money(l.voided ? 0 : l.total) + "</td>";
+      if (!l.voided && cuenta.status === "OPEN") tr.addEventListener("click", function () { selected = selected === l.id ? null : l.id; render(); });
+      tb.appendChild(tr);
+    });
+    var line = cuenta.lines.filter(function (l) { return l.id === selected; })[0];
+    $("tools").classList.toggle("on", !!line);
+    if (line) {
+      document.querySelector('[data-t="minus"]').disabled = line.sent;
+      document.querySelector('[data-t="plus"]').disabled = line.sent;
+      document.querySelector('[data-t="note"]').disabled = line.sent;
+    }
+    $("t-sub").textContent = POS.money(cuenta.subtotal);
+    $("t-disc-row").style.display = cuenta.discount ? "" : "none";
+    $("t-disc").textContent = "-" + POS.money(cuenta.discount);
+    $("t-disc-lab").textContent = "Descuento " + (cuenta.discountReason || "");
+    $("t-total").textContent = POS.money(cuenta.total);
+    $("t-paid-row").style.display = cuenta.paid ? "" : "none";
+    $("t-paid").textContent = POS.money(cuenta.paid);
+    $("t-due-row").style.display = cuenta.paid && cuenta.due ? "" : "none";
+    $("t-due").textContent = POS.money(cuenta.due);
+    $("mt-total").textContent = POS.money(cuenta.total);
+    var closed = cuenta.status !== "OPEN";
+    document.querySelectorAll("#fkeys button").forEach(function (b) { b.disabled = closed; });
+    document.querySelector('[data-f="send"]').textContent = cuenta.unsent ? "Enviar (" + cuenta.unsent + ")" : "Enviar";
+  }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]; }); }
+
+  // ---------------- the menu
+  function drawCats() {
+    var box = $("cats"); box.innerHTML = "";
+    boot.menu.forEach(function (c, i) {
+      var b = document.createElement("button"); b.type = "button"; b.textContent = c.name;
+      b.style.background = PALETTE[i % PALETTE.length]; if (c.id === cat) b.className = "on";
+      b.addEventListener("click", function () { cat = c.id; drawCats(); drawItems(); });
+      box.appendChild(b);
+    });
+  }
+  function drawItems() {
+    var box = $("items"); box.innerHTML = "";
+    var idx = boot.menu.findIndex(function (c) { return c.id === cat; });
+    var c = boot.menu[idx]; if (!c) return;
+    c.items.forEach(function (it) {
+      var b = document.createElement("button"); b.type = "button"; b.style.background = PALETTE[idx % PALETTE.length];
+      b.innerHTML = "<span>" + esc(it.name) + '</span><span class="p">' + POS.money(it.price) + "</span>";
+      b.addEventListener("click", function () { pick(it); });
+      box.appendChild(b);
+    });
+  }
+  function pick(it) {
+    if (cuenta.status !== "OPEN") return;
+    if (!it.groups.length) return call("agregar/", { item: it.id, qty: 1 }).then(function () { toast("+1 " + it.name); });
+    var chosen = {};
+    $("mods-title").textContent = it.name;
+    var body = $("mods-body"); body.innerHTML = ""; $("mods-note").value = "";
+    it.groups.forEach(function (g) {
+      chosen[g.id] = [];
+      var h = document.createElement("h3"); h.textContent = g.name + (g.min ? " (elige " + g.min + ")" : ""); body.appendChild(h);
+      var box = document.createElement("div"); box.className = "opts"; body.appendChild(box);
+      g.options.forEach(function (o) {
+        var b = document.createElement("button"); b.type = "button"; b.textContent = o.name + (o.price ? " +" + POS.money(o.price) : "");
+        b.addEventListener("click", function () {
+          var arr = chosen[g.id], at = arr.indexOf(o.id);
+          if (at >= 0) arr.splice(at, 1); else { if (arr.length >= g.max) arr.shift(); arr.push(o.id); }
+          box.querySelectorAll("button").forEach(function (x, i) { x.classList.toggle("on", arr.indexOf(g.options[i].id) >= 0); });
+        });
+        box.appendChild(b);
+      });
+    });
+    $("mods-ok").onclick = function () {
+      var missing = it.groups.filter(function (g) { return chosen[g.id].length < g.min; })[0];
+      if (missing) return toast("Elige: " + missing.name, true);
+      var ids = []; Object.keys(chosen).forEach(function (k) { ids = ids.concat(chosen[k]); });
+      call("agregar/", { item: it.id, qty: 1, mods: ids, note: $("mods-note").value }).then(function () { $("d-mods").close(); toast("+1 " + it.name); });
+    };
+    $("d-mods").showModal();
+  }
+
+  // ---------------- line tools
+  $("tools").addEventListener("click", function (e) {
+    var t = e.target.getAttribute("data-t"); if (!t) return;
+    var line = cuenta.lines.filter(function (l) { return l.id === selected; })[0]; if (!line) return;
+    if (t === "minus" || t === "plus") return lineCall(line.id, "cantidad", { qty: line.qty + (t === "plus" ? 1 : -1) }).then(function () { if (line.qty <= 1 && t === "minus") selected = null; });
+    if (t === "note") { $("note-text").value = line.note; $("note-ok").onclick = function () { lineCall(line.id, "nota", { note: $("note-text").value }).then(function () { $("d-note").close(); }); }; return $("d-note").showModal(); }
+    if (t === "void") {
+      if (!line.sent) return lineCall(line.id, "cancelar", {}).then(function () { selected = null; });
+      $("void-what").textContent = line.qty + " x " + line.name + " (ya se envió a barra)";
+      var reason = "NOT_MADE";
+      document.querySelectorAll("#void-reasons button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-r") === reason); b.onclick = function () { reason = b.getAttribute("data-r"); document.querySelectorAll("#void-reasons button").forEach(function (x) { x.classList.toggle("on", x === b); }); }; });
+      $("void-pin").value = ""; $("void-note").value = "";
+      $("void-ok").onclick = function () { lineCall(line.id, "cancelar", { reason: reason, note: $("void-note").value, managerPin: $("void-pin").value }).then(function () { selected = null; $("d-void").close(); }); };
+      $("d-void").showModal();
+    }
+  });
+
+  // ---------------- function keys
+  var F = {
+    send: function () { call("enviar/", {}).then(function () { toast("Enviado a barra"); }); },
+    bill: function () { call("precuenta/", {}).then(function () { toast("Cuenta impresa"); }); },
+    discount: function () {
+      var pct = null;
+      document.querySelectorAll("#disc-pcts button").forEach(function (b) { b.classList.remove("on"); b.onclick = function () { pct = b.getAttribute("data-p"); $("disc-amount").value = ""; document.querySelectorAll("#disc-pcts button").forEach(function (x) { x.classList.toggle("on", x === b); }); }; });
+      $("disc-pin").value = ""; $("disc-reason").value = ""; $("disc-amount").value = "";
+      $("disc-ok").onclick = function () { call("descuento/", { percent: $("disc-amount").value ? null : pct, amount: $("disc-amount").value, reason: $("disc-reason").value, managerPin: $("disc-pin").value }).then(function () { $("d-disc").close(); }); };
+      $("d-disc").showModal();
+    },
+    move: function () {
+      var box = $("move-list"); box.innerHTML = "";
+      boot.tables.forEach(function (t) { if (t.id === cuenta.tableId) return; var b = document.createElement("button"); b.type = "button"; b.textContent = t.label; b.onclick = function () { call("mover/", { table: t.id }).then(function () { $("d-move").close(); toast("Cambiada a " + t.label); }); }; box.appendChild(b); });
+      $("d-move").showModal();
+    },
+    join: function () {
+      var box = $("join-list"); box.innerHTML = "";
+      if (!boot.others.length) box.innerHTML = '<p class="muted">No hay otras cuentas abiertas.</p>';
+      boot.others.forEach(function (c) { var b = document.createElement("button"); b.type = "button"; b.textContent = c.label; b.onclick = function () { call("juntar/", { other: c.id }).then(function () { $("d-join").close(); toast("Cuentas juntas"); }); }; box.appendChild(b); });
+      $("d-join").showModal();
+    },
+    split: function () {
+      var box = $("split-list"); box.innerHTML = "";
+      cuenta.lines.filter(function (l) { return !l.voided; }).forEach(function (l) {
+        var lab = document.createElement("label"); lab.style.cssText = "display:flex;gap:10px;align-items:center;font-size:.95rem";
+        lab.innerHTML = '<input type="checkbox" value="' + l.id + '" style="width:26px;min-height:26px"> ' + l.qty + " x " + esc(l.name) + " · " + POS.money(l.total);
+        box.appendChild(lab);
+      });
+      $("split-ok").onclick = function () {
+        var ids = [].map.call(box.querySelectorAll("input:checked"), function (i) { return i.value; });
+        call("dividir/", { lines: ids }).then(function () { $("d-split").close(); });
+      };
+      $("d-split").showModal();
+    },
+    cancel: function () { $("cancel-pin").value = ""; $("cancel-reason").value = ""; $("cancel-ok").onclick = function () { call("cancelar/", { reason: $("cancel-reason").value, managerPin: $("cancel-pin").value }).then(function () { $("d-cancel").close(); location = "/pos/"; }); }; $("d-cancel").showModal(); },
+    phone: function () { $("phone-url").textContent = boot.payUrl; $("d-phone").showModal(); },
+    pay: openPay
+  };
+  document.querySelectorAll("[data-f]").forEach(function (b) { b.addEventListener("click", function () { F[b.getAttribute("data-f")](); }); });
+  $("h-guests").addEventListener("click", function () {
+    var box = $("guest-opts"); box.innerHTML = "";
+    for (var i = 1; i <= 16; i++) (function (n) { var b = document.createElement("button"); b.type = "button"; b.textContent = n; if (n === cuenta.guests) b.className = "on"; b.onclick = function () { call("personas/", { guests: n }).then(function () { $("d-guests").close(); }); }; box.appendChild(b); })(i);
+    $("d-guests").showModal();
+  });
+
+  // ---------------- payment
+  function pesos(v) { var n = parseFloat(String(v || "").replace(/[$,]/g, "")); return isNaN(n) ? 0 : Math.round(n * 100); }
+  function openPay() {
+    if (!boot.shiftOpen) return toast("La caja está cerrada: abre turno en Caja para cobrar.", true);
+    var method = "CASH";
+    $("pay-due").textContent = POS.money(cuenta.due || cuenta.total);
+    var due = cuenta.due || cuenta.total;
+    $("pay-amount").value = (due / 100).toFixed(2); $("pay-tip").value = ""; $("pay-received").value = ""; $("pay-ref").value = ""; $("pay-pin").value = "";
+    $("pay-pin-box").hidden = boot.staff.cashier;
+    var even = $("split-even"); even.innerHTML = "";
+    [2, 3, 4, 5].forEach(function (n) { var b = document.createElement("button"); b.type = "button"; b.textContent = "÷" + n + " = " + POS.money(Math.ceil(due / n)); b.onclick = function () { $("pay-amount").value = (Math.ceil(due / n) / 100).toFixed(2); change(); }; even.appendChild(b); });
+    var tq = $("tip-quick"); tq.innerHTML = "";
+    [10, 15, 20].forEach(function (p) { var b = document.createElement("button"); b.type = "button"; b.textContent = p + "% " + POS.money(Math.round(pesos($("pay-amount").value) * p / 100)); b.onclick = function () { $("pay-tip").value = (Math.round(pesos($("pay-amount").value) * p / 100) / 100).toFixed(2); change(); }; tq.appendChild(b); });
+    var bq = $("bill-quick"); bq.innerHTML = "";
+    ["Exacto", 100, 200, 500, 1000].forEach(function (v) { var b = document.createElement("button"); b.type = "button"; b.textContent = v === "Exacto" ? v : "$" + v; b.onclick = function () { $("pay-received").value = v === "Exacto" ? ((pesos($("pay-amount").value) + pesos($("pay-tip").value)) / 100).toFixed(2) : v; change(); }; bq.appendChild(b); });
+    function setMethod(m) {
+      method = m;
+      document.querySelectorAll("#methods button").forEach(function (b) { b.classList.toggle("on", b.getAttribute("data-m") === m); });
+      $("cash-box").style.display = m === "CASH" ? "" : "none";
+      $("ref-box").hidden = !(m === "CARD" || m === "TRANSFER");
+      $("pay-pin-box").hidden = boot.staff.cashier && !(m === "COURTESY" && !boot.staff.manager);
+      if (m === "COURTESY") $("pay-pin-box").querySelector("input").placeholder = "PIN del gerente";
+    }
+    function change() {
+      var c = pesos($("pay-received").value) - pesos($("pay-amount").value) - pesos($("pay-tip").value);
+      $("pay-change").textContent = POS.money(Math.max(c, 0));
+      $("pay-change").style.color = c < 0 && $("pay-received").value ? "var(--red)" : "";
+    }
+    document.querySelectorAll("#methods button").forEach(function (b) { b.onclick = function () { setMethod(b.getAttribute("data-m")); }; });
+    ["pay-amount", "pay-tip", "pay-received"].forEach(function (id) { $(id).oninput = change; });
+    setMethod("CASH"); change();
+    $("pay-ok").onclick = function () {
+      var btn = $("pay-ok"); btn.disabled = true;
+      call("pagar/", { method: method, amount: $("pay-amount").value, tip: $("pay-tip").value, received: $("pay-received").value,
+                       reference: $("pay-ref").value, managerPin: $("pay-pin").value })
+        .then(function () {
+          btn.disabled = false;
+          if (cuenta.status === "PAID") { $("d-pay").close(); toast("Cuenta pagada"); setTimeout(function () { location = "/pos/"; }, 1200); }
+          else { toast("Pago registrado. Falta " + POS.money(cuenta.due)); openPay(); }
+        }).catch(function () { btn.disabled = false; });
+    };
+    $("d-pay").showModal();
+  }
+
+  document.querySelectorAll("[data-close]").forEach(function (b) { b.addEventListener("click", function () { b.closest("dialog").close(); }); });
+  document.querySelectorAll(".mobiletabs button").forEach(function (b) {
+    b.addEventListener("click", function () {
+      document.querySelectorAll(".mobiletabs button").forEach(function (x) { x.classList.toggle("on", x === b); });
+      $("work").setAttribute("data-show", b.getAttribute("data-tab"));
+    });
+  });
+  if (boot.staff.manager) document.querySelectorAll(".mgr").forEach(function (m) { m.style.display = "none"; });
+
+  drawCats(); drawItems();
+  fetch(API, { credentials: "same-origin" }).then(function (r) { return r.json(); }).then(function (d) { cuenta = d.cuenta; render(); });
+  // A QR order or another tablet can change this check; keep it current while nothing is selected.
+  setInterval(function () {
+    if (selected || document.querySelector("dialog[open]") || busy) return;
+    fetch(API, { credentials: "same-origin" }).then(function (r) { return r.ok ? r.json() : null; }).then(function (d) { if (d) { cuenta = d.cuenta; render(); } });
+  }, 6000);
+})();
+</script>
+{% endblock %}

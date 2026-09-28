@@ -180,6 +180,18 @@ def _bar_nights(limit=8):
     for row in drinks:
         if row['order__event_id'] in rows:
             rows[row['order__event_id']]['drinks'] = row['n'] or 0
+    # The point of sale's checks (from 2026-09-28), added to the same night. A check's money is collected once
+    # it is PAID; an open one is still owed.
+    from pos.models import Check, CheckLine
+
+    for cuenta in (Check.objects.exclude(status=Check.CANCELLED).exclude(event__isnull=True)
+                   .select_related('event').prefetch_related('lines', 'payments').order_by('-opened_at')[:600]):
+        row = rows.setdefault(cuenta.event_id, {'event': cuenta.event, 'rounds': 0, 'collected': 0, 'owed': 0,
+                                                'currency': 'mxn', 'drinks': 0})
+        row['rounds'] += 1
+        row['collected'] += cuenta.paid_cents
+        row['owed'] += cuenta.due_cents if cuenta.status == Check.OPEN else 0
+        row['drinks'] += sum(l.quantity for l in cuenta.live_lines())
     nights = sorted(rows.values(), key=lambda r: r['event'].date or timezone.now(), reverse=True)[:limit]
     for night in nights:
         night['when'] = night['event'].date.astimezone(CANCUN) if night['event'].date else None
@@ -195,14 +207,19 @@ def _room():
     from sales.models import TableOrder
 
     week = timezone.now() - timedelta(days=7)
-    tabs = TableOrder.objects.filter(status=TableOrder.OPEN)
+    from pos.models import Check
+
+    tabs = TableOrder.objects.filter(status=TableOrder.OPEN, created_at__gte=timezone.now() - timedelta(days=2))
     owed = Counter()
     for tab in tabs:
         owed[(tab.currency or 'mxn').upper()] += tab.total_cents
+    checks = list(Check.objects.filter(status=Check.OPEN).prefetch_related('lines', 'payments'))
+    for cuenta in checks:
+        owed['MXN'] += cuenta.due_cents
     return {
         'mailable': Contact.objects.filter(subscribed=True).count(),
         'new_contacts': Contact.objects.filter(created_at__gte=week).count(),
-        'open_tabs': tabs.count(),
+        'open_tabs': tabs.count() + len(checks),
         'owed': ' · '.join(f'{cents / 100:,.2f} {code}' for code, cents in sorted(owed.items())),
     }
 

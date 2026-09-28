@@ -1,0 +1,130 @@
+{% extends "pos/base.html" %}
+{% block title %}Mesas · Iguana POS{% endblock %}
+{% block heading %}Comedor{% if show %} · {{ show.label }}{% endif %}{% endblock %}
+{% block head %}
+<style>
+  main { padding: 0; display: flex; flex-direction: column; }
+  .zones { display: flex; gap: 6px; padding: 10px 12px 0; flex-wrap: wrap; background: var(--bg); }
+  .zones button { min-height: 44px; padding: 0 18px; border-radius: 10px 10px 0 0; border: 1px solid var(--line);
+                  border-bottom: 0; background: #dfe4ec; font: 700 .85rem "DM Sans", sans-serif; text-transform: uppercase;
+                  letter-spacing: .05em; cursor: pointer; }
+  .zones button.on { background: #fff; }
+  .floor { position: relative; flex: 1 1 auto; margin: 0 12px; background: #fff; border: 1px solid var(--line);
+           border-radius: 0 12px 12px 12px; min-height: 420px;
+           background-image: radial-gradient(#e5e7eb 1px, transparent 1px); background-size: 22px 22px; }
+  .tbl { position: absolute; display: flex; flex-direction: column; align-items: center; justify-content: center;
+         border-radius: 12px; color: #fff; text-decoration: none; text-align: center; padding: 4px;
+         box-shadow: 0 6px 14px -8px rgba(0,0,0,.5); border: 2px solid rgba(0,0,0,.08); overflow: hidden; }
+  .tbl.ROUND { border-radius: 50%; }
+  .tbl.BAR { border-radius: 8px; }
+  .tbl .n { font-family: "Bebas Neue", sans-serif; font-size: clamp(1.1rem, 2.4vw, 1.9rem); line-height: 1; }
+  .tbl .s { font-size: clamp(.58rem, 1.1vw, .75rem); font-weight: 700; line-height: 1.15; opacity: .95; }
+  .tbl.free { background: var(--free); }
+  .tbl.busy { background: var(--blue); }
+  .tbl.bill { background: var(--amber); color: #111; }
+  .tbl.order { background: var(--orange); animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { box-shadow: 0 0 0 8px rgba(234,88,12,.25); } }
+  .legend { display: flex; gap: 14px; flex-wrap: wrap; padding: 8px 14px; font-size: .78rem; font-weight: 700; }
+  .legend i { display: inline-block; width: 12px; height: 12px; border-radius: 3px; margin-right: 5px; vertical-align: -1px; }
+  .loose { margin: 8px 12px 0; display: flex; gap: 8px; flex-wrap: wrap; }
+  .loose a { background: var(--top2); color: #fff; border-radius: 10px; padding: 10px 14px; text-decoration: none;
+             font-weight: 700; font-size: .85rem; }
+  /* Soft Restaurant's function keys along the bottom. */
+  .fkeys { position: sticky; bottom: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+           gap: 6px; padding: 8px; background: var(--top); }
+  .fkeys a, .fkeys button { min-height: 58px; border-radius: 10px; border: 0; color: #fff; background: var(--top2);
+           display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+           font: 700 .78rem "DM Sans", sans-serif; text-transform: uppercase; letter-spacing: .04em;
+           text-decoration: none; cursor: pointer; text-align: center; padding: 4px; }
+  .fkeys .k { font-size: 1.2rem; line-height: 1; }
+  .fkeys .hl { background: var(--brand); }
+  dialog { border: 0; border-radius: 16px; padding: 18px; width: min(380px, 94vw); }
+  dialog::backdrop { background: rgba(0,0,0,.45); }
+  @media (max-width: 700px) {
+    .floor { min-height: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); gap: 8px; padding: 10px; background-image: none; }
+    .tbl { position: static; width: auto !important; height: 88px !important; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+{% if denied %}<p class="error" style="margin:10px 12px 0">Esa pantalla es solo para gerente o caja.</p>{% endif %}
+{% if not shift %}<p class="error" style="margin:10px 12px 0">La caja está cerrada: se puede tomar orden, pero para cobrar hay que <a href="/pos/caja/">abrir turno</a>.</p>{% endif %}
+<div class="zones" id="zones">
+  {% for z in zones %}<button type="button" data-zone="{{ z.id }}" {% if forloop.first %}class="on"{% endif %}>{{ z.name }}</button>{% endfor %}
+</div>
+<div class="floor" id="floor"></div>
+<div class="legend">
+  <span><i style="background:var(--free)"></i>Libre</span><span><i style="background:var(--blue)"></i>Ocupada</span>
+  <span><i style="background:var(--amber)"></i>Cuenta impresa</span><span><i style="background:var(--orange)"></i>Pedido por QR sin enviar</span>
+</div>
+<div class="loose" id="loose"></div>
+<nav class="fkeys">
+  <button type="button" class="hl" onclick="document.getElementById('quick').showModal()"><span class="k">+</span>Barra / Rápido</button>
+  <a href="/pos/barra/"><span class="k">🍹</span>Comandas</a>
+  {% if staff.can_charge %}<a href="/pos/caja/"><span class="k">$</span>Caja</a>{% endif %}
+  <a href="/mesas/reservas/"><span class="k">📋</span>Reservas</a>
+  <a href="/mesas/puerta/"><span class="k">📷</span>Puerta</a>
+  <a href="/pos/inventario/"><span class="k">📦</span>Inventario</a>
+  {% if staff.is_manager %}
+    <a href="/pos/productos/"><span class="k">🍺</span>Productos</a>
+    <a href="/pos/reportes/"><span class="k">📊</span>Reportes</a>
+    <a href="/pos/personal/"><span class="k">👤</span>Personal</a>
+    <a href="/pos/mesas/"><span class="k">▦</span>Mesas</a>
+    <a href="/pos/impresoras/"><span class="k">🖨</span>Impresoras</a>
+  {% endif %}
+  <a href="/pos/salir/"><span class="k">⏻</span>Salir</a>
+</nav>
+<dialog id="quick">
+  <form method="post" action="/pos/rapida/" class="grid">
+    {% csrf_token %}
+    <h2>Cuenta sin mesa</h2>
+    <label>Nombre o lugar<input name="label" value="Barra" autofocus></label>
+    <div class="row"><button class="btn green" type="submit">Abrir</button>
+      <button class="btn ghost" type="button" onclick="this.closest('dialog').close()">Cancelar</button></div>
+  </form>
+</dialog>
+{{ state|json_script:"state" }}
+{% endblock %}
+{% block scripts %}
+<script>
+  (function () {
+    var state = JSON.parse(document.getElementById("state").textContent);
+    var zone = (document.querySelector("#zones .on") || {}).getAttribute ? document.querySelector("#zones .on").getAttribute("data-zone") : null;
+    var floor = document.getElementById("floor"), loose = document.getElementById("loose");
+    function draw() {
+      floor.innerHTML = "";
+      state.tables.filter(function (t) { return !zone || String(t.zone) === String(zone); }).forEach(function (t) {
+        var a = document.createElement("a");
+        a.href = "/pos/mesa/" + t.id + "/";
+        a.className = "tbl " + t.shape + " " + t.state;
+        a.style.left = t.x + "%"; a.style.top = t.y + "%"; a.style.width = t.w + "%"; a.style.height = t.h + "%";
+        var sub = "";
+        if (t.checks.length) {
+          var c = t.checks[0];
+          sub = POS.money(t.checks.reduce(function (s, x) { return s + x.total; }, 0)) + "<br>" + (c.waiter || "") + " · " + c.minutes + "′";
+          if (t.checks.length > 1) sub += "<br>" + t.checks.length + " cuentas";
+        } else sub = t.seats + " pers.";
+        a.innerHTML = '<span class="n">' + (t.label.replace(/^Mesa /, "")) + '</span><span class="s">' + sub + "</span>";
+        floor.appendChild(a);
+      });
+      loose.innerHTML = "";
+      state.loose.forEach(function (c) {
+        var a = document.createElement("a"); a.href = "/pos/cuenta/" + c.id + "/";
+        a.textContent = "#" + c.folio + " " + c.where + " · " + POS.money(c.total); loose.appendChild(a);
+      });
+    }
+    document.querySelectorAll("#zones button").forEach(function (b) {
+      b.addEventListener("click", function () {
+        document.querySelectorAll("#zones button").forEach(function (x) { x.classList.remove("on"); });
+        b.classList.add("on"); zone = b.getAttribute("data-zone"); draw();
+      });
+    });
+    draw();
+    // The map refreshes itself: another waiter's table, or a QR order arriving, shows up without a reload.
+    setInterval(function () {
+      fetch("/pos/api/mapa/", { credentials: "same-origin" }).then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (d) { if (d) { state = d; draw(); } });
+    }, 5000);
+  })();
+</script>
+{% endblock %}

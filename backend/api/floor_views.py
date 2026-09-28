@@ -13,7 +13,7 @@ from django.views.decorators.http import require_POST
 
 from .floor import is_floor
 
-HOME = '/mesas/'
+HOME = '/pos/'
 
 # How long a floor tablet stays signed in. See `sign_in`.
 SESSION_YEARS = 60 * 60 * 24 * 365
@@ -21,7 +21,7 @@ SESSION_YEARS = 60 * 60 * 24 * 365
 
 def _safe_next(raw):
     """Only ever our own floor paths, so a crafted `?next=` cannot bounce somebody off the site."""
-    if raw and raw.startswith('/mesas'):
+    if raw and (raw.startswith('/mesas') or raw.startswith('/pos')):
         return raw
     return HOME
 

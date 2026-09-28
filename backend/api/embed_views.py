@@ -349,6 +349,13 @@ def stripe_webhook(request):
             order = Order.objects.filter(pk=meta.get('order_id')).first()
             if order:
                 complete_order(order, obj.get('latest_charge') or '')
+        elif meta.get('purpose') == 'pos':
+            from pos.models import Payment as PosPayment
+            from pos.views_pay import settle as settle_pos
+
+            payment = PosPayment.objects.filter(pk=meta.get('payment_id')).first()
+            if payment:
+                settle_pos(payment, obj.get('latest_charge') or '')
         elif meta.get('purpose') == 'table':
             # 🚨 The backstop that matters most here. A table pays, the phone loses signal on the way out of a
             # basement room, and the browser never gets to confirm: without this the card is charged and the

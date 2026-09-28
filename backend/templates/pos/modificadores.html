@@ -1,0 +1,16 @@
+{% extends "pos/base.html" %}{% load pos_extras %}
+{% block heading %}Modificadores{% endblock %}
+{% block content %}
+<div class="page grid">
+  {% with tab='mods' %}{% include "pos/_setuptabs.html" %}{% endwith %}
+  <p class="muted">Preguntas que salen al agregar un producto: "¿Preparada?" con Michelada (+$20), Clamato (+$25)... Se asignan a cada producto en su pantalla.</p>
+  <form method="post" class="card row">{% csrf_token %}<input type="hidden" name="action" value="group">
+    <input name="name" placeholder="Nombre del grupo (ej. Preparación)" style="flex:2"><input name="min" inputmode="numeric" placeholder="mín 0" style="width:90px"><input name="max" inputmode="numeric" placeholder="máx 1" style="width:90px"><button class="btn green">Crear grupo</button></form>
+  {% for g in groups %}<div class="card grid">
+    <div class="row" style="justify-content:space-between"><h2 style="margin:0">{{ g.name }} <span class="muted" style="font-size:1rem">elige {{ g.min_select }} a {{ g.max_select }} · {{ g.items.count }} productos</span></h2>
+      <form method="post">{% csrf_token %}<input type="hidden" name="action" value="delete_group"><input type="hidden" name="group" value="{{ g.pk }}"><button class="btn small red" onclick="return confirm('¿Borrar el grupo?')">Borrar</button></form></div>
+    <div class="row">{% for o in g.options.all %}{% if o.active %}<form method="post">{% csrf_token %}<input type="hidden" name="action" value="delete_option"><input type="hidden" name="option" value="{{ o.pk }}"><button class="btn small ghost">{{ o.name }}{% if o.price_cents %} +{{ o.price_cents|pesos }}{% endif %} ✕</button></form>{% endif %}{% endfor %}</div>
+    <form method="post" class="row">{% csrf_token %}<input type="hidden" name="action" value="option"><input type="hidden" name="group" value="{{ g.pk }}"><input name="name" placeholder="Opción" style="flex:2"><input name="price" inputmode="decimal" placeholder="+$ 0" style="width:110px"><button class="btn">Agregar opción</button></form>
+  </div>{% empty %}<p class="muted">Todavía no hay modificadores.</p>{% endfor %}
+</div>
+{% endblock %}

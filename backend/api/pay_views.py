@@ -64,6 +64,7 @@ def pay_page(request, token):
     return render(request, 'floor/pay.html', {
         'lang': lang,
         'token': token,
+        'pay_base': f'/mesa/pagar/{token}/',
         'table': number,
         'label': bill['label'],
         'show': bill['show'].label(lang) if bill['show'] else '',

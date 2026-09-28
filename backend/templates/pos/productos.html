@@ -1,0 +1,23 @@
+{% extends "pos/base.html" %}{% load pos_extras %}
+{% block title %}Productos · Iguana POS{% endblock %}
+{% block heading %}Productos{% endblock %}
+{% block content %}
+<div class="page grid">
+  {% with tab='productos' %}{% include "pos/_setuptabs.html" %}{% endwith %}
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <div class="row"><a class="btn green" href="/pos/productos/nuevo/">+ Nuevo producto</a>
+    <form method="post" class="row">{% csrf_token %}<input type="hidden" name="action" value="category"><input name="name" placeholder="Nueva categoría" style="width:200px"><button class="btn">Agregar categoría</button></form></div>
+  {% for c in cats %}
+  <div class="card scroll" style="padding:0">
+    <div class="row" style="justify-content:space-between;padding:10px 12px"><h2 style="margin:0">{{ c.label }}{% if not c.active %} <span class="badge low">oculta</span>{% endif %}</h2>
+      <div class="row"><a class="btn small ghost" href="/pos/productos/nuevo/?category={{ c.pk }}">+ Producto aquí</a>
+      <form method="post">{% csrf_token %}<input type="hidden" name="action" value="cat_toggle"><input type="hidden" name="category" value="{{ c.pk }}"><button class="btn small ghost">{% if c.active %}Ocultar{% else %}Mostrar{% endif %}</button></form></div></div>
+    <table class="t"><tr><th>Producto</th><th class="num">Precio</th><th>Receta</th><th>Esta noche</th><th></th></tr>
+      {% for i in c.items.all %}<tr><td><strong>{{ i.label }}</strong>{% for g in i.modifier_groups.all %} <span class="badge okb">{{ g.name }}</span>{% endfor %}</td><td class="num">{{ i.price_cents|pesos }}</td>
+        <td>{% for ing in i.ingredients.all %}{{ ing.quantity|qty }} {{ ing.inventory_item.name }}{% if not forloop.last %}, {% endif %}{% empty %}<span class="badge low">sin receta</span>{% endfor %}</td>
+        <td><form method="post">{% csrf_token %}<input type="hidden" name="action" value="toggle"><input type="hidden" name="item" value="{{ i.pk }}"><button class="btn small {% if i.available %}green{% else %}red{% endif %}">{% if i.available %}Disponible{% else %}Agotado{% endif %}</button></form></td>
+        <td><a class="btn small ghost" href="/pos/productos/{{ i.pk }}/">Editar</a></td></tr>
+      {% empty %}<tr><td colspan="5" class="muted">Sin productos.</td></tr>{% endfor %}</table></div>
+  {% endfor %}
+</div>
+{% endblock %}

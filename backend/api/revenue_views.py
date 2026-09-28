@@ -154,6 +154,13 @@ def revenue(request):
     for order in tables:
         currency = (order.currency or 'mxn').upper()
         table_money[currency] = table_money.get(currency, 0) + order.total_cents
+    # The point of sale's collected money (from 2026-09-28): payments against the bill, tips excluded.
+    from pos.models import Check, Payment as PosPayment
+
+    pos_paid = PosPayment.objects.filter(status=PosPayment.PAID, created_at__gte=since).exclude(method=PosPayment.COURTESY)
+    if pos_paid.exists():
+        table_money['MXN'] = table_money.get('MXN', 0) + sum(p.amount_cents for p in pos_paid)
+    pos_checks = Check.objects.filter(opened_at__gte=since).exclude(status=Check.CANCELLED).count()
 
     return render(request, 'embed/revenue.html', {
         'days': days,
@@ -161,7 +168,7 @@ def revenue(request):
         'online': _amounts(online),
         'door': _amounts(door),
         'tables_total': _amounts(table_money),
-        'tables_count': tables.count(),
+        'tables_count': tables.count() + pos_checks,
         'seats': seats,
         'drinks': drinks,
         'drinks_money': _amounts(drinks_money),

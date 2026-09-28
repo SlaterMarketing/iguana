@@ -1,3 +1,4 @@
+from django.views.generic import RedirectView
 from django.urls import path, re_path
 
 from . import (carta_views, door_views, embed_views, fan_views, floor_views, inventory_views,
@@ -26,16 +27,17 @@ urlpatterns = [
     path('revenue/', revenue_views.revenue),
     path('reservations/', reservations_views.reservations, name='reservations'),
     path('stats/', stats_views.stats, name='stats'),
-    path('tables/', tables_views.tables, name='tables'),
+    # The bar board and the old console pages moved to the point of sale (pos/) on 2026-09-28.
+    path('tables/', RedirectView.as_view(url='/pos/'), name='tables'),
     # The floor console. Spanish only, its own login, and no admin behind it: see `api/floor.py`.
-    path('mesas/', tables_views.mesas, name='mesas'),
+    path('mesas/', RedirectView.as_view(url='/pos/'), name='mesas'),
     path('mesas/entrar/', floor_views.sign_in, name='floor-sign-in'),
     path('mesas/salir/', floor_views.sign_out, name='floor-sign-out'),
-    path('mesas/inventario/', inventory_views.inventory, name='floor-inventory'),
+    path('mesas/inventario/', RedirectView.as_view(url='/pos/inventario/'), name='floor-inventory'),
     path('mesas/inventario/agregar/', inventory_views.add_item, name='floor-inventory-add'),
     path('mesas/inventario/<str:item_id>/ajustar/', inventory_views.adjust, name='floor-inventory-adjust'),
     path('mesas/inventario/<str:item_id>/editar/', inventory_views.edit_item, name='floor-inventory-edit'),
-    path('mesas/carta/', carta_views.carta, name='floor-carta'),
+    path('mesas/carta/', RedirectView.as_view(url='/pos/productos/'), name='floor-carta'),
     path('mesas/carta/agregar/', carta_views.add_menu_item, name='floor-carta-add'),
     path('mesas/carta/<str:item_id>/guardar/', carta_views.save_item, name='floor-carta-save'),
     path('mesas/carta/<str:item_id>/cambiar/', carta_views.toggle_item, name='floor-carta-toggle'),

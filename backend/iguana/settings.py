@@ -42,6 +42,7 @@ INSTALLED_APPS = [
     'crm',
     'sales',
     'api',
+    'pos',
 ]
 
 MIDDLEWARE = [

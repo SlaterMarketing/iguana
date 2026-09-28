@@ -1,0 +1,68 @@
+{% extends "pos/base.html" %}
+{% block title %}Mesas · Iguana POS{% endblock %}
+{% block heading %}Configurar mesas{% endblock %}
+{% block head %}<style>
+  .editor { position: relative; background: #fff; border: 1px solid var(--line); border-radius: 12px; height: 520px;
+            background-image: radial-gradient(#e5e7eb 1px, transparent 1px); background-size: 22px 22px; touch-action: none; }
+  .et { position: absolute; background: var(--blue); color: #fff; border-radius: 10px; display: grid; place-items: center;
+        font: 700 .9rem "DM Sans"; cursor: grab; user-select: none; }
+  .et.ROUND { border-radius: 50%; } .et .rz { position: absolute; right: 0; bottom: 0; width: 18px; height: 18px; background: rgba(0,0,0,.35); border-radius: 4px; cursor: nwse-resize; }
+</style>{% endblock %}
+{% block content %}
+<div class="page grid">
+  {% with tab='mesas' %}{% include "pos/_setuptabs.html" %}{% endwith %}
+  {% for m in messages %}<p class="error">{{ m }}</p>{% endfor %}
+  <div class="row">
+    <form method="post" class="row">{% csrf_token %}<input type="hidden" name="action" value="zone"><input name="name" placeholder="Nueva área (Terraza...)" style="width:200px"><button class="btn">Agregar área</button></form>
+    <form method="post" class="row">{% csrf_token %}<input type="hidden" name="action" value="table">
+      <select name="zone" style="width:140px">{% for z in zones %}<option value="{{ z.pk }}">{{ z.name }}</option>{% endfor %}</select>
+      <input name="number" inputmode="numeric" placeholder="Núm." style="width:80px"><input name="name" placeholder="Nombre (opcional)" style="width:150px">
+      <select name="shape" style="width:120px">{% for c, n in shapes %}<option value="{{ c }}">{{ n }}</option>{% endfor %}</select>
+      <input name="seats" inputmode="numeric" placeholder="Pers." style="width:80px"><button class="btn green">Agregar mesa</button></form>
+  </div>
+  <div class="tabs" id="ztabs">{% for z in zones %}<a href="#" data-z="{{ z.pk }}" class="{% if forloop.first %}on{% endif %}">{{ z.name }}</a>{% endfor %}</div>
+  <p class="muted">Arrastra las mesas a su lugar; la esquina las agranda. Se guarda solo.</p>
+  <div class="editor" id="ed"></div>
+  <div class="card scroll" style="padding:0"><table class="t"><tr><th>Mesa</th><th>Nombre</th><th>Área</th><th>Forma</th><th>Pers.</th><th>Activa</th><th></th></tr>
+    {% for t in tables %}<tr><form method="post">{% csrf_token %}<input type="hidden" name="action" value="edit"><input type="hidden" name="table" value="{{ t.pk }}">
+      <td><strong>{{ t.number }}</strong></td><td><input name="name" value="{{ t.name }}" style="width:130px"></td>
+      <td><select name="zone">{% for z in zones %}<option value="{{ z.pk }}" {% if t.zone_id == z.pk %}selected{% endif %}>{{ z.name }}</option>{% endfor %}</select></td>
+      <td><select name="shape">{% for c, n in shapes %}<option value="{{ c }}" {% if t.shape == c %}selected{% endif %}>{{ n }}</option>{% endfor %}</select></td>
+      <td><input name="seats" value="{{ t.seats }}" style="width:70px"></td><td><input type="checkbox" name="active" {% if t.active %}checked{% endif %} style="width:22px;min-height:22px"></td>
+      <td><button class="btn small">Guardar</button></td></form></tr>{% endfor %}</table></div>
+</div>
+{{ tables_json|json_script:"tables-data" }}
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var tables = JSON.parse(document.getElementById("tables-data").textContent), ed = document.getElementById("ed");
+  var zone = (document.querySelector("#ztabs .on") || { getAttribute: function () { return null; } }).getAttribute("data-z");
+  var save = null;
+  function persist() { clearTimeout(save); save = setTimeout(function () { fetch("/pos/mesas/", { method: "POST", headers: { "Content-Type": "application/json", "X-CSRFToken": POS.csrf }, body: JSON.stringify(tables) }); }, 500); }
+  function draw() {
+    ed.innerHTML = "";
+    tables.filter(function (t) { return String(t.z) === String(zone); }).forEach(function (t) {
+      var d = document.createElement("div"); d.className = "et " + t.s; d.textContent = t.n;
+      function place() { d.style.left = t.x + "%"; d.style.top = t.y + "%"; d.style.width = t.w + "%"; d.style.height = t.h + "%"; }
+      place();
+      var rz = document.createElement("span"); rz.className = "rz"; d.appendChild(rz);
+      d.addEventListener("pointerdown", function (e) {
+        e.preventDefault(); var resize = e.target === rz, r = ed.getBoundingClientRect(), sx = e.clientX, sy = e.clientY, ox = t.x, oy = t.y, ow = t.w, oh = t.h;
+        function mv(ev) {
+          var dx = (ev.clientX - sx) / r.width * 100, dy = (ev.clientY - sy) / r.height * 100;
+          if (resize) { t.w = Math.max(4, Math.min(40, ow + dx)); t.h = Math.max(4, Math.min(40, oh + dy)); }
+          else { t.x = Math.max(0, Math.min(95, ox + dx)); t.y = Math.max(0, Math.min(95, oy + dy)); }
+          place();
+        }
+        function up() { document.removeEventListener("pointermove", mv); document.removeEventListener("pointerup", up); persist(); }
+        document.addEventListener("pointermove", mv); document.addEventListener("pointerup", up);
+      });
+      ed.appendChild(d);
+    });
+  }
+  document.querySelectorAll("#ztabs a").forEach(function (a) { a.addEventListener("click", function (e) { e.preventDefault(); document.querySelectorAll("#ztabs a").forEach(function (x) { x.classList.toggle("on", x === a); }); zone = a.getAttribute("data-z"); draw(); }); });
+  draw();
+})();
+</script>
+{% endblock %}

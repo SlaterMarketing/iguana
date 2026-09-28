@@ -1,0 +1,34 @@
+{% extends "pos/base.html" %}{% load pos_extras %}
+{% block title %}Inventario · Iguana POS{% endblock %}
+{% block heading %}Inventario{% endblock %}
+{% block head %}<style>
+  .qtyform { display: flex; gap: 4px; align-items: center; }
+  .qtyform input { width: 84px; min-height: 40px; padding: 6px 8px; }
+  .qtyform .btn { min-height: 40px; min-width: 40px; padding: 0 10px; }
+  tr.low td { background: #fff1f2; }
+</style>{% endblock %}
+{% block content %}
+<div class="page grid">
+  {% with tab='stock' %}{% include "pos/_invtabs.html" %}{% endwith %}
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <div class="row"><a class="btn small {% if not area %}blue{% else %}ghost{% endif %}" href="?">Todo</a>{% for code, name in areas %}<a class="btn small {% if area == code %}blue{% else %}ghost{% endif %}" href="?area={{ code }}">{{ name }}</a>{% endfor %}
+    <span class="chip" style="background:#e5e7eb">Valor en inventario {{ total_value|pesos }}</span></div>
+  <div class="scroll card" style="padding:0"><table class="t">
+    <tr><th>Insumo</th><th>Área</th><th class="num">Hay</th><th>Ajustar</th><th>Merma</th><th class="num">Costo u.</th>{% if staff.is_manager %}<th></th>{% endif %}</tr>
+    {% for r in rows %}{% with i=r.i %}
+    <tr id="i{{ i.pk }}" class="{% if i.low %}low{% endif %}">
+      <td><strong>{{ i.name }}</strong> {% if i.low %}<span class="badge low">Por pedir</span>{% endif %}<br><span class="muted" style="font-size:.78rem">{{ i.unit }}{% if i.par %} · pedir en {{ i.par|qty }}{% endif %}</span></td>
+      <td>{{ i.get_area_display }}</td>
+      <td class="num"><strong style="font-size:1.1rem">{{ i.quantity|qty }}</strong></td>
+      <td><form method="post" class="qtyform">{% csrf_token %}<input type="hidden" name="item" value="{{ i.pk }}"><input type="hidden" name="area" value="{{ area }}">
+        <button class="btn small ghost" name="action" value="minus">−</button><button class="btn small ghost" name="action" value="plus">+</button>
+        <input name="quantity" inputmode="decimal" placeholder="poner"><button class="btn small" name="action" value="set">OK</button></form></td>
+      <td><form method="post" class="qtyform">{% csrf_token %}<input type="hidden" name="item" value="{{ i.pk }}"><input type="hidden" name="area" value="{{ area }}"><input type="hidden" name="action" value="waste">
+        <input name="quantity" inputmode="decimal" placeholder="cant."><input name="reason" placeholder="motivo" style="width:110px"><button class="btn small red">Merma</button></form></td>
+      <td class="num">{{ r.cost|pesos }}</td>
+      {% if staff.is_manager %}<td><a class="btn small ghost" href="/pos/inventario/insumo/{{ i.pk }}/">Editar</a></td>{% endif %}
+    </tr>{% endwith %}{% empty %}<tr><td colspan="7" class="muted">No hay insumos todavía.</td></tr>{% endfor %}
+  </table></div>
+  <div class="card scroll"><h3>Últimos movimientos</h3><table class="t">{% for h in history %}<tr><td>{{ h.created_at|date:"d/m H:i" }}</td><td>{{ h.item.name }}</td><td class="num">{% if h.delta > 0 %}+{% endif %}{{ h.delta|qty }}</td><td class="num">→ {{ h.quantity_after|qty }}</td><td>{{ h.note }}</td><td>{{ h.who }}</td></tr>{% endfor %}</table></div>
+</div>
+{% endblock %}

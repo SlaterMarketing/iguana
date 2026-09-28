@@ -69,7 +69,7 @@
     <div class="sum"><span>{% t lang "Drinks" %}</span><span class="big">{{ bill }}</span></div>
   </div>
 
-  <form id="pay" class="tip" method="post" action="/mesa/pagar/{{ token }}/cobrar/">
+  <form id="pay" class="tip" method="post" action="{{ pay_base }}cobrar/">
     {% csrf_token %}
     <h3>{% t lang "Tip for your waiter" %}</h3>
     <p class="why">{% t lang "{0}% is what the house suggests. Change it or leave none, it is up to you." default_tip %}</p>
@@ -96,6 +96,7 @@
   <p class="note">{% t lang "The card is handled by Stripe. Iguana Comedy never sees your card number." %}</p>
 
   {{ token|json_script:"tok" }}
+  {{ pay_base|json_script:"pay-base" }}
   {{ stripe_key|json_script:"stripe-key" }}
   {{ dev_payment|json_script:"dev-payment" }}
   {% comment %}
@@ -114,6 +115,7 @@
       var err = document.getElementById("err");
       var totalEl = document.getElementById("total");
       var token = JSON.parse(document.getElementById("tok").textContent);
+      var base = JSON.parse(document.getElementById("pay-base").textContent);
       var key = JSON.parse(document.getElementById("stripe-key").textContent);
       var devPayment = JSON.parse(document.getElementById("dev-payment").textContent);
       var texts = JSON.parse(document.getElementById("pay-texts").textContent);
@@ -148,7 +150,7 @@
       function confirmPaid(paymentId) {
         var body = new URLSearchParams();
         body.set("paymentId", paymentId);
-        fetch("/mesa/pagar/" + token + "/confirmar/", { method: "POST", body: body })
+        fetch(base + "confirmar/", { method: "POST", body: body })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
           .then(function (res) {
             if (!res.ok) throw new Error(res.d.error || "");
@@ -174,7 +176,7 @@
         var body = new URLSearchParams();
         body.set("tip", chosenTip());
         body.set("csrfmiddlewaretoken", form.querySelector("[name=csrfmiddlewaretoken]").value);
-        fetch("/mesa/pagar/" + token + "/intent/", { method: "POST", body: body })
+        fetch(base + "intent/", { method: "POST", body: body })
           .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
           .then(function (res) {
             if (!res.ok) throw new Error(res.d.error || "");

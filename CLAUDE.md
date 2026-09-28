@@ -427,6 +427,38 @@ Instagram through `/media`, a `status_code` poll, then `/media_publish`. Weekly 
 `showTime` in the data, so they cannot be posted until one is set (or `--image` is passed); WebP is refused.
 Tests: `python3 -m unittest discover -s scripts/tests`.
 
+### The point of sale (`backend/pos/`, `/pos/`): a Soft Restaurant clone
+
+🚨 **Since 2026-09-28 the bar runs on `/pos/`, not on `/tables/` + `/mesas/`** (owner: "the entire
+order/menu/table/inventory system is fucked, make it a clone of Soft Restaurant", same layout so staff land on
+what they know). `/mesas/`, `/tables/`, `/mesas/carta/` and `/mesas/inventario/` now 302 to it; `/mesas/reservas/`
+and `/mesas/puerta/` are unchanged and linked from its function bar. The old board sections below describe
+retired screens; their models (`TableOrder` etc.) keep the history and /stats and /revenue add both.
+
+- **Two locks.** The tablet signs in as a floor account (`api/floor.py`, keeps /admin/ shut); then a PERSON types
+  a 4 to 6 digit PIN (`pos.Staff`, roles MESERO / CAJERO / GERENTE, 30 min idle). Every check, void, discount and
+  payment records who. Voiding a SENT line, discounts, courtesy, cancelling or reopening a check need a manager
+  PIN typed on the spot. First manager: `pos_setup --manager Administrador --pin ...` from deploy, PIN in
+  `~/.credentials/vpsorg/iguanacomedy/pos_manager_pin`; everyone else is created at `/pos/personal/`.
+- **Flow:** map (zones, colours: green free, blue occupied, amber bill printed, orange pulsing = QR order not
+  sent) -> check (`pos.Check`, one open per table unless DIVIDIR) -> lines from the category/product grid, with
+  modifiers -> ENVIAR makes a `Comanda`, takes the RECIPE out of stock (`catalog.MenuItemIngredient`, per line,
+  once, `stock_applied_at`) and prints at the bar -> CUENTA prints the bill with a phone-pay QR -> COBRAR takes
+  one or more `Payment`s (cash with change, terminal card with reference, transfer, phone, courtesy) into the open
+  `Shift`; the check closes at zero and prints a ticket -> CAJA closes the shift with a corte (expected cash =
+  fondo + cash sales + cash tips + entradas - retiros).
+- **Customer QR orders** (`/api/public/v1/table-orders`) land on the table's check UNSENT (`from_customer`) and
+  still email the bar; the waiter confirms and sends. Phone payment is `/pos/pagar/<check.pay_token>/` (same page
+  as the old table pay, Stripe metadata `purpose: pos`, webhook settles).
+- **Printing** without a computer at the club: Epson TM (Server Direct Print) or Star (CloudPRNT) poll
+  `/pos/print/<printer token>/` (`pos/views_pay.py`); until one exists every ticket opens in the tablet's print
+  dialog (`/pos/imprimir/<job>/`, 42 columns for 80mm). Set up at `/pos/impresoras/`.
+- **Inventory** reuses `catalog.InventoryItem`/`InventoryChange`: existencias with mermas, compras (add stock,
+  set `pos.ItemCost` for recipe costing), inventario físico (count sheet applied in one go).
+- ⚠ The order screen serialises its requests (`serial()` in `templates/pos/cuenta.html`): two fast taps used
+  to race and one drink vanished. Keep it.
+- Tests: `manage.py test pos`.
+
 ### The staff pages: who is coming, and what they cost
 
 Three pages behind the admin session, all bilingual, all on both domains.

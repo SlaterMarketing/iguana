@@ -1,0 +1,43 @@
+{% extends "pos/base.html" %}{% load pos_extras %}
+{% block title %}Caja · Iguana POS{% endblock %}
+{% block heading %}Caja{% endblock %}
+{% block content %}
+<div class="page grid">
+  <div class="row" style="justify-content:space-between"><h1>Caja</h1><a class="btn ghost" href="/pos/">◀ Mesas</a></div>
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  {% if not summary %}
+    <form method="post" class="card grid" style="max-width:420px">{% csrf_token %}<input type="hidden" name="action" value="open">
+      <h2>Abrir turno</h2><p class="muted">Cuenta el efectivo con el que empieza la caja (el fondo).</p>
+      <label>Fondo inicial en pesos<input name="opening" inputmode="decimal" placeholder="500" required></label>
+      <button class="btn green">Abrir caja</button></form>
+  {% else %}{% with s=summary %}
+    <div class="card grid">
+      <h2>Turno abierto por {{ s.shift.opened_by.name }} · {{ s.shift.opened_at|date:"d/m H:i" }}</h2>
+      <div class="scroll"><table class="t"><tr><th>Forma de pago</th><th class="num">Cobros</th><th class="num">Venta</th><th class="num">Propinas</th></tr>
+        {% for m in s.methods %}{% if m.count %}<tr><td>{{ m.label }}</td><td class="num">{{ m.count }}</td><td class="num">{{ m.amount|pesos }}</td><td class="num">{{ m.tips|pesos }}</td></tr>{% endif %}{% endfor %}
+        <tr><th>Total</th><th class="num">{{ s.checks }} cuentas</th><th class="num">{{ s.sales|pesos }}</th><th class="num">{{ s.tips|pesos }}</th></tr></table></div>
+      <div class="row"><span class="chip" style="background:#e5e7eb">Fondo {{ s.shift.opening_cash_cents|pesos }}</span><span class="chip" style="background:#e5e7eb">Entradas {{ s.ins|pesos }}</span><span class="chip" style="background:#e5e7eb">Retiros {{ s.outs|pesos }}</span><span class="chip" style="background:#dcfce7">Efectivo esperado {{ s.expected_cash|pesos }}</span></div>
+    </div>
+    <div class="grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">
+      <form method="post" class="card grid">{% csrf_token %}<h3>Retiro / entrada de efectivo</h3>
+        <label>Monto<input name="amount" inputmode="decimal" required></label><label>Motivo<input name="reason" placeholder="retiro a caja fuerte, cambio..."></label>
+        <div class="row"><button class="btn red" name="action" value="out">Retiro</button><button class="btn" name="action" value="in">Entrada</button></div></form>
+      <form method="post" class="card grid">{% csrf_token %}<input type="hidden" name="action" value="close"><h3>Corte de caja (cerrar turno)</h3>
+        <label>Efectivo contado en caja<input name="counted_cash" inputmode="decimal" required></label>
+        <label>Total de vouchers de terminal (opcional)<input name="counted_card" inputmode="decimal"></label>
+        <label>Nota<input name="note"></label>
+        {% if s.open_checks %}<label style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="force" style="width:22px;min-height:22px"> Cerrar aunque haya {{ s.open_checks }} cuenta(s) abierta(s)</label>{% endif %}
+        <button class="btn amber">Hacer corte</button></form>
+    </div>
+    {% if s.moves %}<div class="card"><h3>Movimientos</h3><table class="t">{% for m in s.moves %}<tr><td>{{ m.created_at|time:"H:i" }}</td><td>{{ m.get_kind_display }}</td><td>{{ m.reason }}</td><td>{{ m.by.name }}</td><td class="num">{{ m.amount_cents|pesos }}</td></tr>{% endfor %}</table></div>{% endif %}
+  {% endwith %}{% endif %}
+  <div class="card"><h3>Cuentas abiertas</h3>
+    <div class="scroll"><table class="t"><tr><th>Folio</th><th>Mesa</th><th>Mesero</th><th class="num">Total</th><th class="num">Por pagar</th></tr>
+    {% for c in open_checks %}<tr><td><a href="/pos/cuenta/{{ c.id }}/">{{ c.folio }}</a></td><td>{{ c.where }}</td><td>{{ c.waiter.name|default:"" }}</td><td class="num">{{ c.total_cents|pesos }}</td><td class="num">{{ c.due_cents|pesos }}</td></tr>
+    {% empty %}<tr><td colspan="5" class="muted">Ninguna.</td></tr>{% endfor %}</table></div></div>
+  <div class="card"><h3>Cortes anteriores</h3>
+    <div class="scroll"><table class="t"><tr><th>Abrió</th><th>Cerró</th><th class="num">Contado</th><th></th></tr>
+    {% for h in history %}<tr><td>{{ h.opened_at|date:"d/m H:i" }} {{ h.opened_by.name }}</td><td>{{ h.closed_at|date:"d/m H:i" }} {{ h.closed_by.name }}</td><td class="num">{{ h.counted_cash_cents|pesos }}</td><td><a class="btn small ghost" href="/pos/caja/{{ h.id }}/">Ver corte</a></td></tr>
+    {% empty %}<tr><td colspan="4" class="muted">Todavía no hay cortes.</td></tr>{% endfor %}</table></div></div>
+</div>
+{% endblock %}

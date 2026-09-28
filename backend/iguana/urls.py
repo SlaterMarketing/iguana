@@ -9,5 +9,6 @@ admin.site.index_title = 'Shows, fans and sales'
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('pos/', include('pos.urls')),
     path('', include('api.urls')),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
