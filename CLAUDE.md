@@ -435,11 +435,17 @@ what they know). `/mesas/`, `/tables/`, `/mesas/carta/` and `/mesas/inventario/`
 and `/mesas/puerta/` are unchanged and linked from its function bar. The old board sections below describe
 retired screens; their models (`TableOrder` etc.) keep the history and /stats and /revenue add both.
 
-- **Two locks.** The tablet signs in as a floor account (`api/floor.py`, keeps /admin/ shut); then a PERSON types
-  a 4 to 6 digit PIN (`pos.Staff`, roles MESERO / CAJERO / GERENTE, 30 min idle). Every check, void, discount and
-  payment records who. Voiding a SENT line, discounts, courtesy, cancelling or reopening a check need a manager
-  PIN typed on the spot. First manager: `pos_setup --manager Administrador --pin ...` from deploy, PIN in
-  `~/.credentials/vpsorg/iguanacomedy/pos_manager_pin`; everyone else is created at `/pos/personal/`.
+- **The PIN pad is the only door** (owner, 2026-09-28: no username screen). `/pos/` goes straight to a 4 to 6
+  digit PIN (`pos.Staff`, roles MESERO / CAJERO / GERENTE, 30 min idle). Five wrong PINs from one address in 15
+  minutes lock it (`pos.PinFailure`), and wrong manager PINs typed in dialogs count too. A PIN session is a
+  person, never a Django user, so /admin/ stays shut to it; `floor_required` pages (Reservas, Puerta, /checkin/)
+  accept it as well. Voiding a SENT line, discounts, courtesy, cancelling or reopening need a manager PIN typed on
+  the spot (not if a manager is signed in). The first manager is "Administrador" (`pos_setup` from deploy; PIN in
+  `~/.credentials/vpsorg/iguanacomedy/pos_manager_pin`, changed by hand to the owner's choice, never rewritten by
+  a deploy); everyone else is created at `/pos/personal/`.
+- **E2E:** `API_KEY=... node tests/pos-e2e.mjs` against production needs the throwaway fixtures (E2E staff 4242 /
+  4343, table 99, category "E2E prueba") created and removed around it, and `SKIP_TILL=1` whenever a real shift
+  is open (it never charges into or closes one). The staff tutorial went to hello@ on 2026-09-28.
 - **Flow:** map (zones, colours: green free, blue occupied, amber bill printed, orange pulsing = QR order not
   sent) -> check (`pos.Check`, one open per table unless DIVIDIR) -> lines from the category/product grid, with
   modifiers -> ENVIAR makes a `Comanda`, takes the RECIPE out of stock (`catalog.MenuItemIngredient`, per line,
