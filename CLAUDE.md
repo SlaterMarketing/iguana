@@ -342,6 +342,20 @@ unattributed sale teaches the algorithm the ad did not work.
 Nothing in that path may cost a booking. Every send is queued `on_commit`, runs on a daemon thread and swallows
 its failures; `api.tests.MetaConversionTests` asserts a sale still completes with the Graph API throwing.
 
+🚨 **A paid show's ad set must optimise on PAID checkouts, never on plain InitiateCheckout.** Every night on
+the pixel sends InitiateCheckout, and the cheapest one for Meta to find is a free open mic reservation, so a
+paid-show ad set steered on it learns to find people who book free seats. Improvincia's first day: Meta
+reported 5 checkouts and 2 purchases, our database held zero Improvincia orders. Custom conversion
+`1670646004630204` "Paid checkout (value above 0)" is InitiateCheckout with `value > 0` (every InitiateCheckout
+carries the night's price, `sales/ad_reporting.py`), and `scripts/meta-show-campaign.py --show <key>` uses it.
+⚠ **Promote a custom conversion ALONE**: `{'custom_conversion_id': ...}`. Adding its `pixel_id` or any
+`custom_event_type` is refused as "combinación no válida". The optimisation is frozen once published, so the
+builder names the goal in the ad set (`· pagados`), builds a new ad set when it changes, carries the old ads
+over by creative, gives it the unspent budget and pauses the old one.
+⚠ Meta retired "Improvisational theatre", "Whose Line Is It Anyway?" and "Comedy Central (Latin America)" as
+interests (still returned by search, refused on an ad set); the replacements are Theatre, Television comedy
+and Comedy TV Channels.
+
 **A pixel's history cannot be imported into another pixel.** The Conversions API refuses any event with an
 `event_time` older than seven days, so there is nothing to backfill, and `Ticket Tracking`'s last event (2026-05-17)
 is outside every window Meta optimises on anyway. The one thing that *can* be imported is the customer list:

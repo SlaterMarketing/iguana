@@ -116,8 +116,19 @@ def _chosen_show(argv):
 
 
 SHOW = SHOWS[_chosen_show(ORIGINAL_ARGV)]
+# What a paid show's ad set optimises for: InitiateCheckout with a value above 0 (custom conversion on pixel
+# "andrew new pixel"). Plain InitiateCheckout is shared by every night on the pixel, and the cheapest checkout for
+# Meta to find is a FREE open mic reservation, so a paid-show ad set steered on it learns to find people who book
+# free seats. Improvincia's first day showed it: Meta reported 5 checkouts and 2 purchases, our database held
+# zero Improvincia orders. Every InitiateCheckout carries the night's price as `value` (sales/ad_reporting.py),
+# which is what makes paid and free separable at all.
+PAID_CHECKOUT = '1670646004630204'
+# Part of the ad set name, because Meta freezes an ad set's optimisation once published: changing the goal means
+# a new ad set, and a new name is what makes this script build one instead of editing the old.
+GOAL_TAG = 'pagados'
+
 CAMPAIGN = f'{SHOW["name"]} · boletos'
-ADSET = f'{SHOW["name"]} · Riviera Maya · boletos'
+ADSET = f'{SHOW["name"]} · Riviera Maya · boletos · {GOAL_TAG}'
 
 
 def iso(when):
@@ -154,12 +165,29 @@ def ensure_campaign(live):
     return made['id']
 
 
+def superseded(campaign_id):
+    """Ad sets in this campaign that are not the current one: an older goal, left behind."""
+    return [a for a in openmic.pages(f'{campaign_id}/adsets', fields='id,name,status')
+            if a['name'] != ADSET]
+
+
+def spent_by(adset_ids):
+    total = 0
+    for adset_id in adset_ids:
+        for row in openmic.get(f'{adset_id}/insights', fields='spend', date_preset='maximum').get('data', []):
+            total += round(float(row.get('spend', 0)) * 100)
+    return total
+
+
 def ensure_adset(campaign_id, live):
     start = dt.datetime.now(CANCUN) + dt.timedelta(minutes=2)
+    older = superseded(campaign_id)
+    # The show's budget is for the whole run, so a replacement ad set gets what the old one did not spend.
+    budget = SHOW['lifetime_budget'] - spent_by([a['id'] for a in older])
     spec = {
         'name': ADSET,
         'campaign_id': campaign_id,
-        'lifetime_budget': SHOW['lifetime_budget'],
+        'lifetime_budget': budget,
         'start_time': iso(start),
         'end_time': iso(SHOW['ends']),
         'billing_event': 'IMPRESSIONS',
@@ -167,7 +195,9 @@ def ensure_adset(campaign_id, live):
         'bid_strategy': 'LOWEST_COST_WITHOUT_CAP',
         'optimization_goal': 'OFFSITE_CONVERSIONS',
         'destination_type': 'WEBSITE',
-        'promoted_object': {'pixel_id': openmic.PIXEL_ID, 'custom_event_type': openmic.CONVERSION_EVENT},
+        # A custom conversion is promoted ALONE. Adding its pixel_id or any custom_event_type, even the one it is
+        # built on, is refused as "combinación no válida" (checked with validate_only, 2026-09-28).
+        'promoted_object': {'custom_conversion_id': PAID_CHECKOUT},
         'attribution_spec': [{'event_type': 'CLICK_THROUGH', 'window_days': 1},
                              {'event_type': 'VIEW_THROUGH', 'window_days': 1}],
         'targeting': targeting(),
@@ -179,11 +209,11 @@ def ensure_adset(campaign_id, live):
                   'attribution_spec', 'start_time'}
         openmic.post(found['id'], **{k: v for k, v in spec.items() if k not in frozen})
         print(f'  ad set   {found["id"]}  {ADSET} (updated)')
-        return found['id']
+        return found['id'], []
     made = openmic.post(f'{openmic.AD_ACCOUNT}/adsets', **spec)
     openmic.remember('adsets', {'id': made['id'], 'name': ADSET})
-    print(f'  ad set   {made["id"]}  {ADSET} (created)')
-    return made['id']
+    print(f'  ad set   {made["id"]}  {ADSET} (created, {budget / 100:,.2f} MXN)')
+    return made['id'], older
 
 
 def video_creative(video_id, thumbnail, name):
@@ -229,7 +259,7 @@ def cmd_plan(_):
     left = SHOW['ends'] - dt.datetime.now(CANCUN)
     hours = left.total_seconds() / 3600
     print(f'\n{SHOW["name"]} -> {SHOW["link"]}')
-    print(f'  {CAMPAIGN:52} OUTCOME_SALES  optimise {openmic.CONVERSION_EVENT} via pixel {openmic.PIXEL_ID}')
+    print(f'  {CAMPAIGN:52} OUTCOME_SALES  optimise paid checkouts ({PAID_CHECKOUT}) via pixel {openmic.PIXEL_ID}')
     print(f'  budget     {SHOW["lifetime_budget"] / 100:,.2f} MXN for the whole run, paced by Meta')
     print(f'  window     now until {SHOW["ends"]:%a %d %b %H:%M} Cancun  ({hours:.1f} hours left)')
     names = ', '.join(i['name'] for i in SHOW.get('interests', [openmic.STANDUP_INTEREST]))
@@ -251,8 +281,26 @@ def cmd_apply(args):
 
     print(f'\n{SHOW["name"]} -> {SHOW["link"]}')
     campaign_id = ensure_campaign(args.live)
-    adset_id = ensure_adset(campaign_id, args.live)
+    adset_id, older = ensure_adset(campaign_id, args.live)
     blocked = []
+
+    # A replacement ad set carries the old one's ads over by creative, so nothing is uploaded twice and the
+    # copy people have already seen stays identical. Then the old ad set stops.
+    if older:
+        status = 'ACTIVE' if args.live else 'PAUSED'
+        for old in older:
+            for ad in openmic.pages(f'{old["id"]}/ads', fields='id,name,creative{id}'):
+                name = ad['name'].replace(old['name'], ADSET)
+                if not openmic.existing('ads', name):
+                    made = openmic.post(f'{openmic.AD_ACCOUNT}/ads', name=name, adset_id=adset_id,
+                                        creative={'creative_id': ad['creative']['id']}, status=status)
+                    openmic.remember('ads', {'id': made['id'], 'name': name})
+                    print(f'  ad       {made["id"]}  {name} (carried over)')
+            if old.get('status') != 'PAUSED':
+                openmic.post(old['id'], status='PAUSED')
+                print(f'  retired  {old["id"]}  {old["name"]} (old goal)')
+        print('\nlive' if args.live else '\npaused: re-run with --live to start it')
+        return
 
     for index, filename in enumerate(SHOW['videos'], start=1):
         video_id = openmic.upload_video(openmic.CREATIVE_DIR / filename)
