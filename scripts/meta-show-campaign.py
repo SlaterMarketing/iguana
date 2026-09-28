@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 """One campaign for one dated show, with a hard stop.
 
-    scripts/meta-show-campaign.py plan
-    scripts/meta-show-campaign.py apply --live
+    scripts/meta-show-campaign.py --show improvincia plan
+    scripts/meta-show-campaign.py --show improvincia apply --live
+    scripts/meta-show-campaign.py --show improvincia status
+
+One entry in SHOWS per dated show. `--show` is required, so a re-run can never touch the wrong show's campaign.
 
 The open mic campaigns run forever and point at /open-mic/, which never goes stale. A guest headliner is the
 opposite: one night, one landing page, and an ad that must stop before the doors do. So this uses a LIFETIME
@@ -34,7 +37,8 @@ spec.loader.exec_module(openmic)
 
 CANCUN = dt.timezone(dt.timedelta(hours=-5))
 
-SHOW = {
+SHOWS = {}
+SHOWS['privilegio'] = {
     'slug': 'privilegio-fredy-el-regio',
     'name': 'Privilegio · Fredy El Regio',
     'link': f'{openmic.SITE}/es/eventos/privilegio-fredy-el-regio/',
@@ -42,7 +46,8 @@ SHOW = {
     # town people drive to is a refund waiting to happen.
     'ends': dt.datetime(2026, 9, 25, 20, 0, tzinfo=CANCUN),
     # Total for the whole run, not per day: Meta paces a lifetime budget across the window.
-    'lifetime_budget': 120000,            # centavos: 1,200.00 MXN
+    # Raised from 1,200 on 2026-09-24 with 27.7 hours and 40 seats to go; see CLAUDE.md.
+    'lifetime_budget': 240000,            # centavos: 2,400.00 MXN
     # A named act pulls from further than a Tuesday open mic does. 40km reaches Tulum and Puerto Morelos;
     # Cancún is its own entry because it is 68km away and worth its own radius.
     'geo': {
@@ -62,6 +67,42 @@ SHOW = {
     },
 }
 
+SHOWS['improvincia'] = {
+    'slug': 'improvincia',
+    'name': 'Improvincia',
+    'link': f'{openmic.SITE}/es/eventos/improvincia/',
+    # Friday 2 October, doors 8, show 9. Stops at doors, the same rule as Privilegio.
+    'ends': dt.datetime(2026, 10, 2, 20, 0, tzinfo=CANCUN),
+    # Privilegio's final figure. It sold at about 120 MXN of ads per ticket, so this should buy roughly 20 of the
+    # 80 seats; raise it if the room is filling slower than the days are going.
+    'lifetime_budget': 240000,            # centavos: 2,400.00 MXN
+    'geo': SHOWS['privilegio']['geo'],
+    'videos': ['improvincia-9x16-a.mp4', 'improvincia-9x16-b.mp4'],
+    # The square flyer: Meta shows 1:1 whole in the feed. The Story version is the same flyer inside the band
+    # Instagram does not cover (scripts/fit-story.py).
+    'image': 'improvincia-flyer-1x1.jpg',
+    'story_image': 'improvincia-flyer-9x16-safe.jpg',
+    'copy': {
+        'message': ('Improvincia llega a Playa del Carmen el viernes 2 de octubre: comedia 100% improvisada, '
+                    'un show interactivo que nunca se repite.\n\n'
+                    'Una sola función en Iguana Comedy, en el centro. Boletos 200 MXN y los compras aquí en menos '
+                    'de un minuto.'),
+        'title': 'Improvincia en Playa del Carmen',
+        'description': 'Viernes 2 de octubre · 9:00 pm · Iguana Comedy',
+    },
+}
+
+
+def _chosen_show(argv):
+    """`--show <key>` from the command line, taken before argparse because the names below depend on it."""
+    if '--show' in argv and argv.index('--show') + 1 < len(argv):
+        key = argv[argv.index('--show') + 1]
+        if key in SHOWS:
+            return key
+    sys.exit(f'pass --show with one of: {", ".join(SHOWS)}')
+
+
+SHOW = SHOWS[_chosen_show(ORIGINAL_ARGV)]
 CAMPAIGN = f'{SHOW["name"]} · boletos'
 ADSET = f'{SHOW["name"]} · Riviera Maya · boletos'
 
@@ -239,6 +280,7 @@ def cmd_status(_):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--show', required=True, choices=sorted(SHOWS))
     sub = parser.add_subparsers(dest='command', required=True)
     sub.add_parser('plan').set_defaults(func=cmd_plan)
     sub.add_parser('status').set_defaults(func=cmd_status)
