@@ -446,6 +446,12 @@ retired screens; their models (`TableOrder` etc.) keep the history and /stats an
 - **E2E:** `API_KEY=... node tests/pos-e2e.mjs` against production needs the throwaway fixtures (E2E staff 4242 /
   4343, table 99, category "E2E prueba") created and removed around it, and `SKIP_TILL=1` whenever a real shift
   is open (it never charges into or closes one). The staff tutorial went to hello@ on 2026-09-28.
+- **Hierarchy (floor's list, 2026-09-28):** Mesero < Barra < Administración (codes MESERO / CAJERO / GERENTE,
+  only the labels changed). A waiter sees their section (`Staff.tables`, set at /pos/personal/ as "1-6, 9";
+  empty = whole room) plus checks they opened, never another waiter's (`Staff.may_open`, `api.claim`), takes an
+  unclaimed QR check by opening it, and charges/closes their own checks. Barra and Administración see and work
+  everything and run the till. Anyone adds a table from the map (`/pos/mesa/nueva/`). A check can be named
+  (`label`, shown as "Mesa 3 · Ana"). ENVIAR returns to the map.
 - **Flow:** map (zones, colours: green free, blue occupied, amber bill printed, orange pulsing = QR order not
   sent) -> check (`pos.Check`, one open per table unless DIVIDIR) -> lines from the category/product grid, with
   modifiers -> ENVIAR makes a `Comanda`, takes the RECIPE out of stock (`catalog.MenuItemIngredient`, per line,
