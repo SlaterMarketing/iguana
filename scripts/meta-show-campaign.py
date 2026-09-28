@@ -77,6 +77,19 @@ SHOWS['improvincia'] = {
     # 80 seats; raise it if the room is filling slower than the days are going.
     'lifetime_budget': 240000,            # centavos: 2,400.00 MXN
     'geo': SHOWS['privilegio']['geo'],
+    # An improv troupe, not a stand-up: stand-up alone bought 5,888 impressions and no real order in the first
+    # day (owner, 2026-09-28). Meta ORs everything inside one interests list, so this WIDENS the audience; stand-up
+    # stays because it is the only interest this account has ever sold on.
+    'interests': [
+        openmic.STANDUP_INTEREST,
+        # Meta folded "Improvisational theatre", "Whose Line Is It Anyway?" and "Comedy Central (Latin America)"
+        # into these three on 2026-09-28; the old ids still SEARCH but are refused on an ad set.
+        {'id': '6002957026250', 'name': 'Theatre'},
+        {'id': '6003319728736', 'name': 'Television comedy'},
+        {'id': '6777890774833', 'name': 'Comedy TV Channels'},
+        {'id': '6003584475638', 'name': 'Comedy club'},
+        {'id': '6003417378239', 'name': 'Obras de teatro (artes escénicas)'},
+    ],
     'videos': ['improvincia-9x16-a.mp4', 'improvincia-9x16-b.mp4'],
     # The square flyer: Meta shows 1:1 whole in the feed. The Story version is the same flyer inside the band
     # Instagram does not cover (scripts/fit-story.py).
@@ -117,7 +130,7 @@ def targeting():
         'age_min': 18,
         'age_max': 65,
         'location_types': ['home', 'recent'],
-        'flexible_spec': [{'interests': [openmic.STANDUP_INTEREST]}],
+        'flexible_spec': [{'interests': SHOW.get('interests', [openmic.STANDUP_INTEREST])}],
         'targeting_automation': {'advantage_audience': 0},
     }
 
@@ -219,7 +232,8 @@ def cmd_plan(_):
     print(f'  {CAMPAIGN:52} OUTCOME_SALES  optimise {openmic.CONVERSION_EVENT} via pixel {openmic.PIXEL_ID}')
     print(f'  budget     {SHOW["lifetime_budget"] / 100:,.2f} MXN for the whole run, paced by Meta')
     print(f'  window     now until {SHOW["ends"]:%a %d %b %H:%M} Cancun  ({hours:.1f} hours left)')
-    print(f'  targeting  Playa del Carmen 40km + Cancún 25km, home+recent, 18 to 65, stand-up interest')
+    names = ', '.join(i['name'] for i in SHOW.get('interests', [openmic.STANDUP_INTEREST]))
+    print(f'  targeting  Playa del Carmen 40km + Cancún 25km, home+recent, 18 to 65, any of: {names}')
     print(f'  creative   {", ".join(SHOW["videos"])}, {SHOW["image"]}')
     print(f'             {SHOW["story_image"]} for Story and Reels')
     if hours <= 0:
