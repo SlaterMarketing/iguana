@@ -345,11 +345,9 @@ its failures; `api.tests.MetaConversionTests` asserts a sale still completes wit
 🚨 **Every PAID show gets the paid-show rules before a peso is spent** (owner, 2026-09-28, after Improvincia
 bought 345 clicks, 6 checkout starts and 1 sale). `scripts/meta-show-campaign.py --show <key> preflight` checks
 them against the live page, and `apply` refuses on any FAIL (`--force` only with a stated reason):
-1. **Offer "Aparta ahora, paga en la puerta" FIRST**, beside "Paga ahora en línea", same price. Cover culture
-   here is cash at the door; a card wall for $200 loses nearly everyone. Same-price types preselect the first
-   and a door-first event draws no card form (`sales.services.collects_payment`, `checkout.html`), so the page
-   opens on one short form. Split the room's capacity between the two types so it cannot oversell.
-2. **Price in the ad's FIRST line**, and "pagas en la puerta" with it: the feed hides the rest behind "... más".
+1. **Tickets are paid ON THE SITE, never at the door** (owner, 2026-09-28, reversing a pay-at-the-door option
+   tried for an hour on Improvincia). No `pay_at_door` ticket type on a paid show; preflight FAILs one.
+2. **Price in the ad's FIRST line**: the feed hides the rest behind "... más".
 3. **The event date must equal the flyer's** (Improvincia's page said the 3rd, the flyer the 2nd).
 4. **The flyer must not route bookings elsewhere.** The promoter's flyer printed their WhatsApp ("RESERVAS:
    998 844 7132"), which sends buyers around the page and hides every sale from Meta. Record what was checked

@@ -101,14 +101,14 @@ SHOWS['improvincia'] = {
     'image': 'improvincia-flyer-1x1.jpg',
     'story_image': 'improvincia-flyer-9x16-safe.jpg',
     'copy': {
-        # The price and "pay at the door" in the FIRST line: the feed cuts the rest behind "... más". Before
-        # 2026-09-28 the price sat in the second paragraph and the only way to book was a card up front: 345 clicks,
-        # 6 people started the checkout, 1 bought.
-        'message': ('Improvincia, viernes 2 de octubre: $200 y pagas en la puerta. Aparta tu lugar aquí, sin tarjeta.\n\n'
+        # The price in the FIRST line: the feed cuts the rest behind "... más". Before 2026-09-28 it sat in the
+        # second paragraph: 345 clicks, 6 people started the checkout, 1 bought. Tickets are paid online only
+        # (owner, 2026-09-28: "pay on site, we don't want them paying at the door").
+        'message': ('Improvincia, viernes 2 de octubre: boletos $200, cómpralos aquí en un minuto.\n\n'
                     'Comedia 100% improvisada, un show interactivo que nunca se repite. Una sola función en Iguana '
                     'Comedy, en el centro de Playa del Carmen.'),
-        'title': 'Improvincia · $200, pagas en la puerta',
-        'description': 'Viernes 2 oct · 9:00 pm · aparta sin tarjeta',
+        'title': 'Improvincia · boletos $200',
+        'description': 'Viernes 2 oct · 9:00 pm · Iguana Comedy',
     },
     # What a person checked on the flyer, because no script can read one. See preflight().
     'flyer': {'date': '2 de octubre', 'price': '$200',
@@ -273,7 +273,7 @@ def flyer_creative(feed_hash, story_hash, name):
 # The rules every PAID show's ads are checked against before a peso is spent (owner, 2026-09-28: "set rules to
 # always check for these things on paid events"). Each one is a thing that went wrong on Improvincia:
 #   - a date on the page that disagreed with the flyer (3 vs 2 October),
-#   - no way to book without a card, for a $200 cover people expect to pay at the door,
+#   - a pay-at-the-door option: tickets for paid shows are paid ON THE SITE (owner, 2026-09-28), never at the door,
 #   - the price in the ad's second paragraph, behind "... más",
 #   - a flyer that sends bookings to a WhatsApp number instead of the page,
 #   - a thin page: no Spanish description, no clip of the act.
@@ -303,13 +303,10 @@ def preflight():
     add(ev.get('status') == 'on-sale', 'FAIL', f'event is on sale (status: {ev.get("status")})')
     add(ev.get('date') == SHOW['ends'].date().isoformat(), 'FAIL',
         f'event date {ev.get("date")} matches the ad window ending {SHOW["ends"]:%Y-%m-%d}')
-    add(bool(ev.get('payAtDoor')) or SHOW.get('card_only'), 'FAIL',
-        'a seat can be reserved without a card (pay at the door)' +
-        (' [card_only set]' if SHOW.get('card_only') else ''))
+    add(not ev.get('payAtDoor'), 'FAIL', 'tickets are paid on the site, with no pay-at-the-door option')
     first_line = SHOW['copy']['message'].split('\n')[0].lower()
     add(('$' in first_line or 'mxn' in first_line), 'FAIL', 'the ad\'s FIRST line states the price')
-    if ev.get('payAtDoor'):
-        add('puerta' in first_line, 'FAIL', 'the ad\'s first line says they pay at the door')
+    add('puerta' not in first_line, 'FAIL', 'the ad does not promise paying at the door')
     add('$' in (SHOW['copy']['title'] + SHOW['copy']['description']), 'WARN', 'the headline or link line carries the price')
     description = (ev.get('description') or '') + ' ' + (ev.get('longDescription') or '')
     add(len(description.strip()) >= 60, 'FAIL', f'the Spanish page says what the show is ({len(description.strip())} chars)')
