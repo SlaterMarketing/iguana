@@ -416,7 +416,8 @@
       }
       return;
     }
-    var opts = { mode: "payment", amount: q.totalCents, currency: ev.currency.toLowerCase() };
+    // Card only: no Stripe Link box (see embed_views.checkout_start, which must ask for the same types).
+    var opts = { mode: "payment", amount: q.totalCents, currency: ev.currency.toLowerCase(), paymentMethodTypes: ["card"] };
     if (!elements) {
       stripe = window.Stripe(B.stripeKey);
       elements = stripe.elements(Object.assign({ locale: B.lang, appearance: { variables: { colorPrimary: "#3f7d3e", borderRadius: "12px" } } }, opts));

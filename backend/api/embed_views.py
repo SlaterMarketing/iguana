@@ -242,7 +242,10 @@ def checkout_start(request, event_id):
 
     intent = stripe_client().PaymentIntent.create(
         amount=cart.total_cents, currency=event.currency, receipt_email=order.customer_email,
-        automatic_payment_methods={'enabled': True},
+        # Card only (Apple Pay and Google Pay are cards too). Automatic methods switched on Stripe Link, whose
+        # "save my info" box doubled the height of the form on a phone (owner, 2026-09-28: remove it). Must match
+        # `paymentMethodTypes` in checkout.html or confirmation is refused.
+        payment_method_types=['card'],
         metadata={'purpose': 'tickets', 'order_id': order.id, 'event_id': event.id},
         description=f'{event.name} tickets',
     )

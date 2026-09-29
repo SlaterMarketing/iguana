@@ -89,7 +89,7 @@ def pay_intent(request, token):
         return JsonResponse({'error': tr(lang, 'Card payment is not available right now.')}, status=503)
     intent = stripe_client().PaymentIntent.create(
         amount=payment.amount_cents + payment.tip_cents, currency='mxn',
-        automatic_payment_methods={'enabled': True},
+        payment_method_types=['card'],  # no Stripe Link box, as on the ticket checkout
         metadata={'purpose': 'pos', 'payment_id': payment.id, 'folio': str(cuenta.folio)},
         description=f'Iguana Comedy cuenta {cuenta.folio}')
     Payment.objects.filter(pk=payment.pk).update(stripe_payment_intent_id=intent.id)
