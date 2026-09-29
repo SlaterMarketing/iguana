@@ -78,9 +78,10 @@ SHOWS['improvincia'] = {
     'link': f'{openmic.SITE}/es/eventos/improvincia/',
     # Friday 2 October, doors 8, show 9. Stops at doors, the same rule as Privilegio.
     'ends': dt.datetime(2026, 10, 2, 20, 0, tzinfo=CANCUN),
-    # Privilegio's final figure. It sold at about 120 MXN of ads per ticket, so this should buy roughly 20 of the
-    # 80 seats; raise it if the room is filling slower than the days are going.
-    'lifetime_budget': 240000,            # centavos: 2,400.00 MXN
+    # Cut on 2026-09-29 to about 100 MXN a day for the last 3.2 days (owner: "not selling"). The figure is the
+    # whole run across both ad sets: 271.26 spent by the retired one + 739.83 on the current one, so a re-run of
+    # `apply` keeps the cut instead of restoring the original 2,400.
+    'lifetime_budget': 101109,            # centavos: 1,011.09 MXN
     'geo': SHOWS['privilegio']['geo'],
     # An improv troupe, not a stand-up: stand-up alone bought 5,888 impressions and no real order in the first
     # day (owner, 2026-09-28). Meta ORs everything inside one interests list, so this WIDENS the audience; stand-up
