@@ -421,7 +421,9 @@
     if (!elements) {
       stripe = window.Stripe(B.stripeKey);
       elements = stripe.elements(Object.assign({ locale: B.lang, appearance: { variables: { colorPrimary: "#3f7d3e", borderRadius: "12px" } } }, opts));
-      var card = elements.create("payment");
+      // Link rides inside the CARD form whenever it is on for the account, even with paymentMethodTypes
+      // ["card"], so it is also switched off here (and on the account's payment method settings).
+      var card = elements.create("payment", { wallets: { link: "never" } });
       card.on("ready", settleWhenStable);
       card.mount("#payment-element");
       // Ready is not a promise anyone owes us. On a slow connection it took 18 seconds, and if Stripe half
