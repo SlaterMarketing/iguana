@@ -233,6 +233,8 @@ def event_json(event, plan=None, lang='en', demand=None):
         # The site reserves the checkout's height before the iframe exists, and a card form is three times the
         # height of a name-and-email one. Without this it has to guess, and a wrong guess is the jump itself.
         'collectsPayment': _collects_payment(event),
+        # Whether a seat can be reserved without a card (pay at the door). The paid-show ad preflight insists on it.
+        'payAtDoor': any(t.pay_at_door and not t.is_addon for t in types),
         'ticketTypeCount': len(types),
         'ageRestriction': event.age_restriction or None,
         'priceFrom': min((t.price_cents for t in types), default=None),

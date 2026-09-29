@@ -287,10 +287,15 @@
     // the words "choose how many with +", so an ad click lands on a puzzle rather than on a price and a button.
     // More than one ticket type is a real choice and still starts empty, because guessing which one is worse.
     // An add-on NEVER starts at one: a free reservation that quietly charges for drinks is a trap.
-    var single = seats.length === 1 && !seats[0].soldOut && seats[0].memberAccess !== "MEMBERS_ONLY";
+    // Several types at the SAME price are one seat with a choice of how to pay (pay at the door or online), so
+    // the first one still starts at one: the page opens on a price and a button, and the first type is the
+    // cheaper-to-say-yes-to option by construction (sort_order). Different prices are a real choice: empty.
+    var open = seats.filter(function (t) { return !t.soldOut && t.memberAccess !== "MEMBERS_ONLY"; });
+    var samePrice = open.length > 1 && open.every(function (t) { return t.priceCents === open[0].priceCents; });
+    var preselect = (seats.length === 1 || samePrice) && open.length ? open[0].id : null;
     ev.ticketTypes.forEach(function (t) {
       var limit = Math.min(t.maxPerOrder || 20, t.remaining != null ? t.remaining : Infinity);
-      qty[t.id] = (single && !t.isAddon && limit >= 1) ? 1 : 0;
+      qty[t.id] = (t.id === preselect && !t.isAddon && limit >= 1) ? 1 : 0;
       var row = document.createElement("div"); row.className = "type";
       var top = document.createElement("div"); top.className = "type-top";
       var info = document.createElement("div");

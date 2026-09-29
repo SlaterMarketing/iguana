@@ -57,8 +57,12 @@ def collects_payment(event):
     """
     if not stripe_enabled():
         return False
-    return any(t.price_cents > 0 and not t.pay_at_door
-               for t in event.ticket_types.all() if t.active and not t.is_addon)
+    seats = sorted((t for t in event.ticket_types.all() if t.active and not t.is_addon),
+                   key=lambda t: (t.sort_order, t.price_cents))
+    # Same price, several ways to pay: the checkout preselects the first, so what it will draw is that one's.
+    if seats and (len(seats) == 1 or len({t.price_cents for t in seats}) == 1):
+        return seats[0].price_cents > 0 and not seats[0].pay_at_door
+    return any(t.price_cents > 0 and not t.pay_at_door for t in seats)
 
 
 def wallets_available():

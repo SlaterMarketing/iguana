@@ -4165,3 +4165,30 @@ class DayOfReminderTests(ApiTestCase):
         order = self.book(mic, seat, 'a@example.com')
         order.tickets.update(checked_in_at=timezone.now())
         self.assertEqual(release(order.id), 'refused')
+
+
+class PayAtTheDoorFirstTests(ApiTestCase):
+    """A paid show offering "pay at the door" first opens with no card form, and says so to the site."""
+
+    def test_same_price_door_option_first_means_no_card_form_and_no_reserved_height(self):
+        from api.serializers import event_json
+        from sales.services import collects_payment
+
+        show = Event.objects.create(name='Improv', slug='improv', status=Event.ACTIVE, venue=self.venue,
+                                    date=timezone.now() + timedelta(days=4), currency='mxn')
+        TicketType.objects.create(event=show, name='Pay at the door', price_cents=20000, pay_at_door=True,
+                                  capacity=50, sort_order=0)
+        TicketType.objects.create(event=show, name='Pay now', price_cents=20000, capacity=30, sort_order=1)
+        with self.settings(STRIPE_SECRET_KEY='sk_test_x', STRIPE_PUBLISHABLE_KEY='pk_test_x'):
+            self.assertFalse(collects_payment(show))
+            data = event_json(show)
+        self.assertTrue(data['payAtDoor'])
+
+    def test_card_first_still_collects(self):
+        from sales.services import collects_payment
+
+        show = Event.objects.create(name='Headliner', slug='headliner', status=Event.ACTIVE, venue=self.venue,
+                                    date=timezone.now() + timedelta(days=4), currency='mxn')
+        TicketType.objects.create(event=show, name='Pay now', price_cents=30000, sort_order=0)
+        with self.settings(STRIPE_SECRET_KEY='sk_test_x', STRIPE_PUBLISHABLE_KEY='pk_test_x'):
+            self.assertTrue(collects_payment(show))
