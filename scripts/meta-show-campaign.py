@@ -6,6 +6,8 @@
     scripts/meta-show-campaign.py --show improvincia status
 
 One entry in SHOWS per dated show. `--show` is required, so a re-run can never touch the wrong show's campaign.
+`preflight` checks the live page and the ad against the paid-show rules; `apply` runs it first and refuses to
+spend on a FAIL.
 
 The open mic campaigns run forever and point at /open-mic/, which never goes stale. A guest headliner is the
 opposite: one night, one landing page, and an ad that must stop before the doors do. So this uses a LIFETIME
@@ -24,8 +26,11 @@ enhancement opt-outs, and the video upload that waits for Meta to finish process
 import argparse
 import datetime as dt
 import importlib.util
+import json
 import pathlib
 import sys
+import urllib.parse
+import urllib.request
 
 ORIGINAL_ARGV = sys.argv[1:]
 
@@ -96,13 +101,21 @@ SHOWS['improvincia'] = {
     'image': 'improvincia-flyer-1x1.jpg',
     'story_image': 'improvincia-flyer-9x16-safe.jpg',
     'copy': {
-        'message': ('Improvincia llega a Playa del Carmen el viernes 2 de octubre: comedia 100% improvisada, '
-                    'un show interactivo que nunca se repite.\n\n'
-                    'Una sola función en Iguana Comedy, en el centro. Boletos 200 MXN y los compras aquí en menos '
-                    'de un minuto.'),
-        'title': 'Improvincia en Playa del Carmen',
-        'description': 'Viernes 2 de octubre · 9:00 pm · Iguana Comedy',
+        # The price and "pay at the door" in the FIRST line: the feed cuts the rest behind "... más". Before
+        # 2026-09-28 the price sat in the second paragraph and the only way to book was a card up front: 345 clicks,
+        # 6 people started the checkout, 1 bought.
+        'message': ('Improvincia, viernes 2 de octubre: $200 y pagas en la puerta. Aparta tu lugar aquí, sin tarjeta.\n\n'
+                    'Comedia 100% improvisada, un show interactivo que nunca se repite. Una sola función en Iguana '
+                    'Comedy, en el centro de Playa del Carmen.'),
+        'title': 'Improvincia · $200, pagas en la puerta',
+        'description': 'Viernes 2 oct · 9:00 pm · aparta sin tarjeta',
     },
+    # What a person checked on the flyer, because no script can read one. See preflight().
+    'flyer': {'date': '2 de octubre', 'price': '$200',
+              # The promoter's own flyer prints their WhatsApp for bookings, which routes buyers around us and
+              # hides every sale from the ads. Accepted for this run by the owner (2026-09-28) while a clean
+              # version is asked for; the next show must not need this.
+              'booking_phone': '998 844 7132', 'accept_booking_phone': True},
 }
 
 
@@ -255,6 +268,77 @@ def flyer_creative(feed_hash, story_hash, name):
     }
 
 
+# ------------------------------------------------------------------ preflight
+#
+# The rules every PAID show's ads are checked against before a peso is spent (owner, 2026-09-28: "set rules to
+# always check for these things on paid events"). Each one is a thing that went wrong on Improvincia:
+#   - a date on the page that disagreed with the flyer (3 vs 2 October),
+#   - no way to book without a card, for a $200 cover people expect to pay at the door,
+#   - the price in the ad's second paragraph, behind "... más",
+#   - a flyer that sends bookings to a WhatsApp number instead of the page,
+#   - a thin page: no Spanish description, no clip of the act.
+# FAIL stops `apply`; WARN is printed and allowed.
+
+SOCIAL_SPEC = importlib.util.spec_from_file_location('social', ROOT / 'meta-social.py')
+social = importlib.util.module_from_spec(SOCIAL_SPEC)
+SOCIAL_SPEC.loader.exec_module(social)
+
+
+def live_event(locale='es'):
+    key = social.public_api_key(None)
+    url = f'{social.EVENTS_API}/{urllib.parse.quote(SHOW["slug"])}?locale={locale}'
+    request = urllib.request.Request(url, headers={'Authorization': f'Bearer {key}', 'Accept': 'application/json'})
+    with urllib.request.urlopen(request, timeout=30) as response:
+        return json.load(response)['event']
+
+
+def preflight():
+    """[(level, message)] for this show. Levels: FAIL, WARN, OK."""
+    out = []
+    add = lambda ok, level, msg: out.append(('OK' if ok else level, msg))
+    try:
+        ev = live_event('es')
+    except Exception as exc:  # noqa: BLE001 - any failure to read the page is itself a FAIL
+        return [('FAIL', f'cannot read the event from the API: {exc}')]
+    add(ev.get('status') == 'on-sale', 'FAIL', f'event is on sale (status: {ev.get("status")})')
+    add(ev.get('date') == SHOW['ends'].date().isoformat(), 'FAIL',
+        f'event date {ev.get("date")} matches the ad window ending {SHOW["ends"]:%Y-%m-%d}')
+    add(bool(ev.get('payAtDoor')) or SHOW.get('card_only'), 'FAIL',
+        'a seat can be reserved without a card (pay at the door)' +
+        (' [card_only set]' if SHOW.get('card_only') else ''))
+    first_line = SHOW['copy']['message'].split('\n')[0].lower()
+    add(('$' in first_line or 'mxn' in first_line), 'FAIL', 'the ad\'s FIRST line states the price')
+    if ev.get('payAtDoor'):
+        add('puerta' in first_line, 'FAIL', 'the ad\'s first line says they pay at the door')
+    add('$' in (SHOW['copy']['title'] + SHOW['copy']['description']), 'WARN', 'the headline or link line carries the price')
+    description = (ev.get('description') or '') + ' ' + (ev.get('longDescription') or '')
+    add(len(description.strip()) >= 60, 'FAIL', f'the Spanish page says what the show is ({len(description.strip())} chars)')
+    add(bool(ev.get('imageUrl')), 'FAIL', 'the page has a poster')
+    reels = [r for entry in ev.get('lineup') or [] for r in (entry.get('reels') or [])]
+    add(bool(reels), 'WARN', 'the page has a clip of the act (lineup reel)')
+    flyer = SHOW.get('flyer') or {}
+    add(bool(flyer.get('date')) and bool(flyer.get('price')), 'FAIL',
+        'somebody checked the flyer\'s date and price (SHOW["flyer"])')
+    if flyer.get('booking_phone'):
+        add(flyer.get('accept_booking_phone', False), 'FAIL',
+            f'the flyer sends bookings to {flyer["booking_phone"]} instead of the page' +
+            (' (accepted for this run)' if flyer.get('accept_booking_phone') else ''))
+    interests = [i['name'] for i in SHOW.get('interests', [openmic.STANDUP_INTEREST])]
+    add(len(interests) > 1, 'WARN', f'targeting is wider than stand-up alone ({len(interests)} interest(s))')
+    missing = [f for f in [*SHOW['videos'], SHOW['image'], SHOW['story_image']] if not (openmic.CREATIVE_DIR / f).exists()]
+    add(not missing, 'FAIL', 'creative files present' + (f' (missing {", ".join(missing)})' if missing else ''))
+    return out
+
+
+def cmd_preflight(_):
+    rows = preflight()
+    for level, msg in rows:
+        print(f'  {level:4}  {msg}')
+    failed = [m for lvl, m in rows if lvl == 'FAIL']
+    print(f'\n{len(failed)} failure(s)' if failed else '\nready')
+    return not failed
+
+
 def cmd_plan(_):
     left = SHOW['ends'] - dt.datetime.now(CANCUN)
     hours = left.total_seconds() / 3600
@@ -271,6 +355,9 @@ def cmd_plan(_):
 
 
 def cmd_apply(args):
+    print('preflight:')
+    if not cmd_preflight(args) and not args.force:
+        sys.exit('refusing to spend on a show that fails preflight (fix it, or --force with a reason)')
     openmic.PATIENT = True
     missing = [f for f in [*SHOW['videos'], SHOW['image'], SHOW['story_image']]
                if not (openmic.CREATIVE_DIR / f).exists()]
@@ -345,9 +432,11 @@ def main():
     parser.add_argument('--show', required=True, choices=sorted(SHOWS))
     sub = parser.add_subparsers(dest='command', required=True)
     sub.add_parser('plan').set_defaults(func=cmd_plan)
+    sub.add_parser('preflight').set_defaults(func=cmd_preflight)
     sub.add_parser('status').set_defaults(func=cmd_status)
     apply_cmd = sub.add_parser('apply')
     apply_cmd.add_argument('--live', action='store_true', help='Start it. Without this everything is PAUSED.')
+    apply_cmd.add_argument('--force', action='store_true', help='Spend even though preflight failed.')
     apply_cmd.set_defaults(func=cmd_apply)
     args = parser.parse_args(sys.argv[1:])
     args.func(args)

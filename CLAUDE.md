@@ -342,6 +342,22 @@ unattributed sale teaches the algorithm the ad did not work.
 Nothing in that path may cost a booking. Every send is queued `on_commit`, runs on a daemon thread and swallows
 its failures; `api.tests.MetaConversionTests` asserts a sale still completes with the Graph API throwing.
 
+🚨 **Every PAID show gets the paid-show rules before a peso is spent** (owner, 2026-09-28, after Improvincia
+bought 345 clicks, 6 checkout starts and 1 sale). `scripts/meta-show-campaign.py --show <key> preflight` checks
+them against the live page, and `apply` refuses on any FAIL (`--force` only with a stated reason):
+1. **Offer "Aparta ahora, paga en la puerta" FIRST**, beside "Paga ahora en línea", same price. Cover culture
+   here is cash at the door; a card wall for $200 loses nearly everyone. Same-price types preselect the first
+   and a door-first event draws no card form (`sales.services.collects_payment`, `checkout.html`), so the page
+   opens on one short form. Split the room's capacity between the two types so it cannot oversell.
+2. **Price in the ad's FIRST line**, and "pagas en la puerta" with it: the feed hides the rest behind "... más".
+3. **The event date must equal the flyer's** (Improvincia's page said the 3rd, the flyer the 2nd).
+4. **The flyer must not route bookings elsewhere.** The promoter's flyer printed their WhatsApp ("RESERVAS:
+   998 844 7132"), which sends buyers around the page and hides every sale from Meta. Record what was checked
+   in `SHOW['flyer']`; a booking phone FAILs unless accepted for that run.
+5. **The page sells the act:** Spanish description, poster, and a lineup artist with a clip (as Privilegio and
+   Improvincia have), ads optimised on the paid-checkout conversion, interests wider than stand-up.
+Open mics are exempt: they are free to reserve and run on their own autopilot.
+
 🚨 **A paid show's ad set must optimise on PAID checkouts, never on plain InitiateCheckout.** Every night on
 the pixel sends InitiateCheckout, and the cheapest one for Meta to find is a free open mic reservation, so a
 paid-show ad set steered on it learns to find people who book free seats. Improvincia's first day: Meta
