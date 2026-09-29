@@ -111,11 +111,9 @@ SHOWS['improvincia'] = {
         'description': 'Viernes 2 oct · 9:00 pm · Iguana Comedy',
     },
     # What a person checked on the flyer, because no script can read one. See preflight().
-    'flyer': {'date': '2 de octubre', 'price': '$200',
-              # The promoter's own flyer prints their WhatsApp for bookings, which routes buyers around us and
-              # hides every sale from the ads. Accepted for this run by the owner (2026-09-28) while a clean
-              # version is asked for; the next show must not need this.
-              'booking_phone': '998 844 7132', 'accept_booking_phone': True},
+    # The promoter's flyer printed "RESERVAS: 9988447132"; on 2026-09-28 it was erased and relettered as
+    # "BOLETOS: IGUANACOMEDY.COM" in the flyer's own teal, so the ad no longer sends bookings to a WhatsApp.
+    'flyer': {'date': '2 de octubre', 'price': '$200'},
 }
 
 
