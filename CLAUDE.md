@@ -302,147 +302,29 @@ else is also selling does not read as empty.
 
 ### Meta ads (Facebook/Instagram)
 
-`scripts/meta-ads.py` (`status`, `campaigns --days N`, `daily --days N`, `pixels`, `pause/resume <id>`) talks to
-the Marketing API. It is an operator tool run by hand, so it reads the never-expiring system-user token from
-`~/.credentials/meta/iguanacomedy/token`, not `config.py`; no deployed service calls Meta.
+**Read `docs/meta-ads.md` before touching a campaign**: asset and campaign IDs, the scripts
+(`scripts/meta-ads.py`, `meta-show-campaign.py`, `meta-openmic-campaigns.py`, `meta-audiences.py`,
+`meta-social.py`), targeting, and the Graph API traps. Operator scripts read `~/.credentials/meta/iguanacomedy/token`;
+ad account `act_178760798664478`, pixel `2122037578734069`. The rules that always apply:
 
-| Asset | ID |
-| --- | --- |
-| Ad account `IGUANA` (MXN, business `IguanaComedy` 681571140696261) | `act_178760798664478` |
-| Page `Iguana Comedy Productions` (@iguanacomedy) | `122106930026005410` |
-| Instagram @iguanacomedy | `17841461594533193` |
-| App `Iguana 2026` / system user `newiguana 2026` | `1616667029816710` |
-| Pixel `Ticket Tracking` (used by the Kintana-era site) | `1167556798403907` |
-| Pixel `andrew new pixel` (created 2026-09-15, never fired) | `2122037578734069` |
-
-**The goal the spend is judged against (owner, 2026-09-24): fill every night. 60 reservations on an open mic,
-80 on a paid show.** Budget is a means, not a constraint to protect: a paid seat is 200 to 300 MXN against a
-measured 35 to 49 MXN to acquire, and a free seat costs about 16 and pays back at the bar. So an underfilled
-night with a live campaign is a reason to raise the budget, not to admire the cost per seat.
-⚠ **A lifetime budget is a CAP, and a nearly exhausted one goes quiet at the worst possible moment.** On
-2026-09-24 the Privilegio ad set had 463 of 1,200 MXN left with 27.7 hours to the show and 40 of 80 seats
-unsold: it would have stopped advertising on the Friday evening people actually decide. Raised to 2,400.
-Check `budget_remaining` against the hours left whenever a show is close, because nothing surfaces this.
-
-🚨 **A campaign or ad set reading `ACTIVE` is not evidence that it spends.** 31 ad sets report `ACTIVE` while
-their `end_time` passed months or years ago, so the UI looks busy and the account has in fact spent nothing
-since April 2026. Judge delivery by `end_time` in the future plus non-zero `insights.spend`, which is what
-`status` does. The same trap in reverse: `campaigns` only lists campaigns that actually spent in the window.
-
-**Conversion tracking: the backend reports the sale, the pixel only reports the visit.** Checkout is an iframe
-served from `api.iguanacomedy.com`, so a pixel on the marketing pages can never see a purchase. `crm/meta_capi.py`
-sends `Purchase` (from `complete_order`) and `InitiateCheckout` (from `checkout_start`) to pixel
-`2122037578734069` over the Conversions API; `src/components/MetaPixel.astro` sends only `PageView` and
-`ViewContent`. One sender per event, so there is no deduplication to get wrong and the money events survive an
-ad blocker. Keys are `META_PIXEL_ID` / `META_CAPI_TOKEN` in `config.py` and `PUBLIC_META_PIXEL_ID` in `.env`.
-
-🔑 **Matching is what decides whether a sale is attributed at all, and `_fbp`/`_fbc` belong to the SITE origin,
-not the iframe.** `k.js` reads both cookies, rebuilds `_fbc` from `fbclid` when the pixel was blocked before it
-could write one, and posts them as attribution; `checkout_start` stores them plus the User-Agent on the order and
-`sales/ad_reporting.py` reads them back. A production order carries ten match fields
-(`em fn ln ct st country client_ip_address client_user_agent fbp fbc`). Never report a sale without them: an
-unattributed sale teaches the algorithm the ad did not work.
-
-Nothing in that path may cost a booking. Every send is queued `on_commit`, runs on a daemon thread and swallows
-its failures; `api.tests.MetaConversionTests` asserts a sale still completes with the Graph API throwing.
-
-🚨 **Every PAID show gets the paid-show rules before a peso is spent** (owner, 2026-09-28, after Improvincia
-bought 345 clicks, 6 checkout starts and 1 sale). `scripts/meta-show-campaign.py --show <key> preflight` checks
-them against the live page, and `apply` refuses on any FAIL (`--force` only with a stated reason):
-1. **Tickets are paid ON THE SITE, never at the door** (owner, 2026-09-28, reversing a pay-at-the-door option
-   tried for an hour on Improvincia). No `pay_at_door` ticket type on a paid show; preflight FAILs one.
-2. **Price in the ad's FIRST line**: the feed hides the rest behind "... más".
-3. **The event date must equal the flyer's** (Improvincia's page said the 3rd, the flyer the 2nd).
-4. **The flyer must not route bookings elsewhere.** The promoter's flyer printed their WhatsApp ("RESERVAS:
-   998 844 7132"), which sends buyers around the page and hides every sale from Meta. Record what was checked
-   in `SHOW['flyer']`; a booking phone FAILs unless accepted for that run.
-5. **The page sells the act:** Spanish description, poster, and a lineup artist with a clip (as Privilegio and
-   Improvincia have), ads optimised on the paid-checkout conversion, interests wider than stand-up.
-Open mics are exempt: they are free to reserve and run on their own autopilot.
-
-🚨 **A paid show's ad set must optimise on PAID checkouts, never on plain InitiateCheckout.** Every night on
-the pixel sends InitiateCheckout, and the cheapest one for Meta to find is a free open mic reservation, so a
-paid-show ad set steered on it learns to find people who book free seats. Improvincia's first day: Meta
-reported 5 checkouts and 2 purchases, our database held zero Improvincia orders. Custom conversion
-`1670646004630204` "Paid checkout (value above 0)" is InitiateCheckout with `value > 0` (every InitiateCheckout
-carries the night's price, `sales/ad_reporting.py`), and `scripts/meta-show-campaign.py --show <key>` uses it.
-⚠ **Promote a custom conversion ALONE**: `{'custom_conversion_id': ...}`. Adding its `pixel_id` or any
-`custom_event_type` is refused as "combinación no válida". The optimisation is frozen once published, so the
-builder names the goal in the ad set (`· pagados`), builds a new ad set when it changes, carries the old ads
-over by creative, gives it the unspent budget and pauses the old one.
-⚠ Meta retired "Improvisational theatre", "Whose Line Is It Anyway?" and "Comedy Central (Latin America)" as
-interests (still returned by search, refused on an ad set); the replacements are Theatre, Television comedy
-and Comedy TV Channels.
-
-**A pixel's history cannot be imported into another pixel.** The Conversions API refuses any event with an
-`event_time` older than seven days, so there is nothing to backfill, and `Ticket Tracking`'s last event (2026-05-17)
-is outside every window Meta optimises on anyway. The one thing that *can* be imported is the customer list:
-`scripts/meta-audiences.py build [--lookalike]` hashes the CRM **on the production box** (only hashes leave it)
-and pushes it as a Custom Audience.
-⚠ It needs the Custom Audience Terms accepted once, by hand, at
-`business.facebook.com/ads/manage/customaudiences/tos/?act=178760798664478`. There is no API for that, and until
-it is accepted every create returns 400.
-
-**The weekly open mic campaigns.** `scripts/meta-openmic-campaigns.py` (`plan`, `apply [--live]`, `status`,
-`pause`) builds two campaigns per night and is idempotent: it matches on name and updates rather than duplicating,
-so re-running after a copy or budget change is safe. Per night, 1,000 MXN a week: a `OUTCOME_SALES` ad set at 100
-MXN/day optimised for `Purchase` against the pixel, and a `OUTCOME_TRAFFIC` ad set at 43 MXN/day optimised for
-landing page views. The split is deliberate. A reservation is free, so the conversion ads are paid back only at
-the bar, and the cheap traffic ads fill the 20 walk-in seats and seed the pixel at the same time.
-
-Targeting comes from what actually worked here: Playa del Carmen (geo key `1540930`), `home` **and** `recent` so
-tourists are not excluded, 18 to 65, interest `6003273904571` "Comedia stand up" on the conversion ad sets and
-nothing on the reach ad sets. English night adds locales `[6, 24]`.
-
-🚨 **Ads point at `/open-mic/`, never at an event page.** Event URLs carry their date
-(`/events/playa-del-carmen-2026-09-22/`), so a weekly campaign aimed at one needs rewriting every Tuesday and
-spends on a dead show in between. `src/components/OpenMicPage.astro` asks the API for the next bookable night in
-each language on every request and carries both checkouts inline. Use the apex domain: `www.` 301s, and a redirect
-costs clicks.
-| Campaign | ID |
-| --- | --- |
-| Open mic Spanish · reservations / ad set | `120250125973220182` / `120250125973580182` |
-| Open mic Spanish · local reach / ad set | `120250125990540182` / `120250126057270182` |
-| Open mic English · reservations / ad set | `120250126057820182` / `120250126057990182` |
-| Open mic English · local reach / ad set | `120250126062910182` / `120250126063000182` |
-
-🚨 **The two open mic reservation campaigns are switched by the server, not by hand** (owner, 2026-09-26:
-"keep running open mics always", stopping only when the night sells out or an hour before it). `manage.py
-open_mic_ads --apply` runs every 10 minutes (`journalctl -t iguana-open-mic-ads`) and sets each campaign
-ACTIVE or PAUSED by its series' next night: paused when that night is SOLD_OUT, full by `sales.demand`, or
-less than an hour from `show_time`, and back on the next day for the following week's night. It touches the
-CAMPAIGN status only, never the ad sets, so the builder's choices (superseded ad sets, retired reach) stand.
-⚠ A pause in Ads Manager is undone within ten minutes. To stop them deliberately set
-`open_mic_ads_autopilot: false` in `group_vars/all`, deploy, then run `meta-openmic-campaigns.py pause`.
-Found 2026-09-26 with both campaigns paused by hand alongside Privilegio and nothing delivering.
-
-🚨 **The Meta app must be in LIVE mode or no ad creative can be made at all.** App `Iguana 2026`
-(`1616667029816710`) is the business's only app, and while it is in Development mode every POST to
-`/adcreatives` returns 400 "se creó con una app que se encuentra en modo de desarrollo", with or without
-Instagram on the creative. Campaigns, ad sets, video and image uploads all succeed, so the account looks built
-and delivers nothing. Toggle it at `developers.facebook.com/apps/1616667029816710/settings/basic/`, then re-run
-`apply --live`. An ad set with no ads cannot spend, so leaving the structure ACTIVE meanwhile is safe.
-
-⚠ Creating a campaign without CBO now requires `is_adset_budget_sharing_enabled`; Meta 400s without it.
-⚠ **A city radius under 17km is refused** ("el radio geográfico no se encuentra dentro de los límites"), so the
-walk-in ad set cannot be drawn tighter than that.
-⚠ **Read every edge once per run.** Paging the account for each lookup trips the ad account rate limit partway
-through and leaves half the structure built; the builder caches listings and backs off on codes
-`{4, 17, 32, 613}` / subcodes `{2446079, 1487742}`, because that limit clears only by waiting.
-⚠ No `end_time` on any ad set, on purpose. 31 ad sets on this account say ACTIVE with a schedule that ended
-months ago, which is what makes the UI look busy while the account spends nothing.
-
-**Posting to Facebook and Instagram.** `scripts/meta-social.py` (same token, stdlib only) has `whoami` (scopes,
-Page and IG visibility, Page tasks, IG publishing quota), `recent` (last 5 Page posts and IG media),
-`draft <slug> [--lang en|es|both] [--image URL]` and `post <slug> --to facebook|instagram|both --confirm`. It pulls
-the event from the public API (key from `--api-key`, `IGUANA_PUBLIC_API_KEY`, else over ssh from prod `config.py`),
-builds brand-voice captions (Spanish block first for `language: es`, no dashes, Instagram says "link in bio"
-because the IG bio links to `/events`), and blocks on: no image, image not a public https JPEG/PNG, aspect ratio
-outside 4:5 to 1.91:1, event page not 200, event past or cancelled. Without `--confirm`, `post` only drafts and
-exits 2. Facebook posts go through `/{page}/photos` with a Page token derived at run time (never printed);
-Instagram through `/media`, a `status_code` poll, then `/media_publish`. Weekly open mics have no image and no
-`showTime` in the data, so they cannot be posted until one is set (or `--image` is passed); WebP is refused.
-Tests: `python3 -m unittest discover -s scripts/tests`.
+- **The goal is full nights: 60 reservations on an open mic, 80 on a paid show** (owner, 2026-09-24). An
+  underfilled night with a live campaign is a reason to raise the budget. A lifetime budget is a CAP: check
+  `budget_remaining` against the hours left whenever a show is close.
+- 🚨 **`ACTIVE` is not evidence of spend.** 31 ad sets say ACTIVE with an `end_time` long gone. Judge by a future
+  `end_time` plus non-zero `insights.spend` (`meta-ads.py status`). `--days N` means N+1 days; `--days 0` is today.
+- **The backend reports the sale, the pixel only the visit.** Checkout is an iframe on `api.`, so
+  `crm/meta_capi.py` sends `Purchase` and `InitiateCheckout` over the Conversions API, with the site's
+  `_fbp`/`_fbc` carried in by `k.js`. Nothing in that path may cost a booking (`MetaConversionTests`).
+- 🚨 **Every PAID show passes `scripts/meta-show-campaign.py --show <key> preflight` before a peso is spent**:
+  paid on the site never at the door, price in the ad's first line, event date equals the flyer's, the flyer
+  routes no bookings elsewhere, and the page sells the act. Its ad set optimises on custom conversion
+  `1670646004630204` (paid checkouts), never plain InitiateCheckout, which finds free open mic bookers.
+- 🚨 **Open mic ads point at `/open-mic/`, never at a dated event page, and the server switches them.**
+  `open_mic_ads --apply` runs every 10 minutes and pauses a campaign when its next night is full or under an
+  hour away; a pause in Ads Manager is undone. To stop them set `open_mic_ads_autopilot: false`, deploy, then
+  `meta-openmic-campaigns.py pause`.
+- 🚨 **Check the Graph API before believing any mail about the ad account**: phishing for it arrives with
+  DKIM passing (`docs/mail.md`).
 
 ### The point of sale (`backend/pos/`, `/pos/`): a Soft Restaurant clone
 
@@ -637,167 +519,45 @@ again whenever they click through a marked link), else the language of their lat
 Most of the blank contacts are the Kintana import. Until 2026-09-28 it carried both languages, reader's first,
 and led unknowns with Spanish; do not bring that back without asking.
 
-### Reading the mail the server keeps
+### Reading the mail the server keeps, and what it refuses
 
-Every human alias delivers to the local `inbox` user **as well as** forwarding, so the box is the copy that
-survives a rejected forward. `/usr/local/bin/iguana-mail` (installed by `mail.yml`, read only) reads it:
-`iguana-mail`, `iguana-mail show 37`, `iguana-mail search reservation`, `iguana-mail list --box dmarc`.
-Worth checking when a customer says they wrote in, or when Stripe/Google send an account notice: a Stripe
-"acción requerida" about an overdue ID check was sitting there unread while the API only said
-`payouts_enabled: false`.
+Every human alias delivers to the local `inbox` user as well as forwarding. `/usr/local/bin/iguana-mail`
+(read only) reads it: `iguana-mail`, `show 37`, `search reservation`, `list --box dmarc`. Check it when a customer
+says they wrote in, or an account notice might be waiting. History and evidence for everything below:
+**`docs/mail.md`**.
 
-🚨 **Every newsletter sign-up this site had ever received was ONE BOT, and nothing about the requests could
-tell it from a person.** All 59, found 2026-09-21: `timeZone: Europe/Moscow` on every one, `page: /en/`,
-`browserLanguage: en-US`, arriving through Tor exits in DE/SE/US/NL, paced at a median 63-minute gap and never
-under four so the rate never looked like a burst. The addresses were scraped and belonged to real strangers at
-universities and companies. The Monday cron was hours from making this domain's FIRST bulk send to all of
-them, which would have taken the 626 real contacts' deliverability down with it.
-🔑 **The payload is not a discriminator: the bot sends exactly what the real form sends.** The gate is the one
-thing it cannot do, which is read the mail. `crm/optin.py` holds the signed confirm token (its own salt, so an
-unsubscribe link can never re-subscribe someone who used it to leave); a sign-up creates the contact
-**unsubscribed and on no list**, sends one confirmation, and only `/newsletter/confirm/<token>` makes it
-mailable. `api.tests.NewsletterOptInTests` covers it.
-⚠ **Do NOT key "already confirmed" on `Contact.subscribed`**: the model defaults it to `True`, so every brand
-new contact reads as confirmed and the gate silently does nothing. That was the first version of this. Key it
-on whether `get_or_create` actually created the row, and never downgrade an existing subscriber who signs up
-again.
-⚠ **A missing `visitorKey` proves nothing**: the real newsletter form has never sent one, so "0 of 59 carry a
-visitor key" is not evidence of automation. The uniform timezone was.
-⚠ **The contact form was being farmed too** (15 random-string submissions in 3 days, each one emailing
-`hello@`). `catalog/spam.py` is a honeypot plus a check that free text is not one unbroken run of letters and
-digits; a dropped submission gets the SAME success response as a real one, because naming the gate teaches the
-bot to pass it. The rows were never the cost: the cost is the owner learning to ignore the alert that a real
-enquiry arrives in.
-
-🚨 **A migration that adds a NOT NULL column 500s live checkouts until the workers reload, and the deploy used
-to leave ten minutes between the two.** `migrate` ran at line 163 and the gunicorn HUP sat down beside the site
-restart, on the far side of `npm install` and the Astro build. In between, the database has the new schema and
-the workers are still running the old code, which inserts without the column. Measured 2026-09-21 on
-`OrderItem.is_addon`: two `POST /api/checkout/<id>/start` from a Facebook in-app browser on Android, both 500,
-both a real ad click that did not become a reservation. **Nothing is written on that path, so the DB cannot show
-you the loss and neither can an order count**: the only trace is `/var/log/iguana/api.out.log`, and the
-traceback in `api.err.log` carries no timestamp of its own, only the nearest gunicorn line.
-Two fixes, both in place: the API now reloads **directly after the migration**, before the long site build; and
-`0006_orderitem_is_addon_db_default` restores the database default Django drops, so an insert from an old worker
-gets `false` rather than an `IntegrityError`. **Give any new NOT NULL column a DB default in a follow-up
-migration** (Postgres only; SQLite cannot ALTER it and does not need to).
-
-🚨 **The deploy used to break live traffic twice over, and both were invisible to every log check.** Gunicorn
-was hard-restarted, so the checkout iframe served **502 inside the ad landing page** for the ~2s window; it is
-now a graceful `supervisorctl signal HUP`, which keeps the listening socket, and only a dependency change
-falls back to a restart. Worse, the site was rebuilt **in place**: the Node adapter resolves Astro route
-modules lazily, so every route the running process had not yet imported threw `ERR_MODULE_NOT_FOUND` until the
-restart (`/en/open-mic/` 500'd for a minute on 2026-09-21 with ads pointed at it). It now builds into
-`dist.next`, asserts that build produced a `server/entry.mjs`, and renames; `dist.old` is the rollback. The
-play then polls the site and the checkout before finishing.
-
-A third case survived both of those, because it happens to the BROWSER rather than the server. A build hashes
-its filenames from their content, so a name that has gone is not a name that changed: it is last build's file,
-still exactly what its name says it holds. Somebody with a page already open when a deploy lands asks for it
-and gets a 404, the island never hydrates, and the symptom is a button that does nothing. Nothing reports it;
-the only trace is an `_astro` 404 in nginx, which reads as crawler noise (13 on 2026-09-24, 11 of them
-Facebook's crawler). `location ^~ /_astro/` now `try_files $uri @last_build` into `dist.old`, the previous
-build the deploy already keeps for rollback. Verify by putting a file in `dist.old/client/_astro/` only: it
-serves 200, and a nonsense hash still 404s.
-
-🚨 **`/var/mail/inbox` is 0600 `inbox:mail` and the deploy user was in neither group, so `iguana-mail` read
-NOTHING and a check reported the mailbox as a clean channel.** An unread channel is not an empty one. `mail.yml`
-now puts `deploy_user` in `mail` and sets the boxes 0640. Reading it is what found the Stripe "acción
-requerida" thread and the performer enquiry that had waited a month.
-
-🚨 **The weekly newsletter has never sent a single message, and it reported nothing.** `send_marketing` built
-each message with a connection and then called `message.send(fail_silently=True)`. Django refuses that
-combination and raises `TypeError: fail_silently cannot be used with a connection` on the FIRST recipient, so
-every Monday the cron woke up, resolved its 627 subscribers, wrote the campaign row and died having delivered
-none of them. The only evidence anywhere was a traceback under `journalctl -t iguana-newsletter`; the campaign
-row exists with zero recipients, which looks like "nobody was due" rather than "it crashed".
-Fixed 2026-09-22: the tolerance belongs on the connection, `get_connection(fail_silently=True)`.
-🚨 **An unsubscribe that arrives as EMAIL is still an unsubscribe, and offering a `mailto:` beside the
-one-click URL is what makes clients send one.** `List-Unsubscribe` carried both; Apple Mail picked the mailto,
-sent "unsubscribe" to hello@ on 2026-09-23, and the person stayed on the list having done everything right.
-The header now offers the URL alone, because a one-click URL unsubscribes somebody in the request itself while
-a mailto only works if a human is reading that mailbox.
-`process_unsubscribe_mail --apply` runs every 20 minutes and honours them anyway, because people reply
-"unsubscribe" to mail whatever the headers say, and that is the commonest form of the request.
-⚠ **It reads the BODY as well as the subject, but only the part they typed.** The commonest real request is a
-reply to their own ticket email with the subject unchanged: "Re: Tus boletos" and "ya no quiero recibir
-correos" underneath. Subject-only matching read those as ordinary replies and left the person on the list.
-Three things keep that safe, and all three are load-bearing: messages from our own domains are refused;
-everything from the first quote marker or `On ... wrote:` line down is discarded, because a reply quotes our
-own footer and our footer says the word; and what remains must be short and must contain a REQUEST rather
-than a mention. "The footer says I can unsubscribe here" is somebody describing the email, and acting on it
-would drop a happy customer for being polite. Bilingual by necessity: two thirds of this audience books in
-Spanish, so `darme de baja`, `quítame de la lista` and `ya no quiero recibir` matter as much as the English.
-An address we do not hold is **created unsubscribed** rather than only logged, because this list has been
-imported from a spreadsheet once already and asking twice is how a person becomes a spam complaint.
-
-⏱ **A one-off catch-up send is scheduled for Wed 2026-09-23 14:00 UTC** (09:00 Playa), because the list had
-never actually received one. `systemd-run --on-calendar`, transient, so it disappears after it fires:
-`systemctl list-timers iguana-newsletter-once`, and `sudo systemctl stop iguana-newsletter-once.timer` cancels
-it. Sent in the morning rather than the evening it was asked for, because at 19:00 the mail led with a show
-whose doors opened in forty-five minutes; by 09:00 the next day `week_events()` has dropped it and the mail
-leads with something the reader can still act on.
-
-**Enabled 2026-09-22** (`newsletter_enabled: true` in `group_vars/all`, which `deploy.yml` reads; set it to
-false to pause without editing a crontab by hand). Mondays 14:00 UTC, 09:00 in Playa, ~645 recipients paced
-0.2s apart, about two minutes inside a 30m timeout. Before the first live run: one was sent to hello@ by hand
-and read, and every link in it was opened in a browser.
-🔑 **Each open mic line pins `night` and `date`.** The lander offers four dates and defaults to the next one,
-so an unpinned link in a Monday mail naming Wednesday opened Tuesday: the reader books, gets a confirmation
-and finds out at the door. Verified per-link, not per-page.
-Before this the domain's only bulk send was the "Club Opening" campaign on 2026-09-14 to 722 addresses, which
-is what people remember when they say emails went out.
-
-🚨 **Phishing aimed at the ad account arrives here, and it authenticates.** On 2026-09-24 a fake Meta
-"advertising policy violation" with a one-business-day deadline and a `vercel.app` login page reached hello@.
-Return-Path `bounce@lynnwon.site`, sent from `api992409.friedrichsonde.site`, Reply-To at `noreply.com`, and
-**DKIM passed** for the phisher's own domain, which is all a DKIM pass ever proves. The account was fine:
-`account_status: 1`, `disable_reason: 0`, zero ads carrying review feedback. **Check the Graph API before
-believing any mail about the ads**, since the thing being phished is an account with a live card on it. Those
-senders are in `/etc/postfix/blocked_senders` (managed in `mail.yml`); the list is not a spam filter, it stops
-the infrastructure that has already tried.
-
-🚨 **A permanent bounce is not automatically a dead address, and treating it as one unsubscribes people who
-did nothing wrong.** Nothing read the bounces at all until 2026-09-24, so the Monday send kept going back to
-addresses that had already failed. Of the 24 bounces sitting in the mailbox, **ten were `5.1.1` (no such
-mailbox) and ten were `5.7.1`, which is Gmail refusing OUR IPv4** because 38.86.78.0/24 is on the Spamhaus
-PBL. Both are `5.x.x`, both arrive in the same envelope, and acting on the leading digit would have dropped
-seven live people at Yahoo, Outlook, Cox and Netscape plus `john@nader.mx`. The list would then shrink every
-time our own reputation slipped. `manage.py process_bounces [--apply]` (daily 06:40 UTC, before the Monday
-send, `journalctl -t iguana-bounces`) acts only on the no-such-mailbox codes `5.1.1 5.1.0 5.1.3 5.1.6`,
-unsubscribes, tags the contact `hard-bounce` and stamps `CampaignRecipient.bounced_at`; everything else
-permanent is printed and left alone. `api.tests.BouncedMailTests` pins the `5.7.1` case specifically.
-⚠ **Read the structured `message/delivery-status` part, never the human paragraph above it** (that quotes the
-remote server verbatim and it words things however it likes).
-🚨 **Postfix was turning Gmail's TEMPORARY failures into permanent ones, using our own IP reputation to do
-it, and `smtp_address_preference = ipv6` did not prevent it.** Measured 2026-09-25 over 995 deliveries to
-Google: 787 of 797 first attempts went over IPv6 and **197 of 198 retries went over IPv4**. That looks like
-random fallback and is not. Postfix opens up to `smtp_mx_session_limit` sessions per delivery attempt,
-**default two**, walking down the address list: session one reaches Gmail over IPv6 and gets `452-4.2.2 the
-recipient is over quota`, which should simply defer; Postfix then opens session two to the next address,
-our IPv4, and Gmail answers that with `550-5.7.1 The IP you are using to send mail is not authorized`. The
-last session decides, so a full mailbox becomes a permanent rejection, the message is destroyed, and the
-bounce names a cause that makes the RECIPIENT look dead. It is the same trap `process_bounces` refuses to act
-on, seen from the sending end.
-Fixed in `mail.yml` with `smtp_mx_session_limit = 1` (a soft failure stays soft and retries later over IPv6)
-plus `smtp_balance_inet_protocols = no`, because Postfix 3.5+ defaults that to `yes` and deliberately works
-IPv4 into the list rather than trying every IPv6 address first, which would hand the single session to IPv4
-some of the time. Verified by flushing the queue: the two over-quota messages that had taken IPv4 on every
-previous attempt now stay on IPv6 and keep `dsn=4.2.2 status=deferred`.
-⚠ **`postconf` shows main.cf, not the running process.** Postfix had not been restarted since 2026-09-21, so
-a setting read back correctly and was not in effect. Check `ps -o lstart= -p $(pgrep -o -x master)` and
-`postfix reload` before concluding a setting did nothing.
-⚠ **Do not diagnose this from the `relay=` field.** One `smtp` process serves several deliveries in a row, so
-a v6 session and a v4 `relay=` line share a PID and look like one delivery falling back. The sequence only
-reads correctly under `debug_peer_list = <domain>` with `debug_peer_level = 2` (set it, `postfix reload`,
-flush, then `postconf -X` both and reload again).
-⚠ **A Spamhaus lookup answering `127.255.255.254` is NOT a listing**, it is "query refused, you used a public
-resolver". The box resolves through one, so the PBL claim above cannot be checked from there.
+- 🚨 **Newsletter sign-ups are double opt-in, because every one this site had received was a bot** sending
+  exactly what the real form sends. `crm/optin.py`: a sign-up is created unsubscribed and on no list until
+  `/newsletter/confirm/<token>`. Key "already confirmed" on whether `get_or_create` created the row, never on
+  `Contact.subscribed` (it defaults True). `catalog/spam.py` guards the contact form and answers a dropped
+  submission with the same success response.
+- **The Monday newsletter** runs while `newsletter_enabled: true` in `group_vars/all`. Each open mic line pins
+  `night` and `date`, or the lander defaults to the wrong night.
+- **An emailed "unsubscribe" is honoured** (`process_unsubscribe_mail --apply`, every 20 minutes), reading only
+  the part of the body the person typed and requiring a request rather than a mention. `List-Unsubscribe`
+  offers the one-click URL only, no `mailto:`.
+- 🚨 **Only no-such-mailbox bounces unsubscribe** (`process_bounces`, codes `5.1.1 5.1.0 5.1.3 5.1.6`). A
+  `5.7.1` is Gmail refusing OUR IPv4 (38.86.78.0/24 is on the Spamhaus PBL), not a dead address. Read the
+  `message/delivery-status` part, never the prose.
+- 🚨 **Postfix keeps `smtp_mx_session_limit = 1` and `smtp_balance_inet_protocols = no`**, or a Gmail
+  over-quota deferral on IPv6 is retried over IPv4 and turned into a permanent rejection. `postconf` shows
+  main.cf, not the running process: check the master's start time and `postfix reload`.
+- `/etc/postfix/blocked_senders` (managed in `mail.yml`) holds infrastructure that has already phished the ad
+  account.
+- 🚨 **`send_marketing` must never call `message.send(fail_silently=True)` with a connection**: Django raises on
+  the first recipient. The tolerance goes on `get_connection(fail_silently=True)`.
 
 Marketing mail must go through `crm.mail.send_marketing` (or `manage.py send_newsletter`, a dry run without
 `--send`), which drops unsubscribed contacts and attaches the unsubscribe footer and `List-Unsubscribe` headers
 itself. `crm/unsubscribe.py` signs the per-address token; `/unsubscribe/<token>` serves the bilingual page and
 accepts Gmail's cookie-less one-click POST. Receipts and sign-in codes deliberately carry no unsubscribe link.
+
+**The deploy is shaped by incidents** (`docs/deploy-history.md`), so keep these:
+- 🚨 **Give any new NOT NULL column a DB default in a follow-up migration** (Postgres only). Between `migrate` and
+  the worker reload, old code inserts without the column and live checkouts 500, leaving no row behind. The API
+  reloads directly after migrating.
+- Gunicorn reloads with `supervisorctl signal HUP`, never a hard restart; the site builds into `dist.next` and
+  renames; `/_astro/` falls back to `dist.old` so a page open across a deploy still hydrates.
 
 ### Data outside the repo
 
