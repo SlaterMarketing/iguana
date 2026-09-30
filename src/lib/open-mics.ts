@@ -56,22 +56,21 @@ export function formatSeatPrice(evt: KintanaPublicEvent, locale: Locale): string
 }
 
 /**
- * Seats kept back from reservations on every open mic: the room holds 80 and 60 are reservable. A night whose
- * reservations are gone is NOT a night nobody can come to, so a sold-out open mic says so and says how.
+ * A night whose reservations are gone is NOT a night nobody can come to, so a sold-out open mic says so and says
+ * how. All 80 seats are reservable since 2026-09-30, so no seats are kept back: the way in is the no-shows (a
+ * night with 60 reservations saw 20 to 30 arrive), and the copy says that rather than promise a number.
  */
-export const WALK_IN_SEATS = 20;
 
 export function walkInLine(evt: KintanaPublicEvent, locale: Locale): string {
   const doors = formatEventTime(evt.doorsOpen, locale);
-  const n = String(WALK_IN_SEATS);
   // es-MX writes "8:00 p.m.", which would end the sentence on a doubled full stop.
-  const line = doors ? t(locale, "openMic.walkIn", { n, doors }) : t(locale, "openMic.walkInNoTime", { n });
+  const line = doors ? t(locale, "openMic.walkIn", { doors }) : t(locale, "openMic.walkInNoTime");
   return line.replace(/\.\.$/, ".");
 }
 
 /**
  * Every open mic night still to come in each language, sold-out ones included, soonest first. The lander shows a
- * sold-out night as sold out (with the walk-in seats) rather than hiding it, since it is still happening.
+ * sold-out night as sold out (with how to get in anyway) rather than hiding it, since it is still happening.
  */
 export function upcomingOpenMics(events: KintanaPublicEvent[]): { es: KintanaPublicEvent[]; en: KintanaPublicEvent[] } {
   const nights = sortEventsAscending(
@@ -86,6 +85,5 @@ export function upcomingOpenMics(events: KintanaPublicEvent[]): { es: KintanaPub
 /** The same fact, short enough to sit under the sold-out strip on a poster. The asterisk answers the strip's. */
 export function walkInNote(evt: KintanaPublicEvent, locale: Locale): string {
   const doors = formatEventTime(evt.doorsOpen, locale);
-  const n = String(WALK_IN_SEATS);
-  return doors ? t(locale, "openMic.walkInNote", { n, doors }) : t(locale, "openMic.walkInNoteNoTime", { n });
+  return doors ? t(locale, "openMic.walkInNote", { doors }) : t(locale, "openMic.walkInNoteNoTime");
 }

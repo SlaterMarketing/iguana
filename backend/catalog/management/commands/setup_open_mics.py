@@ -10,7 +10,8 @@ that already existed exactly as it is: a night somebody set to DRAFT for a holid
 being republished by a cron on Sunday morning.
 
 Entry is always free, but walk-ins can be turned away when the room is full. Reserving is free too and holds a
-seat. The room holds 80: 60 are reservable and 20 are kept for walk-ins.
+seat. The room holds 80 and all 80 are reservable (owner, 2026-09-30): a free seat is easy to reserve and easy
+to skip, and a night with 60 reservations saw 20 to 30 of them arrive, so walk-ins still find room.
 
 The seat used to cost 50 MXN and include a drink. It did not sell: the first day of ads produced 44 landing page
 views and zero checkouts, because the thing the ad advertised as free asked for a card. The seat is now free and
@@ -102,6 +103,16 @@ LEGACY_BLURBS = {
 }
 
 LONG_BLURB = {
+    'en': ('{0}\n\nThe open mic fills up. Without a reservation we may have to turn you away once the room is full.'
+           '\n\nWant to perform? Sign up at the door when you arrive. Five minutes, any style, first time or '
+           'hundredth.'),
+    'es': ('{0}\n\nEl open mic se llena. Sin reservación podemos negarte el paso si la sala está llena.\n\n'
+           '¿Quieres presentarte? Anótate en la puerta al llegar. Cinco minutos, el estilo que quieras, sea tu '
+           'primera vez o la número cien.'),
+}
+# The long text written while 60 of the 80 seats were reservable. A night still carrying it was never edited by
+# hand, so its "we reserve 60 seats online" is ours to correct.
+LEGACY_LONG_BLURB = {
     'en': ('{0}\n\nThe room holds 80 and the open mic fills up, so we reserve 60 seats online and keep the rest for '
            'walk-ins. Without a reservation we may have to turn you away once it is full.\n\nWant to perform? Sign '
            'up at the door when you arrive. Five minutes, any style, first time or hundredth.'),
@@ -151,7 +162,7 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument('--from', dest='start', help='First show day, YYYY-MM-DD (default: today in Cancun)')
-        parser.add_argument('--capacity', type=int, default=60, help='Reserved seats per night (default 60 of 80)')
+        parser.add_argument('--capacity', type=int, default=80, help='Reserved seats per night (default 80, the whole room)')
         parser.add_argument('--max-per-order', type=int, default=6)
         parser.add_argument('--show-time', default='', help="24h clock, e.g. 20:00; blank uses each series' own time")
         parser.add_argument('--doors', default='', help="24h clock, e.g. 19:30; blank uses each series' own time")
@@ -242,7 +253,8 @@ class Command(BaseCommand):
         # Fill a blank, and replace anything this command wrote before. A night given its own blurb in the
         # admin still keeps it.
         stale = {text for lang in ('en', 'es') for base in LEGACY_BLURBS[lang]
-                 for text in (base, LONG_BLURB[lang].format(base))}
+                 for text in (base, LONG_BLURB[lang].format(base), LEGACY_LONG_BLURB[lang].format(base))}
+        stale |= {LEGACY_LONG_BLURB[lang].format(BLURB[lang]) for lang in ('en', 'es')}
         for attr, text in (('description', BLURB['en']), ('description_es', BLURB['es']),
                            ('long_description', LONG_BLURB['en'].format(BLURB['en'])),
                            ('long_description_es', LONG_BLURB['es'].format(BLURB['es']))):

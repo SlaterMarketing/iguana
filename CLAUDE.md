@@ -197,13 +197,15 @@ and a new string should go through one of them rather than be written inline:
 
 ### Open mic reservations
 
-Open mics are always free to walk into, but walk-ins can be turned away when full. The room holds 80: 60 seats are
-held as reservations and 20 stay for walk-ins. A reservation is an ordinary ticket type, so it uses the normal
+Open mics are always free to walk into, but walk-ins can be turned away when full. The room holds 80 and **all 80
+are reservable from the nights of 2026-10-06 on** (owner, 2026-09-30; it was 60 plus 20 kept for walk-ins): a free
+seat is easy to skip, and a night with 60 reservations saw only 20 to 30 arrive. So there are no walk-in seats to
+promise; a sold-out night says that not everyone who reserves turns up, never a number. A reservation is an ordinary ticket type, so it uses the normal
 checkout, the per-seat QR codes, the confirmation email and `/checkin/`; "arrive when doors open" lives in the
 ticket type description, which the confirmation email prints.
 
 🚨 **What is LIVE is a FREE reservation with NOTHING included, on every night of both series.** The active type
-is `Free reserved seat` at 0.00, capacity 60, not pay-at-door, and its description says entry is always free and
+is `Free reserved seat` at 0.00, capacity 80 (60 on nights before 2026-10-06), not pay-at-door, and its description says entry is always free and
 reserving costs nothing but holds the seat. There is no drink. The `Drink, ordered in advance` type (50 MXN /
 3 USD) exists on every night and is **inactive** on all of them: that is the drinks upsell, taken down 2026-09-22
 because it was not converting, and drinks are now handled at the table through `/menu/show/`.
@@ -239,8 +241,8 @@ email per night and locks the ticket types while booking, because nothing paid u
 The site finds the next bookable night per language by the `open-mic` tag (`src/lib/open-mics.ts`), skipping sold-out
 nights, and the home page keeps open mics out of its six event slots.
 🚨 **A sold-out open mic is SHOWN, never skipped, on the lander** (owner, 2026-09-26). The reservations are gone
-but 20 walk-in seats are not, so the lander (`upcomingOpenMics`), the cards and the event page draw the AGOTADO
-strip plus `walkInLine()` ("we still keep 20 walk-in seats, show up early") and offer the next bookable date. The
+but the no-shows are not, so the lander (`upcomingOpenMics`), the cards and the event page draw the AGOTADO
+strip plus `walkInLine()` ("not everyone who reserves turns up, come when doors open") and offer the next bookable date. The
 callout and hero badge still use `nextBookableOpenMics`, because they are a Reserve button.
 
 ### The nudges on a night, and the order they argue in

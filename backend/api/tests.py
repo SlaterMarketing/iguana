@@ -516,7 +516,7 @@ class ReservationTests(ApiTestCase):
         self.assertIn('open-mic', spanish.tags)
         seat = spanish.ticket_types.get(is_addon=False)
         self.assertEqual((seat.name, seat.name_es, seat.price_cents, seat.capacity, seat.max_per_order, seat.pay_at_door),
-                         ('Free reserved seat', 'Lugar reservado gratis', 0, 60, 6, False))
+                         ('Free reserved seat', 'Lugar reservado gratis', 0, 80, 6, False))
         # No drinks in the checkout. Over the two days it ran on a free seat it was ordered by nobody, while
         # sitting between the last form field and the reserve button, so every visitor paid for it in scroll.
         # The menu goes out after the seat is held instead. `SELL_DRINKS_AT_CHECKOUT` turns it back on.
@@ -4060,7 +4060,7 @@ class OpenMicCalendarExtendsItselfTests(ApiTestCase):
         self.assertEqual(night.status, Event.ACTIVE)
         self.assertEqual((night.show_time, night.doors_open), ('21:00', '20:00'))
         seat = night.ticket_types.get(active=True)
-        self.assertEqual((seat.price_cents, seat.capacity), (0, 60))
+        self.assertEqual((seat.price_cents, seat.capacity), (0, 80))
 
     def test_a_rerun_creates_nothing_twice(self):
         start = timezone.now().astimezone(CANCUN_TZ).date().isoformat()

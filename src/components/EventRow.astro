@@ -43,7 +43,7 @@ const ticketsLabel = isOpenMic(evt) ? t(locale, "ui.reserveSeat") : t(locale, "u
 const demand = past ? null : demandLine(evt, locale);
 
 const soldOut = !past && evt.status === "sold-out";
-// An open mic with no reservations left still has its walk-in seats, so the strip says how to get in.
+// An open mic with no reservations left still lets people in at the door, so the strip says how.
 const walkIn = soldOut && isOpenMic(evt) ? walkInNote(evt, locale) : null;
 // The sold-out line under the bar points at the same footnote as the strip, so both carry the asterisk.
 const shownDemand = walkIn && demand?.room ? { ...demand, room: `${demand.room}*` } : demand;
