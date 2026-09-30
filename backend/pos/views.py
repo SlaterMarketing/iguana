@@ -415,6 +415,13 @@ def producto(request, item_id=None):
                 name = request.POST.get('name', '').strip()
                 if not name:
                     raise PosError('Ponle nombre.')
+                # A second product with the same name in the same category shows up twice on the menu and splits
+                # its sales between two rows (it happened with Michelob Ultra, 2026-09-29), so point at the one
+                # that exists instead.
+                twin = MenuItem.objects.filter(category_id=request.POST.get('category'),
+                                               name__iexact=name[:120]).exclude(pk=item.pk).first()
+                if twin:
+                    raise PosError(f'Ya existe «{twin.name}» en esa categoría. Ábrelo desde Productos y edítalo.')
                 item.name = name[:120]
                 # The console is Spanish, so the Spanish name moves with it; the customer menu reads name_es.
                 item.name_es = name[:120]

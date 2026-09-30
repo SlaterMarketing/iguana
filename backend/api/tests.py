@@ -4213,3 +4213,27 @@ class ScanAddressTests(ApiTestCase):
         page = self.client.get('/scan/')
         self.assertEqual(page.status_code, 200)
         self.assertIn('/mesas/puerta/verificar/', page.content.decode())
+
+
+class NoTwinProductsTests(ApiTestCase):
+    """A second product with the same name in the same category is refused; the menu would list it twice."""
+
+    def test_a_same_name_product_is_refused_and_an_edit_is_not(self):
+        from catalog.models import MenuCategory, MenuItem
+        from pos.models import Staff
+
+        boss = Staff(name='Jefa', role=Staff.GERENTE)
+        boss.set_pin('7373')
+        boss.save()
+        self.client.post('/pos/entrar/', {'pin': '7373'})
+        cat = MenuCategory.objects.create(name='Cervezas', name_es='Cervezas')
+        beer = MenuItem.objects.create(category=cat, name='Michelob Ultra', name_es='Michelob Ultra', price_cents=6500)
+        form = {'action': 'save', 'name': 'michelob ultra', 'price': '65', 'category': cat.pk, 'available': 'on'}
+        page = self.client.post('/pos/productos/nuevo/', form)
+        self.assertEqual(page.status_code, 200)
+        self.assertIn('Ya existe', page.content.decode())
+        self.assertEqual(MenuItem.objects.filter(category=cat).count(), 1)
+        edited = self.client.post(f'/pos/productos/{beer.pk}/', dict(form, name='Michelob Ultra', price='70'))
+        self.assertEqual(edited.status_code, 302)
+        beer.refresh_from_db()
+        self.assertEqual(beer.price_cents, 7000)
