@@ -3,7 +3,7 @@
 Every booking for a show tonight gets one email in the morning with the time, the place and its tickets. The two
 kinds of night differ on purpose (owner, 2026-09-27):
 
-OPEN MIC: the seat was free, and 60 of them fill while people are turned away at the door. So the reminder
+OPEN MIC: the seat is free, and the reservations fill while people are turned away at the door. So the reminder
 carries a link to give the seat back, and doing so frees it at once: the order becomes CANCELLED, every count in
 the site reads only COMPLETED orders, so the seat is back on sale on the lander, the demand line and the ads
 autopilot without anything else being told.

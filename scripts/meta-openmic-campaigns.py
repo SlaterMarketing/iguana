@@ -11,11 +11,11 @@ making a second one, so re-running it after changing the copy or the budget is s
     scripts/meta-openmic-campaigns.py status                what exists now, and what it is spending
     scripts/meta-openmic-campaigns.py pause                 stop all four campaigns
 
-One campaign per night: reservations (OUTCOME_SALES, optimised for INITIATED_CHECKOUT). It chases the 60
+One campaign per night: reservations (OUTCOME_SALES, optimised for INITIATED_CHECKOUT). It chases the 80
 bookable seats, it commits people, it captures an email, and it is the only ad set the Conversions API can
 teach.
 
-🚨 There used to be a second, `local reach` (OUTCOME_TRAFFIC, landing page views), to fill the 20 walk-in seats
+🚨 There used to be a second, `local reach` (OUTCOME_TRAFFIC, landing page views), to fill the walk-in seats (20 of them until 2026-10-06)
 cheaply and to seed the pixel. It is off, and `RUN_REACH` below keeps it off. Measured over its whole life:
 **71.63 MXN, 183 clicks, 104 landing page views, zero checkouts and zero reservations.** Both of its arguments
 had quietly expired. It was written when a seat cost 50 MXN and a conversion ad cost more per head than the
@@ -65,7 +65,7 @@ ENGLISH_LOCALES = [6, 24]              # English (US), English (UK)
 # What the reservation ad sets optimise for.
 #
 # Meta needs roughly 50 conversions per ad set per week to leave the learning phase, and below that it delivers
-# erratically at the top of its price range. A night holds 60 reservable seats, so Purchase caps at 60 a week per
+# erratically at the top of its price range. A night holds 80 reservable seats, so Purchase caps at 80 a week per
 # ad set even if we sold out every time, and at 100 MXN a day we will be nowhere near that. Optimising on a
 # capped event we cannot feed means paying learning-phase prices indefinitely.
 #

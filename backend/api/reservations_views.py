@@ -2,7 +2,7 @@
 
 The question this answers is the one asked before every show: how many have we got. `/revenue/` answers what
 the week was worth and the admin answers what a single order was, but neither lays the room out night by night,
-and the number that decides whether to push an ad today is "47 of 60 on Tuesday".
+and the number that decides whether to push an ad today is "57 of 80 on Tuesday".
 
 It doubles as the door list, because nobody is scanning the QR codes: 0 of 24 tickets on 2026-09-23 and 0 of 16
 the night before. Until that changes, a list of names somebody can read off a phone is the only check-in there

@@ -15,8 +15,8 @@ the Marketing API. It is an operator tool run by hand, so it reads the never-exp
 | Pixel `Ticket Tracking` (used by the Kintana-era site) | `1167556798403907` |
 | Pixel `andrew new pixel` (created 2026-09-15, never fired) | `2122037578734069` |
 
-**The goal the spend is judged against (owner, 2026-09-24): fill every night. 60 reservations on an open mic,
-80 on a paid show.** Budget is a means, not a constraint to protect: a paid seat is 200 to 300 MXN against a
+**The goal the spend is judged against (owner, 2026-09-24): fill every night. 80 reservations on an open mic
+(60 until 2026-10-06, when the whole room became reservable), 80 on a paid show.** Budget is a means, not a constraint to protect: a paid seat is 200 to 300 MXN against a
 measured 35 to 49 MXN to acquire, and a free seat costs about 16 and pays back at the bar. So an underfilled
 night with a live campaign is a reason to raise the budget, not to admire the cost per seat.
 ⚠ **A lifetime budget is a CAP, and a nearly exhausted one goes quiet at the worst possible moment.** On

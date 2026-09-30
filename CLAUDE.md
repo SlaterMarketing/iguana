@@ -309,7 +309,7 @@ else is also selling does not read as empty.
 `meta-social.py`), targeting, and the Graph API traps. Operator scripts read `~/.credentials/meta/iguanacomedy/token`;
 ad account `act_178760798664478`, pixel `2122037578734069`. The rules that always apply:
 
-- **The goal is full nights: 60 reservations on an open mic, 80 on a paid show** (owner, 2026-09-24). An
+- **The goal is full nights: 80 reservations on an open mic (60 before 2026-10-06), 80 on a paid show** (owner, 2026-09-24). An
   underfilled night with a live campaign is a reason to raise the budget. A lifetime budget is a CAP: check
   `budget_remaining` against the hours left whenever a show is close.
 - 🚨 **`ACTIVE` is not evidence of spend.** 31 ad sets say ACTIVE with an `end_time` long gone. Judge by a future
