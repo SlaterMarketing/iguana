@@ -139,6 +139,10 @@ the club is trading off this site, so nothing of value happens until production 
 code. Anything that genuinely cannot be deployed, such as a Stripe dashboard setting, gets said out loud.
 
 One VPS (VPS.org `free` account, 38.86.78.36, user `iguana`, creds `~/.credentials/vpsorg/iguanacomedy/`).
+The app is `/home/www/iguana`; the server's venv is **`backend/venv`**, not `.venv` as locally. A one-off query:
+copy a script up and `ansible all --become --become-user iguana -m shell -a "cd /home/www/iguana/backend &&
+venv/bin/python manage.py shell < /tmp/q.py" </dev/null` (without `</dev/null` ansible can abort on a
+non-blocking stdin).
 nginx fronts supervisor programs `iguana:iguana-web` (Node, :3000) and `iguana:iguana-api` (gunicorn, :8001);
 Postgres `iguana`. `iguanacomedy.com` is canonical (DNS on Cloudflare, records must stay DNS-only: proxied records
 pointing at Cloudflare IPs caused the old Error 1000); `iguanacomedy.mx` 301s to it; API at
@@ -383,8 +387,7 @@ it is accepted every create returns 400.
 `pause`) builds two campaigns per night and is idempotent: it matches on name and updates rather than duplicating,
 so re-running after a copy or budget change is safe. Per night, 1,000 MXN a week: a `OUTCOME_SALES` ad set at 100
 MXN/day optimised for `Purchase` against the pixel, and a `OUTCOME_TRAFFIC` ad set at 43 MXN/day optimised for
-landing page views. The split is deliberate. A reservation is 50 MXN with a drink included, so at this account's
-historic 55 to 220 MXN cost per purchase the conversion ads cost more per head than they collect: they pay back at
+landing page views. The split is deliberate. A reservation is free, so the conversion ads are paid back only at
 the bar, and the cheap traffic ads fill the 20 walk-in seats and seed the pixel at the same time.
 
 Targeting comes from what actually worked here: Playa del Carmen (geo key `1540930`), `home` **and** `recent` so
@@ -446,8 +449,8 @@ Tests: `python3 -m unittest discover -s scripts/tests`.
 🚨 **Since 2026-09-28 the bar runs on `/pos/`, not on `/tables/` + `/mesas/`** (owner: "the entire
 order/menu/table/inventory system is fucked, make it a clone of Soft Restaurant", same layout so staff land on
 what they know). `/mesas/`, `/tables/`, `/mesas/carta/` and `/mesas/inventario/` now 302 to it; `/mesas/reservas/`
-and `/mesas/puerta/` are unchanged and linked from its function bar. The old board sections below describe
-retired screens; their models (`TableOrder` etc.) keep the history and /stats and /revenue add both.
+and the door (`/scan/`, also `/mesas/puerta/`) are unchanged and linked from its function bar. The old board's
+models (`TableOrder` etc.) keep the history, and /stats and /revenue add both.
 
 - **The PIN pad is the only door** (owner, 2026-09-28: no username screen). `/pos/` goes straight to a 4 to 6
   digit PIN (`pos.Staff`, roles MESERO / CAJERO / GERENTE, 30 min idle). Five wrong PINs from one address in 15
@@ -473,8 +476,11 @@ retired screens; their models (`TableOrder` etc.) keep the history and /stats an
   one or more `Payment`s (cash with change, terminal card with reference, transfer, phone, courtesy) into the open
   `Shift`; the check closes at zero and prints a ticket -> CAJA closes the shift with a corte (expected cash =
   fondo + cash sales + cash tips + entradas - retiros).
-- **Customer QR orders** (`/api/public/v1/table-orders`) land on the table's check UNSENT (`from_customer`) and
-  still email the bar; the waiter confirms and sends. Phone payment is `/pos/pagar/<check.pay_token>/` (same page
+- **Customer QR orders are OFF** (owner, 2026-09-29): `ONLINE_ORDERING = false` in
+  `src/components/menu/MenuPage.astro`, so `/menu/show/` and the table QR pages (`/menu/<n>/`) show the plain menu
+  under "raise your hand and a waiter will come". Set it true to bring the form back; orders then arrive through
+  `/api/public/v1/table-orders` on the table's check UNSENT (`from_customer`), email the bar, and the waiter
+  confirms and sends. Phone payment is `/pos/pagar/<check.pay_token>/` (same page
   as the old table pay, Stripe metadata `purpose: pos`, webhook settles).
 - **Printing** without a computer at the club: Epson TM (Server Direct Print) or Star (CloudPRNT) poll
   `/pos/print/<printer token>/` (`pos/views_pay.py`); until one exists every ticket opens in the tablet's print
@@ -484,257 +490,100 @@ retired screens; their models (`TableOrder` etc.) keep the history and /stats an
 - ⚠ The order screen serialises its requests (`serial()` in `templates/pos/cuenta.html`): two fast taps used
   to race and one drink vanished. Keep it.
 - Tests: `manage.py test pos`.
+- **Eliminar pedido** (owner, 2026-09-29): one tap on the order screen removes an unpaid order from service
+  and returns to the map, ready for a fresh order. Staff can delete checks they may work without another PIN;
+  orders with any payment record are refused. The cancelled check and all its lines remain as history, with
+  the staff member recorded. Pending comandas and linked print jobs are cleared. `CheckLine.stock_deltas`
+  records the stock actually deducted, so deleting/voiding never creates stock when the shelf was empty.
 
 ### The staff pages: who is coming, and what they cost
-
-Three pages behind the admin session, all bilingual, all on both domains.
 
 **Logins** (`~/.credentials/vpsorg/iguanacomedy/`): **`iguana`** is the owner account, superuser, so it reaches
 everything including the money (`owner_password`). `admin` is the account the first deploy creates
 (`admin_password`). Both passwords are set only when the account is created, so changing one in the admin is
-not undone by the next deploy.
+not undone by the next deploy. Day to day the staff use a PIN (see the point of sale above), not these.
 
-**`mesero`, `bar` and `door` are the floor accounts and they are NOT staff** (`floor_password`, shared, re-applied on
-every deploy because it is a short word typed on a shared phone behind a bar). They reach `/mesas/` and its
-inventory, and nothing else.
-🚨 **`ensure_floor_accounts` must only set the password when it actually DIFFERS.** `set_password` rotates
-the session auth hash, which invalidates every session that user has, so calling it unconditionally signed out
-every tablet on every deploy: on a fifteen-deploy day that is fifteen logins behind a bar, and the symptom
-("it keeps logging us out") looks nothing like its cause. The forcing behaviour is unchanged, since a password
-somebody changed still gets put back. `api.tests.DeployDoesNotSignTheTabletsOutTests` pins it.
-⚠ A floor login sets a **one-year** session expiry in `floor_views.sign_in`, set per session rather than
-globally so the owner's admin session keeps the short default. Django's two-week default would put somebody at
-a login screen mid-service for no visible reason.
+**`mesero`, `bar` and `door` are the old floor accounts and they are NOT staff** (`floor_password`, shared,
+re-applied on every deploy). They still open the `floor_required` pages (`/mesas/reservas/`, `/scan/`,
+`/checkin/`) and nothing else; `/pos/` itself takes only a PIN.
 🚨 **`is_staff = False` is the entire security model, on purpose.** Django's admin turns away a non-staff
-account at the login form, before it consults a single permission, so `/admin/` is shut by construction rather
-than by remembering to withhold every model permission one at a time; a permission added to one of these
-accounts later still cannot open the admin. `manage.py ensure_floor_accounts --password <pw>` forces the flag
-off every deploy, because somebody ticking "staff status" in the admin to be helpful is the realistic way that
-protection disappears. `api.tests.FloorConsoleTests` asserts the refusal rather than asserting an empty admin,
-and the production sweep checks it against the live box.
-⚠ **`bar` used to be a staff account and this DEMOTED it.** `/reservations/` was owner-only for a few hours
-because of that, and is now reachable by the floor at `/mesas/reservas/`, which is where the door reads it.
+account at the login form, before it consults a single permission, so `/admin/` is shut by construction.
+`manage.py ensure_floor_accounts --password <pw>` forces the flag off every deploy, because somebody ticking
+"staff status" in the admin to be helpful is the realistic way that protection disappears.
+`api.tests.FloorConsoleTests` asserts the refusal.
+🚨 **`ensure_floor_accounts` must only set the password when it actually DIFFERS.** `set_password` rotates the
+session auth hash, so calling it unconditionally signed out every tablet on every deploy.
+`api.tests.DeployDoesNotSignTheTabletsOutTests` pins it. A floor login gets a one-year session
+(`floor_views.sign_in`), set per session so the owner's admin session keeps the short default.
 
-- **`/reservations/`** (any staff, so the `bar` login reaches it): every night with seats against capacity, a
-  fill bar, bookings, seats left, what was taken online and what is owed at the door, and under each night the
-  guest list with when they booked. Names show to all staff; **email addresses only to whoever passes
-  `can_see_the_money`**, because the door needs a name and does not need the mailing list. It doubles as the
-  door list, since nobody scans the QR codes.
-- **`/stats/`** (`can_see_the_money`): the ads campaign by campaign (spend, people reached, times each person
-  saw it, clicks and CTR, over seven days and today), the room night by night (seats taken against capacity, with a fill bar
-  and seats left), today's funnel from visit to booking, cost per reservation free against paid for today,
-  yesterday and seven days, and a line for the list size and any open bar tab. Refreshes itself every 60s.
-  🚨 **An element can be clipped INSIDE its own box without the page overflowing at all, and that is the fault
-  that hides.** The first floor nav gave each pill `flex: 1 1 0` plus a `min-width`, so the pill came out
-  narrower than its own uppercase label and "INVENTARIO" was cut off at **every** width, while 390px looked
-  fine. It also pushed the page 20px wide at 320. Both are gone: the nav is defined **once** in
-  `templates/embed/base.html` (four copies is how they drifted) and its pills are sized to their label and
-  wrap. `tests/mobile-sweep.mjs` measures page overflow, per-element clipping AND tap targets under 40px at
-  320/360/390/430, because a 15px-tall link is fine for a mouse and bad for a thumb: it is what found
-  `a.peek` at 101x15 and every `<summary>` at 14px.
-  🔑 **A Playwright check on these pages must be case-insensitive.** The nav and the labels are uppercased in
-  CSS and `innerText` returns what is RENDERED, so `/Inventario/` fails on a page that is perfectly correct.
-  It cost time twice in one night: once on the demand nudges, once on the floor nav.
-  ⚠ **Every one of these pages is read on a phone, so test at 320px, not just 390.** The ad table overflowed
-  the page by 54px at 320 and 14px at 360 while looking perfect at 390; it stacks into one block per campaign
-  under 420px now. The reservations guest list was worse because it did NOT overflow the page: the card
-  clipped it, so the right-hand column existed and could not be reached by any amount of scrolling.
-  ⚠ **Seats left is a LIE on a sold-out night, so the row says "no seats to sell" instead.** Our own rows can
-  read 40 of 80 on a night that is genuinely gone, because a guest promoter sells a block we never see, which
-  is exactly how Privilegio came to be sold out. The bar fills to 100 and the row is marked; the counts stay
-  visible because they are what WE can see.
-  ⚠ **`sales.demand` counts `OrderItem.quantity`, not `Ticket` rows.** A fixture that creates tickets without
-  items reads as an empty room, which is a broken test rather than a broken page.
-  ⚠ **Money on this page is a STRING per currency** (`'600.00 MXN · 25.00 USD'`), never a float, because the
-  English nights sell in dollars and the Spanish ones in pesos. A ratio is only offered when one currency took
-  the money. Running `|floatformat` over it silently prints a bare `$`, which a test now catches.
-- **`/tables/`** (any staff): the bar board. Each card carries two different numbers and they are not
-  interchangeable: the one at the top is what is **waiting to be carried over**, and the one under the rule is
-  **Due**, everything that table has ordered tonight including rounds already delivered. They pay at the end,
-  so pressing Delivered used to make the money disappear from the only screen anybody looks at.
-  🚨 **There is no separate pending list** (owner, 2026-09-25). It repeated what the cards already said, for
-  the same reason the Delivered button went: the person who typed the round is the person carrying it. Each
-  card still turns green, counts the minutes and carries the name of whoever ordered.
-  ⚠ **The name lived ONLY in that list**, so removing the list silently took it off the board altogether and a
-  tray went out with nobody's name on it. It is on the card now. Anything a list like this shows has to be
-  checked against the cards before the list goes.
-  ⚠ **A `{# #}` comment is ONE LINE.** Written across several, Django does not treat it as a comment and
-  prints it: the note explaining this removal rendered across the top of the live board during service. Use
-  `{% comment %}`, and `TableQueueAndBreakdownTests` now asserts no comment marker reaches the page.
-  🚨 **Never give a context variable the same name as another one in the same view.** `?open=N` printed a raw
-  `<QuerySet [<TableOrder: ...>]>` beside the night's takings, because the breakdown query was called `rounds`
-  and so was the header's round COUNT. Nothing errored; a template renders whatever it is handed, repr and
-  all. It only showed with a breakdown open, which is why every check that loaded the plain board missed it.
-  **`See breakdown`** opens a table's rounds itemised, each with its time, its lines, its total and whether it
-  is waiting, delivered or paid. Each line carries **`Quitar de la cuenta`** for a drink they did not order or
-  that was not any good.
-  **`Apuntar una ronda`** on every card puts a verbally-taken order onto the bill (`/mesas/mesa/<n>/agregar/`).
-  Not everybody scans the QR, and until 2026-09-25 the board could take a line OFF and never put one on, so
-  anything ordered out loud was lost or kept on paper and added up by hand at the end of the night.
-  🔑 **It goes through `menu_views.create_round`, the same function the customer's own order uses**, so the two
-  ways in cannot drift: same snapshotted name and price, same show stamped on the round.
-  🚨 **It lands DELIVERED, not waiting** (owner, 2026-09-25: "entregado no aplica porque nadie está ordenando
-  por el sitio web ahorita, son los meseros poniendo órdenes"). Waiting-then-Delivered is a QUEUE, and a queue
-  only means anything when the order arrives from somebody other than the person who will carry it. While the
-  waiters are the ones typing, every round is entered and then confirmed by the same pair of hands: one
-  pointless tap per round during service, and a button that says nothing when it is pressed. The stock still
-  moves exactly once, through `stock.deliver` rather than a status write, so the count sheet is unchanged.
-  ⚠ **The customer's own QR order still lands WAITING**, because there the bar genuinely has not poured it. That
-  is what Delivered is for, and the button returns on its own the day anybody scans a table QR.
-  `api.tests.AWaiterEntersWhatIsAlreadyGoingOutTests` pins both halves.
-  ⚠ It sends no email to the bar. The person typing it IS the bar, and a notification about your own
-  keystrokes is noise that teaches people to ignore the channel.
-  🚨 **Taking a line off asks WHICH of two things happened, because they are not the same fact about the store
-  room.** `No se preparó` means the drink was never poured, so the ingredients are still in the bottle and the
-  count comes back up. `Se preparó y se tiró` means it was made and binned, so the money comes off the bill and
-  **the count does not move**: the stock is in a bin, and a sheet claiming it was on the shelf would send
-  somebody looking for it. An unrecognised reason is treated as waste, because the cautious default is never to
-  invent stock. A round that was never delivered has nothing to give back, since nothing had left.
-  🚨 **It is a VOID, not a delete.** The line stays on the round, struck through, with who took it off and why.
-  The bar wants it gone from the bill and it is, but "remove a drink from the bill" is also how money leaves a
-  till, so it has to leave a trace; a deleted row would change the night's takings and leave nothing behind.
-  `TableOrder.recount()` re-adds the lines that still count, and `total_cents` stays a stored column because the
-  board, `/stats/` and the night's takings all sum it across hundreds of rows.
-  `api.tests.VoidLineTests` pins both stock outcomes, the double-tap, and that a line cannot be voided through
-  another table's number.
-  ⚠ **It is a LINK carrying `?open=N#tN`, not a `<details>`.** The board reloads itself every twenty seconds
-  and a panel that snaps shut mid-read is worse than no panel; the query string rides along with the refresh
-  and the anchor puts the reader back on the same card.
-  **Paying is a toggle beside the amount**, not a second Delivered button: `Mark paid` settles every round on
-  that table for the service (an open one is marked delivered too, since they are paying for it) and turns into
-  `Undo`. Reversible on purpose: it is a tap on a phone in a dark room, and a table wrongly marked paid is
-  money out of the door. The board header names the show and totals the night.
-  🚨 **The board polls every 3 seconds; it is deliberately NOT a push.** Gunicorn runs **three SYNC workers**
-  (`supervisor.conf.j2`), so one held-open SSE or long-poll connection pins a worker for as long as a tablet
-  has the page open: three tablets would consume every worker and the whole site, checkout included, would
-  stop answering. `/mesas/estado/` returns one hash of what the board DRAWS (round ids, statuses, totals,
-  delivered/paid stamps, and the table count), the page reloads only when it changes, and the meta refresh
-  stays as a 120s backstop for a tablet whose JS died. Hashing what is visible rather than a `max(created_at)`
-  is what makes it catch a delivery, a settle and a void, none of which touch a creation timestamp.
-  ⚠ It will not reload while somebody has an input focused, or the note they are typing and the table count
-  they are halfway through would vanish for no visible reason.
-  **A table nobody has added yet is added when somebody orders from it** (`menu_views._stretch_to_fit`),
-  because the bar carries one in and does not stop to change a setting first.
-  🔑 **Bounded by `AUTO_ADD_REACH` (6), since the same field takes typos.** 15 against 12 is a table; 87 is a
-  slip, and growing to it would draw 75 empty cards and make the board useless. Past the reach the round still
-  arrives and its card still shows, because the board unions in any table that has one; only the count of
-  EMPTY cards is left alone.
-  **A round can carry the guest's name** (`TableOrder.guest_name`, optional, from the customer's own form and
-  from `Apuntar una ronda`). The table number routes the drink; the name is what lets the waiter arrive saying
-  one instead of holding a tray over a table asking who had the margarita.
-  **How many tables the room has** is a number the bar edits at the foot of the board, not a constant in the
-  code: `catalog.FloorSettings` (one row, `load()`), read per request so carrying another table in does not
-  need a restart, let alone a deploy. A club still working out its own layout cannot wait for a developer, and
-  the bar is the only party who knows how many tables are actually out tonight.
-  🔑 **Lowering it is safe by construction rather than by a guard**, which is why it needs no confirmation: the
-  board unions in every table that has a round tonight, so a table with an open tab keeps its card even when
-  the count drops below its number. Money on a table can never be hidden by this.
-  ⚠ **It is NOT a limit on what a customer may type.** `menu_views.MAX_TABLE` (100) stays the ceiling for that,
-  because a round sent to a table nobody has added yet should reach the bar and be dealt with rather than be
-  refused at the one moment somebody is trying to buy a drink. The unexpected number appears on the board,
-  which is how the bar finds out to add the table.
-  ⚠ **The night runs on a 6am-to-6am service, not a calendar day** (`tables_views.service_start`). A show
-  starting at nine runs past midnight and the tab crosses with it; counting by calendar day would zero a table
-  at 00:05 with the people still sitting at it.
-  🚨 **A SOLD OUT night is still a night, and only DRAFT and CANCELLED are not.** Filtering on
-  `status=ACTIVE` looks harmless and cost two things the moment Privilegio was marked sold out on the
-  afternoon of its own show (2026-09-25): `current_show()` returned None for its own night, so the board
-  showed no show and every round poured would have been stamped `event=None`, leaving "what did the bar take
-  on the Privilegio night" unanswerable for the busiest night of the week; and `/stats/` dropped the one night
-  the owner most wanted to look at. Both now filter `status__in=(ACTIVE, SOLD_OUT)`, and
-  `api.tests.SoldOutIsStillAShowTests` pins it.
-  ⚠ `crm/after_show.py` still excludes sold-out deliberately, because it picks the next show to invite people
-  to and inviting them to a full one is worse than saying nothing. `crm/whats_on.py` also still excludes it,
-  which is a copy decision rather than a bug: the Monday mail would otherwise list a night nobody can book.
-  🚨 **But `current_show` matches the CALENDAR DAY, not that window.** An event's date is stored early in its
-  own day, so a 6am-to-6am window over timestamps returns TOMORROW's show from this afternoon: it announced
-  Friday's Privilegio on a Thursday with nothing on. The service's date is the day it began, which after
-  midnight is still yesterday, so both ends still behave.
-  ⚠ **A test that builds "tonight" from a bare `timezone.now()` fails for five hours a day, and they are the
-  show.** `timezone.now()` is UTC; Playa is UTC-5, so between 19:00 and midnight there the UTC date has
-  already rolled over and `now().replace(hour=21)` lands on TOMORROW, where `current_show` cannot see it.
-  `BarHistoryTests` did exactly that and the whole suite went red every evening, which is when somebody
-  deploying before a show would meet it. Build the event from `service_start().date()` in `CANCUN_TZ`.
-  Every round is stamped with its show (`TableOrder.event`), which is what makes "what did the bar take on the
-  Fredy night" answerable at all; `/stats/` prints it per night, rounds, drinks and collected against still
-  owed. A round poured on a night with no show has no event, and that is correct rather than missing.
-- **`/mesas/`** (floor accounts, and the owner): the same board as `/tables/`, **in Spanish whatever the phone
-  says**, with a nav strip because a floor account has no admin to navigate from.
-  🚨 **The nav offers NO logout, deliberately** (owner, 2026-09-25: the console runs on tablets that live in
-  the building). A `Salir` sitting beside Mesas and Carta is a mis-tap away at all times, and the cost of that
-  mis-tap is somebody hunting for a password behind a bar mid-service. `/mesas/salir/` still exists for a
-  deliberate sign-out, and the owner signs out through the admin as before. Do not put the button back. Its own login at
-  `/mesas/entrar/`, never `/admin/login/`: the admin tells a non-staff account its correct password is wrong,
-  which at the start of service reads as a broken account and becomes a phone call. `?next=` is restricted to
-  `/mesas` paths so a crafted link cannot bounce somebody off the site.
-- **`/mesas/inventario/`** (same accounts): the count sheet. Spanish only, and that is a decision rather than an
-  omission: everything customer-facing here is bilingual because a customer reads it, and this has one
-  audience. Minus, plus, and a "Poner" box for the exact count; `Editar` per row for name, unit, reorder level,
-  area and archive; an add form at the bottom that insists only on a name, because a half-written row that
-  exists beats a complete one nobody stopped to type during service. Anything at or below its reorder level
-  sorts to the top and is flagged `Por pedir`, since the page exists to answer what to buy tomorrow.
-  ⚠ **`InventoryItem` is deliberately NOT tied to `MenuItem`.** One gin and tonic loses gin, tonic, limes and
-  ice in four units from four suppliers, so a model that decrements a drink when it is sold gets arithmetic
-  wrong in a way nobody can correct at 1am. The staff say what is on the shelf; the number is whatever they
-  last said it was. Every adjustment writes an `InventoryChange` with the resulting quantity and who made it,
-  because a count sheet with no history cannot answer the only question worth asking of one.
-  ⚠ A count can never go negative (taking the last one twice means zero), a comma is read as a decimal point,
-  and anything over 100,000 is refused so a slipped finger cannot write a million bottles.
-
-**Selling a drink takes it out of the store room** (`sales/stock.py`), through a RECIPE per menu item
-(`MenuItemIngredient`: one sale of this takes this much of that) rather than a stock column on the drink. It
-runs on DELIVERY, not on the order: a round a table changes its mind about never leaves the bar, and
-decrementing on the order would drift the sheet down by every abandoned round.
-🚨 **It runs at most once per round, enforced by `TableOrder.stock_applied_at` rather than trusted to the
-caller.** Every realistic way it gets called twice is an ordinary event: a double tap on Delivered, a reposted
-form, the board's own twenty-second refresh landing on a stale button, or Settle marking an open round
-delivered after Delivered already did. A count that is too LOW reads as theft rather than as a bug, so that is
-the direction that has to hold.
-⚠ **Never mark rounds delivered with a queryset `.update()`.** It never loads a row, so it can mark ten rounds
-delivered without touching one ingredient, which is precisely the silent drift this exists to prevent. Go
-through `stock.deliver()` / `stock.apply_stock()` one round at a time.
-⚠ Movements are summed per inventory item before writing, so two gin tonics and a gin soda touch the gin row
-once: the history is read by a person.
-🚨 **A menu item with NO recipe consumes nothing, and that is deliberate.** A guessed 1:1 between a cocktail and
-a bottle makes the sheet drift every night, invisibly, until somebody counts by hand and finds the numbers
-lying. `/mesas/carta/` prints how many items are `sin receta` so the hole is visible instead of silent.
-`manage.py seed_bar_inventory [--dry-run]` follows the same rule against the real menu: the six beers and four
-bottled soft drinks are sold AS the unit, so they are wired 1:1 because that is simply true; the two shots and
-three mixed drinks are pours whose measure depends on this bar's glassware, so their BOTTLES are created to be
-countable and the recipe is left for the bar to state. Re-runnable, and it never overwrites a count somebody
-took or a recipe somebody set.
-- **`/mesas/carta/`** (same accounts): the menu itself. Price, name, description, on or off tonight in one
-  tap, and adding an item. The menu has always lived in the database rather than the site's code so a price can
-  change the night it changes; until now that still meant somebody with the admin, which is the one thing these
-  accounts must not have, and a price the bar cannot fix is a price that stays wrong all night.
-  🚨 **Handing prices to the floor is safe because `TableOrderItem` snapshots the name and unit price when the
-  round is ordered.** Tonight's correction cannot restate what a table already agreed to pay.
-  ⚠ What they type goes into `name`/`description` **and** `name_es`, because the console is Spanish: leaving
-  `name_es` behind would have the customer menu showing the old name in one language and the new one in the
-  other.
-- **`/mesas/reservas/`** (same accounts): the guest list, which is the DOOR list because nobody scans the QR
-  codes. Email addresses stay behind `can_see_the_money`, which is what makes the page shareable: the door needs
-  to know whether somebody is on the list, not the mailing list, and a phone behind a bar is the least private
-  screen in the building.
-- **`/mesas/puerta/`** (same accounts): the door. The camera stays open, a ticket's QR is read in place, and
-  the verdict fills the screen: `PASA`, `YA PASÓ`, `REPETIDO`, `NO SIRVE`, `SIN PAGAR`, with the guest's name,
-  the night, and what to collect when the seat was reserved to pay at the door.
-  🔑 **A good scan marks the ticket used in the same breath, with no confirming tap.** A door that asks for one
-  gets it reflexively, so the tap buys delay and no safety. What it does need is to be atomic, because two
-  people scanning the same queue at once is normal and the second scanner must be told `REPETIDO`.
-  🚨 **The same code read again within 20 seconds is `YA PASÓ`, not an alarm.** The scanner sees one QR many
-  times a second, and a red screen would have staff arguing with a guest who has done nothing wrong. Past that
-  window it IS a warning, and it says what time the ticket was first used so the door can ask about it.
-  ⚠ **`Deshacer` is on every good scan.** The QR behind the one being held up reads too, and a scanner that
-  cannot be wrong is one nobody trusts.
-  ⚠ **An unpaid order is refused and NOT marked**, so the ticket still works the moment they pay.
-  ⚠ **iOS Safari has no `BarcodeDetector`.** Rather than pull a QR library off a CDN at the door, the page says
-  what to do: the phone's own camera app opens the check-in page, which is the same check, and there is a box
-  to type the code. `/checkin/<token>/` is what that QR holds, and it moved from `staff_member_required` to
-  `floor_required` so the door account can actually open it.
+- **`/reservations/`** (any staff): every night with seats against capacity, a fill bar, bookings, seats left,
+  what was taken online, and under each night the guest list with when they booked. Names show to all staff;
+  **email addresses only to whoever passes `can_see_the_money`**, because the door needs a name and does not
+  need the mailing list.
+- **`/mesas/reservas/`** (floor accounts and PINs): the same guest list in Spanish. It is the DOOR list, because
+  nobody scans the QR codes.
+- **`/scan/`** (`iguanacomedy.com/scan`, the address staff are given; any staff PIN, any role; `/mesas/puerta/`
+  is the same page, kept for bookmarks): the door scanner. The camera stays open, a ticket's QR is read in
+  place, and the verdict fills the screen: `PASA`, `YA PASÓ`, `REPETIDO`, `NO SIRVE`, `SIN PAGAR`.
+  🔑 **A good scan marks the ticket used in the same breath, with no confirming tap**, atomically, so a second
+  scanner on the same queue is told `REPETIDO`. The same code read again within 20 seconds is `YA PASÓ`, not
+  an alarm (the camera sees one QR many times a second). `Deshacer` is on every good scan. An unpaid order is
+  refused and NOT marked.
+  ⚠ **iOS Safari has no `BarcodeDetector`**: the page tells them to use the phone's camera app, which opens
+  `/checkin/<token>/` (what the QR holds, same check), or to type the code.
   🚨 **Nobody has ever been checked in here** (0 of 24 on one night, 0 of 16 on another), so `checked_in_at`
-  means nothing yet about whether somebody came, and `/mesas/reservas/` is what the door actually uses.
-- **`/revenue/`** as before.
+  says nothing about attendance.
+- **`/stats/`** (`can_see_the_money`): ads campaign by campaign (spend, reach, frequency, clicks and CTR, seven
+  days and today), the room night by night, today's funnel from visit to booking, cost per reservation free
+  against paid, the list size and the bar's takings per night. Refreshes itself every 60s.
+  ⚠ **Seats left is a LIE on a sold-out night**, because a guest promoter sells a block we never see, so the row
+  says "no seats to sell" and the bar fills to 100.
+  ⚠ **`sales.demand` counts `OrderItem.quantity`, not `Ticket` rows.** A fixture with tickets but no items reads
+  as an empty room.
+  ⚠ **Money on this page is a STRING per currency** (`'600.00 MXN · 25.00 USD'`), never a float: English
+  nights sell in dollars, Spanish ones in pesos. `|floatformat` over it silently prints a bare `$`.
+- **`/revenue/`**: the takings.
+
+**Rules for these pages, learnt on the old `/tables/` board and still true for the POS:**
+- 🚨 **Test at 320px, not just 390.** Every one of these is read on a phone. `tests/mobile-sweep.mjs` measures
+  page overflow, per-element clipping (an element clipped inside its own box never overflows the page, which is
+  the fault that hides) and tap targets under 40px at 320/360/390/430. The floor nav is defined once in
+  `templates/embed/base.html`.
+- 🔑 **Playwright checks here must be case-insensitive**: labels are uppercased in CSS and `innerText` returns
+  what is rendered.
+- 🚨 **Poll, never push.** Gunicorn runs **three SYNC workers** (`supervisor.conf.j2`), so one held-open SSE or
+  long-poll connection per tablet would consume every worker and take the checkout down with it.
+- ⚠ **A `{# #}` comment is ONE LINE.** Written across several, Django prints it on the page. Use
+  `{% comment %}`.
+- ⚠ **Never give two context variables in one view the same name**: a template renders whatever it is handed,
+  repr and all, with no error.
+- 🚨 **A void is not a delete, and it asks which of two things happened.** `No se preparó` returns the stock;
+  `Se preparó y se tiró` takes the money off and leaves the count alone, because the drink is in a bin. An
+  unrecognised reason counts as waste, since the cautious default is never to invent stock. The line stays,
+  struck through, with who and why.
+- ⚠ **The night runs 6am to 6am** (`tables_views.service_start`, used by `pos.services`), so a tab that crosses
+  midnight is not zeroed. But **`current_show` matches the CALENDAR DAY** of the service's start, because an
+  event's date is stored early in its own day and a timestamp window returned tomorrow's show.
+- 🚨 **A SOLD OUT night is still a night; only DRAFT and CANCELLED are not.** Filter
+  `status__in=(ACTIVE, SOLD_OUT)` wherever "tonight's show" is looked up (`SoldOutIsStillAShowTests`).
+  `crm/after_show.py` and `crm/whats_on.py` exclude sold-out on purpose: they invite people to book.
+- ⚠ **A test that builds "tonight" from a bare `timezone.now()` fails from 19:00 to midnight in Playa**, because
+  the UTC date has rolled over. Build it from `service_start().date()` in `CANCUN_TZ`.
+- Prices are snapshotted onto each line when it is ordered, so a price fixed mid-service cannot restate what a
+  table already agreed to pay. Product names are written to `name` and `name_es` together, because the console
+  is Spanish and the customer menu reads `name_es`. `/pos/productos/` refuses a second product with the same name
+  in the same category.
+
+**Stock follows RECIPES** (`catalog.MenuItemIngredient`: one sale of this takes this much of that), applied once
+per line when the line is SENT (`CheckLine.stock_applied_at`, and `stock_deltas` records what was actually
+taken, so a void or a deleted order never gives back stock that was not there). A count that is too LOW reads as
+theft, so double application is the direction that has to hold.
+🚨 **A menu item with NO recipe consumes nothing, and that is deliberate.** A guessed 1:1 between a cocktail and
+a bottle drifts the sheet every night. Beers and bottled soft drinks are sold as the unit and wired 1:1;
+pours are left for the bar to state. `manage.py seed_bar_inventory [--dry-run]` follows that rule and never
+overwrites a count or recipe somebody set. The old board's rounds (`TableOrder`, `sales/stock.py`) are history
+only.
+⚠ Counts never go negative, a comma is a decimal point, and anything over 100,000 is refused.
 
 🚨 **No request path may call Meta, and `/stats/` does not.** The ad account's rate limit clears only by
 waiting, so a page that asked Graph on every load would eventually wall itself and take the numbers down with
