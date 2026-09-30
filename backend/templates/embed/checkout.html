@@ -251,7 +251,9 @@
     if (d.left === 0) {
       room = T("Sold out");                                                // nothing left to argue for
     } else if (d.left > 0 && d.left <= nearly) {
-      room = T("Only {0} seats left of {1}", d.left, d.capacity);          // genuinely nearly gone
+      // Tonight is the argument itself: the seats are going AND the show is in a few hours.
+      room = d.tonight ? T("Only {0} seats left for tonight", d.left)
+                       : T("Only {0} seats left of {1}", d.left, d.capacity);  // genuinely nearly gone
     } else if (half) {
       room = T("Over half reserved, worth booking early");                 // true for longer than a burst is
     } else if (d.showBar) {

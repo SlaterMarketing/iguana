@@ -252,7 +252,8 @@ callout and hero badge still use `nextBookableOpenMics`, because they are a Rese
 iframe prints it because the host does not). Both must say the same thing, in this order:
 
 1. **Sold out** when nothing is left.
-2. **Only N seats left of M** when the room is nearly gone.
+2. **Only N seats left of M** when the room is nearly gone, and **Only N seats left for tonight** when the show is
+   today in Playa (`demand.tonight`, set by the backend on the Cancun calendar).
 3. **N people reserved in the last hour/few hours/day** when at least 2 have.
 4. **More than half the room is gone** at 50% or more.
 5. **N of M seats taken** once a third is gone (`BAR_FROM`).

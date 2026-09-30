@@ -23,6 +23,8 @@ export type EventDemand = {
   recentWindow: string;
   /** Every window's count, so several nights can be added up over the SAME window. */
   recentByWindow: Record<string, number>;
+  /** The show is today in Playa (the backend decides, by the Cancun calendar). */
+  tonight: boolean;
 };
 
 /** The SDK's event type is fixed and does not know about this field, so read it off the payload by hand. */
@@ -39,6 +41,7 @@ export function eventDemand(evt: KintanaPublicEvent): EventDemand | null {
     recent: Number(d.recent ?? 0),
     recentWindow: String(d.recentWindow ?? ""),
     recentByWindow: (d.recentByWindow && typeof d.recentByWindow === "object" ? d.recentByWindow : {}) as Record<string, number>,
+    tonight: Boolean(d.tonight),
   };
 }
 
@@ -111,7 +114,11 @@ export function demandLine(evt: KintanaPublicEvent, locale: Locale): DemandLine 
   if (gone) {
     room = t(locale, "demand.soldOut");
   } else if (tight) {
-    room = t(locale, "demand.left", { count: String(d.left), total: String(d.capacity) });
+    // On the night itself "for tonight" is the stronger fact than "of 60": the seats are going and the show is
+    // hours away. Mirrored in the checkout iframe's renderDemand.
+    room = d.tonight
+      ? t(locale, "demand.leftTonight", { count: String(d.left) })
+      : t(locale, "demand.left", { count: String(d.left), total: String(d.capacity) });
   } else if (half) {
     room = t(locale, "demand.half");
   } else if (d.showBar) {

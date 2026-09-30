@@ -3864,9 +3864,24 @@ class DemandNudgeTests(ApiTestCase):
 
     def test_the_checkout_carries_every_tier(self):
         page = self.render()
-        for phrase in ('Sold out', 'Only {0} seats left of {1}', '{0} people reserved {1}',
+        for phrase in ('Sold out', 'Only {0} seats left of {1}', 'Only {0} seats left for tonight',
+                       '{0} people reserved {1}',
                        'Over half reserved, worth booking early', '{0} of {1} seats reserved'):
             self.assertIn(phrase, page, f'the checkout cannot say: {phrase}')
+
+    def test_tonight_is_flagged_by_the_cancun_calendar(self):
+        """"Only 2 seats left FOR TONIGHT" is only true on the night, and the night is Playa's day, not UTC's."""
+        from sales.demand import demand, demand_for
+
+        today = timezone.now().astimezone(CANCUN_TZ).date()
+        self.event.date = datetime.combine(today, datetime.min.time(), tzinfo=CANCUN_TZ) + timedelta(hours=21)
+        self.event.save(update_fields=['date'])
+        self.assertTrue(demand(self.event)['tonight'])
+        self.assertTrue(demand_for([self.event])[self.event.id]['tonight'])
+        self.event.date += timedelta(days=1)
+        self.event.save(update_fields=['date'])
+        self.assertFalse(demand(self.event)['tonight'])
+        self.assertFalse(demand_for([self.event])[self.event.id]['tonight'])
 
     def test_an_empty_room_says_nothing(self):
         self.assertEqual(self.line(), 'nothing')

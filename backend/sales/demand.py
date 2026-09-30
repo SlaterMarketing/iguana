@@ -16,6 +16,7 @@ visitor is chosen to match the numbers rather than the numbers being chosen to s
 """
 
 from datetime import timedelta
+from zoneinfo import ZoneInfo
 
 from django.db.models import Sum
 from django.utils import timezone
@@ -25,6 +26,7 @@ from sales.models import Order, OrderItem
 
 # Tightest first, which is also the tie-break order. Each is (hours, the key the widget translates).
 WINDOWS = ((1, 'in the last hour'), (6, 'in the last few hours'), (24, 'in the last day'))
+CANCUN = ZoneInfo('America/Cancun')
 # Below this a count is not social proof, it is an admission.
 MIN_RECENT = 2
 # A bar this empty discourages; above it, it persuades.
@@ -72,7 +74,13 @@ def demand(event):
         # night's own chosen window and labelling the total with the widest of them undercounts, which is how
         # 7 bookings were being advertised as 5.
         'recentByWindow': by_window,
+        'tonight': _tonight(event, now),
     }
+
+
+def _tonight(event, now):
+    """The show is today in Playa, so "only 2 seats left" can say FOR TONIGHT, which is the whole argument."""
+    return event.date.astimezone(CANCUN).date() == now.astimezone(CANCUN).date()
 
 
 def _best_window(by_window):
@@ -124,6 +132,6 @@ def demand_for(events):
         out[event.id] = {
             'capacity': capacity, 'taken': got, 'left': max(0, capacity - got),
             'showBar': got / capacity >= BAR_FROM, 'recent': count, 'recentWindow': window,
-            'recentByWindow': by_window,
+            'recentByWindow': by_window, 'tonight': _tonight(event, now),
         }
     return out
