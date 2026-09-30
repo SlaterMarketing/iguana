@@ -4192,3 +4192,24 @@ class PayAtTheDoorFirstTests(ApiTestCase):
         TicketType.objects.create(event=show, name='Pay now', price_cents=30000, sort_order=0)
         with self.settings(STRIPE_SECRET_KEY='sk_test_x', STRIPE_PUBLISHABLE_KEY='pk_test_x'):
             self.assertTrue(collects_payment(show))
+
+
+class ScanAddressTests(ApiTestCase):
+    """iguanacomedy.com/scan is the door, and any staff PIN opens it, whatever the role."""
+
+    def test_signed_out_goes_to_the_pin_pad_and_comes_back(self):
+        res = self.client.get('/scan/')
+        self.assertEqual(res.status_code, 302)
+        self.assertEqual(res['Location'], '/pos/entrar/?next=/scan/')
+
+    def test_a_waiter_pin_opens_it(self):
+        from pos.models import Staff
+
+        waiter = Staff(name='Mesero prueba', role=Staff.MESERO)
+        waiter.set_pin('5151')
+        waiter.save()
+        res = self.client.post('/pos/entrar/', {'pin': '5151', 'next': '/scan/'})
+        self.assertEqual(res['Location'], '/scan/')
+        page = self.client.get('/scan/')
+        self.assertEqual(page.status_code, 200)
+        self.assertIn('/mesas/puerta/verificar/', page.content.decode())

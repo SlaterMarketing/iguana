@@ -54,7 +54,7 @@ def entrar(request):
     """The PIN keypad, and the only way in."""
     error = ''
     nxt = request.GET.get('next') or request.POST.get('next') or '/pos/'
-    if not nxt.startswith(('/pos', '/mesas', '/checkin')):
+    if not nxt.startswith(('/pos', '/mesas', '/checkin', '/scan')):
         nxt = '/pos/'
     if request.method == 'POST':
         wait = locked_out(request)

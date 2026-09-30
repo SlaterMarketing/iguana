@@ -43,6 +43,9 @@ urlpatterns = [
     path('mesas/carta/<str:item_id>/cambiar/', carta_views.toggle_item, name='floor-carta-toggle'),
     path('mesas/carta/<str:item_id>/receta/', carta_views.link_ingredient, name='floor-carta-recipe'),
     path('mesas/carta/receta/<str:pk>/quitar/', carta_views.unlink_ingredient, name='floor-carta-unrecipe'),
+    # The address the door is given (owner, 2026-09-29): short enough to type on a phone, and any staff PIN opens
+    # it. /mesas/puerta/ stays for the tablets that already have it bookmarked.
+    path('scan/', door_views.door, name='floor-scan'),
     path('mesas/puerta/', door_views.door, name='floor-door'),
     path('mesas/puerta/verificar/', door_views.verify, name='floor-door-verify'),
     path('mesas/puerta/deshacer/', door_views.undo, name='floor-door-undo'),
