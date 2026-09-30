@@ -16,7 +16,12 @@ interface Props {
 }
 
 const { locale, table, ordering = false } = Astro.props;
-const takesOrders = ordering || Boolean(table);
+// Ordering from the phone is off (owner, 2026-09-29): the waiters take every order by hand on /pos/, so a form
+// that sends rounds to the bar would only make a second queue nobody watches. Every menu page, the table QR
+// ones included, shows the plain menu and says to raise a hand. Set true to bring the form back.
+const ONLINE_ORDERING = false;
+const takesOrders = ONLINE_ORDERING && (ordering || Boolean(table));
+const callWaiter = !ONLINE_ORDERING && (ordering || Boolean(table));
 const { apiKey, baseUrl } = getKintanaEnv();
 const hasCredentials = hasKintanaCredentials();
 const menu = hasCredentials && apiKey && baseUrl ? await loadMenu(baseUrl, apiKey, locale) : null;
@@ -31,6 +36,7 @@ const copy = {
     empty: "The menu is being updated. Ask at the bar and they will look after you.",
     noOrdering: "Scan the code on your table to order without getting up.",
     orderHere: "Order without getting up →",
+    raiseHand: "Raise your hand and a waiter will come to take your order.",
     shows: "See what is on",
     directions: "Directions",
   },
@@ -43,6 +49,7 @@ const copy = {
     empty: "Estamos actualizando el menú. Pregunta en la barra y te atienden.",
     noOrdering: "Escanea el código de tu mesa para pedir sin levantarte.",
     orderHere: "Pide sin levantarte →",
+    raiseHand: "Levanta la mano y un mesero viene a tomar tu orden.",
     shows: "Ver la cartelera",
     directions: "Cómo llegar",
   },
@@ -71,6 +78,14 @@ const orderHref = `/${locale}/menu/show/`;
       ) : null
     }
     <p class="mt-6 text-lg leading-relaxed text-neutral-700">{takesOrders ? copy.introTable : copy.intro}</p>
+    {
+      callWaiter ? (
+        <p class="mt-8 flex items-center gap-4 rounded-3xl bg-brand px-6 py-5 text-lg font-semibold leading-snug text-neutral-950">
+          <span class="text-3xl" aria-hidden="true">✋</span>
+          {copy.raiseHand}
+        </p>
+      ) : null
+    }
 
     {
       !menu || menu.categories.length === 0 ? (
@@ -101,13 +116,15 @@ const orderHref = `/${locale}/menu/show/`;
               </section>
             ))}
           </div>
-          {/* The read-only menu still has to offer the thing the menu is for. */}
+          {/* The read-only menu still has to offer the thing the menu is for, when ordering is on. */}
+          {ONLINE_ORDERING ? (
           <a
             class="mt-10 flex min-h-14 items-center justify-center rounded-full bg-brand px-8 text-sm font-semibold uppercase tracking-[0.2em] text-neutral-950"
             href={orderHref}
           >
             {copy.orderHere}
           </a>
+          ) : null}
         </>
       )
     }
