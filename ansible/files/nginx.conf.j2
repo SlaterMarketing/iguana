@@ -158,6 +158,9 @@ upstream iguana_api { server 127.0.0.1:8001; }
     {# La puerta, en la dirección que se le da al personal: iguanacomedy.com/scan, con cualquier PIN. #}
     location = /scan          { return 301 /scan/; }
     location ^~ /scan/        { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
+    {# La lista de reservas, en la dirección corta que se le da al personal. #}
+    location = /reservas      { return 301 /reservas/; }
+    location ^~ /reservas/    { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
     location ^~ /reservations/ { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
     location ^~ /stats/       { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
     location ^~ /revenue/     { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }

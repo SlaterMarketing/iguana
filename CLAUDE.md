@@ -405,8 +405,9 @@ session auth hash, so calling it unconditionally signed out every tablet on ever
   what was taken online, and under each night the guest list with when they booked. Names show to all staff;
   **email addresses only to whoever passes `can_see_the_money`**, because the door needs a name and does not
   need the mailing list.
-- **`/mesas/reservas/`** (floor accounts and PINs): the same guest list in Spanish. It is the DOOR list, because
-  nobody scans the QR codes.
+- **`/reservas/`** (`iguanacomedy.com/reservas`, floor accounts and PINs; `/mesas/reservas/` is the same page, kept
+  for bookmarks): the same guest list in Spanish, every upcoming night's list open. It is the DOOR list, because
+  nobody scans the QR codes. Each night on `/stats/` links to `/reservations/#n<event id>`.
 - **`/scan/`** (`iguanacomedy.com/scan`, the address staff are given; any staff PIN, any role; `/mesas/puerta/`
   is the same page, kept for bookmarks): the door scanner. The camera stays open, a ticket's QR is read in
   place, and the verdict fills the screen: `PASA`, `YA PASÓ`, `REPETIDO`, `NO SIRVE`, `SIN PAGAR`.

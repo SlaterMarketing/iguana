@@ -81,6 +81,15 @@ def _nights(events, can_see_email, lang):
     return nights
 
 
+def _floor_base(request):
+    """The Spanish door list lives at /reservas/ (the short address staff are given) and at /mesas/reservas/
+    (kept for bookmarks). Whichever one somebody is on, a tick sends them back to it."""
+    for base in ('/reservas/', '/mesas/reservas/'):
+        if request.path.startswith(base):
+            return base
+    return ''
+
+
 @floor_required
 @require_POST
 def check_in_order(request, order_id):
@@ -100,7 +109,7 @@ def check_in_order(request, order_id):
         undo = request.GET.get('undo') or request.POST.get('undo')
         now = None if undo else timezone.now()
         order.tickets.filter(checked_in_at__isnull=bool(not undo)).update(checked_in_at=now)
-    back = '/mesas/reservas/' if request.path.startswith('/mesas') else '/reservations/'
+    back = _floor_base(request) or '/reservations/'
     return redirect(f'{back}#o{order_id}')
 
 
@@ -115,7 +124,8 @@ def reservations(request):
     The door needs to know whether somebody is on the list; it does not need the mailing list, and a phone
     behind a bar is the least private screen in the building.
     """
-    lang = 'es' if request.path.startswith('/mesas') else lang_from_request(request)
+    base = _floor_base(request)
+    lang = 'es' if base else lang_from_request(request)
     can_see_email = request.user.is_superuser or request.user.has_perm('sales.view_order')
     today = timezone.now().astimezone(CANCUN).date()
     window = (Event.objects.filter(date__date__gte=today - timedelta(days=PAST_NIGHTS),
@@ -130,7 +140,8 @@ def reservations(request):
     past = [n for n in reversed(nights) if n['when'] and n['when'].date() < today]
     return render(request, 'embed/reservations.html', {
         'lang': lang,
-        'floor': request.path.startswith('/mesas'),
+        'floor': bool(base),
+        'base': base,
         'today': today,
         'upcoming': upcoming,
         'past': past,

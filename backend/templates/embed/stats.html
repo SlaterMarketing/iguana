@@ -32,6 +32,9 @@
   table.nights { width: 100%; border-collapse: collapse; margin-top: 8px; }
   table.nights td { padding: 7px 4px; border-bottom: 1px solid var(--line); vertical-align: middle; }
   table.nights tr.tonight td { background: var(--brand-soft); }
+  table.nights tr.go { cursor: pointer; }
+  table.nights tr.go:hover td { background: rgba(0,0,0,.04); }
+  table.nights tr.go a { color: inherit; text-decoration: none; }
   table.nights .gone { display: inline-block; margin-left: 6px; font-size: .62rem; font-weight: 700;
                        letter-spacing: .12em; text-transform: uppercase; color: var(--danger); }
   td.when { font-size: .8rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
@@ -86,10 +89,11 @@
       <h2>{% t lang "The room, night by night" %}</h2>
       <table class="nights">
         {% for n in nights %}
-          <tr class="{% if n.tonight %}tonight{% endif %}">
+          {% comment %}The whole row opens that night's guest list, so "who are the 57?" is one tap away.{% endcomment %}
+          <tr class="go{% if n.tonight %} tonight{% endif %}" onclick="location.href='/reservations/#n{{ n.id }}'">
             <td class="when">
-              {{ n.when|date:"D j M" }}{% if n.tonight %} · {% t lang "tonight" %}{% endif %}
-              <span class="what">{{ n.name }}{% if n.sold_out %} <b class="gone">{% t lang "Sold out" %}</b>{% endif %}</span>
+              <a href="/reservations/#n{{ n.id }}">{{ n.when|date:"D j M" }}{% if n.tonight %} · {% t lang "tonight" %}{% endif %}
+              <span class="what">{{ n.name }}{% if n.sold_out %} <b class="gone">{% t lang "Sold out" %}</b>{% endif %}</span></a>
             </td>
             <td class="fill">
               {% if n.capacity %}

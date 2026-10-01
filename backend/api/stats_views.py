@@ -111,6 +111,7 @@ def _upcoming_nights(limit=6):
         capacity, taken = row.get('capacity') or 0, row.get('taken') or 0
         when = event.date.astimezone(CANCUN)
         nights.append({
+            'id': event.id,
             'name': event.label('en'),
             'when': when,
             'tonight': when.date() == today,

@@ -3463,6 +3463,25 @@ class ReservationsBoardTests(ApiTestCase):
         self.assertNotIn('Ana Lopez', page)
         self.assertIn('Nobody yet', page)
 
+    def test_reservas_is_the_spanish_door_list_with_every_night_open(self):
+        """/reservas/ is the short address staff are given (owner, 2026-09-30): every guest list shows without
+        a tap, and ticking a guest there sends you back there rather than to /mesas/reservas/."""
+        self.staff('door5')
+        page = self.client.get('/reservas/').content.decode()
+        self.assertIn('Ana Lopez', page)
+        self.assertIn('Quién viene', page)
+        self.assertIn('<details open>', page)
+        self.assertIn(f'id="n{self.event.id}"', page)
+        self.assertIn(f'action="/reservas/{self.order.id}/verificar/', page)
+        res = self.client.post(f'/reservas/{self.order.id}/verificar/')
+        self.assertEqual(res['Location'], f'/reservas/#o{self.order.id}')
+
+    def test_a_night_on_stats_opens_its_guest_list(self):
+        self.staff('boss2', is_superuser=True)
+        page = self.client.get('/stats/').content.decode()
+        self.assertIn(f'/reservations/#n{self.event.id}', page)
+        self.assertIn(f'id="n{self.event.id}"', self.client.get('/reservations/').content.decode())
+
     def test_it_reads_in_spanish_when_the_phone_does(self):
         self.staff('door4')
         page = self.client.get('/reservations/', HTTP_ACCEPT_LANGUAGE='es-MX,es;q=0.9').content.decode()

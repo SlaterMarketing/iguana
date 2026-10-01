@@ -51,6 +51,9 @@ urlpatterns = [
     path('mesas/puerta/deshacer/', door_views.undo, name='floor-door-undo'),
     path('mesas/puerta/buscar/', door_views.lookup, name='floor-door-lookup'),
     # The guest list, which is the DOOR list: same view, Spanish, and reached without the admin.
+    # /reservas/ is the address staff are given (owner, 2026-09-30); /mesas/reservas/ stays for bookmarks.
+    path('reservas/', reservations_views.reservations, name='floor-reservas'),
+    path('reservas/<str:order_id>/verificar/', reservations_views.check_in_order, name='floor-reservas-check-in'),
     path('mesas/reservas/', reservations_views.reservations, name='floor-reservations'),
     path('mesas/reservas/<str:order_id>/verificar/', reservations_views.check_in_order, name='floor-check-in'),
     # La cuenta de la mesa, pagada desde el teléfono del cliente. Una sola ruta para los dos idiomas: el QR

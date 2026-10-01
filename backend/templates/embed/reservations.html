@@ -9,6 +9,8 @@
   .night { border: 1px solid var(--line); border-radius: 18px; background: #fff; padding: 14px 16px; }
   .night + .night { margin-top: 12px; }
   .night.tonight { border-color: var(--brand); background: var(--brand-soft); }
+  /* Arrived from a night on /stats/: say which one. */
+  .night:target { outline: 3px solid var(--brand); outline-offset: 2px; scroll-margin-top: 12px; }
   .night .top { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; }
   .night h2 { margin: 0; font-size: 1.05rem; }
   .night .day { font-size: .78rem; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--muted); }
@@ -52,17 +54,17 @@
     <p class="muted">{% t lang "{0} seats booked across every night to come" seats_ahead %}</p>
   </div>
 
-  {# Sólo en /mesas/reservas/: la consola de piso no tiene admin detrás y necesita sus enlaces en la página. #}
+  {# Sólo en /reservas/ y /mesas/reservas/: la consola de piso no tiene admin detrás y necesita sus enlaces en la página. #}
   {% if floor %}
     <div class="floornav">
       <a href="/pos/">◀ Punto de venta</a>
-                  <a class="on" href="/mesas/reservas/">Reservas</a>
+                  <a class="on" href="/reservas/">Reservas</a>
       <a href="/scan/">Puerta</a>
     </div>
   {% endif %}
 
   {% for n in upcoming %}
-    <section class="night {% if n.when.date == today %}tonight{% endif %}">
+    <section class="night {% if n.when.date == today %}tonight{% endif %}" id="n{{ n.event.id }}">
       <div class="top">
         <div>
           <p class="day">
@@ -90,7 +92,7 @@
       </p>
 
       {% if n.guests %}
-        <details {% if n.when.date == today %}open{% endif %}>
+        <details open>
           <summary>{% t lang "Who is coming" %}</summary>
           <div class="guests">
           <table>
@@ -115,7 +117,7 @@
                   {# El único camino para quien trae el QR del promotor, y para cualquier iPhone en la puerta. #}
                   {% if floor %}
                     <td class="act">
-                      <form method="post" action="/mesas/reservas/{{ g.id }}/verificar/{% if g.all_here %}?undo=1{% endif %}">
+                      <form method="post" action="{{ base }}{{ g.id }}/verificar/{% if g.all_here %}?undo=1{% endif %}">
                         {% csrf_token %}
                         <button class="verify{% if g.all_here %} on{% endif %}" type="submit">
                           {% if g.all_here %}{% t lang "Undo" %}{% else %}{% t lang "Verified" %}{% endif %}
