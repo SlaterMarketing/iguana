@@ -438,6 +438,45 @@ ES = {
     'Hide QR': 'Ocultar QR',
     'They scan this to pay the whole bill by card': 'Escanean esto para pagar toda la cuenta con tarjeta',
     'Paid by card': 'Pagado con tarjeta',
+    # /drop/ (api/drop_views.py)
+    'Documents for Iguana Comedy': 'Documentos para Iguana Comedy',
+    'Documents for account setup': 'Documentos para abrir las cuentas',
+    'PIN': 'PIN',
+    'Open': 'Abrir',
+    'That PIN is not right.': 'Ese PIN no es correcto.',
+    'Too many wrong PINs. Try again in {0} minutes.': 'Demasiados PIN incorrectos. Intenta de nuevo en {0} minutos.',
+    'Choose what you are sending.': 'Elige qué estás enviando.',
+    'Add a file or write a note.': 'Agrega un archivo o escribe una nota.',
+    'Received: {0}. Thank you.': 'Recibido: {0}. Gracias.',
+    'Files sent here are stored privately and cannot be opened or listed from this page, by you or anyone else. Do not send card numbers: those are typed into each billing page directly.':
+        'Los archivos que envíes aquí se guardan en privado y nadie puede abrirlos ni verlos desde esta página, tampoco tú. No envíes números de tarjeta: esos se escriben directamente en cada página de facturación.',
+    'What are you sending?': '¿Qué estás enviando?',
+    'Choose one': 'Elige uno',
+    'Files (photos or PDFs, up to 60 MB in total)': 'Archivos (fotos o PDF, hasta 60 MB en total)',
+    'Note (optional): logins, answers, links': 'Nota (opcional): accesos, respuestas, enlaces',
+    'Send': 'Enviar',
+    'What is needed': 'Lo que se necesita',
+    'received': 'recibido',
+    'Constancia de situación fiscal': 'Constancia de situación fiscal',
+    'The PDF from the SAT, issued in the last 3 months. It carries the RFC and razón social.':
+        'El PDF del SAT, emitido en los últimos 3 meses. Incluye el RFC y la razón social.',
+    "Legal representative's ID": 'Identificación del representante legal',
+    'INE (both sides) or passport, as photos or a PDF.': 'INE (por ambos lados) o pasaporte, en fotos o PDF.',
+    'Proof of address': 'Comprobante de domicilio',
+    'A utility bill or bank statement at the fiscal address, from the last 3 months.':
+        'Un recibo de luz, agua o teléfono, o un estado de cuenta, del domicilio fiscal y de los últimos 3 meses.',
+    'Acta constitutiva': 'Acta constitutiva',
+    'Only if the business is a company (persona moral).': 'Solo si el negocio es una persona moral.',
+    'Existing accounts': 'Cuentas que ya existen',
+    'Logins for the YouTube channel and TikTok @iguanacomedy, if they are the club’s, and any Google account the club already uses.':
+        'Los accesos del canal de YouTube y de TikTok @iguanacomedy, si son del club, y cualquier cuenta de Google que el club ya use.',
+    'Logo and banner': 'Logo y portada',
+    'Optional. The site logo is used if nothing is sent.': 'Opcional. Si no se envía nada, se usa el logo del sitio.',
+    'Comedian permissions': 'Permisos de los comediantes',
+    'Signed OKs from comedians to post and monetize clips of their sets.':
+        'Autorizaciones firmadas de los comediantes para publicar y monetizar clips de sus rutinas.',
+    'Anything else': 'Cualquier otra cosa',
+    'Answers, notes, links to footage.': 'Respuestas, notas, enlaces a los videos.',
 }
 
 

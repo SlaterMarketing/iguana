@@ -30,6 +30,9 @@ META_TEST_EVENT_CODE = getattr(config, 'META_TEST_EVENT_CODE', '')
 
 # DB-IP City Lite (.mmdb) for contact and order locations; see crm/geo.py. Blank or missing file = no lookups.
 GEOIP_DB = getattr(config, 'GEOIP_DB', '')
+# /drop/ (api/drop_views.py): an upload-only page for the owner's business documents. No PIN, no page.
+DROP_PIN = getattr(config, 'DROP_PIN', '')
+DROP_DIR = getattr(config, 'DROP_DIR', str(BASE_DIR / 'drop'))
 
 INSTALLED_APPS = [
     'django.contrib.admin',

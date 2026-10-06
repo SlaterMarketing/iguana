@@ -360,6 +360,12 @@
       become: true
       file: {path: "{{ geoip_db | dirname }}", state: directory, owner: "{{ deploy_user }}", group: "{{ deploy_user }}", mode: "0755"}
 
+    # /drop/ stores what the owner uploads (IDs, tax papers) here, outside backend/media so nginx can never serve
+    # it. 0700: only the app user reads it; copies come off the box through ansible.
+    - name: Document drop directory
+      become: true
+      file: {path: "{{ drop_dir }}", state: directory, owner: "{{ deploy_user }}", group: "{{ deploy_user }}", mode: "0700"}
+
     - name: Look for the IP location database
       stat: {path: "{{ geoip_db }}"}
       register: geoip_file

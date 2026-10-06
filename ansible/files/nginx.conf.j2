@@ -160,6 +160,9 @@ upstream iguana_api { server 127.0.0.1:8001; }
     location ^~ /scan/        { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
     {# La lista de reservas, en la dirección corta que se le da al personal. #}
     location = /reservas      { return 301 /reservas/; }
+    # Document uploads for account setup: phone photos of an ID run past the 10m default.
+    location = /drop          { return 301 /drop/; }
+    location ^~ /drop/        { client_max_body_size 60m; proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
     location ^~ /reservas/    { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
     location ^~ /reservations/ { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
     location ^~ /stats/       { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }

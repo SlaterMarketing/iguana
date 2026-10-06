@@ -4271,3 +4271,57 @@ class NoTwinProductsTests(ApiTestCase):
         self.assertEqual(edited.status_code, 302)
         beer.refresh_from_db()
         self.assertEqual(beer.price_cents, 7000)
+
+
+class DropTests(TestCase):
+    """`/drop/` takes the owner's documents and must never hand one back: the PIN is short and went out by email."""
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.override = override_settings(DROP_PIN='1357', DROP_DIR=self.tmp.name, NOTIFY_EMAILS=['hello@example.com'])
+        self.override.enable()
+        self.addCleanup(self.override.disable)
+
+    def _unlock(self):
+        return self.client.post('/drop/', {'pin': '1357'})
+
+    def test_no_pin_configured_means_no_page(self):
+        with override_settings(DROP_PIN=''):
+            self.assertEqual(self.client.get('/drop/').status_code, 404)
+
+    def test_wrong_pin_shows_nothing_and_locks_after_five(self):
+        for _ in range(5):
+            response = self.client.post('/drop/', {'pin': '0000'})
+            self.assertNotContains(response, 'name="files"')
+        response = self._unlock()
+        self.assertNotContains(response, 'name="files"', status_code=200)
+        self.assertFalse(self.client.session.get('drop_ok'))
+
+    def test_upload_is_stored_privately_and_never_listed(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        import os
+        self.assertEqual(self._unlock().status_code, 302)
+        response = self.client.post('/drop/', {
+            'kind': 'csf', 'note': 'RFC in the PDF',
+            'files': SimpleUploadedFile('../../constancia secret.pdf', b'%PDF-1.4 x', 'application/pdf'),
+        })
+        self.assertEqual(response.status_code, 302)
+        names = os.listdir(self.tmp.name)
+        self.assertEqual(len(names), 2)
+        for name in names:
+            self.assertEqual(os.stat(os.path.join(self.tmp.name, name)).st_mode & 0o777, 0o600)
+            self.assertNotIn('/', name)
+        page = self.client.get(response['Location'])
+        self.assertContains(page, 'received')
+        self.assertNotContains(page, 'constancia')
+        self.assertEqual(len(mail.outbox), 1)
+        self.assertNotIn('constancia', mail.outbox[0].body)
+
+    def test_every_item_has_spanish(self):
+        from api.drop_views import ITEMS
+        from sales.i18n import ES
+        for _, label, hint in ITEMS:
+            self.assertIn(label, ES)
+            self.assertIn(hint, ES)

@@ -1,0 +1,66 @@
+{% extends "embed/base.html" %}
+{% load showtime %}
+
+{% block title %}{% t lang "Documents for Iguana Comedy" %}{% endblock %}
+
+{% block head %}
+<meta name="robots" content="noindex, nofollow">
+<style>
+  .drop-items { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+  .drop-items li { border: 1px solid #ddd; border-radius: 10px; padding: 12px 14px; }
+  .drop-items strong { display: block; }
+  .drop-items .done { color: #127a3a; font-weight: 600; }
+  .drop-form label { display: block; font-weight: 600; margin-top: 12px; }
+  .drop-form select, .drop-form input[type=file], .drop-form textarea, .drop-form input[type=password] {
+    width: 100%; box-sizing: border-box; font: inherit; padding: 10px; min-height: 44px; }
+  .drop-form textarea { min-height: 120px; }
+  .drop-ok { background: #e7f6ec; border-radius: 10px; padding: 12px 14px; }
+  .drop-err { background: #fdecec; border-radius: 10px; padding: 12px 14px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="stack">
+  <p class="eyebrow">Iguana Comedy · <a href="?lang={{ other_lang }}">{% if lang == "es" %}English{% else %}Español{% endif %}</a></p>
+  <h1>{% t lang "Documents for account setup" %}</h1>
+
+  {% if error %}<p class="drop-err">{{ error }}</p>{% endif %}
+
+  {% if not unlocked %}
+    <form method="post" class="stack drop-form">
+      {% csrf_token %}
+      <label for="pin">{% t lang "PIN" %}</label>
+      <input id="pin" name="pin" type="password" inputmode="numeric" autocomplete="off" autofocus required>
+      <button class="btn" type="submit">{% t lang "Open" %}</button>
+    </form>
+  {% else %}
+    {% if sent_label %}<p class="drop-ok">{% t lang "Received: {0}. Thank you." sent_label %}</p>{% endif %}
+
+    <p class="muted">{% t lang "Files sent here are stored privately and cannot be opened or listed from this page, by you or anyone else. Do not send card numbers: those are typed into each billing page directly." %}</p>
+
+    <form method="post" enctype="multipart/form-data" class="stack drop-form">
+      {% csrf_token %}
+      <label for="kind">{% t lang "What are you sending?" %}</label>
+      <select id="kind" name="kind" required>
+        <option value="">{% t lang "Choose one" %}</option>
+        {% for item in items %}<option value="{{ item.key }}">{{ item.label }}</option>{% endfor %}
+      </select>
+      <label for="files">{% t lang "Files (photos or PDFs, up to 60 MB in total)" %}</label>
+      <input id="files" name="files" type="file" multiple>
+      <label for="note">{% t lang "Note (optional): logins, answers, links" %}</label>
+      <textarea id="note" name="note"></textarea>
+      <button class="btn" type="submit">{% t lang "Send" %}</button>
+    </form>
+
+    <h2>{% t lang "What is needed" %}</h2>
+    <ul class="drop-items">
+      {% for item in items %}
+        <li>
+          <strong>{{ item.label }}{% if item.done %} <span class="done">✓ {% t lang "received" %}</span>{% endif %}</strong>
+          <span class="muted">{{ item.hint }}</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+</div>
+{% endblock %}
