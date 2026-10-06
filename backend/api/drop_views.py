@@ -1,6 +1,6 @@
 """`/drop/`: where the owner uploads the business documents that ad and video account setup asks for.
 
-Upload-only by design. The PIN is short and was sent by email, so nothing behind it may be readable: the page
+Upload-only by design. The PIN is short and was sent by email, so nothing behind it may be readable (it holds IDs and the ad billing card): the page
 never lists a file name, never serves a file back, and stores everything in `DROP_DIR`, outside `backend/media`,
 so nginx has no route to it. What the page does show is which items have arrived, so the person uploading can see
 what is still missing. Copies come off the box through ansible. Wrong PINs share the point of sale's lockout
@@ -31,6 +31,7 @@ ITEMS = [
     ('id', "Legal representative's ID", 'INE (both sides) or passport, as photos or a PDF.'),
     ('address', 'Proof of address', 'A utility bill or bank statement at the fiscal address, from the last 3 months.'),
     ('acta', 'Acta constitutiva', 'Only if the business is a company (persona moral).'),
+    ('card', 'Card for ad billing', 'Photos of the front and back. When the card is replaced, upload the new one here and it takes over.'),
     ('logins', 'Existing accounts', 'Logins for the YouTube channel and TikTok @iguanacomedy, if they are the club’s, and any Google account the club already uses.'),
     ('brand', 'Logo and banner', 'Optional. The site logo is used if nothing is sent.'),
     ('releases', 'Comedian permissions', 'Signed OKs from comedians to post and monetize clips of their sets.'),

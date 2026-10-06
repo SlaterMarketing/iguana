@@ -574,6 +574,7 @@ accepts Gmail's cookie-less one-click POST. Receipts and sign-in codes deliberat
 `iguanacomedy.com/drop/` takes uploads (tax papers, IDs, logins for Google Ads, TikTok and YouTube setup) behind a
 PIN (`drop_pin` in the creds folder; it was emailed to hello@, so treat it as known). Files land in `drop_dir`
 (`/var/lib/iguana/drop`, 0700, files 0600), never under `backend/media`, and **the page is upload-only**: it shows
-which headings have arrived and never a file name, a list or a download. Wrong PINs share the POS lockout. Each
+which headings have arrived and never a file name, a list or a download. It also takes photos of the ad billing card
+(owner, 2026-10-06), and a newer card upload replaces the older one. Wrong PINs share the POS lockout. Each
 upload emails `NOTIFY_EMAILS` the heading and count only. To read them, copy them off with ansible into
 `~/.credentials/iguanacomedy-business/` and delete them from the server once used. Never put any of it in the repo.

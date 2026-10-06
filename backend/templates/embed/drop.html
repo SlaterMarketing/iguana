@@ -36,7 +36,7 @@
   {% else %}
     {% if sent_label %}<p class="drop-ok">{% t lang "Received: {0}. Thank you." sent_label %}</p>{% endif %}
 
-    <p class="muted">{% t lang "Files sent here are stored privately and cannot be opened or listed from this page, by you or anyone else. Do not send card numbers: those are typed into each billing page directly." %}</p>
+    <p class="muted">{% t lang "Files sent here are stored privately and cannot be opened or listed from this page, by you or anyone else." %}</p>
 
     <form method="post" enctype="multipart/form-data" class="stack drop-form">
       {% csrf_token %}

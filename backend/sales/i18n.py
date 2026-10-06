@@ -448,8 +448,11 @@ ES = {
     'Choose what you are sending.': 'Elige qué estás enviando.',
     'Add a file or write a note.': 'Agrega un archivo o escribe una nota.',
     'Received: {0}. Thank you.': 'Recibido: {0}. Gracias.',
-    'Files sent here are stored privately and cannot be opened or listed from this page, by you or anyone else. Do not send card numbers: those are typed into each billing page directly.':
-        'Los archivos que envíes aquí se guardan en privado y nadie puede abrirlos ni verlos desde esta página, tampoco tú. No envíes números de tarjeta: esos se escriben directamente en cada página de facturación.',
+    'Files sent here are stored privately and cannot be opened or listed from this page, by you or anyone else.':
+        'Los archivos que envíes aquí se guardan en privado y nadie puede abrirlos ni verlos desde esta página, tampoco tú.',
+    'Card for ad billing': 'Tarjeta para pagar los anuncios',
+    'Photos of the front and back. When the card is replaced, upload the new one here and it takes over.':
+        'Fotos del frente y del reverso. Cuando cambien la tarjeta, suban la nueva aquí y esa es la que se usa.',
     'What are you sending?': '¿Qué estás enviando?',
     'Choose one': 'Elige uno',
     'Files (photos or PDFs, up to 60 MB in total)': 'Archivos (fotos o PDF, hasta 60 MB en total)',
