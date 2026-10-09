@@ -127,14 +127,35 @@ const pixelContent = event
         <section class="relative isolate overflow-hidden bg-neutral-950">
           {
             heroPoster ? (
-              <>
+              <div class="absolute inset-x-0 top-0 h-full" data-hero-backdrop aria-hidden="true">
                 <img src={heroPoster} alt="" class="absolute inset-0 hidden size-full object-cover md:block" loading="eager" fetchpriority="high" />
                 <img src={posterMobileSrc ?? heroPoster} alt="" class="absolute inset-0 size-full object-cover md:hidden" loading="eager" fetchpriority="high" />
                 {/* Even, and heavier at the bottom so the card has something to sit against. It used to be
                     darkest down the left, which is where the words were before they moved to the middle. */}
-                <div class="absolute inset-0 bg-neutral-950/60" aria-hidden="true" />
-                <div class="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-neutral-950 to-transparent" aria-hidden="true" />
-              </>
+                <div class="absolute inset-0 bg-neutral-950/60" />
+                <div class="absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-neutral-950 to-transparent" />
+                {/* The poster is cropped to cover this layer, so if the layer followed the section it would
+                    re-crop, which reads as a zoom, every time the checkout beside it changed height: Stripe
+                    drawing, a "+", an error line (owner, 2026-10-09). It is pinned to the height it first
+                    paints at; anything the section gains below that is the same near-black the fade ends in.
+                    Re-measured only when the WIDTH changes, i.e. a rotation or a resized window. */}
+                <script is:inline>
+                  (function () {
+                    var layer = document.currentScript.parentElement, section = layer.parentElement, width = 0;
+                    function pin() {
+                      if (window.innerWidth === width) return;
+                      width = window.innerWidth;
+                      layer.style.height = "";
+                      layer.style.height = section.getBoundingClientRect().height + "px";
+                    }
+                    // After the whole section is parsed (title and checkout reserve come after this), before k.js
+                    // swaps the iframe in, which is already the height the reserve held.
+                    if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", pin);
+                    else pin();
+                    window.addEventListener("resize", pin);
+                  })();
+                </script>
+              </div>
             ) : null
           }
 
