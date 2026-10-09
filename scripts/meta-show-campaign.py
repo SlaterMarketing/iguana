@@ -118,6 +118,40 @@ SHOWS['improvincia'] = {
 }
 
 
+SHOWS['manu'] = {
+    'slug': 'manu-rejon-playa-del-carmen',
+    'name': 'Manu Rejón',
+    'link': f'{openmic.SITE}/es/eventos/manu-rejon-playa-del-carmen/',
+    # Saturday 17 October, doors 8, show 9. Stops at doors, the same rule as Privilegio.
+    'ends': dt.datetime(2026, 10, 17, 20, 0, tzinfo=CANCUN),
+    # 75 seats at 250 MXN, eight days out. At the 35 to 49 MXN a paid seat has cost here, a full room is
+    # roughly 2,600 to 3,700 MXN of ads, so the run is capped at 3,000 for both ad sets together.
+    'lifetime_budget': 300000,            # centavos: 3,000.00 MXN
+    'geo': SHOWS['privilegio']['geo'],
+    # A stand-up, so stand-up leads; the comedy interests that replaced the retired ones widen it (Meta ORs them).
+    'interests': [
+        openmic.STANDUP_INTEREST,
+        {'id': '6003584475638', 'name': 'Comedy club'},
+        {'id': '6003319728736', 'name': 'Television comedy'},
+        {'id': '6777890774833', 'name': 'Comedy TV Channels'},
+    ],
+    # The comedian's own three edits (24s, 19s, 15s), each ending on "click aquí para tus boletos".
+    'videos': ['manu-9x16-1.mp4', 'manu-9x16-2.mp4', 'manu-9x16-3.mp4'],
+    'image': 'manu-flyer-4x5.jpg',
+    'story_image': 'manu-flyer-9x16-safe.jpg',
+    'copy': {
+        'message': ('Manu Rejón en Playa, sábado 17 de octubre: boletos $250, cómpralos aquí en un minuto.\n\n'
+                    'Recién regresado de su gira por Alemania, con invitados especiales desde Mérida. Una sola '
+                    'función en Iguana Comedy, en el centro de Playa del Carmen, y el cupo es limitado.'),
+        'title': 'Manu Rejón · boletos $250',
+        'description': 'Sábado 17 oct · 9:00 pm · Iguana Comedy',
+    },
+    # Checked by eye 2026-10-09: "SABADO 17 DE OCTUBRE", "ENTRADAS: $250 MXN", the club's address and no phone.
+    # The three clips name only Iguana Comedy Club and "click aquí para tus boletos".
+    'flyer': {'date': '17 de octubre', 'price': '$250'},
+}
+
+
 def _chosen_show(argv):
     """`--show <key>` from the command line, taken before argparse because the names below depend on it."""
     if '--show' in argv and argv.index('--show') + 1 < len(argv):
