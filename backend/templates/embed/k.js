@@ -101,6 +101,8 @@
       iframe.src = A + "/embed/event/" + encodeURIComponent(id) + "?embedded=1&lang=" + encodeURIComponent(lang) + demand;
       iframe.title = el.getAttribute("aria-label") || "Ticket checkout";
       iframe.setAttribute("allow", "payment *");
+      // The frame is always sized to its content once settled, so its own scrollbar could only ever flash.
+      iframe.setAttribute("scrolling", "no");
       // Take the height the host page has already painted. It reserves the space in CSS, per breakpoint,
       // because the checkout wraps to the width it is given and a card form is three times the height of a
       // name-and-email one. Reading it back means the iframe is inserted at exactly the size of the hole it
@@ -114,7 +116,7 @@
       iframe.style.cssText = "width:100%;border:0;display:block;background:transparent;height:" + reserved + "px";
       el.innerHTML = "";
       el.appendChild(iframe);
-      // The reserve is a floor as well as a starting point, but only while the form is still arriving. What
+      // The reserve is held exactly while the form is still arriving, neither floor nor ceiling to follow. What
       // Stripe draws is not knowable from here: a wallet row appears only on a device that has a wallet, and
       // Link only for an email it recognises. So the space is held until the checkout says it has settled,
       // and then the box fits its contents exactly. Holding the floor after that would leave white space
@@ -133,8 +135,13 @@
         if (d && d.type === "kintana-embed-height" && typeof d.height === "number" && e.source === iframe.contentWindow) {
           var h = Math.max(160, d.height | 0);
           lastHeight = h;
-          if (d.settled || h >= reserved) settled = true;
-          iframe.style.height = (settled ? h : Math.max(h, reserved)) + "px";
+          // Settled means the CHECKOUT says so, never "it got taller than the reserve". Stripe overshoots by
+          // about 100px for a moment while it draws, and treating that as final made the box grow and shrink
+          // back; on an event page the hero photo is cropped to the section the box sits in, so it visibly
+          // zoomed in and out (owner, 2026-10-09). Until then the reserve is held exactly, and the overshoot
+          // stays inside the frame for the second it lasts.
+          if (d.settled) settled = true;
+          iframe.style.height = (settled ? h : reserved) + "px";
         }
       });
       iframe.addEventListener("load", function () {
