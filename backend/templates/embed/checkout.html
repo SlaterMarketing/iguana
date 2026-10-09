@@ -197,6 +197,8 @@
   // wallet row and the Link line still land after it. Releasing the reserved space on that signal made the
   // box drop to the half-built form and climb back up while the customer watched. So the space is held until
   // the height has actually stopped moving, and then released once, exactly.
+  var cardReady = false, walletReady = false;
+  function settleWhenBothReady() { if (cardReady && walletReady) settleWhenStable(); }
   function settleWhenStable() {
     if (settled) return;
     var last = -1, still = 0;
@@ -426,7 +428,10 @@
       // Link rides inside the CARD form whenever it is on for the account, even with paymentMethodTypes
       // ["card"], so it is also switched off here (and on the account's payment method settings).
       var card = elements.create("payment", { wallets: { link: "never" } });
-      card.on("ready", settleWhenStable);
+      // Done means BOTH the card form and the wallet row have drawn. Settling on the card alone released the
+      // box about 50px short, then the Apple Pay / Google Pay row landed and pushed it back down, which moved
+      // the hero photo behind it on desktop (2026-10-09).
+      card.on("ready", function () { cardReady = true; settleWhenBothReady(); });
       card.mount("#payment-element");
       // Ready is not a promise anyone owes us. On a slow connection it took 18 seconds, and if Stripe half
       // loads it never arrives at all, leaving the page holding 800px of white above the Pay button for as
@@ -454,7 +459,10 @@
       hasWallet = !!(e && e.availablePaymentMethods);
       show($("express"), hasWallet);
       reportHeight();
+      walletReady = true;
+      settleWhenBothReady();
     });
+    express.on("loaderror", function () { walletReady = true; settleWhenBothReady(); });
     express.on("click", function (e) { e.resolve(); });
     express.on("cancel", function () { busy = false; refresh(); });
     express.on("confirm", function (e) {

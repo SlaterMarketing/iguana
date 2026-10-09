@@ -3225,7 +3225,9 @@ class CheckoutReserveTests(ApiTestCase):
         """That is the signal the page waits for before it stops holding space open."""
         html = self.client.get(f'/embed/event/{self.event.id}?embedded=1&lang=en').content.decode()
         self.assertIn('settled: settled', html)
-        self.assertIn('card.on("ready", settleWhenStable)', html)
+        # Both the card form and the wallet row, or the box settles short and grows back (2026-10-09).
+        self.assertIn('cardReady = true; settleWhenBothReady()', html)
+        self.assertIn('walletReady = true;', html)
 
 
 class AfterShowTests(ApiTestCase):
