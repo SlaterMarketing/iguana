@@ -44,17 +44,19 @@
   <h1>{% t lang "Want a show at Iguana Comedy?" %}</h1>
   <p>{% t lang "Send us your photo, a few clips and the dates you would like. The photo is what we make the flyer from, and we cut the clips into the ads, so the better they are the fuller the room." %}</p>
   <p class="muted">{% t lang "Your files are kept private and only the Iguana team sees them." %}</p>
+  <p class="muted">{% t lang "Trouble uploading or sending? Write to us and we will help:" %} <a href="mailto:hello@iguanacomedy.com">hello@iguanacomedy.com</a></p>
 
   <div class="errors" id="errors" role="alert" {% if not errors %}hidden{% endif %}>
     <strong>{% t lang "Please fix this:" %}</strong>
     <ul id="error-list">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+    <p>{% t lang "Trouble uploading or sending? Write to us and we will help:" %} <a href="mailto:hello@iguanacomedy.com">hello@iguanacomedy.com</a></p>
   </div>
 
   <form method="post" enctype="multipart/form-data" class="stack" id="comic-form" novalidate
         data-too-big="{% t lang "{0} is larger than {1} MB." %}"
         data-too-many="{% t lang "Send up to {0} photos." max_photos %}"
         data-uploading="{% t lang "Uploading, {0}% done. Keep this page open." %}"
-        data-failed="{% t lang "The upload did not finish. Check your connection and send it again." %}"
+        data-failed="{% t lang "The upload did not finish. Check your connection and send it again, or write to hello@iguanacomedy.com." %}"
         data-required="{% t lang "Fill in the fields marked with an asterisk." %}">
     {% csrf_token %}
     <input type="hidden" name="lang" value="{{ lang }}">
@@ -133,6 +135,7 @@
     </div>
     <button class="btn" type="submit" id="send">{% t lang "Send" %}</button>
     <p class="hint">{% t lang "Large clips can take a few minutes to upload on a phone. Wifi is faster." %}</p>
+    <p class="hint">{% t lang "Trouble uploading or sending? Write to us and we will help:" %} <a href="mailto:hello@iguanacomedy.com">hello@iguanacomedy.com</a></p>
   </form>
 </div>
 {% endblock %}

@@ -4,6 +4,7 @@
  *   node tests/comic-e2e.mjs                                  layout only, against production
  *   node tests/comic-e2e.mjs --base http://127.0.0.1:8123     against a local Django (runserver)
  *   node tests/comic-e2e.mjs --submit                         also send ONE submission with tiny files
+ *   node tests/comic-e2e.mjs --submit --email postmaster@iguanacomedy.com   ...and read the receipt in iguana-mail
  *
  * Layout: both languages at 320, 360, 390 and 1280 wide, asserting no horizontal page overflow and no input
  * wider than its fieldset. --submit fills the form as "E2E prueba, ignore" with an e2e- address at our own
@@ -27,6 +28,8 @@ const argOf = (name, fallback) => {
 const BASE = argOf("--base", "https://iguanacomedy.com").replace(/\/$/, "");
 const OUT = path.resolve(argOf("--out", "build/e2e"));
 const SUBMIT = args.includes("--submit");
+// A role address that delivers to the server's own inbox (postmaster@) proves the comedian's receipt arrives.
+const EMAIL = argOf("--email", "e2e-comic@iguanacomedy.com");
 const WIDTHS = [320, 360, 390, 1280];
 
 const failures = [];
@@ -75,7 +78,7 @@ if (SUBMIT) {
   const page = await browser.newPage({ viewport: { width: 320, height: 800 }, isMobile: true });
   await page.goto(`${BASE}/comic/?lang=es`);
   await page.fill("input[name=name]", "E2E prueba, ignore");
-  await page.fill("input[name=email]", "e2e-comic@iguanacomedy.com");
+  await page.fill("input[name=email]", EMAIL);
   await page.fill("input[name=home_city]", "Prueba automatizada");
   await page.check("input[name=lang_es]");
   await page.fill("textarea[name=bio]", "Envio de prueba automatizado, por favor ignorar.");

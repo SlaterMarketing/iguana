@@ -243,7 +243,7 @@ def receipt(submission):
     if submission.requested_dates:
         lines.append(tr(lang, 'Dates you asked about: {0}.', ', '.join(format_dates(submission.requested_dates, lang))))
     lines += ['', tr(lang, 'We will look at everything and write back to this address. We may cut and adjust your clips for the ads and use your photo for the flyer.'),
-              tr(lang, 'To add or change anything, reply to this email.'), '', 'Iguana Comedy', 'iguanacomedy.com']
+              tr(lang, 'To add or change anything, or if a file did not go through, reply to this email or write to hello@iguanacomedy.com.'), '', 'Iguana Comedy', 'iguanacomedy.com']
     reply_to = list(settings.NOTIFY_EMAILS)[:1] or None
     EmailMessage(tr(lang, 'We got your photos and clips'), '\n'.join(lines), settings.DEFAULT_FROM_EMAIL,
                  [submission.email], reply_to=reply_to).send(fail_silently=True)

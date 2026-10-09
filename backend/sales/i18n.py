@@ -493,8 +493,11 @@ ES = {
     '{0} is larger than {1} MB.': '{0} pesa más de {1} MB.',
     'Send up to {0} photos.': 'Manda hasta {0} fotos.',
     'Uploading, {0}% done. Keep this page open.': 'Subiendo, va en {0}%. No cierres esta página.',
-    'The upload did not finish. Check your connection and send it again.':
-        'La subida no terminó. Revisa tu conexión y vuelve a enviarlo.',
+    'The upload did not finish. Check your connection and send it again, or write to hello@iguanacomedy.com.':
+        'La subida no terminó. Revisa tu conexión y vuelve a enviarlo, o escríbenos a hello@iguanacomedy.com.',
+    'Trouble uploading or sending? Write to us and we will help:':
+        '¿Problemas para subir o enviar? Escríbenos y te ayudamos:',
+    'Questions about your show?': '¿Dudas sobre tu show?',
     'Fill in the fields marked with an asterisk.': 'Llena los campos marcados con asterisco.',
     'About you': 'Sobre ti',
     'Your name': 'Tu nombre',
@@ -563,7 +566,8 @@ ES = {
     'Dates you asked about: {0}.': 'Fechas que pediste: {0}.',
     'We will look at everything and write back to this address. We may cut and adjust your clips for the ads and use your photo for the flyer.':
         'Vamos a revisar todo y te escribimos a este correo. Puede que cortemos y ajustemos tus clips para los anuncios y usemos tu foto para el flyer.',
-    'To add or change anything, reply to this email.': 'Si quieres agregar o cambiar algo, responde a este correo.',
+    'To add or change anything, or if a file did not go through, reply to this email or write to hello@iguanacomedy.com.':
+        'Si quieres agregar o cambiar algo, o si algún archivo no llegó, responde a este correo o escríbenos a hello@iguanacomedy.com.',
     'We got your photos and clips': 'Recibimos tus fotos y tus clips',
     'Thank you': 'Gracias',
     'Thank you, we have it all': 'Gracias, ya tenemos todo',

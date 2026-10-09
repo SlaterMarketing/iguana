@@ -51,7 +51,7 @@ for (const [name, url] of [
 
 // ---------------------------------------------------------------- the checkout actually works
 console.log("\ncheckout");
-for (const [name, url] of [["open mic es", `${BASE}/es/open-mic/?night=es`], ["paid show", `${BASE}/es/eventos/privilegio-fredy-el-regio/`]]) {
+for (const [name, url] of [["open mic es", `${BASE}/es/open-mic/?night=es`], ["paid show", `${BASE}/es/eventos/${process.env.PAID_SHOW || "manu-rejon-playa-del-carmen"}/`]]) {
   const p = await page();
   await p.goto(url, { waitUntil: "domcontentloaded" });
   await p.waitForTimeout(5000);
@@ -77,27 +77,19 @@ for (const [name, url] of [["open mic es", `${BASE}/es/open-mic/?night=es`], ["p
   await p.context().close();
 }
 
-// ---------------------------------------------------------------- menu and table ordering
+// ---------------------------------------------------------------- the menu
+// Ordering from the phone is OFF (owner, 2026-09-29: ONLINE_ORDERING in MenuPage.astro), so the menu is a plain
+// list with prices that tells people to raise a hand. If ordering comes back, these checks fail on purpose.
 console.log("\nmenu");
 const m = await page();
 await m.goto(`${BASE}/menu/show/`, { waitUntil: "domcontentloaded" });
 await m.waitForTimeout(3000);
 check("unprefixed /menu/show/ picks a language", /\/(es|en)\/menu\/show\//.test(m.url()), m.url().replace(BASE, ""));
-const drinks = await m.locator('button[aria-label^="+1"]').count();
-// 🚨 NOT a fixed count. The bar edits this menu from a phone at /mesas/carta/ now, so pinning 13 meant the
-// sweep went red the first time they added a drink: it failed on five new cocktails, which is the feature
-// working. Assert what must always be true instead: a menu with things on it, and a price against each one.
-check("the real menu is listed", drinks >= 8, `${drinks} drinks`);
 const menuText = await m.locator("body").innerText();
 const prices = (menuText.match(/\$\s?\d+(?:[.,]\d+)?\s*MXN/g) || []).length;
-check("every drink carries a price", prices >= drinks, `${prices} prices for ${drinks} drinks`);
-check("it says when you pay", /al final de la noche/i.test(menuText));
-check("it says phones on silent", /silencio/i.test(menuText) && /grabes/i.test(menuText));
-await m.locator('button[aria-label^="+1"]').first().click();
-await m.waitForTimeout(400);
-await m.locator('button:has-text("Enviar")').click();
-await m.waitForTimeout(1200);
-check("an order with no table is refused", /mesa/i.test(await m.locator("body").innerText()));
+check("the real menu is listed, with prices", prices >= 8, `${prices} prices`);
+check("it says to raise a hand for a waiter", /levanta la mano/i.test(menuText));
+check("no ordering buttons while ordering is off", (await m.locator('button[aria-label^="+1"]').count()) === 0);
 check("menu page has no console errors", m.__errors.length === 0, m.__errors.slice(0, 1).join("").slice(0, 90));
 await m.context().close();
 
@@ -119,19 +111,16 @@ if (STAFF.user && STAFF.pass) {
   await s.fill('input[name="password"]', STAFF.pass);
   await s.click('button[type="submit"]');
   await s.waitForTimeout(3000);
-  check("the floor account reaches /mesas/", s.url().includes("/mesas/") && !s.url().includes("entrar"), s.url().replace(BASE, ""));
-  const board = await s.locator("body").innerText();
-  check("the board lists tables", /Mesa 1/.test(board) && /Mesa 12/.test(board));
-  check("the board is in Spanish on an es-MX phone", /Mesas/.test(board) && !/Nothing waiting/.test(board));
-  // Case-insensitive on purpose: the nav is uppercased in CSS, and `innerText` returns what is RENDERED,
-  // so a case-sensitive match here fails on a page that is perfectly correct. Cost twenty minutes once.
-  check("it offers the inventory", /inventario/i.test(board));
-
-  await s.goto(`${BASE}/mesas/inventario/`, { waitUntil: "domcontentloaded" });
+  // The bar runs on /pos/ since 2026-09-28 and that takes a PIN, so a floor login lands on the PIN pad.
+  check("the floor account signs in and lands on the PIN pad", s.url().includes("/pos/entrar/"), s.url().replace(BASE, ""));
+  check("the PIN pad draws its keys", (await s.locator("[data-k]").count()) >= 10);
+  await s.goto(`${BASE}/reservas/`, { waitUntil: "domcontentloaded" });
   await s.waitForTimeout(1500);
-  const inv = await s.locator("body").innerText();
-  check("the inventory loads", /Inventario/.test(inv) && s.url().includes("/mesas/inventario"));
-  check("it can add an item", (await s.locator('form[action="/mesas/inventario/agregar/"] input[name="name"]').count()) === 1);
+  const door = await s.locator("body").innerText();
+  check("the floor account opens the door list", s.url().includes("/reservas/") && /Reservaciones/i.test(door));
+  await s.goto(`${BASE}/scan/`, { waitUntil: "domcontentloaded" });
+  await s.waitForTimeout(1500);
+  check("the floor account opens the scanner", s.url().includes("/scan/") && /Puerta/i.test(await s.locator("body").innerText()));
 
   // 🚨 The requirement, checked against production rather than assumed: the admin must refuse them.
   await s.goto(`${API}/admin/`, { waitUntil: "domcontentloaded" });
