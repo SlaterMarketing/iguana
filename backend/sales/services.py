@@ -13,7 +13,7 @@ from crm.models import Contact
 from sales.ad_reporting import report_purchase
 from sales.i18n import normalize, tr
 from sales.links import order_url
-from sales.sharing import share_url
+from sales.sharing import is_open_mic, paid_show_offer, share_url
 from sales.models import Membership, Order, OrderItem, Ticket
 
 
@@ -331,8 +331,14 @@ def send_order_confirmation(order):
     # the thing still in their pocket on the night they are deciding who to bring.
     invite = share_url(order)
     if invite:
-        lines += ['', tr(lang, 'Bringing someone? Send them this and they can reserve their own free seat:'),
+        lines += ['', tr(lang, 'Bringing someone? Send them this and they can reserve their own free seat:')
+                  if is_open_mic(event) else tr(lang, 'Bringing someone? Send them this and they can get their own ticket:'),
                   invite]
+    # The next paid show in the open mic's language, one line (owner, 2026-10-09). Tracked by ref=om-email.
+    offer = paid_show_offer(order, 'om-email')
+    if offer:
+        lines += ['', tr(lang, 'Our next headliner: {0}, {1}.', offer['name'], offer['when'])
+                  + (' ' + tr(lang, 'Tickets {0}:', offer['price']) if offer['price'] else ''), offer['url']]
     lines += ['', tr(lang, 'See you there,'), 'Iguana Comedy', 'iguanacomedy.com']
     # fail_silently, because this runs on_commit and therefore inside the request: an address the mail server
     # refuses would otherwise raise SMTPRecipientsRefused straight through a checkout that had ALREADY created

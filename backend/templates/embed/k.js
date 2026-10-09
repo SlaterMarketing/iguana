@@ -46,8 +46,9 @@
     try {
       var params = new URLSearchParams(location.search);
       params.forEach(function (v, k) {
-        if (k.indexOf("utm_") === 0 || k === "fbclid" || k === "gclid" || k === "ttclid") out[k.replace("utm_", "")] = v;
+        if (k.indexOf("utm_") === 0 || k === "fbclid" || k === "gclid" || k === "ttclid" || k === "ref") out[k.replace("utm_", "")] = v;
       });
+      // `ref` names our own links (share, after-show, om-thanks, om-email), so /stats/ can say which one sold.
       // Meta matches a server-side sale on these. The checkout iframe is on another origin and cannot read them,
       // so they are collected here and posted with the order; see backend/sales/ad_reporting.py.
       out.fbp = cookie("_fbp");

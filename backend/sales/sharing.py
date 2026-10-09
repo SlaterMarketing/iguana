@@ -87,3 +87,64 @@ def share_message(order, lang=None):
 def whatsapp_url(order, lang=None):
     url = share_url(order)
     return f'https://wa.me/?text={quote(share_message(order, lang))}' if url else ''
+
+
+# ---------------------------------------------------------------- the next paid show, offered to open mic bookers
+#
+# Somebody who has just reserved a free open mic seat has shown they will come to the club for comedy. The next
+# headliner in the language of the night they picked is the obvious next step (owner, 2026-10-09), so the order
+# page and the confirmation email name it in one plain line. The link carries `ref=om-thanks` or `ref=om-email`;
+# k.js saves `ref` on any order made from that page, and /stats/ counts both the clicks and the open mic bookers
+# who went on to buy a paid show by any route.
+CROSS_SELL_REFS = ('om-thanks', 'om-email')
+# No year: it is always within weeks. (sales.services.DATE_FORMATS cannot be imported here, it imports this.)
+SHORT_DATES = {'en': 'l j F', 'es': r'l j \d\e F'}
+
+
+def next_paid_show(language):
+    """The next public, priced, not-full show in this language, or None. Open mics never count."""
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from catalog.models import Event
+    from sales.demand import demand_for
+
+    candidates = [
+        e for e in (Event.objects.filter(status=Event.ACTIVE, ticketing_type='INTERNAL',
+                                         date__gte=timezone.now() - timedelta(days=1))
+                    .order_by('date').prefetch_related('ticket_types')[:40])
+        if not is_open_mic(e) and e.is_public and not is_past(e) and e.slug
+        and normalize(e.language) == normalize(language)
+        and any(t.price_cents and t.active and not t.is_addon and not t.pay_at_door for t in e.ticket_types.all())
+    ]
+    room = demand_for(candidates)
+    return next((e for e in candidates if room.get(e.id, {}).get('left', 1) > 0), None)
+
+
+def paid_show_offer(order, ref):
+    """{'event', 'name', 'when', 'price', 'url'} for an open mic order, else None.
+
+    The show is chosen by the language of the NIGHT they booked (what they want to laugh in); the page and the
+    words follow the language they booked IN.
+    """
+    event = order.event
+    if not is_open_mic(event) or order.released_at or ref not in CROSS_SELL_REFS:
+        return None
+    show = next_paid_show(getattr(event, 'language', '') or order.locale)
+    if show is None:
+        return None
+    from django.utils import formats, translation
+
+    from crm.whats_on import price_from
+
+    lang = normalize(order.locale)
+    with translation.override(lang):
+        when = formats.date_format(show.date.astimezone(CANCUN), SHORT_DATES[lang])
+    return {
+        'event': show,
+        'name': show.label(lang),
+        'when': when,
+        'price': price_from(show) or '',
+        'url': f'{base_url()}{EVENT_PATH[lang].format(slug=show.slug)}?ref={ref}',
+    }

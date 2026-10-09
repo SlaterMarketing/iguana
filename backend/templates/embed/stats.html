@@ -132,6 +132,18 @@
     <p class="note">{% t lang "Over seven days: {0} visits, {1} started, {2} booked." funnel_week.visits funnel_week.engaged funnel_week.booked %}</p>
   </section>
 
+  <section class="win">
+    <h2>{% t lang "Open mic bookers who then paid for a show" %}</h2>
+    <div class="funnel">
+      <div><p class="big">{{ mic_to_paid.bookers }}</p><p class="kind">{% t lang "booked an open mic" %}</p></div>
+      <div>
+        <p class="big">{{ mic_to_paid.crossed }}</p>
+        <p class="kind">{% t lang "later bought a paid show" %}{% if mic_to_paid.rate is not None %} · {{ mic_to_paid.rate|floatformat:1 }}%{% endif %}</p>
+      </div>
+    </div>
+    <p class="note">{% t lang "From the next-headliner link: {0} clicks on the order page and {1} from the email, {2} and {3} paid orders." mic_to_paid.clicks_page mic_to_paid.clicks_email mic_to_paid.sold_page mic_to_paid.sold_email %}</p>
+  </section>
+
   {% if stale %}
     <p class="warn">{% t lang "These spend figures are not fresh. The snapshot cron has not written in a while, so treat the cost per seat as the last known one." %}</p>
   {% endif %}

@@ -12,6 +12,8 @@
   .invite-actions .btn { width: auto; flex: 1 1 180px; }
   .btn.ghost { background: #fff; color: var(--ink); border: 1px solid rgba(0,0,0,.25); }
   .btn.ghost:hover { background: var(--brand-soft); color: var(--ink); }
+  .next-show { margin: 0; }
+  .next-show a { color: inherit; font-weight: 600; }
   .status { display: inline-block; font-size: .7rem; font-weight: 600; letter-spacing: .2em; text-transform: uppercase; padding: 6px 10px; border-radius: 999px; background: var(--brand-soft); }
 </style>
 {% endblock %}
@@ -82,6 +84,10 @@
                   data-copied="{% t lang 'Link copied' %}">{% t lang "Copy the link" %}</button>
         </div>
       </section>
+    {% endif %}
+    {% if paid_show %}
+      <p class="next-show">{% t lang "Our next headliner:" %}
+        <a href="{{ paid_show.url }}">{{ paid_show.name }}, {{ paid_show.when }}{% if paid_show.price %} · {{ paid_show.price }}{% endif %} →</a></p>
     {% endif %}
   {% endif %}
   {% if site_url %}<a class="btn" href="{{ site_url }}/{{ lang }}/">{% t lang "Back to Iguana Comedy" %}</a>{% endif %}

@@ -152,6 +152,42 @@ def _funnel(first_day, last_day):
     }
 
 
+def _open_mic_to_paid():
+    """Do open mic bookers come back and pay? (owner, 2026-10-09)
+
+    Counted by PERSON, contact first and email as the fallback, across every booking we hold: somebody who
+    reserved a free open mic seat and later completed a paid order counts once, whatever led them there. The
+    links on the order page and in the confirmation email are counted separately, by the `ref` k.js saves on
+    the order and by the pageviews that arrived carrying it, so the follow-on link's own pull is visible.
+    """
+    from crm.models import TrackedEvent
+    from sales.sharing import CROSS_SELL_REFS, is_open_mic
+
+    first_mic, paid = {}, {}
+    via_link = {ref: 0 for ref in CROSS_SELL_REFS}
+    orders = (Order.objects.filter(status=Order.COMPLETED, source='').exclude(event__isnull=True)
+              .exclude(customer_email__startswith='e2e-').select_related('event').order_by('created_at'))
+    for order in orders:
+        who = order.contact_id or (order.customer_email or '').lower()
+        if is_open_mic(order.event):
+            first_mic.setdefault(who, order.created_at)
+        elif (order.total_amount_cents or 0) - (order.pay_at_door_cents or 0) > 0:
+            paid.setdefault(who, []).append(order.created_at)
+            ref = (order.attribution or {}).get('ref', '')
+            if ref in via_link:
+                via_link[ref] += 1
+    crossed = sum(1 for who, at in first_mic.items() if any(when > at for when in paid.get(who, [])))
+    clicks = {ref: TrackedEvent.objects.filter(kind='pageview', url__contains=f'ref={ref}').count()
+              for ref in CROSS_SELL_REFS}
+    return {
+        'bookers': len(first_mic),
+        'crossed': crossed,
+        'rate': (crossed / len(first_mic) * 100) if first_mic else None,
+        'clicks_page': clicks['om-thanks'], 'clicks_email': clicks['om-email'],
+        'sold_page': via_link['om-thanks'], 'sold_email': via_link['om-email'],
+    }
+
+
 def _bar_nights(limit=8):
     """What the bar sold and collected, per show.
 
@@ -247,6 +283,7 @@ def stats(request):
         'nights': _upcoming_nights(),
         'funnel_today': _funnel(today, today),
         'funnel_week': _funnel(today - timedelta(days=6), today),
+        'mic_to_paid': _open_mic_to_paid(),
         'room': _room(),
         'campaigns_today': campaigns_today,
         'campaigns_week': campaigns_week,

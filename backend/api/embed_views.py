@@ -19,7 +19,7 @@ from crm.optin import confirm as confirm_optin
 from crm.optin import email_from_token as email_from_optin_token
 from crm.unsubscribe import email_from_token, resume_marketing, stop_marketing
 from sales.ad_reporting import report_checkout_engaged, report_payment_info_added
-from sales.sharing import is_open_mic, share_is_free, share_message, share_url, whatsapp_url
+from sales.sharing import is_open_mic, paid_show_offer, share_is_free, share_message, share_url, whatsapp_url
 from sales.i18n import lang_from_request, normalize, tr
 from sales.links import order_url
 from sales.reminders import can_release, release
@@ -290,6 +290,8 @@ def order_page(request, token):
         'share_is_free': share_is_free(order),
         'whatsapp_url': whatsapp_url(order),
         'share_message': share_message(order),
+        # An open mic booker is offered the next paid show in that night's language (owner, 2026-10-09).
+        'paid_show': paid_show_offer(order, 'om-thanks') if order.status == Order.COMPLETED else None,
     })
 
 

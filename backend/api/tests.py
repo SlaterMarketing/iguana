@@ -4325,3 +4325,76 @@ class DropTests(TestCase):
         for _, label, hint in ITEMS:
             self.assertIn(label, ES)
             self.assertIn(hint, ES)
+
+
+class OpenMicToPaidShowTests(ApiTestCase):
+    """An open mic booker is offered the next paid show in that night's language, and /stats/ counts who bought.
+
+    Owner, 2026-10-09: "show them a simple text link to book if we have a paid show in their language, and
+    track it to see if someone who books an open mic also booked a paid comedian".
+    """
+
+    def setUp(self):
+        self.mic = Event.objects.create(
+            name='Open Mic Night in Spanish', slug='mic-es', status=Event.ACTIVE, venue=self.venue,
+            language='es', currency='mxn', date=timezone.now() + timedelta(days=2), tags=['open-mic'])
+        self.seat = TicketType.objects.create(event=self.mic, name='Free reserved seat', price_cents=0, capacity=80)
+        self.show = Event.objects.create(
+            name='Manu in Playa', name_es='Manu en Playa', slug='manu', status=Event.ACTIVE, venue=self.venue,
+            language='es', currency='mxn', date=timezone.now() + timedelta(days=5))
+        self.ticket = TicketType.objects.create(event=self.show, name='General admission', price_cents=25000, capacity=75)
+
+    def book_mic(self, email='fan@example.com', lang='es'):
+        with self.captureOnCommitCallbacks(execute=True):
+            body = self.client.post(f'/api/checkout/{self.mic.id}/start', data=json.dumps(
+                {'items': {self.seat.id: 1}, 'name': 'Ada', 'email': email, 'lang': lang,
+                 'attribution': {'ref': 'om-thanks'}}), content_type='application/json').json()
+        return Order.objects.get(pk=body['orderId'])
+
+    def test_the_order_page_names_the_next_paid_show_in_the_nights_language(self):
+        order = self.book_mic()
+        page = self.client.get(f'/orders/{order.public_view_token}/').content.decode()
+        self.assertIn('Nuestro próximo show estelar', page)
+        self.assertIn('/es/eventos/manu/?ref=om-thanks', page)
+        self.assertIn('Manu en Playa', page)
+        self.assertIn('250 MXN', page)
+
+    def test_the_confirmation_email_carries_it_too(self):
+        self.book_mic()
+        body = mail.outbox[-1].body
+        self.assertIn('/es/eventos/manu/?ref=om-email', body)
+        self.assertIn('Boletos 250 MXN', body)
+
+    def test_nothing_is_offered_in_another_language_when_full_or_to_a_paid_buyer(self):
+        self.show.language = 'en'
+        self.show.save()
+        order = self.book_mic()
+        self.assertNotIn('ref=om-thanks', self.client.get(f'/orders/{order.public_view_token}/').content.decode())
+        self.show.language = 'es'
+        self.show.save()
+        self.ticket.sold_elsewhere = 75
+        self.ticket.save()
+        self.assertNotIn('ref=om-thanks', self.client.get(f'/orders/{order.public_view_token}/').content.decode())
+        from sales.sharing import paid_show_offer
+        paid = Order(event=self.show, locale='es', status=Order.COMPLETED)
+        self.assertIsNone(paid_show_offer(paid, 'om-thanks'))
+
+    def test_the_paid_show_confirmation_no_longer_promises_a_free_seat(self):
+        from sales.services import send_order_confirmation
+        order = Order.objects.create(event=self.show, event_name='Manu en Playa', customer_email='buyer@example.com',
+                                     locale='es', status=Order.COMPLETED, total_amount_cents=25000, currency='mxn')
+        send_order_confirmation(order)
+        self.assertNotIn('lugar gratis', mail.outbox[-1].body)
+        self.assertIn('su propio boleto', mail.outbox[-1].body)
+
+    def test_ref_is_kept_on_the_order_and_stats_count_the_crossover(self):
+        from api.stats_views import _open_mic_to_paid
+        mic_order = self.book_mic(email='both@example.com')
+        self.assertEqual(mic_order.attribution.get('ref'), 'om-thanks')
+        self.book_mic(email='onlymic@example.com')
+        later = Order.objects.create(event=self.show, event_name='Manu', customer_email='both@example.com',
+                                     contact=mic_order.contact, status=Order.COMPLETED, total_amount_cents=25000,
+                                     currency='mxn', attribution={'ref': 'om-thanks'})
+        Order.objects.filter(pk=later.pk).update(created_at=mic_order.created_at + timedelta(minutes=5))
+        stats = _open_mic_to_paid()
+        self.assertEqual((stats['bookers'], stats['crossed'], stats['sold_page']), (2, 1, 1))

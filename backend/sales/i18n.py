@@ -400,6 +400,16 @@ ES = {
     'Invite on WhatsApp': 'Invitar por WhatsApp',
     'Copy the link': 'Copiar el enlace',
     'Link copied': 'Enlace copiado',
+    'Bringing someone? Send them this and they can get their own ticket:':
+        '¿Vienes con alguien? Mándale esto y puede comprar su propio boleto:',
+    'Our next headliner:': 'Nuestro próximo show estelar:',
+    'Our next headliner: {0}, {1}.': 'Nuestro próximo show estelar: {0}, {1}.',
+    'Tickets {0}:': 'Boletos {0}:',
+    'Open mic bookers who then paid for a show': 'Quienes reservaron un open mic y luego pagaron un show',
+    'booked an open mic': 'reservaron un open mic',
+    'later bought a paid show': 'luego compraron un show de pago',
+    'From the next-headliner link: {0} clicks on the order page and {1} from the email, {2} and {3} paid orders.':
+        'Del enlace al próximo show estelar: {0} clics en la página del pedido y {1} desde el correo, {2} y {3} compras.',
     'Bringing someone? Send them this and they can reserve their own free seat:':
         '¿Vienes con alguien? Mándale esto y aparta su lugar gratis:',
     'I am going to the open mic at Iguana Comedy. Entry is free, reserve a seat here: {0}':
