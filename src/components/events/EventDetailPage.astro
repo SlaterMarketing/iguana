@@ -158,6 +158,13 @@ const pixelContent = event
               </div>
             ) : null
           }
+          {
+            heroPoster ? (
+              /* The fade at the section's own bottom as well, so the edge is fully dark whether the pinned
+                 layer above ended up a little taller than the section or a little shorter. */
+              <div class="pointer-events-none absolute inset-x-0 bottom-0 h-40 bg-gradient-to-t from-neutral-950 to-transparent" aria-hidden="true" />
+            ) : null
+          }
 
           {/* One centred column, the form directly under the name of the show. The form used to sit in a
               right-hand rail, which read as an aside to the page rather than the point of it. */}
