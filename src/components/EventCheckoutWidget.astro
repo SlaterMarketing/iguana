@@ -42,14 +42,22 @@ const {
  * way moves the whole page under the reader's thumb.
  */
 const ROW = 78;
+/*
+ * Re-measured 2026-10-09 on the live Manu Rejon page, card-only with the Apple Pay / Google Pay row drawn
+ * (111px). The 2026-09-23 figures were taken while Stripe Link still sat in the form; Link went on 09-28 and
+ * the form lost about 450px, so the old reserve held a grey box twice the form's height for the six seconds
+ * Stripe takes to draw, then snapped shut (owner: "loads way too big and then shrinks"). These hold the
+ * with-wallet height, so a phone with a wallet does not move at all and one without shrinks by that row only.
+ * Below 360px the form wraps one line more, hence `narrow`.
+ */
 /** Full-bleed: the form keeps widening with the screen, and a wider form is a shorter one. */
-const PAID_FLUID = { base: 1250, mid: 1130, sm: 1000, lg: 980 };
+const PAID_FLUID = { narrow: 870, base: 780, mid: 740, sm: 590, lg: 510 };
 /** Capped at a column: the form is the same 408px wide from 480px up, so the height is the same too. */
-const PAID_CARD = { base: 1230, mid: 1150, sm: 1150, lg: 1150 };
-const FREE = { base: 460, mid: 460, sm: 460, lg: 460 };
+const PAID_CARD = { narrow: 870, base: 780, mid: 740, sm: 740, lg: 740 };
+const FREE = { narrow: 460, base: 460, mid: 460, sm: 460, lg: 460 };
 const extra = Math.max(0, ticketTypes - 1) * ROW;
 const reserve = collectsPayment ? (width === "card" ? PAID_CARD : PAID_FLUID) : FREE;
-const vars = `--reserve-base:${reserve.base + extra}px;--reserve-mid:${reserve.mid + extra}px;--reserve-sm:${reserve.sm + extra}px;--reserve-lg:${reserve.lg + extra}px`;
+const vars = `--reserve-narrow:${reserve.narrow + extra}px;--reserve-base:${reserve.base + extra}px;--reserve-mid:${reserve.mid + extra}px;--reserve-sm:${reserve.sm + extra}px;--reserve-lg:${reserve.lg + extra}px`;
 ---
 
 {
@@ -78,6 +86,11 @@ const vars = `--reserve-base:${reserve.base + extra}px;--reserve-mid:${reserve.m
 <style>
   .checkout-reserve {
     min-height: var(--reserve-base);
+  }
+  @media (max-width: 359px) {
+    .checkout-reserve {
+      min-height: var(--reserve-narrow);
+    }
   }
   @media (min-width: 480px) {
     .checkout-reserve {
