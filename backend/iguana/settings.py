@@ -33,6 +33,8 @@ GEOIP_DB = getattr(config, 'GEOIP_DB', '')
 # /drop/ (api/drop_views.py): an upload-only page for the owner's business documents. No PIN, no page.
 DROP_PIN = getattr(config, 'DROP_PIN', '')
 DROP_DIR = getattr(config, 'DROP_DIR', str(BASE_DIR / 'drop'))
+# /comic/ (api/comic_views.py): comedians' photos and clips, one folder per submission, never served by nginx.
+COMICS_DIR = getattr(config, 'COMICS_DIR', str(BASE_DIR / 'comics'))
 
 INSTALLED_APPS = [
     'django.contrib.admin',

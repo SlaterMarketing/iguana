@@ -1,4 +1,9 @@
+import os
+import shutil
+
 from django.db import models
+from django.db.models.signals import post_delete
+from django.dispatch import receiver
 from django.utils import timezone
 
 from iguana.ids import new_id
@@ -185,3 +190,95 @@ class AdSpend(models.Model):
 
     def __str__(self):
         return f'{self.day} {self.campaign_name} {self.spend_cents / 100:.2f}'
+
+
+class ComicSubmission(models.Model):
+    """A comedian asking for a show, from iguanacomedy.com/comic (api/comic_views.py).
+
+    The photos and clips are unpublished material, so they live in `COMICS_DIR/<id>/`, outside backend/media where
+    nginx would serve them; staff fetch them through the admin (login required) or copy them off with ansible.
+    `manage.py comic_submission <id>` prints everything needed to turn one into an event.
+    """
+
+    NEW, IN_TALKS, BOOKED, DECLINED = 'NEW', 'IN_TALKS', 'BOOKED', 'DECLINED'
+    STATUS_CHOICES = [(NEW, 'New'), (IN_TALKS, 'In talks'), (BOOKED, 'Booked'), (DECLINED, 'Declined')]
+
+    id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
+    created_at = models.DateTimeField(default=timezone.now, db_index=True)
+    status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=NEW)
+    staff_notes = models.TextField(blank=True, help_text='Ours only, never shown to the comedian.')
+    lang = models.CharField(max_length=2, default='en', help_text='The language they filled the form in.')
+
+    name = models.CharField(max_length=200)
+    stage_name = models.CharField(max_length=200, blank=True)
+    email = models.EmailField()
+    phone = models.CharField(max_length=40, blank=True, help_text='Phone or WhatsApp')
+    instagram = models.CharField(max_length=200, blank=True)
+    tiktok = models.CharField(max_length=200, blank=True)
+    links = models.TextField(blank=True, help_text='YouTube, specials, other clips')
+    home_city = models.CharField(max_length=200, blank=True)
+    languages = models.CharField(max_length=200, blank=True, help_text='Languages they perform in')
+    bio = models.TextField(blank=True)
+
+    requested_dates = models.JSONField(default=list, blank=True, help_text='ISO dates they would like, in order')
+    availability = models.TextField(blank=True)
+    show_name = models.CharField(max_length=200, blank=True)
+    draw = models.TextField(blank=True, help_text='Expected draw, followers')
+    ticket_price = models.CharField(max_length=200, blank=True)
+    guests = models.TextField(blank=True, help_text='Do they bring an opener or guests')
+    notes = models.TextField(blank=True)
+
+    consent_at = models.DateTimeField(help_text='When they agreed we may use the photos and clips to promote the show')
+    ip = models.CharField(max_length=64, blank=True, db_index=True)
+    user_agent = models.CharField(max_length=300, blank=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f'{self.stage_name or self.name} ({self.created_at:%Y-%m-%d})'
+
+    @property
+    def display_name(self):
+        if self.stage_name and self.stage_name != self.name:
+            return f'{self.stage_name} ({self.name})'
+        return self.name
+
+    def folder(self):
+        from django.conf import settings
+
+        return os.path.join(settings.COMICS_DIR, self.id)
+
+
+class ComicFile(models.Model):
+    PHOTO, CLIP_SHORT, CLIP_MINUTE, CLIP_LONG = 'PHOTO', 'CLIP_30', 'CLIP_60', 'CLIP_LONG'
+    KIND_CHOICES = [(PHOTO, 'Photo'), (CLIP_SHORT, 'Clip, about 30 seconds'), (CLIP_MINUTE, 'Clip, about 1 minute'),
+                    (CLIP_LONG, 'Clip, 2 to 5 minutes')]
+
+    submission = models.ForeignKey(ComicSubmission, on_delete=models.CASCADE, related_name='files')
+    kind = models.CharField(max_length=10, choices=KIND_CHOICES)
+    original_name = models.CharField(max_length=255)
+    stored_name = models.CharField(max_length=255, help_text="File name inside the submission's folder")
+    size = models.BigIntegerField(default=0)
+    duration_seconds = models.FloatField(null=True, blank=True, help_text='Read with ffprobe after upload, when available')
+    created_at = models.DateTimeField(default=timezone.now)
+
+    class Meta:
+        ordering = ['kind', 'id']
+
+    def __str__(self):
+        return f'{self.get_kind_display()}: {self.original_name}'
+
+    @property
+    def path(self):
+        return os.path.join(self.submission.folder(), self.stored_name)
+
+    @property
+    def is_clip(self):
+        return self.kind != self.PHOTO
+
+
+@receiver(post_delete, sender=ComicSubmission)
+def _remove_comic_files(sender, instance, **kwargs):
+    """Deleting a submission (admin, bulk delete or the command) takes its photos and clips with it."""
+    shutil.rmtree(instance.folder(), ignore_errors=True)

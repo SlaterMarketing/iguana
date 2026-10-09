@@ -1,7 +1,7 @@
 from django.views.generic import RedirectView
 from django.urls import path, re_path
 
-from . import (carta_views, door_views, drop_views, embed_views, fan_views, floor_views, inventory_views,
+from . import (carta_views, comic_views, door_views, drop_views, embed_views, fan_views, floor_views, inventory_views,
                menu_views, pay_views, public_views, reservations_views, revenue_views, stats_views,
                tables_views)
 
@@ -47,6 +47,9 @@ urlpatterns = [
     # it. /mesas/puerta/ stays for the tablets that already have it bookmarked.
     path('scan/', door_views.door, name='floor-scan'),
     path('drop/', drop_views.drop, name='drop'),
+    # Comedians send their photo, clips and the dates they want (api/comic_views.py).
+    path('comic/', comic_views.comic, name='comic'),
+    path('comic/thanks/', comic_views.thanks, name='comic-thanks'),
     path('mesas/puerta/', door_views.door, name='floor-door'),
     path('mesas/puerta/verificar/', door_views.verify, name='floor-door-verify'),
     path('mesas/puerta/deshacer/', door_views.undo, name='floor-door-undo'),

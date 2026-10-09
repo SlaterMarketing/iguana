@@ -480,6 +480,97 @@ ES = {
         'Autorizaciones firmadas de los comediantes para publicar y monetizar clips de sus rutinas.',
     'Anything else': 'Cualquier otra cosa',
     'Answers, notes, links to footage.': 'Respuestas, notas, enlaces a los videos.',
+    # /comic/ (api/comic_views.py): comedians send their photo, clips and dates
+    'Comedians: send us your photo and clips': 'Comediantes: mándanos tu foto y tus clips',
+    'Comedians who want a show at Iguana Comedy: send your photo, your clips and the dates you would like.':
+        'Comediantes que quieren un show en Iguana Comedy: manden su foto, sus clips y las fechas que les gustarían.',
+    'Want a show at Iguana Comedy?': '¿Quieres un show en Iguana Comedy?',
+    'Send us your photo, a few clips and the dates you would like. The photo is what we make the flyer from, and we cut the clips into the ads, so the better they are the fuller the room.':
+        'Mándanos tu foto, algunos clips y las fechas que te gustarían. Con la foto hacemos el flyer y con los clips hacemos los anuncios, así que entre mejores sean, más se llena la sala.',
+    'Your files are kept private and only the Iguana team sees them.':
+        'Tus archivos se guardan en privado y solo los ve el equipo de Iguana.',
+    'Please fix this:': 'Corrige esto, por favor:',
+    '{0} is larger than {1} MB.': '{0} pesa más de {1} MB.',
+    'Send up to {0} photos.': 'Manda hasta {0} fotos.',
+    'Uploading, {0}% done. Keep this page open.': 'Subiendo, va en {0}%. No cierres esta página.',
+    'The upload did not finish. Check your connection and send it again.':
+        'La subida no terminó. Revisa tu conexión y vuelve a enviarlo.',
+    'Fill in the fields marked with an asterisk.': 'Llena los campos marcados con asterisco.',
+    'About you': 'Sobre ti',
+    'Your name': 'Tu nombre',
+    'Stage name, if different': 'Nombre artístico, si es otro',
+    'Phone or WhatsApp': 'Teléfono o WhatsApp',
+    'Where you are based': 'Dónde vives',
+    'Languages you perform in': 'Idiomas en los que haces comedia',
+    'English': 'Inglés',
+    'Spanish': 'Español',
+    'Other': 'Otro',
+    'Short bio': 'Bio corta',
+    'In English or Spanish, whichever you prefer. A few lines we can use on the event page.':
+        'En español o en inglés, como prefieras. Unas líneas que podamos usar en la página del evento.',
+    'Links to more of your work': 'Enlaces a más de tu trabajo',
+    'YouTube, a special, a podcast, press.': 'YouTube, un especial, un podcast, prensa.',
+    'Photos for the flyer': 'Fotos para el flyer',
+    'Your best photos': 'Tus mejores fotos',
+    'Up to {0} high resolution photos: JPG, PNG, HEIC or WebP, {1} MB each. A clear, well lit shot of you works best.':
+        'Hasta {0} fotos en alta resolución: JPG, PNG, HEIC o WebP, de {1} MB cada una. Funciona mejor una foto clara y bien iluminada de ti.',
+    'Clips': 'Clips',
+    'MP4 or MOV, up to {0} MB each. We will cut and adjust them for the ads, so send the raw clip rather than a finished edit if you have it.':
+        'MP4 o MOV, hasta {0} MB cada uno. Los vamos a cortar y ajustar para los anuncios, así que si lo tienes, manda el clip sin editar en lugar de la versión final.',
+    'About 30 seconds': 'Unos 30 segundos',
+    'About 1 minute': 'Como 1 minuto',
+    'A longer set, 2 to 5 minutes': 'Una rutina más larga, de 2 a 5 minutos',
+    'No clip to upload? Put a link to one under Links above.':
+        '¿No tienes un clip para subir? Pon un enlace a uno en Enlaces, más arriba.',
+    'The show you want': 'El show que quieres',
+    'Dates you would like, in order of preference': 'Fechas que te gustarían, en orden de preferencia',
+    'Date': 'Fecha',
+    'Add another date': 'Agregar otra fecha',
+    'Availability notes': 'Notas sobre tu disponibilidad',
+    'When you are in the area, days that do not work, anything flexible.':
+        'Cuándo andas por la zona, qué días no puedes, qué es flexible.',
+    'Show name, if it has one': 'Nombre del show, si tiene',
+    'Expected draw': 'Cuánta gente esperas',
+    'Followers, how many people usually come to see you, where you have sold out.':
+        'Seguidores, cuánta gente suele ir a verte, dónde has agotado boletos.',
+    'Ticket price you have in mind': 'El precio de boleto que tienes en mente',
+    'Do you bring your own opener or guests?': '¿Traes tu propio abridor o invitados?',
+    'Anything else we should know': 'Algo más que debamos saber',
+    'Iguana Comedy may use these photos and clips, edited or as they are, to promote my show on its site, in ads and on social media.':
+        'Iguana Comedy puede usar estas fotos y clips, editados o tal como están, para promocionar mi show en su sitio, en anuncios y en redes sociales.',
+    'Large clips can take a few minutes to upload on a phone. Wifi is faster.':
+        'Los clips grandes pueden tardar unos minutos en subir desde el celular. Con wifi es más rápido.',
+    'One of the dates is not a date. Use the date picker.': 'Una de las fechas no es válida. Usa el selector de fecha.',
+    'Choose dates from today on.': 'Elige fechas de hoy en adelante.',
+    'Choose dates within the next 18 months.': 'Elige fechas dentro de los próximos 18 meses.',
+    'Write your name.': 'Escribe tu nombre.',
+    'Write an email address we can reach you at.': 'Escribe un correo donde podamos contactarte.',
+    'Write your bio and notes in words, a sentence or two is plenty.':
+        'Escribe tu bio y tus notas con palabras; una o dos frases bastan.',
+    'Add at least one photo of you. It is what the flyer is made from.':
+        'Agrega al menos una foto tuya. Con ella hacemos el flyer.',
+    '{0} is not a photo we can use. Send JPG, PNG, HEIC or WebP.': '{0} no es una foto que podamos usar. Manda JPG, PNG, HEIC o WebP.',
+    '{0} is not a video we can use. Send MP4 or MOV.': '{0} no es un video que podamos usar. Manda MP4 o MOV.',
+    'Send at least one clip, or a link to one.': 'Manda al menos un clip, o un enlace a uno.',
+    'Tick the box that lets us use your photos and clips to promote the show.':
+        'Marca la casilla que nos permite usar tus fotos y clips para promocionar el show.',
+    'Too many submissions from here. Try again later, or write to hello@iguanacomedy.com.':
+        'Demasiados envíos desde aquí. Intenta más tarde o escribe a hello@iguanacomedy.com.',
+    'We cannot take uploads right now. Write to hello@iguanacomedy.com and we will sort it out.':
+        'Ahora mismo no podemos recibir archivos. Escribe a hello@iguanacomedy.com y lo resolvemos.',
+    'Thank you for sending your material to Iguana Comedy. We received {0} photo(s) and {1} clip(s).':
+        'Gracias por mandar tu material a Iguana Comedy. Recibimos {0} foto(s) y {1} clip(s).',
+    'Dates you asked about: {0}.': 'Fechas que pediste: {0}.',
+    'We will look at everything and write back to this address. We may cut and adjust your clips for the ads and use your photo for the flyer.':
+        'Vamos a revisar todo y te escribimos a este correo. Puede que cortemos y ajustemos tus clips para los anuncios y usemos tu foto para el flyer.',
+    'To add or change anything, reply to this email.': 'Si quieres agregar o cambiar algo, responde a este correo.',
+    'We got your photos and clips': 'Recibimos tus fotos y tus clips',
+    'Thank you': 'Gracias',
+    'Thank you, we have it all': 'Gracias, ya tenemos todo',
+    'Your photos, clips and dates reached us. We will look at everything and be in touch by email or WhatsApp.':
+        'Nos llegaron tus fotos, clips y fechas. Vamos a revisar todo y te contactamos por correo o WhatsApp.',
+    'We sent you a copy by email. To add or change anything, reply to it.':
+        'Te mandamos una copia por correo. Si quieres agregar o cambiar algo, respóndelo.',
 }
 
 

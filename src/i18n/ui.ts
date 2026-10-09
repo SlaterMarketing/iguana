@@ -139,6 +139,8 @@ export const ui = {
 
     "perform.formUnavailable": "The application form appears once ticketing credentials are connected. Email us at {email} in the meantime.",
     "perform.orMessageSocials": "Or message us on our socials",
+    "perform.sendMaterial": "Want your own show here? Send your photo, clips and the dates you would like, and we will make the flyer and the ads from them.",
+    "perform.sendMaterialCta": "Send your photo and clips",
 
     "events.calendar": "Calendar",
     "events.title": "Shows",
@@ -460,6 +462,8 @@ export const ui = {
 
     "perform.formUnavailable": "El formulario de aplicación aparece una vez que las credenciales de boletaje estén conectadas. Mientras tanto escríbenos a {email}.",
     "perform.orMessageSocials": "O escríbenos en nuestras redes",
+    "perform.sendMaterial": "¿Quieres tu propio show aquí? Mándanos tu foto, tus clips y las fechas que te gustarían, y con eso hacemos el flyer y los anuncios.",
+    "perform.sendMaterialCta": "Manda tu foto y tus clips",
 
     "events.calendar": "Calendario",
     "events.title": "Eventos",

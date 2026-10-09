@@ -163,6 +163,14 @@ upstream iguana_api { server 127.0.0.1:8001; }
     # Document uploads for account setup: phone photos of an ID run past the 10m default.
     location = /drop          { return 301 /drop/; }
     location ^~ /drop/        { client_max_body_size 60m; proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
+    {# Comedians send their photo and up to three clips (api/comic_views.py): 6 x 25 MB of photos plus 3 x 500 MB
+       of video, with room for the form. Only this path takes it. nginx buffers the whole body to disk before
+       gunicorn sees a byte, so a slow phone upload never holds one of the three sync workers; the hand-off over
+       loopback and the rename into place take seconds, inside the 60s read timeout. #}
+    location = /comic         { return 301 /comic/$is_args$args; }
+    location ~ ^/(en|es)/comic/?$ { return 301 /comic/?lang=$1; }
+    location ^~ /comic/       { client_max_body_size 1700m; client_body_timeout 120s; proxy_send_timeout 120s;
+                                proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
     location ^~ /reservas/    { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
     location ^~ /reservations/ { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }
     location ^~ /stats/       { proxy_pass http://iguana_api; include /etc/nginx/iguana_proxy_params; }

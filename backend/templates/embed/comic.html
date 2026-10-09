@@ -1,0 +1,217 @@
+{% extends "embed/base.html" %}
+{% load showtime %}
+
+{% block title %}{% t lang "Comedians: send us your photo and clips" %} · Iguana Comedy{% endblock %}
+
+{% block head %}
+<meta name="description" content="{% t lang "Comedians who want a show at Iguana Comedy: send your photo, your clips and the dates you would like." %}">
+<link rel="alternate" hreflang="en" href="https://iguanacomedy.com/comic/?lang=en">
+<link rel="alternate" hreflang="es" href="https://iguanacomedy.com/comic/?lang=es">
+<style>
+  .comic fieldset { border: 1px solid var(--line); border-radius: 20px; padding: 18px 16px; margin: 0; background: #fff; min-width: 0; }
+  .comic legend { font-family: "Bebas Neue", ui-sans-serif, system-ui, sans-serif; font-size: 1.5rem; padding: 0 6px; }
+  .comic fieldset > * + * { margin-top: 14px; }
+  .comic textarea, .comic input[type=file] { font: inherit; font-weight: 400; padding: 12px 14px; border: 1px solid rgba(0,0,0,.2);
+    border-radius: 12px; width: 100%; background: #fff; }
+  .comic textarea { min-height: 110px; resize: vertical; }
+  .comic input[type=file] { padding: 10px; min-height: 48px; }
+  .comic input[type=date] { min-height: 48px; }
+  .comic .hint { font-weight: 400; font-size: .8rem; color: var(--muted); }
+  .comic .two { display: grid; gap: 14px; grid-template-columns: 1fr; }
+  @media (min-width: 560px) { .comic .two { grid-template-columns: 1fr 1fr; } }
+  .comic .check { display: flex; gap: 10px; align-items: flex-start; font-weight: 400; }
+  .comic .check input { width: 22px; height: 22px; min-width: 22px; padding: 0; margin: 2px 0 0; }
+  .comic .row { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+  .comic .row .check { min-height: 32px; align-items: center; }
+  .comic .row .check input { margin: 0; }
+  .comic .dates { display: grid; gap: 8px; }
+  .comic .add { background: #fff; color: var(--ink); border: 1px solid var(--ink); width: auto; padding: 14px 18px; min-height: 44px; }
+  .comic .add:hover { color: #fff; }
+  .comic .hp { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
+  .errors { background: #fdecec; border-radius: 14px; padding: 12px 16px; }
+  .errors ul { margin: 6px 0 0; padding-left: 18px; }
+  .progress { display: none; }
+  .progress.on { display: block; }
+  .bar { height: 10px; border-radius: 999px; background: var(--brand-soft); overflow: hidden; }
+  .bar > span { display: block; height: 100%; width: 0; background: var(--brand); transition: width .2s; }
+  .lang-switch a { color: inherit; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="stack comic">
+  <p class="eyebrow lang-switch">Iguana Comedy · <a href="?lang={{ other_lang }}" hreflang="{{ other_lang }}">{% if lang == "es" %}English{% else %}Español{% endif %}</a></p>
+  <h1>{% t lang "Want a show at Iguana Comedy?" %}</h1>
+  <p>{% t lang "Send us your photo, a few clips and the dates you would like. The photo is what we make the flyer from, and we cut the clips into the ads, so the better they are the fuller the room." %}</p>
+  <p class="muted">{% t lang "Your files are kept private and only the Iguana team sees them." %}</p>
+
+  <div class="errors" id="errors" role="alert" {% if not errors %}hidden{% endif %}>
+    <strong>{% t lang "Please fix this:" %}</strong>
+    <ul id="error-list">{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+  </div>
+
+  <form method="post" enctype="multipart/form-data" class="stack" id="comic-form" novalidate
+        data-too-big="{% t lang "{0} is larger than {1} MB." %}"
+        data-too-many="{% t lang "Send up to {0} photos." max_photos %}"
+        data-uploading="{% t lang "Uploading, {0}% done. Keep this page open." %}"
+        data-failed="{% t lang "The upload did not finish. Check your connection and send it again." %}"
+        data-required="{% t lang "Fill in the fields marked with an asterisk." %}">
+    {% csrf_token %}
+    <input type="hidden" name="lang" value="{{ lang }}">
+    <div class="hp" aria-hidden="true"><label>Website <input type="text" name="{{ honeypot }}" tabindex="-1" autocomplete="off"></label></div>
+
+    <fieldset>
+      <legend>{% t lang "About you" %}</legend>
+      <div class="two">
+        <label>{% t lang "Your name" %} *<input name="name" required maxlength="200" autocomplete="name" value="{{ v.name|default:'' }}"></label>
+        <label>{% t lang "Stage name, if different" %}<input name="stage_name" maxlength="200" value="{{ v.stage_name|default:'' }}"></label>
+        <label>{% t lang "Email" %} *<input name="email" type="email" required maxlength="254" autocomplete="email" value="{{ v.email|default:'' }}"></label>
+        <label>{% t lang "Phone or WhatsApp" %}<input name="phone" type="tel" maxlength="40" autocomplete="tel" value="{{ v.phone|default:'' }}"></label>
+        <label>Instagram<input name="instagram" maxlength="200" placeholder="@" value="{{ v.instagram|default:'' }}"></label>
+        <label>TikTok<input name="tiktok" maxlength="200" placeholder="@" value="{{ v.tiktok|default:'' }}"></label>
+      </div>
+      <label>{% t lang "Where you are based" %}<input name="home_city" maxlength="200" value="{{ v.home_city|default:'' }}"></label>
+      <div>
+        <span class="hint">{% t lang "Languages you perform in" %}</span>
+        <div class="row">
+          <label class="check"><input type="checkbox" name="lang_en" value="1" {% if posted.lang_en %}checked{% endif %}> {% t lang "English" %}</label>
+          <label class="check"><input type="checkbox" name="lang_es" value="1" {% if posted.lang_es %}checked{% endif %}> {% t lang "Spanish" %}</label>
+        </div>
+        <label>{% t lang "Other" %}<input name="lang_other" maxlength="100" value="{{ v.lang_other|default:'' }}"></label>
+      </div>
+      <label>{% t lang "Short bio" %}
+        <span class="hint">{% t lang "In English or Spanish, whichever you prefer. A few lines we can use on the event page." %}</span>
+        <textarea name="bio" maxlength="4000">{{ v.bio|default:'' }}</textarea></label>
+      <label>{% t lang "Links to more of your work" %}
+        <span class="hint">{% t lang "YouTube, a special, a podcast, press." %}</span>
+        <textarea name="links" maxlength="2000">{{ v.links|default:'' }}</textarea></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>{% t lang "Photos for the flyer" %}</legend>
+      <label>{% t lang "Your best photos" %} *
+        <span class="hint">{% t lang "Up to {0} high resolution photos: JPG, PNG, HEIC or WebP, {1} MB each. A clear, well lit shot of you works best." max_photos photo_max_mb %}</span>
+        <input type="file" name="photos" accept="{{ photo_types }}" multiple required data-max-mb="{{ photo_max_mb }}" data-max-count="{{ max_photos }}"></label>
+    </fieldset>
+
+    <fieldset>
+      <legend>{% t lang "Clips" %}</legend>
+      <p class="hint">{% t lang "MP4 or MOV, up to {0} MB each. We will cut and adjust them for the ads, so send the raw clip rather than a finished edit if you have it." clip_max_mb %}</p>
+      <label>{% t lang "About 30 seconds" %}<input type="file" name="clip_short" accept="{{ clip_types }}" data-max-mb="{{ clip_max_mb }}"></label>
+      <label>{% t lang "About 1 minute" %}<input type="file" name="clip_minute" accept="{{ clip_types }}" data-max-mb="{{ clip_max_mb }}"></label>
+      <label>{% t lang "A longer set, 2 to 5 minutes" %}<input type="file" name="clip_long" accept="{{ clip_types }}" data-max-mb="{{ clip_max_mb }}"></label>
+      <p class="hint">{% t lang "No clip to upload? Put a link to one under Links above." %}</p>
+    </fieldset>
+
+    <fieldset>
+      <legend>{% t lang "The show you want" %}</legend>
+      <div>
+        <span class="hint">{% t lang "Dates you would like, in order of preference" %}</span>
+        <div class="dates" id="dates">
+          {% for d in dates %}<input type="date" name="dates" min="{{ today }}" value="{{ d }}" aria-label="{% t lang "Date" %}">{% endfor %}
+        </div>
+      </div>
+      <button type="button" class="btn add" id="add-date">{% t lang "Add another date" %}</button>
+      <label>{% t lang "Availability notes" %}
+        <span class="hint">{% t lang "When you are in the area, days that do not work, anything flexible." %}</span>
+        <textarea name="availability" maxlength="2000">{{ v.availability|default:'' }}</textarea></label>
+      <label>{% t lang "Show name, if it has one" %}<input name="show_name" maxlength="200" value="{{ v.show_name|default:'' }}"></label>
+      <label>{% t lang "Expected draw" %}
+        <span class="hint">{% t lang "Followers, how many people usually come to see you, where you have sold out." %}</span>
+        <textarea name="draw" maxlength="1000">{{ v.draw|default:'' }}</textarea></label>
+      <label>{% t lang "Ticket price you have in mind" %}<input name="ticket_price" maxlength="200" value="{{ v.ticket_price|default:'' }}"></label>
+      <label>{% t lang "Do you bring your own opener or guests?" %}<textarea name="guests" maxlength="1000">{{ v.guests|default:'' }}</textarea></label>
+      <label>{% t lang "Anything else we should know" %}<textarea name="notes" maxlength="4000">{{ v.notes|default:'' }}</textarea></label>
+    </fieldset>
+
+    <label class="check"><input type="checkbox" name="consent" value="1" required {% if posted.consent %}checked{% endif %}>
+      <span>{% t lang "Iguana Comedy may use these photos and clips, edited or as they are, to promote my show on its site, in ads and on social media." %} *</span></label>
+
+    <div class="progress" id="progress" aria-live="polite">
+      <div class="bar"><span id="bar"></span></div>
+      <p class="muted" id="progress-text"></p>
+    </div>
+    <button class="btn" type="submit" id="send">{% t lang "Send" %}</button>
+    <p class="hint">{% t lang "Large clips can take a few minutes to upload on a phone. Wifi is faster." %}</p>
+  </form>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var form = document.getElementById('comic-form');
+  var box = document.getElementById('errors');
+  var list = document.getElementById('error-list');
+  var send = document.getElementById('send');
+  var fmt = function (s, a) { return s.replace(/\{(\d+)\}/g, function (_, i) { return a[i]; }); };
+
+  document.getElementById('add-date').addEventListener('click', function () {
+    var dates = document.getElementById('dates');
+    if (dates.children.length >= {{ 10 }}) return;
+    var input = dates.children[0].cloneNode();
+    input.value = '';
+    dates.appendChild(input);
+    input.focus();
+  });
+
+  function show(errors) {
+    list.innerHTML = '';
+    errors.forEach(function (e) { var li = document.createElement('li'); li.textContent = e; list.appendChild(li); });
+    box.hidden = !errors.length;
+    if (errors.length) box.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  function check() {
+    var errors = [];
+    var missing = ['name', 'email'].some(function (n) { return !form.elements[n].value.trim(); }) ||
+      !form.elements.photos.files.length || !form.elements.consent.checked;
+    if (missing) errors.push(form.dataset.required);
+    form.querySelectorAll('input[type=file]').forEach(function (input) {
+      var max = Number(input.dataset.maxMb) * 1024 * 1024;
+      if (input.dataset.maxCount && input.files.length > Number(input.dataset.maxCount)) errors.push(form.dataset.tooMany);
+      Array.prototype.forEach.call(input.files, function (f) {
+        if (f.size > max) errors.push(fmt(form.dataset.tooBig, [f.name, input.dataset.maxMb]));
+      });
+    });
+    return errors;
+  }
+
+  form.addEventListener('submit', function (ev) {
+    if (!window.FormData || !window.XMLHttpRequest) return;  // plain post, the server checks everything
+    ev.preventDefault();
+    var errors = check();
+    if (errors.length) { show(errors); return; }
+    show([]);
+    var xhr = new XMLHttpRequest();
+    var progress = document.getElementById('progress');
+    var bar = document.getElementById('bar');
+    var text = document.getElementById('progress-text');
+    send.disabled = true;
+    progress.classList.add('on');
+    xhr.upload.addEventListener('progress', function (e) {
+      if (!e.lengthComputable) return;
+      var pct = Math.min(99, Math.floor(e.loaded / e.total * 100));
+      bar.style.width = pct + '%';
+      text.textContent = fmt(form.dataset.uploading, [pct]);
+    });
+    xhr.onload = function () {
+      var body = {};
+      try { body = JSON.parse(xhr.responseText); } catch (e) {}
+      if (xhr.status === 200 && body.redirect) { bar.style.width = '100%'; window.location.href = body.redirect; return; }
+      send.disabled = false;
+      progress.classList.remove('on');
+      show(body.errors || [form.dataset.failed]);
+    };
+    xhr.onerror = function () {
+      send.disabled = false;
+      progress.classList.remove('on');
+      show([form.dataset.failed]);
+    };
+    xhr.open('POST', form.action || window.location.href);
+    xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+    xhr.send(new FormData(form));
+  });
+})();
+</script>
+{% endblock %}

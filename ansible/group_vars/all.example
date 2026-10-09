@@ -74,6 +74,8 @@ geoip_db: /var/lib/iguana/dbip-city-lite.mmdb
 # /drop/: where the owner uploads business documents for account setup. Upload-only, never served by the web.
 drop_pin: "{{ lookup('file', creds + '/drop_pin') }}"
 drop_dir: /var/lib/iguana/drop
+# /comic/: comedians' photos and clips, one folder per submission. Optional; this is the default.
+comics_dir: /var/lib/iguana/comics
 
 # Clicky analytics through a first-party proxy (https://clicky.com/help/proxy). Paths are random per site.
 clicky_site_id: "101511754"

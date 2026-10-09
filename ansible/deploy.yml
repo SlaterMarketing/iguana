@@ -366,6 +366,17 @@
       become: true
       file: {path: "{{ drop_dir }}", state: directory, owner: "{{ deploy_user }}", group: "{{ deploy_user }}", mode: "0700"}
 
+    # /comic/ keeps comedians' photos and clips here, one folder per submission, for the same reason: unpublished
+    # material, never under backend/media. Staff download through the admin or copy off with ansible.
+    - name: Comedian submissions directory
+      become: true
+      file: {path: "{{ comics_dir | default('/var/lib/iguana/comics') }}", state: directory, owner: "{{ deploy_user }}", group: "{{ deploy_user }}", mode: "0700"}
+
+    # ffprobe records each clip's length after a /comic/ upload; ffmpeg is also what cuts those clips for ads.
+    - name: ffmpeg for comedians' clips
+      become: true
+      apt: {name: ffmpeg, state: present, update_cache: true, cache_valid_time: 86400}
+
     - name: Look for the IP location database
       stat: {path: "{{ geoip_db }}"}
       register: geoip_file

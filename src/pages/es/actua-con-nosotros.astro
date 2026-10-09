@@ -121,6 +121,15 @@ const prefills = { subject: "perform" };
           {performPage.formHeading}
         </h2>
         <p class="mx-auto mt-6 max-w-xl text-center text-neutral-700">{performPage.formIntro}</p>
+        <div class="mx-auto mt-8 max-w-xl rounded-3xl bg-neutral-50 px-6 py-6 text-center">
+          <p class="text-neutral-800">{t(locale, "perform.sendMaterial")}</p>
+          <a
+            class="mt-4 inline-flex min-h-11 items-center justify-center rounded-full bg-neutral-950 px-6 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-white hover:bg-brand-hover"
+            href={`/comic/?lang=${locale}`}
+          >
+            {t(locale, "perform.sendMaterialCta")}
+          </a>
+        </div>
 
         <div class="mt-12">
           {

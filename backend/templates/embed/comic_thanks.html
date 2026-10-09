@@ -1,0 +1,14 @@
+{% extends "embed/base.html" %}
+{% load showtime %}
+
+{% block title %}{% t lang "Thank you" %} · Iguana Comedy{% endblock %}
+
+{% block content %}
+<div class="stack">
+  <p class="eyebrow">Iguana Comedy · <a href="?lang={{ other_lang }}" style="color:inherit">{% if lang == "es" %}English{% else %}Español{% endif %}</a></p>
+  <h1>{% t lang "Thank you, we have it all" %}</h1>
+  <p>{% t lang "Your photos, clips and dates reached us. We will look at everything and be in touch by email or WhatsApp." %}</p>
+  <p class="muted">{% t lang "We sent you a copy by email. To add or change anything, reply to it." %}</p>
+  <p><a class="btn" href="https://iguanacomedy.com/{{ lang }}/">{% t lang "Back to Iguana Comedy" %}</a></p>
+</div>
+{% endblock %}
