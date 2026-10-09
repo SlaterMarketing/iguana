@@ -300,6 +300,8 @@ class CheckLine(models.Model):
     voided_by = models.ForeignKey(Staff, null=True, blank=True, on_delete=models.SET_NULL, related_name='+')
     stock_applied_at = models.DateTimeField(null=True, blank=True)
     stock_returned_at = models.DateTimeField(null=True, blank=True)
+    # Actual quantities removed, including zero when stock was empty. None is a legacy line.
+    stock_deltas = models.JSONField(null=True, blank=True)
 
     class Meta:
         ordering = ['created_at']
@@ -381,10 +383,12 @@ class Printer(models.Model):
 
 class PrintJob(models.Model):
     QUEUED, SENT, DONE, FAILED = 'QUEUED', 'SENT', 'DONE', 'FAILED'
+    CANCELLED = 'CANCELLED'
 
     id = models.CharField(primary_key=True, max_length=40, default=new_id, editable=False)
     role = models.CharField(max_length=10)
     printer = models.ForeignKey(Printer, null=True, blank=True, on_delete=models.SET_NULL, related_name='jobs')
+    cuenta = models.ForeignKey(Check, null=True, blank=True, on_delete=models.SET_NULL, related_name='print_jobs')
     title = models.CharField(max_length=80)
     # Plain lines, 42 characters wide (80mm paper at the printers' default font). Rendered as ePOS XML, Star
     # text or an HTML page for the browser fallback, from the same lines.

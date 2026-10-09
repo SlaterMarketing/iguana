@@ -109,17 +109,25 @@ def _apply_line_stock(line, who):
     """Take a sent line's recipe out of the count sheet, once."""
     if line.stock_applied_at or not line.menu_item_id:
         return
+    deltas = {}
     for ing in line.menu_item.ingredients.select_related('inventory_item'):
-        _move_stock(ing.inventory_item_id, -(ing.quantity * line.quantity), 'venta', who)
+        delta = _move_stock(ing.inventory_item_id, -(ing.quantity * line.quantity), 'venta', who)
+        deltas[str(ing.inventory_item_id)] = str(delta)
+    line.stock_deltas = deltas
     line.stock_applied_at = timezone.now()
-    line.save(update_fields=['stock_applied_at'])
+    line.save(update_fields=['stock_applied_at', 'stock_deltas'])
 
 
 def _return_line_stock(line, who):
-    if not line.stock_applied_at or line.stock_returned_at or not line.menu_item_id:
+    if not line.stock_applied_at or line.stock_returned_at:
         return
-    for ing in line.menu_item.ingredients.select_related('inventory_item'):
-        _move_stock(ing.inventory_item_id, ing.quantity * line.quantity, 'devuelto (no se preparó)', who)
+    if line.stock_deltas is not None:
+        for item_id, delta in line.stock_deltas.items():
+            if Decimal(delta) and InventoryItem.objects.filter(pk=item_id).exists():
+                _move_stock(item_id, -Decimal(delta), 'devuelto (no se preparó)', who)
+    elif line.menu_item_id:
+        for ing in line.menu_item.ingredients.select_related('inventory_item'):
+            _move_stock(ing.inventory_item_id, ing.quantity * line.quantity, 'devuelto (no se preparó)', who)
     line.stock_returned_at = timezone.now()
     line.save(update_fields=['stock_returned_at'])
 
@@ -131,6 +139,7 @@ def _move_stock(item_id, delta, note, who):
     item.quantity = after
     item.save(update_fields=['quantity', 'updated_at'])
     InventoryChange.objects.create(item=item, delta=real, quantity_after=after, note=note[:200], who=who[:80])
+    return real
 
 
 def send(cuenta, by=None):
@@ -152,7 +161,7 @@ def send(cuenta, by=None):
             _apply_line_stock(line, who)
         from .printing import comanda_ticket, queue
 
-        queue(Printer.COMANDA, f'Comanda {number}', comanda_ticket(cuenta, comanda, lines, by))
+        queue(Printer.COMANDA, f'Comanda {number}', comanda_ticket(cuenta, comanda, lines, by), cuenta=cuenta)
         return comanda
 
 
@@ -206,7 +215,7 @@ def print_bill(cuenta, by=None):
 
     cuenta = Check.objects.get(pk=cuenta.pk)
     Check.objects.filter(pk=cuenta.pk).update(bill_printed_at=timezone.now())
-    return queue(Printer.TICKET, f'Cuenta {cuenta.folio}', bill_ticket(cuenta))
+    return queue(Printer.TICKET, f'Cuenta {cuenta.folio}', bill_ticket(cuenta), cuenta=cuenta)
 
 
 def move(cuenta, table, by=None):
@@ -261,6 +270,37 @@ def split(cuenta, line_ids, by=None):
                                    guests=1, event=cuenta.event)
         CheckLine.objects.filter(pk__in=[l.pk for l in lines]).update(cuenta=new)
         return new
+
+
+def delete_check(cuenta, *, by):
+    """Remove an unpaid order from service in one tap, retaining its lines and actor as history."""
+    from .models import PrintJob
+
+    with transaction.atomic():
+        cuenta = _locked(cuenta.pk)
+        if by is None or not by.may_open(cuenta.table, cuenta):
+            raise PosError('No puedes eliminar el pedido de otro mesero.')
+        if cuenta.status == Check.CANCELLED:
+            return cuenta
+        if cuenta.status != Check.OPEN or cuenta.payments.exists():
+            raise PosError('La cuenta tiene pagos: no se puede eliminar el pedido.')
+        now = timezone.now()
+        for line in cuenta.lines.select_for_update(of=('self',)).filter(voided_at__isnull=True):
+            _return_line_stock(line, by.name)
+            line.voided_at = now
+            line.void_reason = CheckLine.MISTAKE
+            line.void_note = 'Pedido eliminado'
+            line.voided_by = by
+            line.save(update_fields=['voided_at', 'void_reason', 'void_note', 'voided_by'])
+        cuenta.status = Check.CANCELLED
+        cuenta.cancel_reason = 'Pedido eliminado'
+        cuenta.cancelled_by = by
+        cuenta.closed_at = now
+        cuenta.save(update_fields=['status', 'cancel_reason', 'cancelled_by', 'closed_at'])
+        cuenta.comandas.filter(done_at__isnull=True).update(done_at=now)
+        cuenta.print_jobs.filter(status__in=[PrintJob.QUEUED, PrintJob.FAILED]).update(
+            status=PrintJob.CANCELLED, done_at=now)
+        return cuenta
 
 
 def cancel_check(cuenta, *, reason, manager=None):
@@ -337,7 +377,7 @@ def _close(cuenta, by):
     from .printing import final_ticket, queue
 
     cuenta = Check.objects.get(pk=cuenta.pk)
-    queue(Printer.TICKET, f'Ticket {cuenta.folio}', final_ticket(cuenta))
+    queue(Printer.TICKET, f'Ticket {cuenta.folio}', final_ticket(cuenta), cuenta=cuenta)
 
 
 def reopen(cuenta, manager):

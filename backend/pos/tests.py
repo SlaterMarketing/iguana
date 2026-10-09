@@ -166,6 +166,75 @@ class ServicesTests(PosTestCase):
         self.stock.refresh_from_db()
         self.assertEqual(self.stock.quantity, Decimal('24'))
 
+    def test_deleting_an_order_frees_the_table_and_keeps_its_history(self):
+        cuenta = services.open_check(table=self.t1, waiter=self.waiter)
+        services.add_line(cuenta, self.beer, quantity=2)
+        services.send(cuenta, self.waiter)
+        services.add_line(cuenta, self.shot)
+        services.print_bill(cuenta)
+        services.delete_check(cuenta, by=self.waiter)
+        self.stock.refresh_from_db()
+        cuenta.refresh_from_db()
+        self.assertEqual(self.stock.quantity, Decimal('24'))
+        self.assertEqual(cuenta.status, Check.CANCELLED)
+        self.assertEqual(cuenta.cancelled_by, self.waiter)
+        self.assertEqual(cuenta.lines.count(), 2, 'sent and draft lines remain as a backup')
+        self.assertFalse(cuenta.lines.filter(voided_at__isnull=True).exists())
+        self.assertFalse(cuenta.comandas.filter(done_at__isnull=True).exists())
+        self.assertEqual(cuenta.print_jobs.filter(status=PrintJob.CANCELLED).count(), 2)
+        services.delete_check(cuenta, by=self.waiter)
+        self.stock.refresh_from_db()
+        self.assertEqual(self.stock.quantity, Decimal('24'), 'a repeated tap never returns stock twice')
+        fresh = services.open_check(table=self.t1, waiter=self.waiter)
+        self.assertNotEqual(fresh.pk, cuenta.pk)
+        self.assertNotEqual(fresh.pay_token, cuenta.pay_token)
+        self.assertEqual(fresh.total_cents, 0)
+        self.assertFalse(fresh.lines.exists())
+        self.assertEqual(self.client.get(f'/pos/pagar/{cuenta.pay_token}/').status_code, 404)
+        self.assertEqual(self.client.post(f'/pos/pagar/{cuenta.pay_token}/intent/').status_code, 404)
+
+    def test_deleting_only_returns_stock_actually_removed_even_if_the_recipe_changed(self):
+        for available in (0, 1):
+            with self.subTest(available=available):
+                self.stock.quantity = available
+                self.stock.save()
+                recipe = MenuItemIngredient.objects.get(menu_item=self.beer)
+                recipe.quantity = 1
+                recipe.save()
+                cuenta = services.open_check(table=self.t1, waiter=self.waiter)
+                services.add_line(cuenta, self.beer, quantity=3)
+                services.send(cuenta)
+                recipe.quantity = 2
+                recipe.save()
+                services.delete_check(cuenta, by=self.waiter)
+                self.stock.refresh_from_db()
+                self.assertEqual(self.stock.quantity, Decimal(available))
+
+    def test_deleting_refuses_paid_pending_and_refunded_payments(self):
+        for status in (Payment.PAID, Payment.PENDING, Payment.REFUNDED):
+            with self.subTest(status=status):
+                cuenta = services.open_check(table=self.t1, waiter=self.waiter)
+                line = services.add_line(cuenta, self.beer)
+                payment = Payment.objects.create(cuenta=cuenta, method=Payment.PHONE, status=status, amount_cents=100)
+                with self.assertRaises(PosError):
+                    services.delete_check(cuenta, by=self.waiter)
+                cuenta.refresh_from_db()
+                line.refresh_from_db()
+                self.assertEqual(cuenta.status, Check.OPEN)
+                self.assertIsNone(line.voided_at)
+                self.assertTrue(Payment.objects.filter(pk=payment.pk).exists())
+                payment.delete()
+
+    def test_deleting_a_split_order_keeps_the_other_order_open(self):
+        cuenta = services.open_check(table=self.t1, waiter=self.waiter)
+        services.add_line(cuenta, self.beer)
+        split_line = services.add_line(cuenta, self.shot)
+        other = services.split(cuenta, [split_line.pk])
+        services.delete_check(cuenta, by=self.waiter)
+        other.refresh_from_db()
+        self.assertEqual(other.status, Check.OPEN)
+        self.assertEqual(other.total_cents, 9000)
+
     def test_the_corte_expects_fondo_plus_cash_plus_cash_tips_minus_retiros(self):
         shift = services.open_shift(self.cashier, 50000)
         cuenta = services.open_check(table=self.t1)
@@ -303,6 +372,24 @@ class ScreensTests(PosTestCase):
         self.assertEqual(self.post(f'/pos/api/cuenta/{cuenta.pk}/agregar/', {'item': self.beer.pk}).status_code, 403)
         numbers = [t['number'] for t in self.client.get('/pos/api/mapa/').json()['tables']]
         self.assertNotIn(2, numbers, "another waiter's table is not on my map")
+        self.assertEqual(self.post(f'/pos/api/cuenta/{cuenta.pk}/eliminar/').status_code, 403)
+
+    def test_delete_order_is_a_single_post_and_the_table_can_start_again(self):
+        self.floor_client('1111')
+        cuenta = services.open_check(table=self.t1, waiter=self.waiter)
+        services.add_line(cuenta, self.beer)
+        url = f'/pos/api/cuenta/{cuenta.pk}/eliminar/'
+        self.assertContains(self.client.get(f'/pos/cuenta/{cuenta.pk}/'), 'Eliminar pedido')
+        self.assertEqual(self.client.get(url).status_code, 405)
+        result = self.post(url)
+        self.assertEqual(result.status_code, 200)
+        self.assertEqual(result.json()['cuenta']['status'], Check.CANCELLED)
+        state = {t['number']: t['state'] for t in self.client.get('/pos/api/mapa/').json()['tables']}
+        self.assertEqual(state[1], 'free')
+        self.client.get(f'/pos/mesa/{self.t1.pk}/')
+        fresh = Check.objects.get(table=self.t1, status=Check.OPEN)
+        self.assertNotEqual(fresh.pk, cuenta.pk)
+        self.assertFalse(fresh.lines.exists())
 
     def test_the_bar_sees_and_works_every_table(self):
         cuenta = services.open_check(table=self.t2, waiter=self.waiter)

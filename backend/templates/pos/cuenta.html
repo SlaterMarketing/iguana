@@ -124,6 +124,7 @@
   <button type="button" data-f="move">Cambiar mesa</button>
   <button type="button" data-f="join">Juntar</button>
   <button type="button" data-f="phone">Pago celular</button>
+  <button type="button" class="danger" data-f="delete">Eliminar pedido</button>
   <button type="button" class="danger" data-f="cancel">Cancelar cuenta</button>
   <button type="button" class="more">Más ▴</button>
 </nav>
@@ -388,6 +389,12 @@
       $("d-split").showModal();
     },
     cancel: function () { $("cancel-pin").value = ""; $("cancel-reason").value = ""; $("cancel-ok").onclick = function () { call("cancelar/", { reason: $("cancel-reason").value, managerPin: $("cancel-pin").value }).then(function () { $("d-cancel").close(); location = "/pos/"; }); }; $("d-cancel").showModal(); },
+    delete: function () {
+      var btn = document.querySelector('[data-f="delete"]');
+      btn.disabled = true;
+      call("eliminar/", {}).then(function () { location = "/pos/"; })
+        .catch(function () { btn.disabled = false; });
+    },
     phone: function () { $("phone-url").textContent = boot.payUrl; $("d-phone").showModal(); },
     pay: openPay
   };

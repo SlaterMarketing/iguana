@@ -28,11 +28,13 @@ node tests/reserve-flow.mjs                          # reserve a seat through th
 # Against production
 node tests/full-sweep.mjs --staff mesero --pass "$(cat ~/.credentials/vpsorg/iguanacomedy/floor_password)"
 node tests/mobile-sweep.mjs --staff mesero --pass "$(cat ~/.credentials/vpsorg/iguanacomedy/floor_password)"  # the floor console at 320-430px
+node tests/open-mic-e2e.mjs [--base http://127.0.0.1:4321]   # the page the open mic ads point at, iframe included, with screenshots
 
 # Site (Node 20, see .node-version)
 npm install
 npm run dev                      # Astro dev server; needs .env + .dev.vars (copy the .example files)
 npm run build                    # Cloudflare Pages build (default adapter) + scripts/verify-dist.mjs
+                                 # both builds first run check-kintana-env, check-i18n and check-routes (hreflang pairs)
 npm run build:node               # ASTRO_ADAPTER=node standalone server -> dist/server/entry.mjs (what production runs)
 npm run start:node               # run that build
 npx astro check                  # type check (pre-existing errors on Locals.brandOverrides in middleware.ts)
@@ -48,7 +50,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 cp config_example.py config.py   # DEBUG=True, SITE_URLS, PUBLIC_API_KEYS, EMAIL_BACKEND console for local
 .venv/bin/python manage.py migrate
 .venv/bin/python manage.py runserver 127.0.0.1:8000
-.venv/bin/python manage.py test api                                            # all backend tests
+.venv/bin/python manage.py test api sales pos                                  # all backend tests (they live in api/ and pos/)
 .venv/bin/python manage.py test api.tests.CheckoutTests.test_member_free_tickets_then_guest_discount  # one test
 
 # Data (one-off / re-runnable, fill blanks unless --overwrite)
@@ -62,6 +64,9 @@ ansible-playbook deploy.yml                    # rsync this checkout, build, mig
 ansible-playbook deploy.yml --tags all,certs   # also issue missing Let's Encrypt certs listed in cert_sets
 ansible-playbook email_check.yml               # end-to-end mail verification (asserts on DNS, DKIM, delivery)
 ```
+
+`README.md` at the root is the Kintana starter's and is stale (Kintana hosting, `/shows/` routes); `backend/README.md`
+and `docs/` are current. Read the matching `docs/` page before deploy, mail or Meta work.
 
 Local pairing: backend on `127.0.0.1:8000`, site on `127.0.0.1:4321` with `.env` / `.dev.vars` setting
 `PUBLIC_KINTANA_BASE_URL=http://127.0.0.1:8000` and `PUBLIC_KINTANA_API_KEY` to a key from `config.PUBLIC_API_KEYS`.

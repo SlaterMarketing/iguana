@@ -177,6 +177,11 @@ def dividir(request, cuenta, body):
 
 
 @_action
+def eliminar(request, cuenta, body):
+    return services.delete_check(cuenta, by=request.staff)
+
+
+@_action
 def cancelar(request, cuenta, body):
     services.cancel_check(cuenta, reason=str(body.get('reason') or 'sin motivo'), manager=authorizer(request, body))
 

@@ -70,19 +70,22 @@ def pay_page(request, token):
 @require_POST
 def pay_intent(request, token):
     lang = _lang(request)
-    cuenta = Check.objects.filter(pay_token=token, status=Check.OPEN).first()
-    if cuenta is None:
-        return JsonResponse({'error': tr(lang, 'This bill has closed.')}, status=404)
-    due = cuenta.due_cents
-    if due == 0:
-        return JsonResponse({'error': tr(lang, 'There is nothing to pay on this table.')}, status=409)
     try:
         percent = int(request.POST.get('tip', DEFAULT_TIP))
     except ValueError:
         percent = DEFAULT_TIP
     percent = percent if percent in TIP_CHOICES else DEFAULT_TIP
-    payment = Payment.objects.create(cuenta=cuenta, method=Payment.PHONE, status=Payment.PENDING,
-                                     amount_cents=due, tip_cents=_tip(due, percent))
+    # Deleting an order and starting phone payment share the check lock. Either the pending payment
+    # protects the order from deletion, or deletion wins and this old QR can no longer start a charge.
+    with transaction.atomic():
+        cuenta = Check.objects.select_for_update().filter(pay_token=token, status=Check.OPEN).first()
+        if cuenta is None:
+            return JsonResponse({'error': tr(lang, 'This bill has closed.')}, status=404)
+        due = cuenta.due_cents
+        if due == 0:
+            return JsonResponse({'error': tr(lang, 'There is nothing to pay on this table.')}, status=409)
+        payment = Payment.objects.create(cuenta=cuenta, method=Payment.PHONE, status=Payment.PENDING,
+                                         amount_cents=due, tip_cents=_tip(due, percent))
     if not stripe_enabled():
         if settings.DEBUG:
             return JsonResponse({'paymentId': payment.id, 'devPayment': True})

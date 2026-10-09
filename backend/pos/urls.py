@@ -42,6 +42,7 @@ urlpatterns = [
     path('api/cuenta/<str:cuenta_id>/juntar/', api.juntar),
     path('api/cuenta/<str:cuenta_id>/dividir/', api.dividir),
     path('api/cuenta/<str:cuenta_id>/cancelar/', api.cancelar),
+    path('api/cuenta/<str:cuenta_id>/eliminar/', api.eliminar),
     path('api/cuenta/<str:cuenta_id>/pagar/', api.pagar),
     path('api/cuenta/<str:cuenta_id>/reabrir/', api.reabrir),
     path('api/linea/<str:line_id>/cantidad/', api.linea_cantidad),

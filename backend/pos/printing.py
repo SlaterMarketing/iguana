@@ -23,9 +23,9 @@ WIDTH = 42
 RULE = '-' * WIDTH
 
 
-def queue(role, title, lines):
+def queue(role, title, lines, *, cuenta=None):
     printer = Printer.objects.filter(role=role, active=True).first()
-    return PrintJob.objects.create(role=role, printer=printer, title=title[:80], lines=lines)
+    return PrintJob.objects.create(role=role, printer=printer, title=title[:80], lines=lines, cuenta=cuenta)
 
 
 def _pair(left, right):
