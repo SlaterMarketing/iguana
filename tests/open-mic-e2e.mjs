@@ -92,6 +92,24 @@ async function checkPage(browser, entry, viewport) {
   // The checkout arrives in an iframe injected by k.js, so give it time to appear and settle.
   await page.waitForTimeout(3500);
 
+  // 🚨 A sold-out night is SHOWN, never skipped (owner, 2026-09-26): AGOTADO, the walk-in line, and a button to
+  // the next bookable night where the form was. That is the page working, so check the treatment and then
+  // follow the button, which is what a person does, and test the checkout on the night it leads to.
+  if (!page.frames().some((f) => f.url().includes("/embed/event/"))) {
+    const soldOut = await page.locator("body").innerText();
+    if (/AGOTADO|SOLD OUT/i.test(soldOut)) {
+      note(/no todos los que reservan|not everyone who reserves/i.test(soldOut), "sold-out night says no-shows free up seats");
+      const next = page.locator("a", { hasText: /reserva para|reserve for/i }).first();
+      note(await next.count() === 1, "sold-out night offers the next bookable night");
+      if (await next.count()) {
+        console.log(`        sold out, following "${(await next.innerText()).trim().replace(/\s+/g, " ")}"`);
+        await next.click();
+        await page.waitForSelector("iframe", { timeout: 20000 }).catch(() => {});
+        await page.waitForTimeout(3500);
+      }
+    }
+  }
+
   const frames = page.frames().filter((f) => f.url().includes("/embed/event/"));
   note(frames.length >= 1, `checkout iframe present (found ${frames.length})`);
 
