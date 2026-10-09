@@ -35,6 +35,12 @@ if (hasCredentials) {
       <p class="max-w-2xl text-lg text-neutral-600">
         {t(locale, "comedians.description")}
       </p>
+      <a
+        class="inline-flex min-h-11 items-center justify-center rounded-full bg-neutral-950 px-6 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-white hover:bg-brand-hover"
+        href={`/comic/?lang=${locale}`}
+      >
+        {t(locale, "comedians.become")}
+      </a>
     </div>
 
     {
@@ -54,5 +60,16 @@ if (hasCredentials) {
         </div>
       )
     }
+
+    <div class="mx-auto mt-24 max-w-2xl rounded-3xl bg-neutral-50 px-6 py-10 text-center">
+      <h2 class="font-display text-3xl text-neutral-950" style={`font-family: var(--font-display);`}>{t(locale, "comedians.become")}</h2>
+      <p class="mx-auto mt-4 max-w-xl text-neutral-700">{t(locale, "comedians.becomeBody")}</p>
+      <a
+        class="mt-6 inline-flex min-h-11 items-center justify-center rounded-full bg-neutral-950 px-6 py-3 text-xs font-semibold uppercase tracking-[0.25em] text-white hover:bg-brand-hover"
+        href={`/comic/?lang=${locale}`}
+      >
+        {t(locale, "comedians.becomeCta")}
+      </a>
+    </div>
   </section>
 </Base>
