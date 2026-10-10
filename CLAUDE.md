@@ -29,6 +29,7 @@ node tests/reserve-flow.mjs                          # reserve a seat through th
 node tests/full-sweep.mjs --staff mesero --pass "$(cat ~/.credentials/vpsorg/iguanacomedy/floor_password)"
 node tests/mobile-sweep.mjs --staff mesero --pass "$(cat ~/.credentials/vpsorg/iguanacomedy/floor_password)"  # the floor console at 320-430px
 node tests/open-mic-e2e.mjs [--base http://127.0.0.1:4321]   # the page the open mic ads point at, iframe included, with screenshots
+node tests/show-e2e.mjs --slug <slug> --price <MXN>    # a paid show: both languages, listings, checkout up to a LIVE Stripe refusal of 4242
 
 # Site (Node 20, see .node-version)
 npm install
@@ -155,6 +156,9 @@ pointing at Cloudflare IPs caused the old Error 1000); `iguanacomedy.mx` 301s to
 
 - `ansible/files/nginx.conf.j2` renders TLS blocks only for certificates that exist (`cert_sets`), so redeploys
   never strip HTTPS. nginx is 1.24: use `listen 443 ssl http2`, not `http2 on`.
+- 🚨 **The VM's disk is VPS.org's shared Ceph cluster.** If the site hangs with load climbing, 100% iowait and
+  processes in `D` state, the app is not the cause: check `ceph health` (2026-10-09, 21:05 to 21:30 UTC, one full
+  OSD froze every VPS.org guest; see `~/admin.vps.org/CLAUDE.md`). It recovers by itself once Ceph does.
 - Code is rsynced from the local checkout (not git-pulled). `backend/media/` syncs add-only so server uploads survive.
   To deploy exactly a commit while the working tree has other changes, deploy from a clean worktree:
   `git worktree add --detach /tmp/x HEAD && ansible-playbook deploy.yml -e repo_root=/tmp/x -e media_src=$PWD/../backend/media`.
@@ -245,6 +249,11 @@ email per night and locks the ticket types while booking, because nothing paid u
 
 The site finds the next bookable night per language by the `open-mic` tag (`src/lib/open-mics.ts`), skipping sold-out
 nights, and the home page keeps open mics out of its six event slots.
+🔑 **An open mic booking is offered the next paid show in that NIGHT's language** (owner, 2026-10-09): one line
+on the order page and in the confirmation email, `sales.sharing.paid_show_offer`, linked `?ref=om-thanks` /
+`?ref=om-email`. `k.js` saves `ref` on any order, and `/stats/` counts open mic bookers who later paid for a show
+by any route (per person) plus the link's own clicks and sales. Baseline when it shipped: 206 bookers, 0 had ever
+bought a paid show.
 🚨 **A sold-out open mic is SHOWN, never skipped, on the lander** (owner, 2026-09-26). The reservations are gone
 but the no-shows are not, so the lander (`upcomingOpenMics`), the cards and the event page draw the AGOTADO
 strip plus `walkInLine()` ("not everyone who reserves turns up, come when doors open") and offer the next bookable date. The
@@ -567,6 +576,13 @@ accepts Gmail's cookie-less one-click POST. Receipts and sign-in codes deliberat
   reloads directly after migrating.
 - Gunicorn reloads with `supervisorctl signal HUP`, never a hard restart; the site builds into `dist.next` and
   renames; `/_astro/` falls back to `dist.old` so a page open across a deploy still hydrates.
+
+**The checkout's reserved height is MEASURED, so re-measure it whenever the form changes** (Stripe settings, a
+field, the wallet row). `EventCheckoutWidget.astro` holds the with-wallet height per breakpoint; it was left at
+the Link-era 1230px for two weeks and held 450px of empty box before snapping shut. `k.js` keeps the reserve
+exactly until the checkout reports settled (card form AND wallet row drawn, 4s/10s fallbacks), never on a
+momentary overshoot. The event hero's photo layer is pinned to its first painted height, because it is cropped
+to cover the section the checkout sits in and every height change re-cropped it into a visible zoom.
 
 ### Data outside the repo
 
