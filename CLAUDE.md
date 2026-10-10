@@ -30,6 +30,11 @@ node tests/full-sweep.mjs --staff mesero --pass "$(cat ~/.credentials/vpsorg/igu
 node tests/mobile-sweep.mjs --staff mesero --pass "$(cat ~/.credentials/vpsorg/iguanacomedy/floor_password)"  # the floor console at 320-430px
 node tests/open-mic-e2e.mjs [--base http://127.0.0.1:4321]   # the page the open mic ads point at, iframe included, with screenshots
 node tests/show-e2e.mjs --slug <slug> --price <MXN>    # a paid show: both languages, listings, checkout up to a LIVE Stripe refusal of 4242
+node tests/comic-e2e.mjs [--submit --email <addr>]    # /comic/ layout 320 to 1280 in both languages; --submit leaves a submission to delete
+API_KEY=... node tests/pos-e2e.mjs                     # the POS; needs its throwaway fixtures (see the POS section)
+
+# Offline tests for the operator scripts (no network)
+python3 -m unittest discover -s scripts/tests -v
 
 # Site (Node 20, see .node-version)
 npm install
@@ -51,7 +56,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 cp config_example.py config.py   # DEBUG=True, SITE_URLS, PUBLIC_API_KEYS, EMAIL_BACKEND console for local
 .venv/bin/python manage.py migrate
 .venv/bin/python manage.py runserver 127.0.0.1:8000
-.venv/bin/python manage.py test api sales pos                                  # all backend tests (they live in api/ and pos/)
+.venv/bin/python manage.py test api crm pos                                   # all backend tests (api/, crm/, pos/; sales has none of its own)
 .venv/bin/python manage.py test api.tests.CheckoutTests.test_member_free_tickets_then_guest_discount  # one test
 
 # Data (one-off / re-runnable, fill blanks unless --overwrite)
